@@ -65,7 +65,7 @@ const Landing: React.FC = () => {
   useGSAP(() => {
     // Hero Entrance - High Precision Reveal
     const tl = gsap.timeline();
-    
+
     tl.from('.hero-badge', {
       y: -30,
       opacity: 0,
