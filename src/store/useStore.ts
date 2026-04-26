@@ -89,11 +89,15 @@ export const useStore = create<AuthState>()(
 
       updateCurrentUserFromSupabase: async (uid: string) => {
         try {
+          console.log('Running security checks for user:', uid);
           let supabaseUserData = await supabaseService.getUserData(uid);
+          
           if (supabaseUserData) {
+            // Check if admin status in DB matches what we might have locally
             if (supabaseUserData.isAdmin && !supabaseUserData.memberId) {
               supabaseUserData.memberId = await supabaseService.ensureUserHasMemberId(uid);
             }
+            
             const user: User = {
               id: uid,
               uid: uid,
@@ -110,10 +114,17 @@ export const useStore = create<AuthState>()(
               createdAt: supabaseUserData.createdAt,
               updatedAt: supabaseUserData.updatedAt,
             };
+            
             set({ currentUser: user });
+          } else {
+            // SECURITY CHECK FAILED: User record does not exist in the database
+            console.error('SECURITY ALERT: User record not found in database. Initiating auto-logout.');
+            await get().logout();
           }
         } catch (error) {
-          console.error('Error updating current user:', error);
+          console.error('Security Check Error:', error);
+          // If we can't verify the user, we should probably log them out to be safe
+          // but we'll wait for the next successful check unless it's a critical error
         }
       },
 

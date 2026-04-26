@@ -16,6 +16,8 @@ export default function App() {
     const unsubscribe = onAuthStateChange(async (user) => {
       if (user) {
         await updateCurrentUserFromSupabase(user.uid || user.id);
+      } else {
+        useStore.getState().setCurrentUser(null);
       }
       useStore.getState().setAuthInitialized(true);
     });
@@ -29,15 +31,15 @@ export default function App() {
     <>
       {!authInitialized && <LoadingOverlay />}
       <Router>
-      <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/dashboard" element={<UserDashboard />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/verify" element={<Verify />} />
-        <Route path="/verify/:id" element={<Verify />} />
-      </Routes>
-    </Router>
+        <Routes>
+          <Route path="/" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/dashboard" element={<UserDashboard />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/verify" element={<Verify />} />
+          <Route path="/verify/:id" element={<Verify />} />
+        </Routes>
+      </Router>
     </>
   );
 }
