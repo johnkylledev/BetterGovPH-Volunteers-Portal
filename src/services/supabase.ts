@@ -18,7 +18,7 @@ const mapToAppUser = (dbUser: any): User | null => {
     role: dbUser.role || 'Member',
     discordUsername: dbUser.discord_username || '',
     status: dbUser.status || 'Pending',
-    memberId: dbUser.member_id || undefined,
+    memberId: dbUser.member_id ? (dbUser.member_id.startsWith('BGPH-') ? dbUser.member_id : `BGPH-${dbUser.member_id}`) : undefined,
     adminNotes: dbUser.admin_notes,
     isAdmin: !!dbUser.is_admin,
     authProvider: (dbUser.auth_provider as 'traditional' | 'google') || 'google',
@@ -102,7 +102,7 @@ export const generateUniqueMemberId = async (selectedYear: number) => {
   });
 
   const nextSequence = maxSequence + 1;
-  return `${selectedYear}-${String(nextSequence).padStart(3, '0')}`;
+  return `BGPH-${selectedYear}-${String(nextSequence).padStart(3, '0')}`;
 };
 
 export const ensureUserHasMemberId = async (uid: string) => {
@@ -220,10 +220,13 @@ export const getUserByEmailAndPassword = async (email: string, _password?: strin
 };
 
 export const getUserByMemberIdOrId = async (id: string) => {
+  const cleanId = id.startsWith('BGPH-') ? id.replace('BGPH-', '') : id;
+  const prefixedId = id.startsWith('BGPH-') ? id : `BGPH-${id}`;
+
   const { data, error } = await supabase
     .from('users')
     .select('*')
-    .or(`uid.eq.${id},member_id.eq.${id}`)
+    .or(`uid.eq.${id},member_id.eq.${id},member_id.eq.${cleanId},member_id.eq.${prefixedId}`)
     .maybeSingle();
 
   if (error) throw error;

@@ -8,6 +8,7 @@ import { AccessCard } from '../../components/AccessCard';
 import clsx from 'clsx';
 import { User, ApplicationStatus } from '../../types';
 import { getAllUsers } from '../../services/supabase';
+import * as XLSX from 'xlsx';
 
 export default function AdminDashboard() {
   const { currentUser, users, logout, updateUserStatus, setUsers, authInitialized } = useStore();
@@ -81,7 +82,7 @@ export default function AdminDashboard() {
     }
 
     const res = await updateUserStatus(userId, status, adminNote);
-    
+
     if (res && (res as any).success) {
       setSelectedUser(null);
       setAdminNote('');
@@ -105,6 +106,46 @@ export default function AdminDashboard() {
     setTimeout(() => setCopyStatus('idle'), 2000);
   };
 
+  const exportToExcel = () => {
+    const listToExport = filteredApprovedMembers;
+
+    const data = listToExport.map(member => ({
+      'Full Name': member.fullName,
+      'Email': member.email,
+      'Member ID': member.memberId || 'N/A',
+      'Specialization': member.specialization || 'N/A',
+      'Role': member.role || 'Member',
+      'Discord Username': member.discordUsername || 'N/A',
+      'Year Joined': member.yearJoined || 'N/A',
+      'Status': member.status,
+      'Joined Date': new Date(member.createdAt).toLocaleDateString(),
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Approved Members');
+
+    // Fix column widths
+    const maxWidths = [
+      { wch: 30 }, // Full Name
+      { wch: 30 }, // Email
+      { wch: 15 }, // Member ID
+      { wch: 20 }, // Specialization
+      { wch: 15 }, // Role
+      { wch: 20 }, // Discord
+      { wch: 12 }, // Year Joined
+      { wch: 10 }, // Status
+      { wch: 15 }, // Joined Date
+    ];
+    worksheet['!cols'] = maxWidths;
+
+    const fileName = searchTerm
+      ? `BetterGovPH_Members_Filtered_${new Date().toISOString().split('T')[0]}.xlsx`
+      : `BetterGovPH_Approved_Members_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+    XLSX.writeFile(workbook, fileName);
+  };
+
   const filteredUsers = users
     .filter((u) => !u.isAdmin)
     .filter((user) => {
@@ -119,9 +160,18 @@ export default function AdminDashboard() {
     })
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  const approvedMembers = users
+  const filteredApprovedMembers = users
     .filter(u => !u.isAdmin && u.status === 'Approved')
+    .filter((user) => {
+      const matchesSearch =
+        user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (user.discordUsername && user.discordUsername.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (user.memberId && user.memberId.toLowerCase().includes(searchTerm.toLowerCase()));
+      return matchesSearch;
+    })
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
   const pendingCount = users.filter(u => !u.isAdmin && u.status === 'Pending').length;
   const approvedCount = users.filter(u => !u.isAdmin && u.status === 'Approved').length;
 
@@ -359,14 +409,37 @@ export default function AdminDashboard() {
               </>
             ) : (
               <>
-                <div className="p-6 border-b border-slate-100">
-                  <h2 className="text-lg font-bold text-slate-900">Approved Member Access Cards</h2>
-                  <p className="text-sm text-slate-500 mt-2">Active members are listed below, including their generated IDs.</p>
+                <div className="p-6 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">Approved Member Access Cards</h2>
+                    <p className="text-sm text-slate-500 mt-1">Active members are listed below, including their generated IDs.</p>
+                  </div>
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
+                    <div className="relative flex-1 lg:w-64">
+                      <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        placeholder="Search members..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                      />
+                    </div>
+                    {users.filter(u => !u.isAdmin && u.status === 'Approved').length > 0 && (
+                      <button
+                        onClick={exportToExcel}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white text-sm font-bold rounded-xl hover:bg-green-700 transition-all shadow-md shadow-green-900/10 active:scale-[0.98]"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>Export {searchTerm ? 'Filtered' : 'All'} to Excel</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
-                {approvedMembers.length === 0 ? (
+                {filteredApprovedMembers.length === 0 ? (
                   <div className="p-12 text-center text-slate-500">
                     <CreditCard className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                    <p>No approved members yet</p>
+                    <p>{searchTerm ? 'No members match your search' : 'No approved members yet'}</p>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -381,7 +454,7 @@ export default function AdminDashboard() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-sm">
-                        {approvedMembers.map((member) => (
+                        {filteredApprovedMembers.map((member) => (
                           <motion.tr
                             key={member.id}
                             initial={{ opacity: 0 }}
@@ -434,7 +507,16 @@ export default function AdminDashboard() {
             >
               <div className="w-full max-w-lg bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                  <h3 className="text-lg font-bold text-slate-900">Review Application</h3>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">Review Application</h3>
+                    {selectedUser.status === 'Approved' && selectedUser.memberId && (
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-md uppercase tracking-wider">
+                          Official ID: {selectedUser.memberId}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                   <button onClick={() => setSelectedUser(null)} className="text-slate-400 hover:text-slate-600">
                     <XCircle className="w-6 h-6" />
                   </button>
@@ -503,8 +585,8 @@ export default function AdminDashboard() {
                         onClick={() => handleStatusUpdate(selectedUser.id, 'Approved')}
                         className={clsx(
                           "px-6 py-2.5 text-white text-sm font-bold rounded-lg transition-all shadow-md flex items-center justify-center space-x-2",
-                          selectedUser.status === 'Declined' 
-                            ? "bg-green-600 hover:bg-green-700 shadow-green-900/10" 
+                          selectedUser.status === 'Declined'
+                            ? "bg-green-600 hover:bg-green-700 shadow-green-900/10"
                             : "bg-blue-900 hover:bg-blue-800 shadow-blue-900/10"
                         )}
                       >
