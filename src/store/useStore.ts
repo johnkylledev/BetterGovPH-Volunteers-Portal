@@ -117,8 +117,6 @@ export const useStore = create<AuthState>()(
             
             set({ currentUser: user });
           } else {
-            // SECURITY CHECK FAILED: User record does not exist in the database
-            console.error('SECURITY ALERT: User record not found in database. Initiating auto-logout.');
             await get().logout();
           }
         } catch (error) {
