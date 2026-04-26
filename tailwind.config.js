@@ -9,9 +9,9 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Quicksand', 'Nunito', 'sans-serif'],
-        display: ['Quicksand', 'Nunito', 'sans-serif'],
-        mono: ['Space Mono', 'monospace'],
+        sans: ['Geist', 'sans-serif'],
+        display: ['"Space Grotesk"', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'monospace'],
       },
       animation: {
         'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
