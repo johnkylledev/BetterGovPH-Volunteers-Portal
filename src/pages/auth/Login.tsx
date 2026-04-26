@@ -66,11 +66,11 @@ export default function Login() {
         animate={{ opacity: 1, y: 0 }}
         className="sm:mx-auto sm:w-full sm:max-w-md flex flex-col items-center"
       >
-        <div className="w-14 h-14 sm:w-16 sm:h-16 bg-blue-900 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/20 mb-4 sm:mb-6 p-3">
-          <img src="/logo.svg" alt="BetterGovPH Logo" className="w-full h-full object-contain brightness-0 invert" />
+        <div className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center mb-4 sm:mb-6">
+          <img src="/logo.svg" alt="BetterGovPH Logo" className="w-full h-full object-contain" />
         </div>
         <h2 className="mt-2 text-center text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 font-display">
-          BetterGovPH
+          BetterGovPH Developer Community
         </h2>
         <p className="mt-2 text-center text-sm text-slate-500">
           Sign in to access your portal

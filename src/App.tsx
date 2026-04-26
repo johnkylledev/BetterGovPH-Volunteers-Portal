@@ -5,6 +5,9 @@ import Register from "./pages/auth/Register";
 import UserDashboard from "./pages/dashboard/UserDashboard";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import Verify from "./pages/public/Verify";
+import Landing from "./pages/public/Landing";
+import Privacy from "./pages/public/Privacy";
+import Terms from "./pages/public/Terms";
 import { useStore } from "./store/useStore";
 import { onAuthStateChange } from "./services/supabase";
 import { LoadingOverlay } from "./components/LoadingOverlay";
@@ -34,12 +37,15 @@ export default function App() {
       {!authInitialized && !isEmbed && <LoadingOverlay />}
       <Router>
         <Routes>
-          <Route path="/" element={<Login />} />
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/dashboard" element={<UserDashboard />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/verify" element={<Verify />} />
           <Route path="/verify/:id" element={<Verify />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
         </Routes>
       </Router>
     </>

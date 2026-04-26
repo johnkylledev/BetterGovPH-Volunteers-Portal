@@ -7,9 +7,10 @@ import clsx from 'clsx';
 
 interface AccessCardProps {
   user: User;
+  isDemo?: boolean;
 }
 
-export const AccessCard: React.FC<AccessCardProps> = ({ user }) => {
+export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
   const navigate = useNavigate();
   const boundingRef = useRef<HTMLDivElement>(null);
   const mouseX = useSpring(useMotionValue(0), { stiffness: 400, damping: 30 });
@@ -53,8 +54,11 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user }) => {
         }}
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
-        onClick={() => navigate(`/verify/${user.memberId || user.id}`)}
-        className="relative w-[300px] aspect-[1/1.5] rounded-xl p-5 flex flex-col items-center overflow-hidden shadow-2xl shadow-blue-900/40 cursor-pointer border border-blue-400/20"
+        onClick={() => !isDemo && navigate(`/verify/${user.memberId || user.id}`)}
+        className={clsx(
+          "relative w-[300px] aspect-[1/1.5] rounded-xl p-5 flex flex-col items-center overflow-hidden shadow-2xl shadow-blue-900/40 border border-blue-400/20",
+          !isDemo ? "cursor-pointer" : "cursor-default"
+        )}
       >
         {/* Subtle Noise Texture */}
         <div className="absolute inset-0 opacity-[0.04] mix-blend-overlay pointer-events-none"

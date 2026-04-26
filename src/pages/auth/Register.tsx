@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, ChevronDown, Check } from 'lucide-react';
+import { Calendar, ChevronDown, Check, MessageSquare } from 'lucide-react';
 import clsx from 'clsx';
 
 const SPECIALIZATIONS = ['Developer', 'Designer', 'Researcher', 'Contributor', 'Volunteer', 'Other'];
@@ -106,8 +106,8 @@ export default function Register() {
         animate={{ opacity: 1, y: 0 }}
         className="sm:mx-auto sm:w-full sm:max-w-xl flex flex-col items-center"
       >
-        <div className="w-12 h-12 bg-blue-900 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-900/20 mb-4 p-2">
-          <img src="/logo.svg" alt="BetterGovPH Logo" className="w-full h-full object-contain brightness-0 invert" />
+        <div className="w-12 h-12 flex items-center justify-center mb-4">
+          <img src="/logo.svg" alt="BetterGovPH Logo" className="w-full h-full object-contain" />
         </div>
         <h2 className="mt-2 text-center text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 font-display">
           Apply for Access
@@ -124,6 +124,21 @@ export default function Register() {
         className="mt-8 sm:mx-auto sm:w-full sm:max-w-xl"
       >
         <div className="bg-white py-8 px-4 shadow-sm sm:rounded-xl sm:px-10 border sm:border-slate-100">
+          <div className="mb-6 p-4 rounded-xl bg-blue-50 border border-blue-100 flex items-start gap-3">
+            <div className="p-2 bg-white rounded-lg shadow-sm shrink-0">
+              <MessageSquare size={18} className="text-blue-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-blue-900 mb-1">Discord Community Required</p>
+              <p className="text-xs text-blue-700 leading-relaxed">
+                You must be part of the Discord community to get approved.
+                <a href="https://discord.com/invite/mHtThpN8bT" target="_blank" rel="noopener noreferrer" className="ml-1 font-bold underline hover:text-blue-800 transition-colors">
+                  Join here: https://discord.com/invite/mHtThpN8bT
+                </a>
+              </p>
+            </div>
+          </div>
+
           <form className="space-y-6" onSubmit={handleSubmit}>
             {error && (
               <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm font-medium border border-red-100">
@@ -324,7 +339,7 @@ export default function Register() {
           <div className="mt-6 text-center">
             <p className="text-sm text-slate-600">
               Already registered?{' '}
-              <Link to="/" className="font-semibold text-blue-900 hover:text-blue-700">
+              <Link to="/login" className="font-semibold text-blue-900 hover:text-blue-700">
                 Log in here
               </Link>
             </p>
