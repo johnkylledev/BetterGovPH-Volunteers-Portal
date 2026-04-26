@@ -7,7 +7,7 @@ import clsx from 'clsx';
 import { motion } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 import html2canvas from 'html2canvas';
-import { getUserByMemberIdOrId } from '../../services/firebase';
+import { getUserByMemberIdOrId } from '../../services/supabase';
 import { AccessCard } from '../../components/AccessCard';
 
 export default function Verify() {

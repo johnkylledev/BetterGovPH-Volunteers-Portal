@@ -7,7 +7,7 @@ import html2canvas from 'html2canvas';
 import { AccessCard } from '../../components/AccessCard';
 import clsx from 'clsx';
 import { User, ApplicationStatus } from '../../types';
-import { getAllUsers } from '../../services/firebase';
+import { getAllUsers } from '../../services/supabase';
 
 export default function AdminDashboard() {
   const { currentUser, users, logout, updateUserStatus, setUsers, authInitialized } = useStore();
@@ -46,6 +46,7 @@ export default function AdminDashboard() {
           discordUsername: user.discordUsername || '',
           status: (user.status as ApplicationStatus) || 'Pending',
           memberId: user.memberId,
+          yearJoined: user.yearJoined,
           adminNotes: user.adminNotes,
           isAdmin: !!user.isAdmin,
           createdAt: user.createdAt || new Date().toISOString(),
@@ -73,9 +74,20 @@ export default function AdminDashboard() {
       alert('Cannot change status of an already approved member.');
       return;
     }
-    await updateUserStatus(userId, status, adminNote);
-    setSelectedUser(null);
-    setAdminNote('');
+
+    if (user && user.status === 'Declined' && status === 'Approved') {
+      const confirmApproval = window.confirm(`Are you sure you want to approve ${user.fullName}? This user was recently declined.`);
+      if (!confirmApproval) return;
+    }
+
+    const res = await updateUserStatus(userId, status, adminNote);
+    
+    if (res && (res as any).success) {
+      setSelectedUser(null);
+      setAdminNote('');
+    } else {
+      alert(`Failed to update database: ${(res as any)?.message || 'Unknown error'}. Please check if the user exists in Supabase.`);
+    }
   };
 
   const handleCopyLink = (user: User) => {
@@ -126,7 +138,7 @@ export default function AdminDashboard() {
             <div className="flex items-center space-x-2 sm:space-x-4">
               <button
                 onClick={() => setShowMyCard(true)}
-                className="inline-flex items-center gap-2 px-3 py-2 text-sm font-bold text-blue-900 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors"
+                className="inline-flex items-center gap-2 px-3 py-2 text-sm font-bold text-blue-900 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
               >
                 <CreditCard className="w-4 h-4" />
                 <span className="hidden sm:inline">My Card</span>
@@ -138,7 +150,7 @@ export default function AdminDashboard() {
               </div>
               <button
                 onClick={handleLogout}
-                className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                 title="Logout"
               >
                 <LogOut className="w-5 h-5" />
@@ -195,7 +207,7 @@ export default function AdminDashboard() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 flex flex-col lg:grid lg:grid-cols-[280px_minmax(0,1fr)] gap-8">
         <aside className="space-y-6 hidden lg:block">
-          <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
             <div className="px-6 py-5 border-b border-slate-100">
               <p className="text-xs uppercase tracking-[0.2em] text-slate-400 font-semibold">Administrator</p>
               <h2 className="mt-3 text-xl font-bold text-slate-900">{currentUser.fullName}</h2>
@@ -207,11 +219,11 @@ export default function AdminDashboard() {
                 <p className="mt-2 font-mono text-slate-900">{currentUser.memberId || 'No ID assigned'}</p>
               </div>
               <div className="grid gap-3">
-                <div className="rounded-xl bg-slate-50 border border-slate-200 p-4">
+                <div className="rounded-lg bg-slate-50 border border-slate-200 p-4">
                   <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Role</p>
                   <p className="mt-2 text-sm font-semibold text-slate-900">{currentUser.role}</p>
                 </div>
-                <div className="rounded-xl bg-slate-50 border border-slate-200 p-4">
+                <div className="rounded-lg bg-slate-50 border border-slate-200 p-4">
                   <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Applicants</p>
                   <p className="mt-2 text-3xl font-bold text-slate-900">{users.filter((u) => !u.isAdmin).length}</p>
                 </div>
@@ -222,8 +234,8 @@ export default function AdminDashboard() {
 
         <section className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 flex items-center gap-4">
-              <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+            <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-5 flex items-center gap-4">
+              <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
                 <Users className="w-6 h-6" />
               </div>
               <div>
@@ -231,8 +243,8 @@ export default function AdminDashboard() {
                 <p className="mt-2 text-2xl font-bold text-slate-900">{users.filter((u) => !u.isAdmin).length}</p>
               </div>
             </div>
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 flex items-center gap-4">
-              <div className="p-3 bg-yellow-50 text-yellow-600 rounded-xl">
+            <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-5 flex items-center gap-4">
+              <div className="p-3 bg-yellow-50 text-yellow-600 rounded-lg">
                 <Clock className="w-6 h-6" />
               </div>
               <div>
@@ -240,8 +252,8 @@ export default function AdminDashboard() {
                 <p className="mt-2 text-2xl font-bold text-slate-900">{pendingCount}</p>
               </div>
             </div>
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 flex items-center gap-4">
-              <div className="p-3 bg-green-50 text-green-600 rounded-xl">
+            <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-5 flex items-center gap-4">
+              <div className="p-3 bg-green-50 text-green-600 rounded-lg">
                 <Key className="w-6 h-6" />
               </div>
               <div>
@@ -251,7 +263,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
             {activeTab === 'applications' ? (
               <>
                 <div className="p-6 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -267,7 +279,7 @@ export default function AdminDashboard() {
                         placeholder="Search applicants..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
                       />
                     </div>
                     <div className="relative w-full sm:w-auto">
@@ -275,7 +287,7 @@ export default function AdminDashboard() {
                       <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value as ApplicationStatus | 'All')}
-                        className="w-full sm:w-48 pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
+                        className="w-full sm:w-48 pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
                       >
                         <option value="All">All Statuses</option>
                         <option value="Pending">Pending</option>
@@ -420,7 +432,7 @@ export default function AdminDashboard() {
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="fixed inset-0 z-50 flex items-center justify-center p-4"
             >
-              <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="w-full max-w-lg bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                   <h3 className="text-lg font-bold text-slate-900">Review Application</h3>
                   <button onClick={() => setSelectedUser(null)} className="text-slate-400 hover:text-slate-600">
@@ -454,6 +466,10 @@ export default function AdminDashboard() {
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Role Request</p>
                       <p className="text-sm font-semibold text-slate-900">{selectedUser.role}</p>
                     </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Member Since</p>
+                      <p className="text-sm font-semibold text-slate-900">{selectedUser.yearJoined || 'N/A'}</p>
+                    </div>
                   </div>
 
                   <div className="mb-2">
@@ -462,30 +478,38 @@ export default function AdminDashboard() {
                       value={adminNote}
                       onChange={(e) => setAdminNote(e.target.value)}
                       placeholder="Add notes for the applicant..."
-                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 resize-none h-24 transition-all"
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 resize-none h-24 transition-all"
                     />
                   </div>
                 </div>
 
                 <div className="p-6 border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row justify-end gap-3">
                   {selectedUser.status === 'Approved' ? (
-                    <div className="text-sm font-semibold text-slate-600 px-4 py-2.5">
-                      ✓ Already Approved - Cannot modify
+                    <div className="flex items-center gap-2 text-sm font-bold text-green-600 px-4 py-2.5 bg-green-50 rounded-lg border border-green-100">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Member Approved</span>
                     </div>
                   ) : (
                     <>
-                      <button
-                        onClick={() => handleStatusUpdate(selectedUser.id, 'Declined')}
-                        className="px-6 py-2.5 bg-white border border-red-200 text-red-600 text-sm font-bold rounded-xl hover:bg-red-50 hover:border-red-300 transition-colors shadow-sm"
-                      >
-                        Decline
-                      </button>
+                      {selectedUser.status !== 'Declined' && (
+                        <button
+                          onClick={() => handleStatusUpdate(selectedUser.id, 'Declined')}
+                          className="px-6 py-2.5 bg-white border border-red-200 text-red-600 text-sm font-bold rounded-lg hover:bg-red-50 hover:border-red-300 transition-colors shadow-sm"
+                        >
+                          Decline
+                        </button>
+                      )}
                       <button
                         onClick={() => handleStatusUpdate(selectedUser.id, 'Approved')}
-                        className="px-6 py-2.5 bg-blue-900 text-white text-sm font-bold rounded-xl hover:bg-blue-800 transition-colors shadow-md flex items-center space-x-2"
+                        className={clsx(
+                          "px-6 py-2.5 text-white text-sm font-bold rounded-lg transition-all shadow-md flex items-center justify-center space-x-2",
+                          selectedUser.status === 'Declined' 
+                            ? "bg-green-600 hover:bg-green-700 shadow-green-900/10" 
+                            : "bg-blue-900 hover:bg-blue-800 shadow-blue-900/10"
+                        )}
                       >
                         <CheckCircle2 className="w-4 h-4" />
-                        <span>Approve & Generate ID</span>
+                        <span>{selectedUser.status === 'Declined' ? 'Re-approve & Generate ID' : 'Approve & Generate ID'}</span>
                       </button>
                     </>
                   )}
@@ -509,7 +533,7 @@ export default function AdminDashboard() {
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4"
             >
-              <div className="w-full max-w-lg bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200 flex flex-col max-h-[95vh] sm:max-h-[90vh]">
+              <div className="w-full max-w-lg bg-white rounded-xl shadow-2xl border border-slate-200 flex flex-col max-h-[95vh] sm:max-h-[90vh]">
                 <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 flex-shrink-0">
                   <div>
                     <h3 className="text-base sm:text-lg font-bold text-slate-900">My Access Card</h3>
@@ -517,7 +541,7 @@ export default function AdminDashboard() {
                   </div>
                   <button
                     onClick={() => setShowMyCard(false)}
-                    className="p-1.5 sm:p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
+                    className="p-1.5 sm:p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
                   >
                     <XCircle className="w-5 h-5 sm:w-6 sm:h-6" />
                   </button>
@@ -529,14 +553,14 @@ export default function AdminDashboard() {
                   <div className="w-full flex flex-col gap-3 pb-4">
                     <button
                       onClick={() => handleCopyLink(currentUser)}
-                      className="flex items-center justify-center gap-2 w-full py-4 bg-blue-900 text-white rounded-2xl font-bold text-sm hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/20"
+                      className="flex items-center justify-center gap-2 w-full py-4 bg-blue-900 text-white rounded-xl font-bold text-sm hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/20"
                     >
                       {copyStatus === 'copied' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                       {copyStatus === 'copied' ? 'Link Copied' : 'Copy Public Link'}
                     </button>
                     <button
                       onClick={() => handleCopyEmbed(currentUser)}
-                      className="flex items-center justify-center gap-2 w-full py-4 bg-white border border-slate-200 text-slate-700 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-all shadow-sm"
+                      className="flex items-center justify-center gap-2 w-full py-4 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all shadow-sm"
                     >
                       {copyStatus === 'embed-copied' ? <Check className="w-4 h-4" /> : <Code className="w-4 h-4" />}
                       {copyStatus === 'embed-copied' ? 'Embed Copied' : 'Copy Embed Code'}
@@ -562,7 +586,7 @@ export default function AdminDashboard() {
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4"
             >
-              <div className="w-full max-w-lg bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200 flex flex-col max-h-[95vh] sm:max-h-[90vh]">
+              <div className="w-full max-w-lg bg-white rounded-xl shadow-2xl border border-slate-200 flex flex-col max-h-[95vh] sm:max-h-[90vh]">
                 <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 flex-shrink-0">
                   <div>
                     <h3 className="text-base sm:text-lg font-bold text-slate-900">Member Access Card</h3>
@@ -570,7 +594,7 @@ export default function AdminDashboard() {
                   </div>
                   <button
                     onClick={() => setSelectedMember(null)}
-                    className="p-1.5 sm:p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
+                    className="p-1.5 sm:p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
                   >
                     <XCircle className="w-5 h-5 sm:w-6 sm:h-6" />
                   </button>
@@ -582,14 +606,14 @@ export default function AdminDashboard() {
                   <div className="w-full flex flex-col gap-3 pb-4">
                     <button
                       onClick={() => handleCopyLink(selectedMember)}
-                      className="flex items-center justify-center gap-2 w-full py-4 bg-blue-900 text-white rounded-2xl font-bold text-sm hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/20"
+                      className="flex items-center justify-center gap-2 w-full py-4 bg-blue-900 text-white rounded-xl font-bold text-sm hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/20"
                     >
                       {copyStatus === 'copied' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                       {copyStatus === 'copied' ? 'Link Copied' : 'Copy Public Link'}
                     </button>
                     <button
                       onClick={() => handleCopyEmbed(selectedMember)}
-                      className="flex items-center justify-center gap-2 w-full py-4 bg-white border border-slate-200 text-slate-700 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-all shadow-sm"
+                      className="flex items-center justify-center gap-2 w-full py-4 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all shadow-sm"
                     >
                       {copyStatus === 'embed-copied' ? <Check className="w-4 h-4" /> : <Code className="w-4 h-4" />}
                       {copyStatus === 'embed-copied' ? 'Embed Copied' : 'Copy Embed Code'}

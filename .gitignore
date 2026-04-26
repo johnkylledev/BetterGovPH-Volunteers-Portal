@@ -1,5 +1,7 @@
+# =========================
 # Logs
-logs
+# =========================
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -7,18 +9,102 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# =========================
+# Dependencies
+# =========================
+node_modules/
+jspm_packages/
+.pnp
+.pnp.js
 
-# Editor directories and files
+# =========================
+# Build / Production
+# =========================
+dist/
+dist-ssr/
+build/
+out/
+coverage/
+.next/
+.nuxt/
+.svelte-kit/
+.vercel/
+.netlify/
+
+# =========================
+# Environment Variables (IMPORTANT)
+# =========================
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# =========================
+# Local Config Files
+# =========================
+*.local
+*.tmp
+*.temp
+.cache/
+.tmp/
+
+# =========================
+# OS Files
+# =========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =========================
+# IDE / Editors
+# =========================
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
+.idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*.bak
+*.orig
+
+# =========================
+# Security Sensitive Files
+# =========================
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.cer
+*.pub
+id_rsa
+id_dsa
+*.sqlite
+*.db
+*.db-journal
+
+# =========================
+# Package Managers
+# =========================
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Uncomment ONLY if you don't want lock files tracked
+# (usually better to keep them tracked)
+
+# =========================
+# Misc
+# =========================
+*.zip
+*.tar
+*.gz
+*.rar
+*.7z
+
+# Temporary generated files
+*.pid
+*.seed
+*.pid.lock

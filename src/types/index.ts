@@ -15,6 +15,7 @@ export interface User {
   adminNotes?: string;
   isAdmin: boolean;
   authProvider?: 'traditional' | 'google';
+  yearJoined?: number;
   createdAt: string;
   updatedAt?: string;
 }

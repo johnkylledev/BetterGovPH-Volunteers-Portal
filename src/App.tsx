@@ -6,23 +6,22 @@ import UserDashboard from "./pages/dashboard/UserDashboard";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import Verify from "./pages/public/Verify";
 import { useStore } from "./store/useStore";
-import { auth } from "./services/firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChange } from "./services/supabase";
 import { LoadingOverlay } from "./components/LoadingOverlay";
 
 export default function App() {
-  const { updateCurrentUserFromFirebase } = useStore();
+  const { updateCurrentUserFromSupabase } = useStore();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        await updateCurrentUserFromFirebase(firebaseUser.uid);
+    const unsubscribe = onAuthStateChange(async (user) => {
+      if (user) {
+        await updateCurrentUserFromSupabase(user.uid || user.id);
       }
       useStore.getState().setAuthInitialized(true);
     });
 
     return () => unsubscribe();
-  }, [updateCurrentUserFromFirebase]);
+  }, [updateCurrentUserFromSupabase]);
 
   const { authInitialized } = useStore();
 

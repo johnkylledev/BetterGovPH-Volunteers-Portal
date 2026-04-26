@@ -1,20 +1,19 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User, ApplicationStatus } from '../types';
-import * as firebaseService from '../services/firebase';
+import * as supabaseService from '../services/supabase';
 
 interface AuthState {
   users: User[];
   currentUser: User | null;
   register: (user: Omit<User, 'id' | 'uid' | 'status' | 'isAdmin' | 'createdAt' | 'updatedAt'> & { authProvider?: 'traditional' | 'google' }) => Promise<{ success: boolean; message: string }>;
   login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
-  loginWithGoogle: (googleUser: any) => Promise<{ success: boolean; message: string; user?: User; needsProfile?: boolean }>;
   logout: () => void;
-  updateUserStatus: (id: string, status: ApplicationStatus, notes?: string) => Promise<void>;
+  updateUserStatus: (id: string, status: ApplicationStatus, notes?: string) => Promise<{ success: boolean; message?: string }>;
   generateMemberId: (userId: string) => void;
   setUsers: (users: User[]) => void;
   setCurrentUser: (user: User | null) => void;
-  updateCurrentUserFromFirebase: (uid: string) => Promise<void>;
+  updateCurrentUserFromSupabase: (uid: string) => Promise<void>;
   authInitialized: boolean;
   setAuthInitialized: (val: boolean) => void;
 }
@@ -40,11 +39,12 @@ export const useStore = create<AuthState>()(
         }
 
         try {
-          const authUser = await firebaseService.registerWithEmailPassword(userData);
+          const authUser = await supabaseService.registerWithEmailPassword(userData);
           const newUser: User = {
             ...userData,
             id: authUser.uid,
             uid: authUser.uid,
+            yearJoined: userData.yearJoined,
             status: 'Pending',
             isAdmin: false,
             authProvider: userData.authProvider || 'traditional',
@@ -60,90 +60,22 @@ export const useStore = create<AuthState>()(
       },
 
       login: async (email, password) => {
-        const state = get();
-        const user = state.users.find((u) => u.email === email && u.password === password);
-        if (user) {
-          set({ currentUser: user });
-          return { success: true, message: 'Login successful.' };
-        }
-
         try {
-          const userFromDb = await firebaseService.getUserByEmailAndPassword(email, password);
-          if (userFromDb) {
-            const normalizedUser: User = {
-              id: userFromDb.id,
-              uid: userFromDb.uid || userFromDb.id,
-              fullName: userFromDb.fullName || '',
-              email: userFromDb.email || '',
-              password: userFromDb.password,
-              photoURL: userFromDb.photoURL,
-              specialization: userFromDb.specialization || '',
-              role: userFromDb.role || 'Member',
-              discordUsername: userFromDb.discordUsername || '',
-              status: (userFromDb.status as ApplicationStatus) || 'Pending',
-              memberId: userFromDb.memberId || undefined,
-              adminNotes: userFromDb.adminNotes,
-              isAdmin: !!userFromDb.isAdmin,
-              createdAt: userFromDb.createdAt || new Date().toISOString(),
-              updatedAt: userFromDb.updatedAt,
-            };
-            set({ currentUser: normalizedUser, users: [...state.users, normalizedUser] });
+          const authUser = await supabaseService.signInWithEmailPassword(email, password);
+          if (authUser) {
+            await get().updateCurrentUserFromSupabase(authUser.id);
             return { success: true, message: 'Login successful.' };
           }
-        } catch (error) {
-          console.error('Firebase login fallback error:', error);
-        }
-
-        return { success: false, message: 'Invalid credentials.' };
-      },
-
-      loginWithGoogle: async (googleUser: any) => {
-        try {
-          const firebaseUser = await firebaseService.signInWithGoogle();
-          let firebaseUserData = await firebaseService.getUserData(firebaseUser.uid, firebaseUser.email || undefined);
-
-          if (firebaseUserData) {
-            if (firebaseUserData.isAdmin && !firebaseUserData.memberId) {
-              firebaseUserData.memberId = await firebaseService.ensureUserHasMemberId(firebaseUserData.id || firebaseUser.uid);
-            }
-
-            const needsProfile = !firebaseUserData.discordUsername || !firebaseUserData.specialization;
-            const user: User = {
-              id: firebaseUserData.id || firebaseUser.uid,
-              uid: firebaseUserData.uid || firebaseUser.uid,
-              fullName: firebaseUserData.fullName || firebaseUser.displayName || '',
-              email: firebaseUserData.email || firebaseUser.email || '',
-              photoURL: firebaseUserData.photoURL || firebaseUser.photoURL || '',
-              role: firebaseUserData.role || 'Member',
-              status: firebaseUserData.status || 'Pending',
-              isAdmin: !!firebaseUserData.isAdmin,
-              authProvider: firebaseUserData.authProvider || 'google',
-              specialization: firebaseUserData.specialization || '',
-              discordUsername: firebaseUserData.discordUsername || '',
-              memberId: firebaseUserData.memberId || undefined,
-              createdAt: firebaseUserData.createdAt || new Date().toISOString(),
-              updatedAt: firebaseUserData.updatedAt,
-            };
-            
-            set({ currentUser: user });
-            return {
-              success: true,
-              message: 'Google login successful.',
-              user,
-              needsProfile,
-            };
-          }
-          
-          return { success: false, message: 'Failed to retrieve user data.' };
+          return { success: false, message: 'Invalid credentials.' };
         } catch (error: any) {
-          console.error('Google login error:', error);
-          return { success: false, message: error.message || 'Google login failed.' };
+          console.error('Login error:', error);
+          return { success: false, message: error.message || 'Invalid credentials.' };
         }
       },
 
       logout: async () => {
         try {
-          await firebaseService.signOut();
+          await supabaseService.signOut();
           set({ currentUser: null, users: [] });
         } catch (error) {
           console.error('Logout error:', error);
@@ -155,27 +87,28 @@ export const useStore = create<AuthState>()(
         set({ currentUser: user });
       },
 
-      updateCurrentUserFromFirebase: async (uid: string) => {
+      updateCurrentUserFromSupabase: async (uid: string) => {
         try {
-          let firebaseUserData = await firebaseService.getUserData(uid);
-          if (firebaseUserData) {
-            if (firebaseUserData.isAdmin && !firebaseUserData.memberId) {
-              firebaseUserData.memberId = await firebaseService.ensureUserHasMemberId(uid);
+          let supabaseUserData = await supabaseService.getUserData(uid);
+          if (supabaseUserData) {
+            if (supabaseUserData.isAdmin && !supabaseUserData.memberId) {
+              supabaseUserData.memberId = await supabaseService.ensureUserHasMemberId(uid);
             }
             const user: User = {
               id: uid,
               uid: uid,
-              fullName: firebaseUserData.fullName || '',
-              email: firebaseUserData.email || '',
-              photoURL: firebaseUserData.photoURL || '',
-              role: firebaseUserData.role || 'Member',
-              status: firebaseUserData.status || 'Pending',
-              isAdmin: firebaseUserData.isAdmin || false,
-              specialization: firebaseUserData.specialization || '',
-              discordUsername: firebaseUserData.discordUsername || '',
-              memberId: firebaseUserData.memberId || undefined,
-              createdAt: firebaseUserData.createdAt,
-              updatedAt: firebaseUserData.updatedAt,
+              fullName: supabaseUserData.fullName || '',
+              email: supabaseUserData.email || '',
+              photoURL: supabaseUserData.photoURL || '',
+              role: supabaseUserData.role || 'Member',
+              status: supabaseUserData.status || 'Pending',
+              isAdmin: supabaseUserData.isAdmin || false,
+              specialization: supabaseUserData.specialization || '',
+              discordUsername: supabaseUserData.discordUsername || '',
+              memberId: supabaseUserData.memberId || undefined,
+              yearJoined: supabaseUserData.yearJoined,
+              createdAt: supabaseUserData.createdAt,
+              updatedAt: supabaseUserData.updatedAt,
             };
             set({ currentUser: user });
           }
@@ -185,34 +118,31 @@ export const useStore = create<AuthState>()(
       },
 
       updateUserStatus: async (id, status, notes) => {
-        let generatedMemberId: string | undefined;
+        try {
+          const generatedMemberId = await supabaseService.updateUserStatus(id, status, notes);
 
-        if (id.length > 10) {
-          try {
-            generatedMemberId = await firebaseService.updateUserStatus(id, status);
-          } catch (err) {
-            console.error('Error updating Firebase:', err);
-          }
-        }
-
-        set((state) => {
-          const updatedUsers = state.users.map((u) => {
-            if (u.id === id) {
-              const updated = { ...u, status, adminNotes: notes || u.adminNotes };
-              if (status === 'Approved' && !updated.memberId) {
-                updated.memberId = generatedMemberId || generateMemberCode();
+          set((state) => {
+            const updatedUsers = state.users.map((u) => {
+              if (u.id === id) {
+                const updated = { ...u, status, adminNotes: notes || u.adminNotes };
+                if (status === 'Approved' && !updated.memberId) {
+                  updated.memberId = generatedMemberId || generateMemberCode();
+                }
+                return updated;
               }
-              return updated;
-            }
-            return u;
+              return u;
+            });
+            const isCurrentUser = state.currentUser?.id === id;
+            return {
+              users: updatedUsers,
+              currentUser: isCurrentUser ? updatedUsers.find((u) => u.id === id) : state.currentUser,
+            };
           });
-
-          const isCurrentUser = state.currentUser?.id === id;
-          return {
-            users: updatedUsers,
-            currentUser: isCurrentUser ? updatedUsers.find((u) => u.id === id) : state.currentUser,
-          };
-        });
+          return { success: true };
+        } catch (err: any) {
+          console.error('Error updating user status:', err);
+          return { success: false, message: err.message };
+        }
       },
 
       generateMemberId: (userId) => {

@@ -95,7 +95,7 @@ export default function UserDashboard() {
       </nav>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-0 sm:px-6 lg:px-8 py-6 sm:py-12">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
 
           {/* Left Column: Status and Info */}
@@ -103,11 +103,11 @@ export default function UserDashboard() {
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-white sm:rounded-3xl p-6 sm:p-8 shadow-sm border-y sm:border border-slate-100"
+              className="bg-white sm:rounded-xl p-6 sm:p-8 shadow-sm border-y sm:border border-slate-100"
             >
               <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-4 sm:mb-6">Application Status</h2>
               <div className={clsx(
-                "flex items-start sm:items-center space-x-4 p-4 rounded-xl sm:rounded-2xl border",
+                "flex items-start sm:items-center space-x-4 p-4 rounded-lg sm:rounded-xl border",
                 currentUser.status === 'Approved' ? 'bg-green-50 border-green-100' :
                   currentUser.status === 'Declined' ? 'bg-red-50 border-red-100' :
                     'bg-yellow-50 border-yellow-100'
@@ -124,7 +124,7 @@ export default function UserDashboard() {
               </div>
 
               {currentUser.adminNotes && (
-                <div className="mt-4 p-4 bg-slate-50 rounded-xl sm:rounded-2xl border border-slate-100">
+                <div className="mt-4 p-4 bg-slate-50 rounded-lg sm:rounded-xl border border-slate-100">
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Admin Notes</p>
                   <p className="text-sm text-slate-700 leading-relaxed">{currentUser.adminNotes}</p>
                 </div>
@@ -135,7 +135,7 @@ export default function UserDashboard() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="bg-white sm:rounded-3xl p-6 sm:p-8 shadow-sm border-y sm:border border-slate-100"
+              className="bg-white sm:rounded-xl p-6 sm:p-8 shadow-sm border-y sm:border border-slate-100"
             >
               <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-4 sm:mb-6">Profile Information</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 sm:gap-x-8">
@@ -158,6 +158,10 @@ export default function UserDashboard() {
                 <div>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Role</p>
                   <p className="text-sm font-medium text-slate-900">{currentUser.role}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Member Since</p>
+                  <p className="text-sm font-medium text-slate-900">{currentUser.yearJoined || '-'}</p>
                 </div>
                 {currentUser.memberId && (
                   <div>
@@ -212,7 +216,7 @@ export default function UserDashboard() {
                   <div className="flex flex-col gap-3">
                     <button
                       onClick={handleCopyLink}
-                      className="flex items-center justify-center gap-2 w-full py-4 bg-blue-900 text-white rounded-2xl font-bold text-sm hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/20 active:scale-[0.98]"
+                      className="flex items-center justify-center gap-2 w-full py-4 bg-blue-900 text-white rounded-xl font-bold text-sm hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/20 active:scale-[0.98]"
                     >
                       {copyStatus === 'copied' ? (
                         <>
@@ -228,7 +232,7 @@ export default function UserDashboard() {
                     </button>
                     <button
                       onClick={handleCopyEmbed}
-                      className="flex items-center justify-center gap-2 w-full py-4 bg-white border border-slate-200 text-slate-700 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-all shadow-sm active:scale-[0.98]"
+                      className="flex items-center justify-center gap-2 w-full py-4 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all shadow-sm active:scale-[0.98]"
                     >
                       {copyStatus === 'embed-copied' ? (
                         <>

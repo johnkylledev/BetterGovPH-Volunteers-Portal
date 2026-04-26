@@ -54,7 +54,7 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user }) => {
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         onClick={() => navigate(`/verify/${user.memberId || user.id}`)}
-        className="relative w-[300px] aspect-[1/1.5] rounded-[20px] p-5 flex flex-col items-center overflow-hidden shadow-2xl shadow-blue-900/40 cursor-pointer border border-blue-400/20"
+        className="relative w-[300px] aspect-[1/1.5] rounded-xl p-5 flex flex-col items-center overflow-hidden shadow-2xl shadow-blue-900/40 cursor-pointer border border-blue-400/20"
       >
         {/* Subtle Noise Texture */}
         <div className="absolute inset-0 opacity-[0.04] mix-blend-overlay pointer-events-none"
@@ -115,7 +115,7 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user }) => {
 
         {/* Header - Government Format */}
         <div className="relative z-10 flex flex-col items-center w-full" style={{ transform: 'translateZ(20px)' }}>
-          <div className="h-9 w-9 mb-1">
+          <div className="h-12 w-12 mb-2">
             <svg id="Design" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" className="w-full h-full fill-white" preserveAspectRatio="xMidYMid meet">
               <path d="M156,730.55a14.49,14.49,0,0,0,6.12-4.75,13.69,13.69,0,0,0,2.56-6.55,14.34,14.34,0,0,0-.92-6.94l.53-.24a14.79,14.79,0,0,0,7.34,5.61,12.19,12.19,0,0,0,9.09-.58,13.48,13.48,0,0,0,8-9.16q1.76-6.42-2.32-15.68l-10.09-22.9-54.93,24.18,10.85,24.65a26.49,26.49,0,0,0,6.56,9.47,16.56,16.56,0,0,0,8.34,4.11A15.6,15.6,0,0,0,156,730.55Zm15.6-43.28,3.32,7.57a8.89,8.89,0,0,1,.74,6,5.78,5.78,0,0,1-3.47,3.87,5.87,5.87,0,0,1-5.43-.11,9.33,9.33,0,0,1-4-4.66l-3.24-7.35Zm-30.08,23-3.61-8.21L151,696.34l3.72,8.45a9.83,9.83,0,0,1,.77,6.82,6.87,6.87,0,0,1-4.06,4.4,6,6,0,0,1-5.47,0Q143.46,714.63,141.55,710.31Z" />
               <polygon points="174.59 747.51 187.76 768.99 197.83 762.82 184.65 741.34 195.14 734.9 209.44 758.21 219.49 752.05 197.6 716.37 146.44 747.76 168.32 783.43 178.37 777.27 164.07 753.96 174.59 747.51" />
@@ -148,9 +148,9 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user }) => {
           </div>
 
           <div className="h-[64px] flex items-center justify-center w-full">
-            <h1 
+            <h1
               className="text-white font-bold tracking-tight uppercase leading-none drop-shadow-md text-center w-full px-2"
-              style={{ 
+              style={{
                 fontSize: user.fullName.length > 20 ? '16px' : user.fullName.length > 15 ? '20px' : '24px',
                 lineHeight: '1.1'
               }}
@@ -168,15 +168,19 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user }) => {
         </div>
 
         {/* Data Grid / Information Box */}
-        <div className="relative z-10 w-full mt-auto mb-2 bg-blue-900/40 backdrop-blur-md rounded-2xl p-3 border border-blue-400/10 shadow-inner" style={{ transform: 'translateZ(20px)' }}>
+        <div className="relative z-10 w-full mt-auto mb-2 bg-blue-900/40 backdrop-blur-md rounded-lg p-3 border border-blue-400/10 shadow-inner" style={{ transform: 'translateZ(20px)' }}>
           <div className="flex flex-col space-y-2">
             <div className="flex justify-between items-center border-b border-blue-400/10 pb-1.5">
               <span className="text-blue-300/70 text-[9px] font-mono tracking-widest uppercase">Specialization</span>
               <span className="text-white text-[11px] font-sans font-medium text-right">{user.specialization}</span>
             </div>
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center border-b border-blue-400/10 pb-1.5">
               <span className="text-blue-300/70 text-[9px] font-mono tracking-widest uppercase">Role / Position</span>
               <span className="text-white text-[11px] font-sans font-medium text-right">{user.role}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-blue-300/70 text-[9px] font-mono tracking-widest uppercase">Member Since</span>
+              <span className="text-white text-[11px] font-sans font-medium text-right">{user.yearJoined || '-'}</span>
             </div>
           </div>
         </div>
