@@ -14,13 +14,17 @@ export default function Verify() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const users = useStore((state) => state.users);
-  const [userData, setUserData] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [userData, setUserData] = useState<any | null>(() => {
+    if (!id) return null;
+    return users.find((u) => u.memberId === id || u.id === id) || null;
+  });
+  const [loading, setLoading] = useState(!userData && !!id);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'embed-copied'>('idle');
   const [downloadLoading, setDownloadLoading] = useState(false);
   const [searchId, setSearchId] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchResult, setSearchResult] = useState<any>(null);
+  const isEmbed = new URLSearchParams(window.location.search).get('embed') === 'true';
   const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -31,7 +35,7 @@ export default function Verify() {
         return;
       }
 
-      setLoading(true);
+      // If we already have the data (from initial state), don't set loading again
       const localUser = users.find((u) => u.memberId === id || u.id === id);
       if (localUser) {
         setUserData(localUser);
@@ -39,6 +43,7 @@ export default function Verify() {
         return;
       }
 
+      setLoading(true);
       try {
         const remoteUser = await getUserByMemberIdOrId(id);
         setUserData(remoteUser);
@@ -107,35 +112,47 @@ export default function Verify() {
   };
 
   return (
-    <div className="min-h-screen bg-white sm:bg-slate-50 flex flex-col items-center justify-center font-sans selection:bg-blue-900/20">
+    <div className={clsx(
+      "flex flex-col items-center justify-center font-sans selection:bg-blue-900/20 no-scrollbar",
+      isEmbed ? "h-screen w-full overflow-hidden bg-transparent" : "min-h-screen bg-white sm:bg-slate-50"
+    )}>
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={isEmbed ? { opacity: 0 } : { opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-3xl bg-white sm:rounded-[2.5rem] sm:my-10 px-0 sm:px-12 py-10 sm:py-20 sm:shadow-2xl sm:shadow-slate-200/50 sm:border border-slate-100 flex flex-col items-center text-center relative overflow-hidden min-h-screen sm:min-h-0"
+        className={clsx(
+          "w-full flex flex-col items-center text-center relative no-scrollbar",
+          isEmbed ? "p-0 h-full bg-transparent overflow-hidden" : "max-w-3xl bg-white sm:rounded-[2.5rem] sm:my-10 px-0 sm:px-12 py-10 sm:py-20 sm:shadow-2xl sm:shadow-slate-200/50 sm:border border-slate-100 min-h-screen sm:min-h-0 overflow-hidden"
+        )}
       >
-        <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-600 via-blue-400 to-blue-900" />
+        {!isEmbed && <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-600 via-blue-400 to-blue-900" />}
 
         {loading ? (
-          <div className="py-16">
-            <Loader2 className="w-8 h-8 text-blue-900 animate-spin mx-auto mb-4" />
-            <p className="text-sm text-slate-500">Verifying access credentials...</p>
-          </div>
+          !isEmbed ? (
+            <div className="py-16">
+              <Loader2 className="w-8 h-8 text-blue-900 animate-spin mx-auto mb-4" />
+              <p className="text-sm text-slate-500">Verifying access credentials...</p>
+            </div>
+          ) : null
         ) : id && (isValid || isPending || isDeclined) ? (
           <>
-            <h1 className="text-3xl sm:text-4xl font-display font-bold text-slate-900 mb-3 tracking-tight px-4">
-              Official Verification
-            </h1>
-            <p className="text-slate-600 text-lg sm:text-xl font-medium mb-10 sm:mb-12 px-6 sm:px-6 leading-relaxed max-w-2xl">
-              {isValid
-                ? (
-                  <span>
-                    <span className="text-blue-900 font-mono font-bold px-2 py-0.5 bg-blue-50 rounded-lg break-words">{userData.fullName}</span> is a verified member of BetterGovPH.
-                  </span>
-                )
-                : isPending
-                  ? 'This card is currently undergoing official review and is not yet active.'
-                  : 'This digital access card has been revoked or declined and is no longer valid.'}
-            </p>
+            {!isEmbed && (
+              <>
+                <h1 className="text-3xl sm:text-4xl font-display font-bold text-slate-900 mb-3 tracking-tight px-4">
+                  Official Verification
+                </h1>
+                <p className="text-slate-600 text-lg sm:text-xl font-medium mb-10 sm:mb-12 px-6 sm:px-6 leading-relaxed max-w-2xl">
+                  {isValid
+                    ? (
+                      <span>
+                        <span className="text-blue-900 font-mono font-bold px-2 py-0.5 bg-blue-50 rounded-lg break-words">{userData.fullName}</span> is a verified member of BetterGovPH.
+                      </span>
+                    )
+                    : isPending
+                      ? 'This card is currently undergoing official review and is not yet active.'
+                      : 'This digital access card has been revoked or declined and is no longer valid.'}
+                </p>
+              </>
+            )}
 
             <div className={clsx(
               "transition-all duration-700 w-full flex justify-center px-2",
@@ -221,14 +238,15 @@ export default function Verify() {
           </>
         )}
 
-        <div className="mt-12 pt-8 border-t border-slate-100 w-full px-4 sm:px-12">
-          <Link to="/" className="inline-flex items-center justify-center space-x-2 text-sm font-bold text-blue-900 hover:text-blue-700 transition-colors w-full group">
-            <span>Return to BetterGovPH Portal</span>
-            <ExternalLink className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-          </Link>
-        </div>
+        {!isEmbed && (
+          <div className="mt-12 pt-8 border-t border-slate-100 w-full px-4 sm:px-12">
+            <Link to="/" className="inline-flex items-center justify-center space-x-2 text-sm font-bold text-blue-900 hover:text-blue-700 transition-colors w-full group">
+              <span>Return to BetterGovPH Portal</span>
+              <ExternalLink className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </Link>
+          </div>
+        )}
       </motion.div>
     </div>
-
   );
 }

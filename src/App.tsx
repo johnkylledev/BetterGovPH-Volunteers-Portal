@@ -27,9 +27,11 @@ export default function App() {
 
   const { authInitialized } = useStore();
 
+  const isEmbed = window.location.pathname.includes('/verify') && window.location.search.includes('embed=true');
+
   return (
     <>
-      {!authInitialized && <LoadingOverlay />}
+      {!authInitialized && !isEmbed && <LoadingOverlay />}
       <Router>
         <Routes>
           <Route path="/" element={<Login />} />

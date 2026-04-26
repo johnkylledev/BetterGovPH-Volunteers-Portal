@@ -99,7 +99,7 @@ export default function AdminDashboard() {
   };
 
   const handleCopyEmbed = (user: User) => {
-    const url = `${window.location.origin}/verify/${user.memberId || user.id}`;
+    const url = `${window.location.origin}/verify/${user.memberId || user.id}?embed=true`;
     const embedCode = `<iframe src="${url}" width="300" height="450" frameborder="0"></iframe>`;
     navigator.clipboard.writeText(embedCode);
     setCopyStatus('embed-copied');

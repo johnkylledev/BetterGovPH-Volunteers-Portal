@@ -44,7 +44,7 @@ export default function UserDashboard() {
   };
 
   const handleCopyEmbed = () => {
-    const url = `${window.location.origin}/verify/${currentUser.memberId || currentUser.id}`;
+    const url = `${window.location.origin}/verify/${currentUser.memberId || currentUser.id}?embed=true`;
     const embedCode = `<iframe src="${url}" width="380" height="600" frameborder="0"></iframe>`;
     navigator.clipboard.writeText(embedCode);
     setCopyStatus('embed-copied');
