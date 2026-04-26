@@ -9,8 +9,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Inter', 'Nunito', 'sans-serif'],
-        display: ['Space Grotesk', 'Inter', 'sans-serif'],
+        sans: ['Quicksand', 'Nunito', 'sans-serif'],
+        display: ['Quicksand', 'Nunito', 'sans-serif'],
         mono: ['Space Mono', 'monospace'],
       },
       animation: {

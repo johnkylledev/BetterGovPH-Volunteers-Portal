@@ -147,7 +147,7 @@ const Landing: React.FC = () => {
                 Empowering Public Tech Builders
               </div>
               <h1 className="text-5xl lg:text-7xl font-display font-extrabold text-slate-900 leading-[1.1] mb-6">
-                Join the <span className="text-blue-600 relative">BetterGovPH<svg className="absolute -bottom-2 left-0 w-full h-3 text-blue-200 -z-10" viewBox="0 0 100 10" preserveAspectRatio="none"><path d="M0 5 Q 25 0 50 5 T 100 5" fill="none" stroke="currentColor" strokeWidth="8" /></svg></span> Developer Community
+                Join the <span className="text-blue-600">BetterGovPH</span> Developer Community
               </h1>
               <p className="text-xl text-slate-600 mb-8 max-w-lg leading-relaxed">
                 Connect with developers, contributors, innovators, and public tech builders shaping BetterGovPH. Get your official Developer Community Access Card today.
