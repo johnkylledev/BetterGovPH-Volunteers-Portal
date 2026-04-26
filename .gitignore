@@ -38,6 +38,7 @@ coverage/
 .env.*
 !.env.example
 !.env.sample
+*.txt
 
 # =========================
 # Local Config Files
