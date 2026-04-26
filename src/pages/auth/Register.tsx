@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, ChevronDown, Check, MessageSquare } from 'lucide-react';
+import { Calendar, ChevronDown, Check, MessageSquare, Home } from 'lucide-react';
 import clsx from 'clsx';
 
 const SPECIALIZATIONS = ['Developer', 'Designer', 'Researcher', 'Contributor', 'Volunteer', 'Other'];
@@ -30,7 +30,7 @@ export default function Register() {
   const { authInitialized } = useStore();
 
   useEffect(() => {
-    if (authInitialized && currentUser && currentUser.discordUsername && currentUser.specialization) {
+    if (authInitialized && currentUser) {
       if (currentUser.isAdmin) {
         navigate('/admin');
       } else {
@@ -100,7 +100,14 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8 font-sans selection:bg-blue-900/20">
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 font-sans selection:bg-blue-900/20 relative">
+      <Link
+        to="/"
+        className="absolute top-6 left-6 flex items-center gap-2 text-slate-500 hover:text-blue-900 transition-colors text-sm font-semibold group"
+      >
+        <Home className="w-4 h-4" />
+        <span>Home</span>
+      </Link>
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -109,7 +116,7 @@ export default function Register() {
         <div className="w-12 h-12 flex items-center justify-center mb-4">
           <img src="/logo.svg" alt="BetterGovPH Logo" className="w-full h-full object-contain" />
         </div>
-        <h2 className="mt-2 text-center text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 font-display">
+        <h2 className="mt-2 text-center text-xl sm:text-3xl font-bold tracking-tight text-slate-900 font-display leading-tight sm:leading-normal">
           Apply for Access
         </h2>
         <p className="mt-2 text-center text-sm text-slate-500">
@@ -123,9 +130,9 @@ export default function Register() {
         transition={{ delay: 0.1 }}
         className="mt-8 sm:mx-auto sm:w-full sm:max-w-xl"
       >
-        <div className="bg-white py-8 px-4 shadow-sm sm:rounded-xl sm:px-10 border sm:border-slate-100">
-          <div className="mb-6 p-4 rounded-xl bg-blue-50 border border-blue-100 flex items-start gap-3">
-            <div className="p-2 bg-white rounded-lg shadow-sm shrink-0">
+        <div className="bg-white py-8 px-4 shadow-sm sm:rounded-lg sm:px-10 border sm:border-slate-100">
+          <div className="mb-6 p-4 rounded-lg bg-blue-50 border border-blue-100 flex items-start gap-3">
+            <div className="shrink-0 pt-1">
               <MessageSquare size={18} className="text-blue-600" />
             </div>
             <div>
@@ -141,7 +148,7 @@ export default function Register() {
 
           <form className="space-y-6" onSubmit={handleSubmit}>
             {error && (
-              <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm font-medium border border-red-100">
+              <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm font-medium border border-red-100">
                 {error}
               </div>
             )}
@@ -269,7 +276,7 @@ export default function Register() {
                   )}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="p-1.5 bg-blue-50 rounded-lg text-blue-600">
+                    <div className="text-blue-600">
                       <Calendar className="w-4 h-4" />
                     </div>
                     <span className="text-sm font-semibold text-slate-900">{formData.yearJoined}</span>
@@ -292,7 +299,7 @@ export default function Register() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
                         transition={{ duration: 0.2, ease: "easeOut" }}
-                        className="absolute left-0 right-0 mt-2 z-20 bg-white border border-slate-100 rounded-xl shadow-xl shadow-blue-900/10 overflow-hidden max-h-[240px] overflow-y-auto no-scrollbar"
+                        className="absolute left-0 right-0 mt-2 z-20 bg-white border border-slate-100 rounded-lg shadow-xl shadow-blue-900/10 overflow-hidden max-h-[240px] overflow-y-auto no-scrollbar"
                       >
                         <div className="p-2 grid grid-cols-1 gap-1">
                           {Array.from({ length: 4 }, (_, i) => new Date().getFullYear() - i).map((year) => (
@@ -304,7 +311,7 @@ export default function Register() {
                                 setIsYearOpen(false);
                               }}
                               className={clsx(
-                                "flex items-center justify-between w-full px-4 py-3 rounded-xl text-sm font-semibold transition-colors",
+                                "flex items-center justify-between w-full px-4 py-3 rounded-lg text-sm font-semibold transition-colors",
                                 formData.yearJoined === year
                                   ? "bg-blue-50 text-blue-900"
                                   : "text-slate-600 hover:bg-slate-50"

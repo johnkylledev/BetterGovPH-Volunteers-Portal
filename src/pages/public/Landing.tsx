@@ -215,10 +215,10 @@ const Landing: React.FC = () => {
             className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
           >
             {[
-              { icon: <ShieldCheck className="text-blue-600" />, title: "Verified Membership", desc: "Get officially recognized as a contributor to the BetterGovPH ecosystem." },
-              { icon: <IdCard className="text-blue-600" />, title: "Official Digital Card", title_sub: "Digital Access Card", desc: "A sleek, professional digital ID with unique QR verification and member ID." },
-              { icon: <Code2 className="text-blue-600" />, title: "Dev Collaboration", desc: "Work alongside talented engineers and designers on public tech projects." },
-              { icon: <Network className="text-blue-600" />, title: "Community Recognition", desc: "Build your reputation and showcase your contributions to the public tech space." },
+              { icon: <ShieldCheck size={32} className="text-blue-600" />, title: "Verified Membership", desc: "Get officially recognized as a contributor to the BetterGovPH ecosystem." },
+              { icon: <IdCard size={32} className="text-blue-600" />, title: "Official Digital Card", title_sub: "Digital Access Card", desc: "A sleek, professional digital ID with unique QR verification and member ID." },
+              { icon: <Code2 size={32} className="text-blue-600" />, title: "Dev Collaboration", desc: "Work alongside talented engineers and designers on public tech projects." },
+              { icon: <Network size={32} className="text-blue-600" />, title: "Community Recognition", desc: "Build your reputation and showcase your contributions to the public tech space." },
             ].map((feature, i) => (
               <motion.div
                 key={i}
@@ -229,7 +229,7 @@ const Landing: React.FC = () => {
                 whileHover={{ y: -5 }}
                 className="p-8 rounded-2xl bg-slate-50 border border-slate-100 hover:border-blue-200 hover:bg-blue-50/30 transition-all duration-300"
               >
-                <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center mb-6">
+                <div className="w-12 h-12 flex items-center justify-center mb-6 shrink-0">
                   {feature.icon}
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 mb-3">{feature.title}</h3>
@@ -315,8 +315,8 @@ const Landing: React.FC = () => {
           </motion.div>
 
           <div className="mt-16 p-8 rounded-2xl bg-amber-50 border border-amber-100 flex flex-col md:flex-row items-center gap-6">
-            <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center shrink-0">
-              <ShieldCheck className="text-amber-600" />
+            <div className="flex items-center justify-center shrink-0">
+              <ShieldCheck size={28} className="text-amber-600" />
             </div>
             <div>
               <h4 className="font-bold text-amber-900 mb-1 text-lg">Important Requirement</h4>
@@ -346,7 +346,7 @@ const Landing: React.FC = () => {
                       { icon: <CheckCircle2 size={20} />, title: "Contributor Recognition", desc: "Get credited for your work in official repositories and projects." },
                     ].map((benefit, i) => (
                       <div key={i} className="flex gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                        <div className="flex items-center justify-center shrink-0">
                           {benefit.icon}
                         </div>
                         <div>
@@ -495,7 +495,7 @@ const Landing: React.FC = () => {
               <ul className="space-y-4">
                 <li><button onClick={() => navigate('/login')} className="text-slate-500 hover:text-blue-600 text-sm transition-colors">Login</button></li>
                 <li><button onClick={() => navigate('/register')} className="text-slate-500 hover:text-blue-600 text-sm transition-colors">Apply for Card</button></li>
-                <li><a href="/verify" className="text-slate-500 hover:text-blue-600 text-sm transition-colors">Verify a Card</a></li>
+                <li><Link to="/verify" className="text-slate-500 hover:text-blue-600 text-sm transition-colors">Verify a Card</Link></li>
               </ul>
             </div>
           </div>

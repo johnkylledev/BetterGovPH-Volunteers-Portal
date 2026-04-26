@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { motion } from 'framer-motion';
-import { Shield } from 'lucide-react';
+import { Shield, Home } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -21,16 +21,9 @@ export default function Login() {
         navigate('/dashboard');
       }
     }
-
-    // Check for errors in URL (e.g. from failed Google OAuth)
-    const params = new URLSearchParams(window.location.search);
-    const errorMsg = params.get('error_description');
-    if (errorMsg) {
-      setError(decodeURIComponent(errorMsg.replace(/\+/g, ' ')));
-      // Clear the URL parameters
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
   }, [currentUser, authInitialized, navigate]);
+
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,13 +32,6 @@ export default function Login() {
     const res = await login(email, password);
     if (res.success) {
       const user = useStore.getState().currentUser;
-
-      // Enforce Google login if registered with Google
-      if (user?.authProvider === 'google') {
-        useStore.getState().logout();
-        setError('This account was registered with Google. Please use the Google sign-in button.');
-        return;
-      }
 
       if (user?.isAdmin) {
         navigate('/admin');
@@ -60,7 +46,14 @@ export default function Login() {
 
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8 font-sans selection:bg-blue-900/20">
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 font-sans selection:bg-blue-900/20 relative">
+      <Link
+        to="/"
+        className="absolute top-6 left-6 flex items-center gap-2 text-slate-500 hover:text-blue-900 transition-colors text-sm font-semibold group"
+      >
+        <Home className="w-4 h-4" />
+        <span>Home</span>
+      </Link>
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -69,7 +62,7 @@ export default function Login() {
         <div className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center mb-4 sm:mb-6">
           <img src="/logo.svg" alt="BetterGovPH Logo" className="w-full h-full object-contain" />
         </div>
-        <h2 className="mt-2 text-center text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 font-display">
+        <h2 className="mt-2 text-center text-xl sm:text-3xl font-bold tracking-tight text-slate-900 font-display leading-tight sm:leading-normal">
           BetterGovPH Developer Community
         </h2>
         <p className="mt-2 text-center text-sm text-slate-500">
@@ -83,10 +76,10 @@ export default function Login() {
         transition={{ delay: 0.1 }}
         className="mt-8 sm:mx-auto sm:w-full sm:max-w-md"
       >
-        <div className="bg-white py-8 px-4 shadow-sm sm:rounded-xl sm:px-10 border sm:border-slate-100">
+        <div className="bg-white py-8 px-4 shadow-sm sm:rounded-lg sm:px-10 border sm:border-slate-100">
           <form className="space-y-5 sm:space-y-6" onSubmit={handleSubmit}>
             {error && (
-              <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm font-medium border border-red-100">
+              <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm font-medium border border-red-100">
                 {error}
               </div>
             )}
@@ -101,7 +94,7 @@ export default function Login() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full appearance-none rounded-xl border border-slate-200 px-4 py-3 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base sm:text-sm transition-all"
+                  className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-3 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base sm:text-sm transition-all"
                   placeholder="name@example.com"
                 />
               </div>
@@ -117,7 +110,7 @@ export default function Login() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full appearance-none rounded-xl border border-slate-200 px-4 py-3 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base sm:text-sm transition-all"
+                  className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-3 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base sm:text-sm transition-all"
                   placeholder="••••••••"
                 />
               </div>
@@ -126,12 +119,15 @@ export default function Login() {
             <div>
               <button
                 type="submit"
-                className="flex w-full justify-center rounded-lg bg-blue-900 px-4 py-3.5 text-sm font-semibold text-white shadow-md hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-900/20 transition-all active:scale-[0.98]"
+                disabled={loading}
+                className="flex w-full justify-center rounded-lg bg-blue-900 px-4 py-3.5 text-sm font-semibold text-white shadow-md hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-900/20 transition-all active:scale-[0.98] disabled:opacity-50"
               >
-                Sign in
+                {loading ? 'Signing in...' : 'Sign in'}
               </button>
             </div>
           </form>
+
+
 
 
           <div className="mt-6 text-center">

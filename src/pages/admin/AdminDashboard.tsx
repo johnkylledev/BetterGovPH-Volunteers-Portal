@@ -25,7 +25,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (authInitialized && (!currentUser || !currentUser.isAdmin)) {
-      navigate('/');
+      navigate('/login');
     }
   }, [currentUser, navigate, authInitialized]);
 
@@ -285,8 +285,8 @@ export default function AdminDashboard() {
         <section className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-5 flex items-center gap-4">
-              <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
-                <Users className="w-6 h-6" />
+              <div className="text-blue-600 flex items-center justify-center">
+                <Users className="w-8 h-8" />
               </div>
               <div>
                 <p className="text-xs uppercase tracking-[0.2em] text-slate-400 font-semibold">Total Applicants</p>
@@ -294,8 +294,8 @@ export default function AdminDashboard() {
               </div>
             </div>
             <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-5 flex items-center gap-4">
-              <div className="p-3 bg-yellow-50 text-yellow-600 rounded-lg">
-                <Clock className="w-6 h-6" />
+              <div className="text-yellow-600 flex items-center justify-center">
+                <Clock className="w-8 h-8" />
               </div>
               <div>
                 <p className="text-xs uppercase tracking-[0.2em] text-slate-400 font-semibold">Pending Review</p>
@@ -303,8 +303,8 @@ export default function AdminDashboard() {
               </div>
             </div>
             <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-5 flex items-center gap-4">
-              <div className="p-3 bg-green-50 text-green-600 rounded-lg">
-                <Key className="w-6 h-6" />
+              <div className="text-green-600 flex items-center justify-center">
+                <Key className="w-8 h-8" />
               </div>
               <div>
                 <p className="text-xs uppercase tracking-[0.2em] text-slate-400 font-semibold">IDs Issued</p>

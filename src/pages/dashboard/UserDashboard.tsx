@@ -15,7 +15,7 @@ export default function UserDashboard() {
 
   useEffect(() => {
     if (authInitialized && !currentUser) {
-      navigate('/');
+      navigate('/login');
     } else if (authInitialized && currentUser?.isAdmin) {
       navigate('/admin');
     }

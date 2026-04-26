@@ -21,7 +21,7 @@ const mapToAppUser = (dbUser: any): User | null => {
     memberId: dbUser.member_id ? (dbUser.member_id.startsWith('BGPH-') ? dbUser.member_id : `BGPH-${dbUser.member_id}`) : undefined,
     adminNotes: dbUser.admin_notes,
     isAdmin: !!dbUser.is_admin,
-    authProvider: (dbUser.auth_provider as 'traditional' | 'google') || 'google',
+    authProvider: (dbUser.auth_provider as 'traditional' | 'google') || 'traditional',
     yearJoined: dbUser.year_joined,
     createdAt: dbUser.created_at,
     updatedAt: dbUser.updated_at,
@@ -140,7 +140,7 @@ export const createOrUpdateUserRecord = async (user: any) => {
       isAdmin,
       role: existingData?.role ?? user.role ?? 'Member',
       status: isAdmin ? 'Approved' : (existingData?.status ?? user.status ?? 'Pending'),
-      authProvider: existingData?.auth_provider ?? user.authProvider ?? 'google',
+      authProvider: existingData?.auth_provider ?? user.authProvider ?? 'traditional',
     });
 
     if (!existingData) {
