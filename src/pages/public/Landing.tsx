@@ -63,50 +63,87 @@ const Landing: React.FC = () => {
   const heroRef = React.useRef<HTMLDivElement>(null);
 
   useGSAP(() => {
-    // Hero Entrance
+    // Hero Entrance - High Precision Reveal
     const tl = gsap.timeline();
-    tl.from('.hero-content > *', {
-      y: 50,
+    
+    tl.from('.hero-badge', {
+      y: -30,
       opacity: 0,
+      duration: 0.8,
+      ease: 'back.out(1.7)'
+    }).from('.hero-title-word', {
+      y: 40,
+      opacity: 0,
+      rotateX: -45,
       duration: 1,
-      stagger: 0.2,
+      stagger: 0.1,
       ease: 'power4.out'
-    }).from('.hero-card', {
+    }, '-=0.4').from('.hero-desc', {
+      y: 20,
+      opacity: 0,
+      duration: 0.8,
+      ease: 'power3.out'
+    }, '-=0.6').from('.hero-btns > *', {
+      x: -30,
+      opacity: 0,
+      duration: 0.6,
+      stagger: 0.2,
+      ease: 'power2.out'
+    }, '-=0.4').from('.hero-card', {
       x: 100,
       opacity: 0,
       scale: 0.8,
       duration: 1.5,
       ease: 'elastic.out(1, 0.5)'
-    }, '-=0.8');
+    }, '-=1.2');
 
-    // Scroll Revelations
+    // Reveal Sections with Staggered Children
     gsap.utils.toArray<HTMLElement>('.reveal-section').forEach((section) => {
-      gsap.from(section, {
-        scrollTrigger: {
-          trigger: section,
-          start: 'top 80%',
-          toggleActions: 'play none none reverse'
-        },
-        y: 40,
-        opacity: 0,
-        duration: 1,
-        ease: 'power3.out'
-      });
+      const items = section.querySelectorAll('.reveal-item');
+      if (items.length > 0) {
+        gsap.from(items, {
+          scrollTrigger: {
+            trigger: section,
+            start: 'top 85%',
+            toggleActions: 'play none none reverse'
+          },
+          y: 30,
+          opacity: 0,
+          scale: 0.98,
+          duration: 0.8,
+          stagger: 0.15,
+          ease: 'power2.out'
+        });
+      }
     });
 
-    // Parallax Effect for Hero Card
+    // Parallax & Interactive Tilt
     gsap.to('.hero-card', {
       scrollTrigger: {
         trigger: '.hero-section',
         start: 'top top',
         end: 'bottom top',
-        scrub: true
+        scrub: 1
       },
-      y: 150,
-      rotation: 10,
-      scale: 0.9,
+      y: 80,
+      rotation: 5,
       ease: 'none'
     });
+
+    const heroCard = document.querySelector('.hero-card');
+    if (heroCard) {
+      window.addEventListener('mousemove', (e) => {
+        const { clientX, clientY } = e;
+        const x = (clientX - window.innerWidth / 2) / 60;
+        const y = (clientY - window.innerHeight / 2) / 60;
+        gsap.to(heroCard, {
+          rotationY: x,
+          rotationX: -y,
+          duration: 1.2,
+          ease: 'power2.out'
+        });
+      });
+    }
 
     // Stats Counter Animation
     gsap.utils.toArray<HTMLElement>('.stat-value').forEach((stat) => {

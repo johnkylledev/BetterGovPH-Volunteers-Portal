@@ -15,7 +15,10 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-html, body, #root, * {
+html,
+body,
+#root,
+* {
   font-family: 'Quicksand', 'Nunito', 'Inter', sans-serif !important;
 }
 
