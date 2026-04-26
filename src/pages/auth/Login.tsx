@@ -63,7 +63,7 @@ export default function Login() {
           <img src="/logo.svg" alt="BetterGovPH Logo" className="w-full h-full object-contain" />
         </div>
         <h2 className="mt-2 text-center text-xl sm:text-3xl font-bold tracking-tight text-slate-900 font-display leading-tight sm:leading-normal">
-          BetterGovPH Developer Community
+          BetterGovPH Dev Community
         </h2>
         <p className="mt-2 text-center text-sm text-slate-500">
           Sign in to access your portal

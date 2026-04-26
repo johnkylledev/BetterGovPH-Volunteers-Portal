@@ -94,7 +94,7 @@ const Landing: React.FC = () => {
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center gap-2">
               <img src="/logo.svg" alt="BetterGovPH Logo" className="h-8 w-auto" />
-              <span className="font-display font-bold text-xl tracking-tight text-blue-900">BetterGovPH Developer Community</span>
+              <span className="font-display font-bold text-xl tracking-tight text-blue-900">BetterGovPH Dev Community</span>
             </div>
             <div className="hidden md:flex items-center gap-8">
               {[
