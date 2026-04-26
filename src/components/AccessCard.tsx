@@ -13,14 +13,18 @@ interface AccessCardProps {
 export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
   const navigate = useNavigate();
   const boundingRef = useRef<HTMLDivElement>(null);
-  const mouseX = useSpring(useMotionValue(0), { stiffness: 400, damping: 30 });
-  const mouseY = useSpring(useMotionValue(0), { stiffness: 400, damping: 30 });
+  const mouseX = useSpring(useMotionValue(0), { stiffness: 300, damping: 40 });
+  const mouseY = useSpring(useMotionValue(0), { stiffness: 300, damping: 40 });
+
+
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!boundingRef.current) return;
     const { left, top, width, height } = boundingRef.current.getBoundingClientRect();
-    const x = (e.clientX - left - width / 2) / 15;
-    const y = (e.clientY - top - height / 2) / 15;
+
+    // Rotation values
+    const x = (e.clientX - left - width / 2) / 35;
+    const y = (e.clientY - top - height / 2) / 35;
     mouseX.set(x);
     mouseY.set(-y);
   };
@@ -65,59 +69,141 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
           style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")' }}>
         </div>
 
-        {/* Developer Code Pattern */}
-        <div className="absolute inset-0 opacity-[0.03] font-mono text-[8px] leading-tight pointer-events-none select-none overflow-hidden text-white/50 py-2">
-          {Array(40).fill("const betterGov = { impact: 'maximum', openSource: true }; 01010110 01101000").map((n, i) => (
-            <div key={i} className="whitespace-nowrap tracking-widest">{n} {n} {n}</div>
-          ))}
-        </div>
 
-        {/* Advanced Security Pattern (High-Density Interference Mesh - Exact Reference Match) */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.25]" xmlns="http://www.w3.org/2000/svg">
+
+
+
+
+
+
+
+        {/* Advanced Security Pattern (High-Density Banknote Guilloche) */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.35]" xmlns="http://www.w3.org/2000/svg">
           <defs>
             <linearGradient id="guillocheGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#4ade80" stopOpacity="0.7" />
-              <stop offset="100%" stopColor="#312e81" stopOpacity="0.7" />
+              <stop offset="0%" stopColor="#94a3b8" stopOpacity="0.9" />
+              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.9" />
             </linearGradient>
-            <pattern id="guilloche" x="0" y="0" width="200" height="200" patternUnits="userSpaceOnUse">
-              {/* Layer 1: Primary Sinuous Mesh */}
-              {Array.from({ length: 80 }).map((_, i) => (
-                <g key={`group-${i}`}>
-                  <path
-                    d={`M 0 ${i * 2.5} C 50 ${i * 2.5 - 15}, 150 ${i * 2.5 + 15}, 200 ${i * 2.5}`}
-                    fill="none"
-                    stroke="url(#guillocheGradient)"
-                    strokeWidth="0.05"
-                  />
-                  <path
-                    d={`M ${i * 2.5} 0 C ${i * 2.5 - 15} 50, ${i * 2.5 + 15} 150, ${i * 2.5} 200`}
-                    fill="none"
-                    stroke="url(#guillocheGradient)"
-                    strokeWidth="0.05"
-                  />
-                </g>
-              ))}
-              {/* Layer 2: Interference Offset (Creates the shimmering flow) */}
-              {Array.from({ length: 40 }).map((_, i) => (
+
+            {/* Wavy Background Pattern */}
+            <pattern id="wavyGuilloche" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
+              {Array.from({ length: 25 }).map((_, i) => (
                 <path
-                  key={`offset-${i}`}
-                  d={`M 0 ${i * 5 + 2} C 70 ${i * 5 - 20}, 130 ${i * 5 + 30}, 200 ${i * 5 + 2}`}
+                  key={`wave-${i}`}
+                  d={`M 0 ${i * 4} Q 12.5 ${i * 4 - 8}, 25 ${i * 4} T 50 ${i * 4} T 75 ${i * 4} T 100 ${i * 4}`}
                   fill="none"
                   stroke="url(#guillocheGradient)"
-                  strokeWidth="0.03"
-                  opacity="0.3"
+                  strokeWidth="0.1"
+                />
+              ))}
+              {Array.from({ length: 25 }).map((_, i) => (
+                <path
+                  key={`wave-v-${i}`}
+                  d={`M ${i * 4} 0 Q ${i * 4 - 8} 12.5, ${i * 4} 25 T ${i * 4} 50 T ${i * 4} 75 T ${i * 4} 100`}
+                  fill="none"
+                  stroke="url(#guillocheGradient)"
+                  strokeWidth="0.1"
+                />
+              ))}
+            </pattern>
+
+            {/* Wavy Border Pattern */}
+            <pattern id="wavyBorder" x="0" y="0" width="10" height="450" patternUnits="userSpaceOnUse">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <path
+                  key={`b-${i}`}
+                  d={`M ${i * 1.5} 0 Q ${i * 1.5 + 3} 10, ${i * 1.5} 20 T ${i * 1.5} 40 T ${i * 1.5} 60 T ${i * 1.5} 80 T ${i * 1.5} 100`}
+                  fill="none"
+                  stroke="url(#guillocheGradient)"
+                  strokeWidth="0.2"
+                  opacity="0.5"
                 />
               ))}
             </pattern>
           </defs>
-          <rect width="100%" height="100%" fill="url(#guilloche)" />
+
+          <rect width="100%" height="100%" fill="url(#wavyGuilloche)" />
+
+          {/* Wavy Inner Frame */}
+          <rect x="10" y="10" width="280" height="430" rx="10" fill="none" stroke="url(#guillocheGradient)" strokeWidth="0.5" strokeDasharray="2,2" opacity="0.2" />
+          {Array.from({ length: 3 }).map((_, i) => (
+            <rect
+              key={`frame-${i}`}
+              x={12 + i * 1.5} y={12 + i * 1.5} width={276 - i * 3} height={426 - i * 3} rx={8}
+              fill="none" stroke="url(#guillocheGradient)" strokeWidth="0.1" opacity={0.3 - i * 0.05}
+            />
+          ))}
+
+          {/* High-Complexity Wavy Rosettes (Exact Reference Style) */}
+          {[
+            { cx: '15%', cy: '12%', scale: 0.4 },
+            { cx: '85%', cy: '12%', scale: 0.4 },
+            { cx: '15%', cy: '88%', scale: 0.4 },
+            { cx: '85%', cy: '88%', scale: 0.4 },
+            { cx: '50%', cy: '48%', scale: 1.4 } // Large central rosette
+          ].map((pos, idx) => (
+            <g
+              key={`rosette-${idx}`}
+              transform={`translate(${parseFloat(pos.cx) * 3}, ${parseFloat(pos.cy) * 4.5}) scale(${pos.scale})`}
+              opacity={pos.scale > 1 ? "0.12" : "0.4"}
+            >
+              {/* Concentric Wavy Layers (Cog Style) */}
+              {Array.from({ length: 12 }).map((_, layer) => (
+                <path
+                  key={`layer-${layer}`}
+                  d={(() => {
+                    const radius = 20 + layer * 4;
+                    const points = [];
+                    const amplitude = 3 + layer * 0.5;
+                    const freq = 12;
+                    for (let a = 0; a <= 360; a += 2) {
+                      const rad = (a * Math.PI) / 180;
+                      const r = radius + Math.sin(rad * freq) * amplitude;
+                      points.push(`${r * Math.cos(rad)},${r * Math.sin(rad)}`);
+                    }
+                    return `M ${points.join(' L ')} Z`;
+                  })()}
+                  fill="none"
+                  stroke="url(#guillocheGradient)"
+                  strokeWidth="0.2"
+                />
+              ))}
+              {/* Internal Star/Spiro Pattern */}
+              {Array.from({ length: 16 }).map((_, i) => (
+                <path
+                  key={`spiro-${i}`}
+                  d="M 0 0 C 10 -30, 40 -30, 50 0 T 0 0"
+                  fill="none"
+                  stroke="url(#guillocheGradient)"
+                  strokeWidth="0.1"
+                  transform={`rotate(${i * 22.5})`}
+                />
+              ))}
+              {/* Core Detail */}
+              <circle cx="0" cy="0" r="5" fill="none" stroke="url(#guillocheGradient)" strokeWidth="0.1" opacity="0.5" />
+            </g>
+          ))}
         </svg>
+
+        {/* Microtext Border Wrap */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.12] z-10" viewBox="0 0 300 450">
+          <defs>
+            <path id="borderPath" d="M 20 8 H 280 A 12 12 0 0 1 292 20 V 430 A 12 12 0 0 1 280 442 H 20 A 12 12 0 0 1 8 430 V 20 A 12 12 0 0 1 20 8 Z" fill="transparent" />
+          </defs>
+          <text className="text-[3px] font-mono tracking-[0.2em] fill-white uppercase">
+            <textPath xlinkHref="#borderPath" startOffset="0">
+              {Array(40).fill("OFFICIAL BETTERGOVPH IDENTITY • SECURE MEMBER ACCESS • ").join("")}
+            </textPath>
+          </text>
+        </svg>
+
+
 
 
 
         {/* Hologram Effect - Bottom Right */}
         <div className="absolute bottom-6 right-6 w-12 h-12 rounded-full overflow-hidden pointer-events-none z-30 shadow-[0_0_10px_rgba(255,255,255,0.05)] border border-white/20"
-          style={{ transform: 'translateZ(100px)' }}>
+          style={{ transform: 'translateZ(40px)' }}>
           {/* Base silver layer - More transparent */}
           <div className="absolute inset-0 rounded-full bg-gradient-to-br from-gray-100/40 via-gray-300/20 to-gray-500/40 backdrop-blur-[1px]" />
 
@@ -186,7 +272,7 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
         </div>
 
         {/* Header - Government Format */}
-        <div className="relative z-10 flex flex-col items-center w-full" style={{ transform: 'translateZ(20px)' }}>
+        <div className="relative z-10 flex flex-col items-center w-full" style={{ transform: 'translateZ(10px)' }}>
           <div className="h-12 w-12 mb-2">
             <svg id="Design" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" className="w-full h-full fill-white" preserveAspectRatio="xMidYMid meet">
               <path d="M156,730.55a14.49,14.49,0,0,0,6.12-4.75,13.69,13.69,0,0,0,2.56-6.55,14.34,14.34,0,0,0-.92-6.94l.53-.24a14.79,14.79,0,0,0,7.34,5.61,12.19,12.19,0,0,0,9.09-.58,13.48,13.48,0,0,0,8-9.16q1.76-6.42-2.32-15.68l-10.09-22.9-54.93,24.18,10.85,24.65a26.49,26.49,0,0,0,6.56,9.47,16.56,16.56,0,0,0,8.34,4.11A15.6,15.6,0,0,0,156,730.55Zm15.6-43.28,3.32,7.57a8.89,8.89,0,0,1,.74,6,5.78,5.78,0,0,1-3.47,3.87,5.87,5.87,0,0,1-5.43-.11,9.33,9.33,0,0,1-4-4.66l-3.24-7.35Zm-30.08,23-3.61-8.21L151,696.34l3.72,8.45a9.83,9.83,0,0,1,.77,6.82,6.87,6.87,0,0,1-4.06,4.4,6,6,0,0,1-5.47,0Q143.46,714.63,141.55,710.31Z" />
@@ -211,19 +297,19 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
         </div>
 
         {/* Decorative Divider */}
-        <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-blue-300/30 to-transparent my-2 relative z-10" style={{ transform: 'translateZ(10px)' }} />
+        <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-blue-300/30 to-transparent my-2 relative z-10" style={{ transform: 'translateZ(5px)' }} />
 
         {/* Identity Details */}
-        <div className="relative z-10 flex flex-col items-center w-full text-center px-4" style={{ transform: 'translateZ(30px)' }}>
+        <div className="relative z-10 flex flex-col items-center w-full text-center px-4" style={{ transform: 'translateZ(15px)' }}>
           <div className="px-3 py-1 bg-blue-400/10 border border-blue-400/20 rounded-full text-blue-200 text-[8px] font-bold tracking-[0.2em] uppercase mb-2 backdrop-blur-sm shadow-sm">
             DEVELOPER COMMUNITY CARD
           </div>
 
           <div className="h-[64px] flex items-center justify-center w-full">
             <h1
-              className="text-white font-bold tracking-tight uppercase leading-none drop-shadow-md text-center w-full px-2"
+              className="text-white font-bold tracking-tight uppercase leading-none text-center w-full px-2"
               style={{
-                fontSize: user.fullName.length > 20 ? '16px' : user.fullName.length > 15 ? '20px' : '24px',
+                fontSize: '20px',
                 lineHeight: '1.1'
               }}
             >
@@ -240,7 +326,7 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
         </div>
 
         {/* Data Grid / Information Box */}
-        <div className="relative z-10 w-full mt-auto mb-2 bg-blue-900/40 backdrop-blur-md rounded-lg p-3 border border-blue-400/10 shadow-inner" style={{ transform: 'translateZ(20px)' }}>
+        <div className="relative z-10 w-full mt-auto mb-2 bg-blue-900/40 backdrop-blur-md rounded-lg p-3 border border-blue-400/10 shadow-inner" style={{ transform: 'translateZ(10px)' }}>
           <div className="flex flex-col space-y-2">
             <div className="flex justify-between items-center border-b border-blue-400/10 pb-1.5">
               <span className="text-blue-300/70 text-[9px] font-mono tracking-widest uppercase">Specialization</span>
@@ -258,7 +344,7 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
         </div>
 
         {/* Footer / QR Code */}
-        <div className="relative z-10 mt-auto flex flex-col items-center w-full" style={{ transform: 'translateZ(40px)' }}>
+        <div className="relative z-10 mt-auto flex flex-col items-center w-full" style={{ transform: 'translateZ(20px)' }}>
           <div className="mb-1">
             <QRCodeSVG
               value={publicUrl}
