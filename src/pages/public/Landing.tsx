@@ -17,6 +17,11 @@ import {
 import { useNavigate, Link } from 'react-router-dom';
 import { AccessCard } from '../../components/AccessCard';
 import { User } from '../../types';
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { useGSAP } from '@gsap/react';
+
+gsap.registerPlugin(ScrollTrigger);
 
 const DISCORD_INVITE = "https://discord.com/invite/mHtThpN8bT";
 const MAIN_WEBSITE = "https://bettergov.ph/";
@@ -54,12 +59,77 @@ const Landing: React.FC = () => {
     createdAt: new Date().toISOString(),
   };
 
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const heroRef = React.useRef<HTMLDivElement>(null);
+
+  useGSAP(() => {
+    // Hero Entrance
+    const tl = gsap.timeline();
+    tl.from('.hero-content > *', {
+      y: 50,
+      opacity: 0,
+      duration: 1,
+      stagger: 0.2,
+      ease: 'power4.out'
+    }).from('.hero-card', {
+      x: 100,
+      opacity: 0,
+      scale: 0.8,
+      duration: 1.5,
+      ease: 'elastic.out(1, 0.5)'
+    }, '-=0.8');
+
+    // Scroll Revelations
+    gsap.utils.toArray<HTMLElement>('.reveal-section').forEach((section) => {
+      gsap.from(section, {
+        scrollTrigger: {
+          trigger: section,
+          start: 'top 80%',
+          toggleActions: 'play none none reverse'
+        },
+        y: 40,
+        opacity: 0,
+        duration: 1,
+        ease: 'power3.out'
+      });
+    });
+
+    // Parallax Effect for Hero Card
+    gsap.to('.hero-card', {
+      scrollTrigger: {
+        trigger: '.hero-section',
+        start: 'top top',
+        end: 'bottom top',
+        scrub: true
+      },
+      y: 150,
+      rotation: 10,
+      scale: 0.9,
+      ease: 'none'
+    });
+
+    // Stats Counter Animation
+    gsap.utils.toArray<HTMLElement>('.stat-value').forEach((stat) => {
+      const target = parseInt(stat.getAttribute('data-value') || '0');
+      gsap.from(stat, {
+        scrollTrigger: {
+          trigger: stat,
+          start: 'top 90%'
+        },
+        innerHTML: 0,
+        duration: 2,
+        snap: { innerHTML: 1 },
+        ease: 'power1.out'
+      });
+    });
+  }, { scope: containerRef });
+
   const handleApplyClick = () => {
     navigate('/register');
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-900 relative">
+    <div ref={containerRef} className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-900 relative">
       {/* Scroll Progress Bar */}
       <motion.div
         className="fixed top-0 left-0 right-0 h-1 bg-blue-600 z-[60] origin-left"
@@ -128,7 +198,7 @@ const Landing: React.FC = () => {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
+      <section className="hero-section relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
         {/* Background Gradients */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full -z-10">
           <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-100/50 rounded-full blur-[120px]" />
@@ -137,11 +207,7 @@ const Landing: React.FC = () => {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-            >
+            <div className="hero-content">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 text-xs font-bold tracking-wider uppercase mb-6">
                 <Zap size={14} className="fill-blue-600" />
                 Empowering Public Tech Builders
@@ -163,37 +229,27 @@ const Landing: React.FC = () => {
                   Apply for Developer Card
                 </button>
               </div>
-            </motion.div>
+            </div>
 
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
-              className="flex justify-center items-center"
-            >
+            <div className="hero-card flex justify-center items-center">
               <div className="relative">
                 {/* Decorative element around the card */}
                 <div className="absolute -inset-4 bg-gradient-to-tr from-blue-500 to-indigo-500 rounded-2xl opacity-10 blur-2xl -z-10 animate-pulse" />
                 <div className="rotate-3 hover:rotate-0 transition-transform duration-500">
                   <AccessCard user={mockUser} isDemo />
                 </div>
-                {/* Floating tags */}
-                <motion.div
-                  animate={{ y: [0, -10, 0] }}
-                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                  className="absolute -top-6 -right-6 glass-card p-3 rounded-xl flex items-center gap-2 shadow-2xl border-white"
-                >
+                <div className="absolute -top-6 -right-6 glass-card p-3 rounded-xl flex items-center gap-2 shadow-2xl border-white">
                   <div className="bg-green-500 w-2 h-2 rounded-full animate-pulse" />
                   <span className="text-xs font-bold text-slate-700">Official Access</span>
-                </motion.div>
+                </div>
               </div>
-            </motion.div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Why Join Section */}
-      <section id="why-join" className="py-24 bg-white relative">
+      <section id="why-join" className="reveal-section py-24 bg-white relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 40 }}
@@ -241,7 +297,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* How It Works Section */}
-      <section id="how-it-works" className="py-24 bg-white">
+      <section id="how-it-works" className="reveal-section py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl lg:text-5xl font-display font-bold text-slate-900 mb-4">How to Get Started</h2>
