@@ -45,6 +45,8 @@ export const useStore = create<AuthState>()(
             id: authUser.uid,
             uid: authUser.uid,
             yearJoined: userData.yearJoined,
+            skills: userData.skills,
+            experienceLevel: userData.experienceLevel,
             status: 'Pending',
             isAdmin: false,
             authProvider: userData.authProvider || 'traditional',
@@ -91,13 +93,20 @@ export const useStore = create<AuthState>()(
         try {
           console.log('Running security checks for user:', uid);
           let supabaseUserData = await supabaseService.getUserData(uid);
-          
+
+          // Retry logic if user data is not found (prevents race condition during registration)
+          if (!supabaseUserData) {
+            console.log('User data not found, retrying in 1s...');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            supabaseUserData = await supabaseService.getUserData(uid);
+          }
+
           if (supabaseUserData) {
             // Check if admin status in DB matches what we might have locally
             if (supabaseUserData.isAdmin && !supabaseUserData.memberId) {
               supabaseUserData.memberId = await supabaseService.ensureUserHasMemberId(uid);
             }
-            
+
             const user: User = {
               id: uid,
               uid: uid,
@@ -111,18 +120,22 @@ export const useStore = create<AuthState>()(
               discordUsername: supabaseUserData.discordUsername || '',
               memberId: supabaseUserData.memberId || undefined,
               yearJoined: supabaseUserData.yearJoined,
+              skills: supabaseUserData.skills || [],
+              experienceLevel: supabaseUserData.experienceLevel,
               createdAt: supabaseUserData.createdAt,
               updatedAt: supabaseUserData.updatedAt,
             };
-            
+
             set({ currentUser: user });
           } else {
-            await get().logout();
+            console.warn('User data not found in Supabase for UID:', uid);
+            // Fallback: If we have a session but no DB record, don't logout yet.
+            // Just keep the currentUser as null or a partial user.
+            // This prevents the ProtectedRoute from immediately redirecting to /login
+            // if the database record creation is just slow.
           }
         } catch (error) {
           console.error('Security Check Error:', error);
-          // If we can't verify the user, we should probably log them out to be safe
-          // but we'll wait for the next successful check unless it's a critical error
         }
       },
 
@@ -131,6 +144,9 @@ export const useStore = create<AuthState>()(
           const generatedMemberId = await supabaseService.updateUserStatus(id, status, notes);
 
           set((state) => {
+            const isCurrentUser = state.currentUser?.id === id;
+            
+            // Update users array
             const updatedUsers = state.users.map((u) => {
               if (u.id === id) {
                 const updated = { ...u, status, adminNotes: notes || u.adminNotes };
@@ -141,10 +157,23 @@ export const useStore = create<AuthState>()(
               }
               return u;
             });
-            const isCurrentUser = state.currentUser?.id === id;
+
+            // Update currentUser directly if it's the one being updated
+            let updatedCurrentUser = state.currentUser;
+            if (isCurrentUser && state.currentUser) {
+              updatedCurrentUser = { 
+                ...state.currentUser, 
+                status, 
+                adminNotes: notes || state.currentUser.adminNotes 
+              };
+              if (status === 'Approved' && !updatedCurrentUser.memberId) {
+                updatedCurrentUser.memberId = generatedMemberId || generateMemberCode();
+              }
+            }
+
             return {
               users: updatedUsers,
-              currentUser: isCurrentUser ? updatedUsers.find((u) => u.id === id) : state.currentUser,
+              currentUser: updatedCurrentUser,
             };
           });
           return { success: true };

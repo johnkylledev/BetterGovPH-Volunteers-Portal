@@ -35,9 +35,9 @@ export default function Login() {
         const user = useStore.getState().currentUser;
 
         if (user?.isAdmin) {
-          navigate('/admin');
+          navigate('/admin', { replace: true });
         } else {
-          navigate('/dashboard');
+          navigate('/dashboard', { replace: true });
         }
       } else {
         setError(res.message);
@@ -52,7 +52,7 @@ export default function Login() {
 
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 font-sans selection:bg-blue-900/20 relative">
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 selection:bg-blue-900/20 relative">
       <Link
         to="/"
         className="absolute top-6 left-6 flex items-center gap-2 text-slate-500 hover:text-blue-900 transition-colors text-sm font-semibold group"

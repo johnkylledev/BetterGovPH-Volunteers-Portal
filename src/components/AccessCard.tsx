@@ -329,16 +329,16 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
         <div className="relative z-10 w-full mt-auto mb-2 bg-blue-900/40 backdrop-blur-md rounded-lg p-3 border border-blue-400/10 shadow-inner" style={{ transform: 'translateZ(10px)' }}>
           <div className="flex flex-col space-y-2">
             <div className="flex justify-between items-center border-b border-blue-400/10 pb-1.5">
-              <span className="text-blue-300/70 text-[9px] font-mono tracking-widest uppercase">Specialization</span>
-              <span className="text-white text-[11px] font-sans font-medium text-right">{user.specialization}</span>
+              <span className="text-blue-200/80 text-[9px] font-mono tracking-widest uppercase">Specialization</span>
+              <span className="text-white text-[11px] font-sans font-bold text-right">{user.specialization}</span>
             </div>
             <div className="flex justify-between items-center border-b border-blue-400/10 pb-1.5">
-              <span className="text-blue-300/70 text-[9px] font-mono tracking-widest uppercase">Role / Position</span>
-              <span className="text-white text-[11px] font-sans font-medium text-right">{user.role}</span>
+              <span className="text-blue-200/80 text-[9px] font-mono tracking-widest uppercase">Role / Position</span>
+              <span className="text-white text-[11px] font-sans font-bold text-right">{user.role}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-blue-300/70 text-[9px] font-mono tracking-widest uppercase">Member Since</span>
-              <span className="text-white text-[11px] font-sans font-medium text-right">{user.yearJoined || '-'}</span>
+              <span className="text-blue-200/80 text-[9px] font-mono tracking-widest uppercase">Member Since</span>
+              <span className="text-white text-[11px] font-sans font-bold text-right">{user.yearJoined || '-'}</span>
             </div>
           </div>
         </div>

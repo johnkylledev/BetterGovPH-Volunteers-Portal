@@ -2,13 +2,15 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, CheckCircle2, XCircle, LogOut, Filter, Users, Key, CreditCard, Download, Copy, Code, Check, Clock } from 'lucide-react';
+import { Search, CheckCircle2, XCircle, LogOut, Filter, Users, Key, CreditCard, Download, Copy, Code, Check, Clock, Zap } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { AccessCard } from '../../components/AccessCard';
+import { LoadingOverlay } from '../../components/LoadingOverlay';
 import clsx from 'clsx';
 import { User, ApplicationStatus } from '../../types';
 import { getAllUsers } from '../../services/supabase';
 import * as XLSX from 'xlsx';
+import { skillToSlug } from '../../utils/skillUtils';
 
 export default function AdminDashboard() {
   const { currentUser, users, logout, updateUserStatus, setUsers, authInitialized } = useStore();
@@ -44,7 +46,8 @@ export default function AdminDashboard() {
     loadUsers();
   }, [currentUser, setUsers]);
 
-  if (!authInitialized || !currentUser || !currentUser.isAdmin) return null;
+  if (!authInitialized || !currentUser) return <LoadingOverlay />;
+  if (!currentUser.isAdmin) return null;
 
   const handleLogout = () => {
     logout();
@@ -99,7 +102,12 @@ export default function AdminDashboard() {
       'Role': member.role || 'Member',
       'Discord Username': member.discordUsername || 'N/A',
       'Year Joined': member.yearJoined || 'N/A',
+      'Experience Level': member.experienceLevel || 'N/A',
+      'Skills': Array.isArray(member.skills)
+        ? member.skills.map(s => `${s.name} (${s.level})`).join(', ')
+        : 'N/A',
       'Status': member.status,
+      'Admin Notes': member.adminNotes || 'N/A',
       'Joined Date': new Date(member.createdAt).toLocaleDateString(),
     }));
 
@@ -228,7 +236,7 @@ export default function AdminDashboard() {
               )}
             >
               <div className="flex items-center gap-2">
-                <span>Member Cards</span>
+                <span>Members</span>
                 <span className={clsx(
                   "px-2 py-0.5 text-[10px] rounded-full font-bold",
                   activeTab === 'members' ? "bg-blue-900 text-white" : "bg-slate-100 text-slate-500"
@@ -509,34 +517,89 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="p-6 overflow-y-auto flex-1">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-6 mb-6">
+                  <div className="grid grid-cols-2 gap-y-6 gap-x-8 mb-10 px-2">
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Applicant Name</p>
-                      <p className="text-sm font-semibold text-slate-900">{selectedUser.fullName}</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Applicant Name</p>
+                      <p className="text-base font-bold text-slate-900">{selectedUser.fullName}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Email</p>
-                      <p className="text-sm font-semibold text-slate-900">{selectedUser.email}</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Email Address</p>
+                      <p className="text-sm font-semibold text-slate-600 truncate">{selectedUser.email}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Discord Username</p>
-                      <p className="text-sm font-semibold text-slate-900 bg-blue-50 text-blue-700 inline-block px-2 py-0.5 rounded-md">{selectedUser.discordUsername || 'N/A'}</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Discord Username</p>
+                      <p className="text-sm font-bold text-blue-600">{selectedUser.discordUsername || 'N/A'}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Date Applied</p>
-                      <p className="text-sm font-semibold text-slate-900">{new Date(selectedUser.createdAt).toLocaleDateString()}</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Date Applied</p>
+                      <p className="text-sm font-bold text-slate-900">
+                        {selectedUser.createdAt ? new Date(selectedUser.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) : 'N/A'}
+                      </p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Specialization</p>
-                      <p className="text-sm font-semibold text-slate-900">{selectedUser.specialization}</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Specialization</p>
+                      <p className="text-sm font-bold text-slate-900">{selectedUser.specialization || 'N/A'}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Role Request</p>
-                      <p className="text-sm font-semibold text-slate-900">{selectedUser.role}</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Role Request</p>
+                      <span className="inline-flex px-2 py-0.5 rounded-md bg-slate-100 text-[10px] font-black text-slate-600 uppercase tracking-widest">
+                        {selectedUser.role}
+                      </span>
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Member Since</p>
-                      <p className="text-sm font-semibold text-slate-900">{selectedUser.yearJoined || 'N/A'}</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Member Since</p>
+                      <p className="text-sm font-bold text-slate-900">{selectedUser.yearJoined || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Prof. Level</p>
+                      <p className="text-sm font-bold text-slate-900">{selectedUser.experienceLevel || 'Beginner'}</p>
+                    </div>
+                  </div>
+
+                  <div className="mb-6 space-y-4">
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Selected Skills</p>
+                      <div className="flex flex-wrap gap-2">
+                        {Array.isArray(selectedUser.skills) && selectedUser.skills.length > 0 ? (
+                          selectedUser.skills.map((skill, i) => (
+                            <div
+                              key={i}
+                              className="flex items-center gap-2 pl-2 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-blue-200 transition-all group"
+                            >
+                              <div className="w-6 h-6 rounded-lg bg-slate-50 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-50 transition-colors">
+                                <img
+                                  src={`https://cdn.simpleicons.org/${skillToSlug(skill.name)}`}
+                                  className="w-3.5 h-3.5 object-contain opacity-70 group-hover:opacity-100 transition-opacity"
+                                  alt=""
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                    const fallback = (e.target as HTMLImageElement).nextElementSibling;
+                                    if (fallback) (fallback as HTMLElement).style.display = 'block';
+                                  }}
+                                />
+                                <Code size={12} style={{ display: 'none' }} className="text-slate-400" />
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-[11px] font-bold text-slate-800 leading-tight">{skill.name}</span>
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  {skill.level === 'Expert' ? <Zap size={6} className="text-blue-600 fill-blue-600" /> :
+                                    skill.level === 'Practitioner' ? <CheckCircle2 size={6} className="text-blue-500" /> :
+                                      <Clock size={6} className="text-slate-400" />}
+                                  <span className="text-[7px] font-black uppercase tracking-widest text-slate-400">
+                                    {skill.level}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">None provided</span>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Experience Level</p>
+                      <p className="text-sm font-bold text-slate-900">{selectedUser.experienceLevel || '-'}</p>
                     </div>
                   </div>
 
@@ -654,38 +717,123 @@ export default function AdminDashboard() {
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4"
             >
-              <div className="w-full max-w-lg bg-white rounded-xl shadow-2xl border border-slate-200 flex flex-col max-h-[95vh] sm:max-h-[90vh]">
-                <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 flex-shrink-0">
+              <div className="w-full max-w-4xl bg-white rounded-[2rem] shadow-2xl border border-slate-200 flex flex-col max-h-[95vh] sm:max-h-[90vh] overflow-hidden">
+                <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 flex-shrink-0">
                   <div>
-                    <h3 className="text-base sm:text-lg font-bold text-slate-900">Member Access Card</h3>
-                    <p className="text-xs sm:text-sm text-slate-500">{selectedMember.fullName}'s official card.</p>
+                    <h3 className="text-xl font-bold text-slate-900 tracking-tight">Member Profile</h3>
+                    <p className="text-xs font-medium text-slate-500">Viewing official community record for {selectedMember.fullName}</p>
                   </div>
                   <button
                     onClick={() => setSelectedMember(null)}
-                    className="p-1.5 sm:p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                    className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all active:scale-95"
                   >
-                    <XCircle className="w-5 h-5 sm:w-6 sm:h-6" />
+                    <XCircle className="w-6 h-6" />
                   </button>
                 </div>
-                <div className="overflow-y-auto flex-1 p-4 sm:p-8 flex flex-col items-center gap-6 no-scrollbar">
-                  <div className="scale-[0.85] sm:scale-100 origin-top transition-transform">
-                    <AccessCard user={selectedMember} />
-                  </div>
-                  <div className="w-full flex flex-col gap-3 pb-4">
-                    <button
-                      onClick={() => handleCopyLink(selectedMember)}
-                      className="flex items-center justify-center gap-2 w-full py-4 bg-blue-900 text-white rounded-xl font-bold text-sm hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/20"
-                    >
-                      {copyStatus === 'copied' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                      {copyStatus === 'copied' ? 'Link Copied' : 'Copy Public Link'}
-                    </button>
-                    <button
-                      onClick={() => handleCopyEmbed(selectedMember)}
-                      className="flex items-center justify-center gap-2 w-full py-4 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all shadow-sm"
-                    >
-                      {copyStatus === 'embed-copied' ? <Check className="w-4 h-4" /> : <Code className="w-4 h-4" />}
-                      {copyStatus === 'embed-copied' ? 'Embed Copied' : 'Copy Embed Code'}
-                    </button>
+
+                <div className="overflow-y-auto flex-1 p-6 sm:p-8 no-scrollbar bg-slate-50/30">
+                  <div className="flex flex-col lg:grid lg:grid-cols-2 gap-10">
+                    <div className="flex flex-col items-center gap-8">
+                      <div className="scale-[0.85] sm:scale-100 origin-top transition-transform drop-shadow-2xl">
+                        <AccessCard user={selectedMember} />
+                      </div>
+                      <div className="w-full flex flex-col gap-3 max-w-[300px]">
+                        <button
+                          onClick={() => handleCopyLink(selectedMember)}
+                          className="flex items-center justify-center gap-2 w-full py-4 bg-blue-900 text-white rounded-2xl font-bold text-sm hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/20 active:scale-[0.98]"
+                        >
+                          {copyStatus === 'copied' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                          {copyStatus === 'copied' ? 'Link Copied' : 'Copy Public Link'}
+                        </button>
+                        <button
+                          onClick={() => handleCopyEmbed(selectedMember)}
+                          className="flex items-center justify-center gap-2 w-full py-4 bg-white border-2 border-slate-100 text-slate-700 rounded-2xl font-bold text-sm hover:border-blue-100 hover:bg-blue-50/30 transition-all active:scale-[0.98]"
+                        >
+                          {copyStatus === 'embed-copied' ? <Check className="w-4 h-4" /> : <Code className="w-4 h-4" />}
+                          {copyStatus === 'embed-copied' ? 'Embed Copied' : 'Copy Embed Code'}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-8">
+                      <div className="grid grid-cols-2 gap-y-6 gap-x-8 px-2">
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Full Name</p>
+                          <p className="text-sm font-bold text-slate-900">{selectedMember.fullName}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Email Address</p>
+                          <p className="text-sm font-semibold text-slate-600 truncate">{selectedMember.email}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Discord Handle</p>
+                          <p className="text-sm font-bold text-blue-600">{selectedMember.discordUsername || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Specialization</p>
+                          <p className="text-sm font-bold text-slate-900">{selectedMember.specialization || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Community Role</p>
+                          <span className="inline-flex px-2 py-0.5 rounded-md bg-blue-50 text-[10px] font-black text-blue-700 uppercase tracking-widest">
+                            {selectedMember.role}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Member Since</p>
+                          <p className="text-sm font-bold text-slate-900">{selectedMember.yearJoined || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Prof. Level</p>
+                          <p className="text-sm font-bold text-slate-900">{selectedMember.experienceLevel || 'Beginner'}</p>
+                        </div>
+                      </div>
+
+                      <div className="px-2">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Skills & Expertise</p>
+                        <div className="flex flex-wrap gap-2.5">
+                          {Array.isArray(selectedMember.skills) && selectedMember.skills.length > 0 ? (
+                            selectedMember.skills.map((skill, i) => (
+                              <div key={i} className="flex items-center gap-2 pl-2 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl hover:border-blue-100 transition-colors group shadow-sm">
+                                <div className="w-6 h-6 rounded-lg bg-slate-50 flex items-center justify-center">
+                                  <img
+                                    src={`https://cdn.simpleicons.org/${skillToSlug(skill.name)}`}
+                                    className="w-3.5 h-3.5 object-contain opacity-70 group-hover:opacity-100 transition-opacity"
+                                    alt=""
+                                    onError={(e) => (e.target as HTMLImageElement).style.display = 'none'}
+                                  />
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="text-[11px] font-bold text-slate-800 leading-tight">{skill.name}</span>
+                                  <span className="text-[7px] font-black uppercase tracking-widest text-blue-600">
+                                    {skill.level}
+                                  </span>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-xs text-slate-400 italic">No skills listed</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Experience Level</p>
+                        <p className="text-sm font-bold text-slate-900">{selectedMember.experienceLevel || 'Professional'}</p>
+                      </div>
+
+                      {selectedMember.adminNotes && (
+                        <div className="p-5 bg-blue-50/50 rounded-2xl border border-blue-100/50 relative overflow-hidden">
+                          <div className="absolute top-0 right-0 p-2 opacity-10">
+                            <Key size={40} />
+                          </div>
+                          <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-2">Admin Remarks</p>
+                          <p className="text-sm text-slate-700 italic leading-relaxed font-medium">
+                            "{selectedMember.adminNotes}"
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

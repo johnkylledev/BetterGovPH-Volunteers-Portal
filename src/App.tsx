@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect } from "react";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
@@ -11,6 +11,27 @@ import Terms from "./pages/public/Terms";
 import { useStore } from "./store/useStore";
 import { onAuthStateChange } from "./services/supabase";
 import { LoadingOverlay } from "./components/LoadingOverlay";
+
+function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) {
+  const { currentUser, authInitialized } = useStore();
+
+  if (!authInitialized) return <LoadingOverlay />;
+  if (!currentUser) return <Navigate to="/login" replace />;
+  if (adminOnly && !currentUser.isAdmin) return <Navigate to="/dashboard" replace />;
+
+  return <>{children}</>;
+}
+
+function PublicRoute({ children }: { children: React.ReactNode }) {
+  const { currentUser, authInitialized } = useStore();
+
+  if (!authInitialized) return <LoadingOverlay />;
+  if (currentUser) {
+    return <Navigate to={currentUser.isAdmin ? "/admin" : "/dashboard"} replace />;
+  }
+
+  return <>{children}</>;
+}
 
 export default function App() {
   const { updateCurrentUserFromSupabase } = useStore();
@@ -38,10 +59,10 @@ export default function App() {
       <Router>
         <Routes>
           <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/dashboard" element={<UserDashboard />} />
-          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+          <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+          <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
           <Route path="/verify" element={<Verify />} />
           <Route path="/verify/:id" element={<Verify />} />
           <Route path="/privacy" element={<Privacy />} />

@@ -22,6 +22,8 @@ const mapToAppUser = (dbUser: any): User | null => {
     isAdmin: !!dbUser.is_admin,
     authProvider: (dbUser.auth_provider as 'traditional' | 'google') || 'traditional',
     yearJoined: dbUser.year_joined,
+    skills: dbUser.skills || [],
+    experienceLevel: dbUser.experience_level,
     createdAt: dbUser.created_at,
     updatedAt: dbUser.updated_at,
   };
@@ -38,6 +40,8 @@ const mapToDbUser = (user: any) => {
     status: user.status,
     member_id: user.memberId,
     year_joined: user.yearJoined,
+    skills: user.skills,
+    experience_level: user.experienceLevel,
     admin_notes: user.adminNotes,
     is_admin: user.isAdmin,
     auth_provider: user.authProvider,

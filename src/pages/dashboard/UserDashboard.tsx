@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { AccessCard } from '../../components/AccessCard';
 import { motion } from 'framer-motion';
-import { ShieldAlert, CheckCircle2, Clock, LogOut, Download, Copy, Code, Check, CreditCard, Info } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, Clock, LogOut, Download, Copy, Code, Check, CreditCard, Info, Zap } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import clsx from 'clsx';
+import { skillToSlug } from '../../utils/skillUtils';
 
 export default function UserDashboard() {
   const { currentUser, logout, authInitialized } = useStore();
@@ -52,7 +53,7 @@ export default function UserDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-12 sm:pb-0">
+    <div className="min-h-screen bg-slate-50 pb-12 sm:pb-0">
       {/* Navbar */}
       <nav className="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -169,6 +170,64 @@ export default function UserDashboard() {
                     <p className="text-sm font-mono font-bold text-blue-600">{currentUser.memberId}</p>
                   </div>
                 )}
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+              className="bg-white sm:rounded-2xl p-6 sm:p-8 shadow-sm border-y sm:border border-slate-100"
+            >
+              <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-6">Skills & Expertise</h2>
+              
+              <div className="space-y-6">
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Core Skills</p>
+                  <div className="flex flex-wrap gap-3">
+                    {currentUser.skills && currentUser.skills.length > 0 ? (
+                      currentUser.skills.map((skill, index) => (
+                        <div 
+                          key={index} 
+                          className="flex items-center gap-3 pl-3 pr-4 py-2 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-all group"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-50 transition-colors">
+                            <img
+                              src={`https://cdn.simpleicons.org/${skillToSlug(skill.name)}`}
+                              className="w-4 h-4 object-contain opacity-80 group-hover:opacity-100 transition-opacity"
+                              alt=""
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                                const fallback = (e.target as HTMLImageElement).nextElementSibling;
+                                if (fallback) (fallback as HTMLElement).style.display = 'block';
+                              }}
+                            />
+                            <Code size={14} style={{ display: 'none' }} className="text-slate-400" />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-sm font-bold text-slate-800 leading-tight">{skill.name}</span>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              {skill.level === 'I can teach it' ? <Zap size={8} className="text-blue-600 fill-blue-600" /> :
+                               skill.level === 'I can apply it' ? <CheckCircle2 size={8} className="text-blue-500" /> :
+                               <Clock size={8} className="text-slate-400" />}
+                              <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                                {skill.level === 'I can teach it' ? 'Expert' :
+                                 skill.level === 'I can apply it' ? 'Practitioner' : 'Learner'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-slate-500 italic">No skills listed</p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Experience Level</p>
+                    <p className="text-sm font-bold text-slate-900">{currentUser.experienceLevel || '-'}</p>
+                  </div>
               </div>
             </motion.div>
           </div>

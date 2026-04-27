@@ -6,13 +6,13 @@
 @tailwind utilities;
 
 :root {
-  --font-geist: 'Plus Jakarta Sans', 'Inter', sans-serif;
-  --font-display: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  --font-jakarta: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-display: 'Plus Jakarta Sans', sans-serif;
   --font-round: 'Open Runde', sans-serif;
 
-  font-family: var(--font-geist);
-  line-height: 1.5;
-  font-weight: 400;
+  font-family: var(--font-jakarta);
+  line-height: 1.6;
+  font-weight: 500; /* Adjusted default weight for better readability */
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -23,21 +23,23 @@
 html,
 body,
 #root {
-  font-family: var(--font-geist);
+  font-family: var(--font-jakarta);
+  @apply antialiased text-slate-900;
 }
 
-/* Specific elements inherit Geist */
+/* Force Jakarta Sans on all common elements */
 p,
 span,
 a,
 button,
 input,
 textarea,
-select {
-  font-family: var(--font-geist);
+select,
+div {
+  font-family: var(--font-jakarta);
 }
 
-/* Headings use Space Grotesk */
+/* Refined Heading Weights */
 h1,
 h2,
 h3,
@@ -45,6 +47,8 @@ h4,
 h5,
 h6 {
   font-family: var(--font-display);
+  font-weight: 800; /* ExtraBold for headers */
+  letter-spacing: -0.02em;
 }
 
 /* PROTECT ACCESS CARD FONT */
@@ -65,11 +69,11 @@ body {
 
 @layer components {
   .btn-primary {
-    @apply px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-2xl transition-all duration-300 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 active:scale-95 flex items-center justify-center gap-2;
+    @apply px-6 py-3 bg-blue-900 hover:bg-blue-800 text-white font-bold rounded-2xl transition-all duration-300 shadow-xl shadow-blue-900/20 hover:shadow-blue-900/30 active:scale-95 flex items-center justify-center gap-2;
   }
 
   .btn-secondary {
-    @apply px-6 py-3 bg-white border-2 border-blue-100 hover:border-blue-200 text-blue-600 font-semibold rounded-2xl transition-all duration-300 hover:bg-blue-50/50 active:scale-95 flex items-center justify-center gap-2;
+    @apply px-6 py-3 bg-white border-2 border-slate-200 hover:border-blue-900 text-slate-700 hover:text-blue-900 font-bold rounded-2xl transition-all duration-300 hover:bg-slate-50 active:scale-95 flex items-center justify-center gap-2;
   }
 
   .glass-card {

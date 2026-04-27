@@ -2,11 +2,74 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, ChevronDown, Check, MessageSquare, Home, ArrowRight, ArrowLeft, User, Mail, Lock, Briefcase, Users, ShieldCheck, Loader2, AlertCircle } from 'lucide-react';
 import clsx from 'clsx';
 import { isDiscordUsernameTaken } from '../../services/supabase';
+import { Calendar, ChevronDown, Check, MessageSquare, Home, ArrowRight, ArrowLeft, User, Mail, Lock, Briefcase, Users, ShieldCheck, Loader2, AlertCircle, CheckCircle2, Clock, Search, Plus, X, BookOpen, Wrench, GraduationCap, Sparkles, Brain, Code, Palette, Database, Globe, Cpu, Layers, Server, Smartphone, Zap } from 'lucide-react';
+import { SkillLevel, ExperienceLevel, UserSkill } from '../../types';
+import { skillToSlug } from '../../utils/skillUtils';
 
-const SPECIALIZATIONS = ['Developer', 'Designer', 'Researcher', 'Contributor', 'Volunteer', 'Other'];
+const SPECIALIZATIONS = [
+  { id: 'frontend', label: 'Frontend Dev', icon: Globe, skills: ['React', 'Vue', 'Angular', 'Tailwind', 'Next.js', 'Frontend'] },
+  { id: 'backend', label: 'Backend Dev', icon: Database, skills: ['Node.js', 'Python', 'Go', 'PHP', 'Laravel', 'Java', 'Backend'] },
+  { id: 'fullstack', label: 'Full Stack Dev', icon: Code, skills: ['Full Stack', 'Next.js', 'PostgreSQL', 'TypeScript'] },
+  { id: 'design', label: 'UI/UX Designer', icon: Palette, skills: ['UI/UX', 'Figma', 'Graphic Design', 'Motion'] },
+  { id: 'data', label: 'Data & AI Dev', icon: Brain, skills: ['Data', 'Machine Learning', 'AI', 'Python', 'Analytics'] },
+  { id: 'devops', label: 'DevOps & Cloud Dev', icon: Cpu, skills: ['Docker', 'Kubernetes', 'Cloud', 'CI/CD', 'Terraform'] },
+  { id: 'security', label: 'Security & Cyber Dev', icon: ShieldCheck, skills: ['Cybersecurity', 'Hacking', 'Security', 'Penetration'] },
+  { id: 'pm', label: 'Project Manager', icon: Briefcase, skills: ['Project Management', 'Agile', 'Documentation'] }
+];
+
+const SKILL_CATEGORIES = {
+  'Software Engineering': [
+    'Frontend Development', 'Backend Development', 'Full Stack Development',
+    'Mobile Development', 'Flutter', 'React / Next.js', 'Vue.js', 'Angular',
+    'Node.js', 'PHP / Laravel', 'Python / Django / FastAPI', 'Java / Spring',
+    'Go (Golang)', 'Rust', 'TypeScript', 'JavaScript'
+  ],
+  'Design & Creative': [
+    'UI/UX Design', 'Graphic Design', 'Motion Graphics', 'Product Design',
+    'Brand Identity', 'Figma / Adobe XD', 'Adobe Photoshop', 'Adobe Illustrator'
+  ],
+  'Data & AI': [
+    'Data Science', 'Data Analytics', 'Machine Learning', 'Artificial Intelligence',
+    'Deep Learning', 'Natural Language Processing', 'Computer Vision',
+    'Big Data', 'SQL / NoSQL Databases'
+  ],
+  'DevOps & Infrastructure': [
+    'DevOps', 'Cloud Computing (AWS/GCP/Azure)', 'Docker', 'Kubernetes',
+    'CI/CD Pipelines', 'System Administration', 'Terraform', 'Serverless'
+  ],
+  'Cybersecurity': [
+    'Ethical Hacking', 'Network Security', 'Application Security',
+    'Penetration Testing', 'Incident Response', 'Security Compliance'
+  ],
+  'Professional & Others': [
+    'Project Management', 'Technical Writing', 'Research & Documentation',
+    'Community Building', 'Public Speaking', 'Open Source Contributor'
+  ]
+};
+
+const LEVEL_CONFIG: Record<SkillLevel, { label: string; icon: any; desc: string }> = {
+  'Learner': {
+    label: 'Learner',
+    icon: BookOpen,
+    desc: 'Basic understanding'
+  },
+  'Practitioner': {
+    label: 'Practitioner',
+    icon: Wrench,
+    desc: 'Hands-on experience'
+  },
+  'Expert': {
+    label: 'Expert',
+    icon: GraduationCap,
+    desc: 'Can mentor others'
+  }
+};
+
+const SKILL_LEVELS: SkillLevel[] = ['Learner', 'Practitioner', 'Expert'];
+const EXPERIENCE_LEVELS: ExperienceLevel[] = ['Beginner', 'Intermediate', 'Advanced', 'Professional'];
+
 const ROLES = ['Member', 'Fellow', 'Contributor', 'Other'];
 
 type Step = 1 | 2 | 3;
@@ -18,30 +81,95 @@ export default function Register() {
     email: '',
     password: '',
     discordUsername: '',
-    specialization: 'Developer',
-    customSpecialization: '',
+    yearJoined: new Date().getFullYear(),
+    skills: [] as UserSkill[],
+    experienceLevel: 'Beginner' as ExperienceLevel,
     role: 'Member',
     customRole: '',
-    yearJoined: new Date().getFullYear(),
+    specialization: '',
   });
+  const [skillSearch, setSkillSearch] = useState('');
+  const [otherSkill, setOtherSkill] = useState('');
+  const [showOtherInput, setShowOtherInput] = useState(false);
   const [isYearOpen, setIsYearOpen] = useState(false);
+  const [activeSkillCategory, setActiveSkillCategory] = useState(Object.keys(SKILL_CATEGORIES)[0]);
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [shouldShake, setShouldShake] = useState(false);
   const register = useStore((state) => state.register);
   const currentUser = useStore((state) => state.currentUser);
+
+  const dragContainerRef = React.useRef<HTMLDivElement>(null);
+  const dragContentRef = React.useRef<HTMLDivElement>(null);
+  const [dragConstraints, setDragConstraints] = useState({ left: 0, right: 0 });
+
+  useEffect(() => {
+    const calculateConstraints = () => {
+      if (dragContainerRef.current && dragContentRef.current) {
+        const containerWidth = dragContainerRef.current.offsetWidth;
+        const contentWidth = dragContentRef.current.scrollWidth;
+        const scrollableWidth = contentWidth - containerWidth;
+        setDragConstraints({
+          left: scrollableWidth > 0 ? -scrollableWidth - 40 : 0,
+          right: 0
+        });
+      }
+    };
+
+    calculateConstraints();
+    // Add a small delay for content rendering
+    const timer = setTimeout(calculateConstraints, 100);
+
+    window.addEventListener('resize', calculateConstraints);
+    return () => {
+      window.removeEventListener('resize', calculateConstraints);
+      clearTimeout(timer);
+    };
+  }, [activeSkillCategory]);
   const navigate = useNavigate();
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [suggestedSpecialization, setSuggestedSpecialization] = useState<string | null>(null);
+
+  // Smart Specialization Detection
+  useEffect(() => {
+    if (formData.skills.length === 0) {
+      setSuggestedSpecialization(null);
+      return;
+    }
+
+    const skillNames = formData.skills.map(s => s.name.toLowerCase());
+
+    // Score each specialization
+    const scores = SPECIALIZATIONS.map(spec => {
+      const matchCount = spec.skills.filter(specSkill =>
+        skillNames.some(userSkill => userSkill.includes(specSkill.toLowerCase()))
+      ).length;
+      return { id: spec.label, score: matchCount };
+    });
+
+    const bestMatch = scores.sort((a, b) => b.score - a.score)[0];
+
+    if (bestMatch && bestMatch.score > 0) {
+      setSuggestedSpecialization(bestMatch.id);
+      // Only auto-set if user hasn't manually picked one yet
+      if (!formData.specialization) {
+        setFormData(prev => ({ ...prev, specialization: bestMatch.id }));
+      }
+    }
+  }, [formData.skills]);
+
   const { authInitialized } = useStore();
 
   useEffect(() => {
-    if (authInitialized && currentUser) {
+    if (authInitialized && currentUser && !showSuccessModal) {
       if (currentUser.isAdmin) {
         navigate('/admin');
       } else {
         navigate('/dashboard');
       }
     }
-  }, [currentUser, authInitialized, navigate]);
+  }, [currentUser, authInitialized, navigate, showSuccessModal]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -49,16 +177,21 @@ export default function Register() {
 
   const validateStep = async (step: Step) => {
     setError('');
+    const triggerError = (msg: string) => {
+      setError(msg);
+      setShouldShake(true);
+      setTimeout(() => setShouldShake(false), 500);
+      return false;
+    };
+
     if (step === 1) {
-      if (!formData.fullName || !formData.email || !formData.password) {
-        setError('Please fill in all required fields.');
-        return false;
+      if (!formData.fullName || !formData.email || !formData.password || !formData.discordUsername) {
+        return triggerError('Please fill in all required fields.');
       }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-        setError('Please enter a valid email address.');
-        return false;
+        return triggerError('Please enter a valid email address.');
       }
-      
+
       const pass = formData.password;
       const hasLower = /[a-z]/.test(pass);
       const hasUpper = /[A-Z]/.test(pass);
@@ -66,31 +199,37 @@ export default function Register() {
       const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(pass);
 
       if (pass.length < 8) {
-        setError('Password must be at least 8 characters long.');
-        return false;
+        return triggerError('Password must be at least 8 characters long.');
       }
       if (!hasLower || !hasUpper || !hasNumber || !hasSpecial) {
-        setError('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.');
-        return false;
+        return triggerError('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.');
       }
-    } else if (step === 2) {
-      if (!formData.discordUsername) {
-        setError('Discord username is required.');
-        return false;
-      }
-      
+
       setLoading(true);
       try {
         const isTaken = await isDiscordUsernameTaken(formData.discordUsername);
         if (isTaken) {
-          setError('This Discord username is already registered. Please use a different one.');
-          setLoading(false);
-          return false;
+          return triggerError('This Discord username is already registered. Please use a different one.');
         }
       } catch (err) {
         console.error('Error checking Discord username:', err);
       } finally {
         setLoading(false);
+      }
+    } else if (step === 2) {
+      if (!formData.specialization) {
+        return triggerError('Please select your specialization.');
+      }
+      if (formData.role === 'Other' && !formData.customRole.trim()) {
+        return triggerError('Please specify your custom role.');
+      }
+    } else if (step === 3) {
+      if (formData.skills.length === 0) {
+        return triggerError('Please select at least one skill.');
+      }
+      const allLevelsSet = formData.skills.every(s => s.level);
+      if (!allLevelsSet) {
+        return triggerError('Please set a level for each selected skill.');
       }
     }
     return true;
@@ -109,15 +248,15 @@ export default function Register() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!(await validateStep(3))) return;
-    
+
     setError('');
     setLoading(true);
 
-    const spec = formData.specialization === 'Other' ? formData.customSpecialization : formData.specialization;
+    const primaryRole = formData.specialization;
     const rl = formData.role === 'Other' ? formData.customRole : formData.role;
 
-    if (!spec || !rl) {
-      setError('Please provide specialization and role details.');
+    if (!rl) {
+      setError('Please provide role details.');
       setLoading(false);
       return;
     }
@@ -128,14 +267,16 @@ export default function Register() {
         email: formData.email,
         password: formData.password,
         discordUsername: formData.discordUsername,
-        specialization: spec,
+        specialization: primaryRole, // Use user selected specialization
         role: rl,
         yearJoined: Number(formData.yearJoined),
+        skills: formData.skills,
+        experienceLevel: formData.experienceLevel,
         authProvider: 'traditional',
       });
 
       if (res.success) {
-        navigate('/dashboard');
+        setShowSuccessModal(true);
       } else {
         setError(res.message);
       }
@@ -146,11 +287,21 @@ export default function Register() {
     }
   };
 
+  const categoryLabels: Record<string, string> = {
+    'Software Engineering': 'Engineering',
+    'Design & Creative': 'Design',
+    'Data & AI': 'Data & AI',
+    'DevOps & Infrastructure': 'DevOps',
+    'Cybersecurity': 'Security',
+    'Professional & Others': 'Professional',
+  };
+
   const steps = [
     { id: 1, name: 'Account', icon: <User size={18} /> },
-    { id: 2, name: 'Community', icon: <Users size={18} /> },
-    { id: 3, name: 'Role', icon: <Briefcase size={18} /> },
+    { id: 2, name: 'Profile', icon: <Users size={18} /> },
+    { id: 3, name: 'Skills', icon: <Briefcase size={18} /> },
   ];
+
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 font-sans selection:bg-blue-900/20 relative">
@@ -186,12 +337,11 @@ export default function Register() {
             {/* Background Line */}
             <div className="absolute top-1/2 left-0 w-full h-0.5 bg-slate-200 -translate-y-1/2 -z-10" />
             {/* Progress Line */}
-            <motion.div 
+            <motion.div
               className="absolute top-1/2 left-0 h-0.5 bg-blue-900 -translate-y-1/2 -z-10 transition-all duration-500"
               initial={{ width: '0%' }}
-              animate={{ width: `${((currentStep - 1) / (steps.length - 1)) * 100}%` }}
-            />
-            
+              animate={{ width: `${((currentStep - 1) / (steps.length - 1)) * 100}%` }} />
+
             {steps.map((step) => (
               <div key={step.id} className="flex flex-col items-center">
                 <motion.div
@@ -207,7 +357,7 @@ export default function Register() {
                   )}
                 >
                   {currentStep > step.id ? <Check size={18} /> : step.icon}
-                  
+
                   {/* Step Label */}
                   <span className={clsx(
                     "absolute -bottom-7 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap transition-colors duration-300",
@@ -223,8 +373,15 @@ export default function Register() {
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
+          animate={{
+            opacity: 1,
+            y: 0,
+            x: shouldShake ? [0, -10, 10, -10, 10, 0] : 0
+          }}
+          transition={{
+            delay: 0.1,
+            x: { duration: 0.5, ease: "easeInOut" }
+          }}
           className="mt-12"
         >
           <div className="bg-white py-8 px-4 shadow-sm sm:rounded-lg sm:px-10 border sm:border-slate-100 relative">
@@ -253,61 +410,80 @@ export default function Register() {
                     transition={{ duration: 0.3 }}
                     className="space-y-5 sm:space-y-6"
                   >
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2">Full Name</label>
-                      <div className="relative group">
-                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-900 transition-colors">
-                          <User size={18} />
+                    <div className="grid grid-cols-1 gap-5">
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Full Name</label>
+                        <div className="relative group">
+                          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-900 transition-colors">
+                            <User size={18} />
+                          </div>
+                          <input
+                            name="fullName"
+                            type="text"
+                            required
+                            value={formData.fullName}
+                            onChange={handleChange}
+                            className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-3 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base sm:text-sm transition-all"
+                            placeholder="Juan Dela Cruz" />
                         </div>
-                        <input
-                          name="fullName"
-                          type="text"
-                          required
-                          value={formData.fullName}
-                          onChange={handleChange}
-                          className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-3 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base sm:text-sm transition-all"
-                          placeholder="Juan Dela Cruz"
-                        />
                       </div>
-                    </div>
 
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2">Email Address</label>
-                      <div className="relative group">
-                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-900 transition-colors">
-                          <Mail size={18} />
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Email Address</label>
+                        <div className="relative group">
+                          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-900 transition-colors">
+                            <Mail size={18} />
+                          </div>
+                          <input
+                            name="email"
+                            type="email"
+                            required
+                            value={formData.email}
+                            onChange={handleChange}
+                            className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-3 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base sm:text-sm transition-all"
+                            placeholder="juan@example.com" />
                         </div>
-                        <input
-                          name="email"
-                          type="email"
-                          required
-                          value={formData.email}
-                          onChange={handleChange}
-                          className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-3 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base sm:text-sm transition-all"
-                          placeholder="juan@example.com"
-                        />
                       </div>
-                    </div>
 
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2">Password</label>
-                      <div className="relative group">
-                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-900 transition-colors">
-                          <Lock size={18} />
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Discord Username</label>
+                        <div className="relative group">
+                          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-900 transition-colors">
+                            <MessageSquare size={18} />
+                          </div>
+                          <input
+                            name="discordUsername"
+                            type="text"
+                            required
+                            value={formData.discordUsername}
+                            onChange={handleChange}
+                            className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-3 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base sm:text-sm transition-all"
+                            placeholder="juan_dev#1234" />
                         </div>
-                        <input
-                          name="password"
-                          type="password"
-                          required
-                          value={formData.password}
-                          onChange={handleChange}
-                          className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-3 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base sm:text-sm transition-all"
-                          placeholder="••••••••"
-                        />
+                        <p className="mt-2 text-[10px] text-blue-600 font-medium">
+                          Must be in our <a href="https://discord.com/invite/mHtThpN8bT" target="_blank" rel="noopener noreferrer" className="underline font-bold">Discord server</a> for approval.
+                        </p>
                       </div>
-                      <p className="mt-2 text-[10px] text-slate-400 leading-relaxed font-medium">
-                        Min. 8 chars with uppercase, lowercase, number, and special character.
-                      </p>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Password</label>
+                        <div className="relative group">
+                          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-900 transition-colors">
+                            <Lock size={18} />
+                          </div>
+                          <input
+                            name="password"
+                            type="password"
+                            required
+                            value={formData.password}
+                            onChange={handleChange}
+                            className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-3 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base sm:text-sm transition-all"
+                            placeholder="••••••••" />
+                        </div>
+                        <p className="mt-2 text-[10px] text-slate-400 leading-relaxed font-medium">
+                          Min. 8 chars with uppercase, lowercase, number, and special character.
+                        </p>
+                      </div>
                     </div>
                   </motion.div>
                 )}
@@ -319,107 +495,204 @@ export default function Register() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ duration: 0.3 }}
-                    className="space-y-5 sm:space-y-6"
+                    className="space-y-6"
                   >
-                    <div className="p-4 rounded-lg bg-blue-50 border border-blue-100 flex items-start gap-3">
-                      <div className="shrink-0 pt-0.5">
-                        <MessageSquare size={18} className="text-blue-900" />
-                      </div>
+                    <div className="space-y-6">
                       <div>
-                        <p className="text-sm font-bold text-blue-900 mb-1">Discord Required</p>
-                        <p className="text-xs text-blue-700 leading-relaxed">
-                          You must be in our Discord server for approval.
-                          <a href="https://discord.com/invite/mHtThpN8bT" target="_blank" rel="noopener noreferrer" className="ml-1 font-bold underline hover:text-blue-900 transition-colors">
-                            Join here
-                          </a>
-                        </p>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2">Discord Username</label>
-                      <div className="relative group">
-                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-900 transition-colors">
-                          <MessageSquare size={18} />
+                        <div className="flex items-center justify-between mb-4">
+                          <label className="block text-sm font-bold text-slate-800 tracking-tight">Select Specialization</label>
+                          <AnimatePresence>
+                            {suggestedSpecialization && (
+                              <motion.div
+                                initial={{ opacity: 0, x: 10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                className="flex items-center gap-1.5 px-3 py-1 bg-blue-600 text-white rounded-full shadow-sm shadow-blue-200"
+                              >
+                                <Sparkles size={10} className="animate-pulse" />
+                                <span className="text-[8px] font-black uppercase tracking-widest">Recommended</span>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
-                        <input
-                          name="discordUsername"
-                          type="text"
-                          required
-                          value={formData.discordUsername}
-                          onChange={handleChange}
-                          className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-3 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base sm:text-sm transition-all"
-                          placeholder="juan_dev#1234"
-                        />
-                      </div>
-                    </div>
+                        <div className="grid grid-cols-2 gap-2.5">
+                          {SPECIALIZATIONS.map((spec) => {
+                            const Icon = spec.icon;
+                            const isSelected = formData.specialization === spec.label;
+                            const isSuggested = suggestedSpecialization === spec.label;
 
-                    <div className="space-y-2 relative">
-                      <label className="block text-sm font-semibold text-slate-700 mb-2">Member Since</label>
-                      <div className="relative">
-                        <button
-                          type="button"
-                          onClick={() => setIsYearOpen(!isYearOpen)}
-                          className={clsx(
-                            "relative w-full flex items-center justify-between rounded-lg border px-4 py-3 text-left transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-500/10",
-                            isYearOpen ? "border-blue-500 ring-4 ring-blue-500/10 bg-white shadow-sm" : "border-slate-200 bg-white hover:border-slate-300"
-                          )}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="text-blue-900">
-                              <Calendar className="w-4 h-4" />
-                            </div>
-                            <span className="text-sm font-bold text-slate-900">{formData.yearJoined}</span>
-                          </div>
-                          <ChevronDown className={clsx("w-4 h-4 text-slate-400 transition-transform duration-300", isYearOpen && "rotate-180")} />
-                        </button>
+                            return (
+                              <button
+                                key={spec.id}
+                                type="button"
+                                onClick={() => setFormData({ ...formData, specialization: spec.label })}
+                                className={clsx(
+                                  "group relative flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all duration-300",
+                                  isSelected
+                                    ? "bg-blue-900 border-blue-900 text-white shadow-xl shadow-blue-900/20 scale-[1.02] z-10"
+                                    : isSuggested
+                                      ? "bg-white border-blue-200 text-slate-600 hover:border-blue-400 hover:bg-blue-50/30"
+                                      : "bg-white border-slate-100 text-slate-500 hover:border-blue-200 hover:bg-slate-50"
+                                )}
+                              >
+                                <div className={clsx(
+                                  "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300",
+                                  isSelected
+                                    ? "bg-white/10 rotate-6"
+                                    : "bg-slate-50 text-blue-900 group-hover:scale-110 group-hover:-rotate-6"
+                                )}>
+                                  <Icon size={18} />
+                                </div>
+                                <span className={clsx(
+                                  "text-[10px] font-black uppercase tracking-wider text-center px-1",
+                                  isSelected ? "text-white" : "text-slate-700"
+                                )}>
+                                  {spec.label}
+                                </span>
+                                {isSelected && (
+                                  <motion.div
+                                    layoutId="spec-check"
+                                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-white text-blue-900 rounded-full flex items-center justify-center shadow-lg ring-4 ring-blue-900"
+                                  >
+                                    <Check size={12} strokeWidth={4} />
+                                  </motion.div>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-bold text-slate-800 mb-3 tracking-tight">Community Role</label>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          {ROLES.map((role) => {
+                            const isSelected = formData.role === role;
+                            return (
+                              <button
+                                key={role}
+                                type="button"
+                                onClick={() => setFormData({ ...formData, role: role })}
+                                className={clsx(
+                                  "py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 border-2",
+                                  isSelected
+                                    ? "bg-blue-900 border-blue-900 text-white shadow-lg shadow-blue-900/10"
+                                    : "bg-white border-slate-100 text-slate-500 hover:border-blue-200 hover:text-slate-700"
+                                )}
+                              >
+                                {role}
+                              </button>
+                            );
+                          })}
+                        </div>
 
                         <AnimatePresence>
-                          {isYearOpen && (
-                            <>
-                              <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                onClick={() => setIsYearOpen(false)}
-                                className="fixed inset-0 z-10"
+                          {formData.role === 'Other' && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="mt-3"
+                            >
+                              <input
+                                type="text"
+                                placeholder="Specify your role..."
+                                value={formData.customRole}
+                                onChange={(e) => setFormData({ ...formData, customRole: e.target.value })}
+                                className="w-full px-4 py-2.5 rounded-xl border-2 border-blue-100 bg-blue-50/30 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all"
                               />
-                              <motion.div
-                                initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                transition={{ duration: 0.2, ease: "easeOut" }}
-                                className="absolute left-0 right-0 mt-2 z-20 bg-white border border-slate-100 rounded-lg shadow-xl shadow-blue-900/10 overflow-hidden max-h-[240px] overflow-y-auto no-scrollbar"
-                              >
-                                <div className="p-2 grid grid-cols-1 gap-1">
-                                  {Array.from({ length: 4 }, (_, i) => new Date().getFullYear() - i).map((year) => (
-                                    <button
-                                      key={year}
-                                      type="button"
-                                      onClick={() => {
-                                        setFormData({ ...formData, yearJoined: year });
-                                        setIsYearOpen(false);
-                                      }}
-                                      className={clsx(
-                                        "flex items-center justify-between w-full px-4 py-3 rounded-lg text-sm font-bold transition-colors",
-                                        formData.yearJoined === year
-                                          ? "bg-blue-50 text-blue-900"
-                                          : "text-slate-600 hover:bg-slate-50"
-                                      )}
-                                    >
-                                      <span>{year}</span>
-                                      {formData.yearJoined === year && <Check className="w-4 h-4 text-blue-900" />}
-                                    </button>
-                                  ))}
-                                </div>
-                              </motion.div>
-                            </>
+                            </motion.div>
                           )}
                         </AnimatePresence>
                       </div>
-                      <p className="text-[10px] text-slate-400 leading-relaxed font-medium">
-                        The year you joined the BetterGovPH community.
-                      </p>
+
+                      <div>
+                        <label className="block text-sm font-bold text-slate-800 mb-3 tracking-tight">Professional Level</label>
+                        <div className="bg-slate-100 p-1 rounded-2xl flex gap-1 border border-slate-200/50">
+                          {EXPERIENCE_LEVELS.map((level) => {
+                            const isSelected = formData.experienceLevel === level;
+                            return (
+                              <button
+                                key={level}
+                                type="button"
+                                onClick={() => setFormData({ ...formData, experienceLevel: level })}
+                                className={clsx(
+                                  "flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300",
+                                  isSelected
+                                    ? "bg-white text-blue-900 shadow-lg shadow-slate-200 ring-1 ring-slate-200/50"
+                                    : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
+                                )}
+                              >
+                                {level}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-3">Member Since</label>
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setIsYearOpen(!isYearOpen)}
+                            className={clsx(
+                              "relative w-full flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-500/10",
+                              isYearOpen ? "border-blue-500 ring-4 ring-blue-500/10 bg-white shadow-sm" : "border-slate-200 bg-white hover:border-slate-300"
+                            )}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="text-blue-900">
+                                <Calendar className="w-4 h-4" />
+                              </div>
+                              <span className="text-sm font-bold text-slate-900">{formData.yearJoined}</span>
+                            </div>
+                            <ChevronDown className={clsx("w-4 h-4 text-slate-400 transition-transform duration-300", isYearOpen && "rotate-180")} />
+                          </button>
+
+                          {/* Year Dropdown stays the same */}
+                          <AnimatePresence>
+                            {isYearOpen && (
+                              <>
+                                <motion.div
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 1 }}
+                                  exit={{ opacity: 0 }}
+                                  onClick={() => setIsYearOpen(false)}
+                                  className="fixed inset-0 z-10" />
+                                <motion.div
+                                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                  transition={{ duration: 0.2, ease: "easeOut" }}
+                                  className="absolute left-0 right-0 mt-2 z-20 bg-white border border-slate-100 rounded-lg shadow-xl shadow-blue-900/10 overflow-hidden max-h-[200px] overflow-y-auto no-scrollbar"
+                                >
+                                  <div className="p-2 grid grid-cols-1 gap-1">
+                                    {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map((year) => (
+                                      <button
+                                        key={year}
+                                        type="button"
+                                        onClick={() => {
+                                          setFormData({ ...formData, yearJoined: year });
+                                          setIsYearOpen(false);
+                                        }}
+                                        className={clsx(
+                                          "flex items-center justify-between w-full px-4 py-3 rounded-lg text-sm font-bold transition-colors",
+                                          formData.yearJoined === year
+                                            ? "bg-blue-50 text-blue-900"
+                                            : "text-slate-600 hover:bg-slate-50"
+                                        )}
+                                      >
+                                        <span>{year}</span>
+                                        {formData.yearJoined === year && <Check className="w-4 h-4 text-blue-900" />}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </motion.div>
+                              </>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      </div>
                     </div>
                   </motion.div>
                 )}
@@ -431,153 +704,432 @@ export default function Register() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ duration: 0.3 }}
-                    className="space-y-5 sm:space-y-6"
+                    className="space-y-6"
                   >
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2">Specialization</label>
-                      <div className="relative group">
-                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-900 transition-colors">
-                          <Briefcase size={18} />
+                    <div className="flex flex-col gap-4">
+                      <label className="block text-sm font-bold text-slate-800 tracking-tight">Skills & Proficiency</label>
+                      <div className="flex flex-col gap-3">
+                        <div className="relative group">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 transition-colors group-focus-within:text-blue-500" />
+                          <input
+                            type="text"
+                            placeholder="Search skills..."
+                            value={skillSearch}
+                            onChange={(e) => setSkillSearch(e.target.value)}
+                            className="w-full pl-10 pr-4 py-3 rounded-2xl border-2 border-slate-100 text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all bg-white" />
                         </div>
-                        <select
-                          name="specialization"
-                          value={formData.specialization}
-                          onChange={handleChange}
-                          className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-3 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base sm:text-sm transition-all bg-white"
+
+                        <div
+                          ref={dragContainerRef}
+                          className="overflow-hidden bg-slate-100 p-1.5 rounded-2xl border border-slate-200/50 cursor-grab active:cursor-grabbing relative"
                         >
-                          {SPECIALIZATIONS.map((spec) => (
-                            <option key={spec} value={spec}>{spec}</option>
-                          ))}
-                        </select>
-                        <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-slate-400">
-                          <ChevronDown size={18} />
+                          <motion.div
+                            ref={dragContentRef}
+                            drag="x"
+                            dragConstraints={dragConstraints}
+                            dragElastic={0.1}
+                            className="flex gap-1"
+                          >
+                            {Object.keys(SKILL_CATEGORIES).map((category) => {
+                              const isActive = activeSkillCategory === category;
+                              return (
+                                <button
+                                  key={category}
+                                  type="button"
+                                  onClick={() => setActiveSkillCategory(category)}
+                                  className={clsx(
+                                    "relative px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-colors duration-300 flex-shrink-0 z-10",
+                                    isActive ? "text-blue-900" : "text-slate-500 hover:text-slate-800"
+                                  )}
+                                >
+                                  {isActive && (
+                                    <motion.div
+                                      layoutId="activeCategory"
+                                      className="absolute inset-0 bg-white rounded-xl shadow-sm border border-slate-200/50 -z-10"
+                                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                                    />
+                                  )}
+                                  {categoryLabels[category] || category}
+                                </button>
+                              );
+                            })}
+                          </motion.div>
                         </div>
                       </div>
-                      {formData.specialization === 'Other' && (
+
+                      <div className="min-h-[400px]">
+                        <AnimatePresence mode="wait">
+                          <motion.div
+                            key={activeSkillCategory + skillSearch}
+                            initial={{ opacity: 0, x: 10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -10 }}
+                            transition={{ duration: 0.2 }}
+                            className="grid grid-cols-1 gap-3"
+                          >
+                            {SKILL_CATEGORIES[activeSkillCategory as keyof typeof SKILL_CATEGORIES]
+                              .filter(skill => skill.toLowerCase().includes(skillSearch.toLowerCase()))
+                              .map((skill) => {
+                                const selectedSkill = formData.skills.find(s => s.name === skill);
+                                const isSelected = !!selectedSkill;
+
+                                return (
+                                  <div
+                                    key={skill}
+                                    className={clsx(
+                                      "group relative flex flex-col p-4 rounded-2xl border-2 transition-all duration-300",
+                                      isSelected
+                                        ? "bg-blue-50/50 border-blue-200 shadow-sm"
+                                        : "bg-white border-slate-100 hover:border-blue-100"
+                                    )}
+                                  >
+                                    <div className="flex items-center justify-between mb-3">
+                                      <div className="flex items-center gap-3">
+                                        <div className={clsx(
+                                          "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300",
+                                          isSelected
+                                            ? "bg-blue-900 text-white shadow-lg shadow-blue-900/20"
+                                            : "bg-slate-50 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-900"
+                                        )}>
+                                          <img
+                                            src={`https://cdn.simpleicons.org/${skillToSlug(skill)}`}
+                                            className={clsx(
+                                              "w-5 h-5 object-contain transition-all duration-300",
+                                              isSelected ? "brightness-0 invert" : "opacity-80 group-hover:opacity-100"
+                                            )}
+                                            alt=""
+                                            onError={(e) => {
+                                              (e.target as HTMLImageElement).style.display = 'none';
+                                              const fallback = (e.target as HTMLImageElement).nextElementSibling;
+                                              if (fallback) (fallback as HTMLElement).style.display = 'block';
+                                            }}
+                                          />
+                                          <div style={{ display: 'none' }} className="fallback-icon">
+                                            {activeSkillCategory === 'Software Engineering' ? <Code size={18} /> :
+                                              activeSkillCategory === 'Design & Creative' ? <Palette size={18} /> :
+                                                activeSkillCategory === 'Data & AI' ? <Brain size={18} /> :
+                                                  activeSkillCategory === 'DevOps & Infrastructure' ? <Cpu size={18} /> :
+                                                    activeSkillCategory === 'Cybersecurity' ? <ShieldCheck size={18} /> :
+                                                      <Users size={18} />}
+                                          </div>
+                                        </div>
+                                        <span className="text-sm font-bold text-slate-800">{skill}</span>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (isSelected) {
+                                            setFormData({
+                                              ...formData,
+                                              skills: formData.skills.filter(s => s.name !== skill)
+                                            });
+                                          } else {
+                                            setFormData({
+                                              ...formData,
+                                              skills: [...formData.skills, { name: skill, level: 'Learner' }]
+                                            });
+                                          }
+                                        }}
+                                        className={clsx(
+                                          "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300",
+                                          isSelected ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-400 hover:bg-blue-100 hover:text-blue-600"
+                                        )}
+                                      >
+                                        {isSelected ? <Check size={14} strokeWidth={3} /> : <Plus size={14} strokeWidth={3} />}
+                                      </button>
+                                    </div>
+
+                                    {isSelected && (
+                                      <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        className="flex gap-1.5 pt-1 relative"
+                                      >
+                                        {SKILL_LEVELS.map((level) => {
+                                          const isActive = selectedSkill?.level === level;
+
+                                          return (
+                                            <button
+                                              key={level}
+                                              type="button"
+                                              onClick={() => {
+                                                const newSkills = [...formData.skills];
+                                                const index = newSkills.findIndex(s => s.name === skill);
+                                                if (index !== -1) {
+                                                  newSkills[index] = { ...newSkills[index], level };
+                                                  setFormData({ ...formData, skills: newSkills });
+                                                }
+                                              }}
+                                              className={clsx(
+                                                "relative flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-colors duration-300 z-10",
+                                                isActive ? "text-white" : "text-slate-500 hover:text-slate-800 bg-white border border-slate-200"
+                                              )}
+                                            >
+                                              {isActive && (
+                                                <motion.div
+                                                  layoutId={`activeLevel-${skill}`}
+                                                  className="absolute inset-0 bg-blue-900 rounded-xl shadow-md shadow-blue-900/20 -z-10"
+                                                  transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                                                />
+                                              )}
+                                              {level}
+                                            </button>
+                                          );
+                                        })}
+                                      </motion.div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                          </motion.div>
+                        </AnimatePresence>
+                      </div>
+                    </div>
+
+                    {/* "Other" Skill Option */}
+                    <div className="pt-6 border-t border-slate-100">
+                      {!showOtherInput ? (
+                        <button
+                          type="button"
+                          onClick={() => setShowOtherInput(true)}
+                          className="flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-dashed border-slate-100 text-slate-400 text-[11px] font-black uppercase tracking-widest hover:border-blue-200 hover:text-blue-600 hover:bg-blue-50/30 transition-all w-full group"
+                        >
+                          <Plus size={14} strokeWidth={3} className="group-hover:scale-110 transition-transform" />
+                          <span>Add custom skill</span>
+                        </button>
+                      ) : (
                         <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          className="mt-3"
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="flex gap-2 p-1 bg-blue-50/50 rounded-2xl border-2 border-blue-100"
                         >
                           <input
-                            name="customSpecialization"
                             type="text"
-                            required
-                            value={formData.customSpecialization}
-                            onChange={handleChange}
-                            className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-3 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base sm:text-sm transition-all"
-                            placeholder="Specify specialization..."
+                            placeholder="Type skill name..."
+                            autoFocus
+                            value={otherSkill}
+                            onChange={(e) => setOtherSkill(e.target.value)}
+                            className="flex-1 px-4 py-2 bg-white rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition-all placeholder:text-slate-300"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                if (otherSkill.trim()) {
+                                  if (!formData.skills.some(s => s.name.toLowerCase() === otherSkill.trim().toLowerCase())) {
+                                    setFormData({
+                                      ...formData,
+                                      skills: [...formData.skills, { name: otherSkill.trim(), level: 'Learner' }]
+                                    });
+                                    setOtherSkill('');
+                                    setShowOtherInput(false);
+                                  }
+                                }
+                              }
+                              if (e.key === 'Escape') setShowOtherInput(false);
+                            }}
                           />
+                          <div className="flex gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (otherSkill.trim()) {
+                                  if (!formData.skills.some(s => s.name.toLowerCase() === otherSkill.trim().toLowerCase())) {
+                                    setFormData({
+                                      ...formData,
+                                      skills: [...formData.skills, { name: otherSkill.trim(), level: 'Learner' }]
+                                    });
+                                    setOtherSkill('');
+                                    setShowOtherInput(false);
+                                  }
+                                }
+                              }}
+                              className="p-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+                            >
+                              <Check size={18} strokeWidth={3} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setShowOtherInput(false)}
+                              className="p-2.5 bg-white text-slate-500 border border-slate-200 rounded-xl hover:text-red-600 hover:border-red-100 hover:bg-red-50 transition-all"
+                            >
+                              <X size={18} strokeWidth={3} />
+                            </button>
+                          </div>
                         </motion.div>
                       )}
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2">Role Request</label>
-                      <div className="relative group">
-                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-900 transition-colors">
-                          <ShieldCheck size={18} />
-                        </div>
-                        <select
-                          name="role"
-                          value={formData.role}
-                          onChange={handleChange}
-                          className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-3 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base sm:text-sm transition-all bg-white"
-                        >
-                          {ROLES.map((role) => (
-                            <option key={role} value={role}>{role}</option>
-                          ))}
-                        </select>
-                        <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-slate-400">
-                          <ChevronDown size={18} />
+                    <div className="pt-8 border-t border-slate-100">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">Selected Expertise</p>
+                          <div className="w-1 h-1 rounded-full bg-slate-300" />
+                          <span className="text-[10px] font-black text-blue-900">
+                            {formData.skills.length} Total
+                          </span>
                         </div>
                       </div>
-                      {formData.role === 'Other' && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          className="mt-3"
-                        >
-                          <input
-                            name="customRole"
-                            type="text"
-                            required
-                            value={formData.customRole}
-                            onChange={handleChange}
-                            className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-3 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base sm:text-sm transition-all"
-                            placeholder="Specify role..."
-                          />
-                        </motion.div>
-                      )}
-                    </div>
-
-                    <div className="p-4 rounded-lg bg-amber-50 border border-amber-100 flex items-start gap-3">
-                      <div className="shrink-0 pt-0.5">
-                        <ShieldCheck size={18} className="text-amber-600" />
+                      <div className="flex flex-wrap gap-2">
+                        {formData.skills.length === 0 ? (
+                          <div className="w-full py-8 rounded-2xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center gap-2">
+                            <Code size={20} className="text-slate-200" />
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">No skills added yet</p>
+                          </div>
+                        ) : (
+                          <AnimatePresence>
+                            {formData.skills.map((skill) => (
+                              <motion.div
+                                key={skill.name}
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.8 }}
+                                className="flex items-center gap-2 pl-3 pr-1 py-1 bg-white border-2 border-slate-100 rounded-xl hover:border-blue-200 hover:shadow-sm transition-all group"
+                              >
+                                <span className="text-[11px] font-bold text-slate-700">{skill.name}</span>
+                                <div className={clsx(
+                                  "px-2 py-1 rounded-lg flex items-center gap-1.5",
+                                  skill.level === 'Expert' ? "bg-blue-900 text-white" :
+                                    skill.level === 'Practitioner' ? "bg-blue-50 text-blue-900" :
+                                      "bg-slate-50 text-slate-600"
+                                )}>
+                                  {skill.level === 'Expert' ? <Zap size={8} className="fill-white" /> :
+                                    skill.level === 'Practitioner' ? <CheckCircle2 size={8} /> :
+                                      <Clock size={8} />}
+                                  <span className="text-[8px] font-black uppercase tracking-widest">
+                                    {skill.level}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setFormData({
+                                      ...formData,
+                                      skills: formData.skills.filter(s => s.name !== skill.name)
+                                    });
+                                  }}
+                                  className="ml-1 p-1.5 text-slate-400 hover:text-white hover:bg-red-500 rounded-lg transition-all"
+                                >
+                                  <X size={10} strokeWidth={4} />
+                                </button>
+                              </motion.div>
+                            ))}
+                          </AnimatePresence>
+                        )}
                       </div>
-                      <p className="text-xs text-amber-800 leading-relaxed font-medium">
-                        By submitting, you agree that your application is subject to manual verification by the community administrators.
-                      </p>
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              <div className="pt-6 flex gap-4">
+              <div className="pt-8 flex gap-3">
                 {currentStep > 1 && (
                   <button
                     type="button"
                     onClick={prevStep}
-                    className="flex-1 flex justify-center items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all active:scale-[0.98]"
+                    className="flex-1 flex justify-center items-center gap-2 rounded-2xl border-2 border-slate-100 bg-white px-4 py-4 text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-50 hover:border-slate-200 transition-all duration-300 active:scale-[0.98]"
                   >
-                    <ArrowLeft size={18} />
+                    <ArrowLeft size={16} strokeWidth={3} />
                     <span>Back</span>
                   </button>
                 )}
-                
+
                 {currentStep < 3 ? (
                   <button
                     type="button"
                     onClick={nextStep}
-                    className="flex-1 flex justify-center items-center gap-2 rounded-lg bg-blue-900 px-4 py-3.5 text-sm font-semibold text-white shadow-md hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-900/20 transition-all active:scale-[0.98]"
+                    className="flex-[2] relative flex justify-center items-center gap-2 rounded-2xl bg-blue-900 px-4 py-4 text-xs font-black uppercase tracking-widest text-white shadow-xl shadow-blue-900/20 hover:bg-blue-800 transition-all duration-300 active:scale-[0.98] group overflow-hidden"
                   >
-                    <span>Continue</span>
-                    <ArrowRight size={18} />
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:animate-shimmer" />
+                    <span className="relative flex items-center gap-2">
+                      Continue
+                      <ArrowRight size={16} strokeWidth={3} className="group-hover:translate-x-1 transition-transform" />
+                    </span>
                   </button>
                 ) : (
                   <button
                     type="submit"
                     disabled={loading}
-                    className="flex-[2] flex justify-center items-center gap-2 rounded-lg bg-blue-900 px-4 py-3.5 text-sm font-semibold text-white shadow-md hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-900/20 transition-all active:scale-[0.98] disabled:opacity-50"
+                    className="flex-[2] relative flex justify-center items-center gap-2 rounded-2xl bg-blue-900 px-4 py-4 text-xs font-black uppercase tracking-widest text-white shadow-xl shadow-blue-900/20 hover:bg-blue-800 transition-all duration-300 active:scale-[0.98] disabled:opacity-50 group overflow-hidden"
                   >
-                    {loading ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        <span>Submitting...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>Submit Application</span>
-                        <Check size={18} />
-                      </>
-                    )}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:animate-shimmer" />
+                    <span className="relative flex items-center gap-2">
+                      {loading ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          <span>Submitting...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Complete Application</span>
+                          <Check size={16} strokeWidth={3} />
+                        </>
+                      )}
+                    </span>
                   </button>
                 )}
               </div>
-            </form>
 
-            <div className="mt-8 pt-6 border-t border-slate-100 text-center">
-              <p className="text-sm text-slate-600">
-                Already registered?{' '}
-                <Link to="/login" className="font-semibold text-blue-900 hover:text-blue-700 transition-colors inline-flex items-center gap-1 group">
-                  Log in here
-                  <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
-                </Link>
-              </p>
-            </div>
+              <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+                <p className="text-sm text-slate-600">
+                  Already registered?{' '}
+                  <Link to="/login" className="font-semibold text-blue-900 hover:text-blue-700 transition-colors inline-flex items-center gap-1 group">
+                    Log in here
+                    <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+                  </Link>
+                </p>
+              </div>
+            </form>
           </div>
         </motion.div>
       </div>
+      <AnimatePresence>
+        {showSuccessModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100]"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="fixed inset-0 z-[101] flex items-center justify-center p-4"
+            >
+              <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 text-center relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-600 to-blue-900" />
+
+                <div className="mb-6 inline-flex items-center justify-center w-20 h-20 bg-blue-50 text-blue-600 rounded-full">
+                  <CheckCircle2 size={40} className="animate-bounce" />
+                </div>
+
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">Registration Successful!</h2>
+                <p className="text-slate-500 mb-8 leading-relaxed">
+                  Your application has been submitted to the BetterGovPH community.
+                  An administrator will review your profile shortly.
+                </p>
+
+                <div className="space-y-4">
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-left">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Status</p>
+                    <div className="flex items-center gap-2 text-blue-900 font-bold">
+                      <Clock size={16} />
+                      <span>Pending Review</span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => navigate('/dashboard')}
+                    className="w-full py-4 bg-blue-900 text-white rounded-2xl font-bold shadow-lg shadow-blue-900/20 hover:bg-blue-800 transition-all active:scale-[0.98]"
+                  >
+                    Go to Portal
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
