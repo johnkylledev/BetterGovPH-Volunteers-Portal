@@ -177,7 +177,10 @@ const Landing: React.FC = () => {
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center gap-2">
               <img src="/logo.svg" alt="BetterGovPH Logo" className="h-8 w-auto" />
-              <span className="font-display font-bold text-xl tracking-tight text-blue-900">BetterGovPH Dev Community</span>
+              <div className="flex flex-col leading-none">
+                <span className="font-display font-bold text-lg tracking-tight text-blue-900">BetterGovPH</span>
+                <span className="font-display font-bold text-[10px] uppercase tracking-[0.2em] text-blue-600/70">Developer Community</span>
+              </div>
             </div>
             <div className="hidden md:flex items-center gap-8">
               {[
@@ -593,7 +596,10 @@ const Landing: React.FC = () => {
             <div className="col-span-2">
               <div className="flex items-center gap-2 mb-6">
                 <img src="/logo.svg" alt="BetterGovPH Logo" className="h-8 w-auto" />
-                <span className="font-display font-bold text-2xl tracking-tight text-blue-900">BetterGovPH Developer Community</span>
+                <div className="flex flex-col leading-none">
+                  <span className="font-display font-bold text-xl tracking-tight text-blue-900">BetterGovPH</span>
+                  <span className="font-display font-bold text-[10px] uppercase tracking-[0.2em] text-blue-600/70">Developer Community</span>
+                </div>
               </div>
               <p className="text-slate-500 max-w-sm mb-6">
                 Building the future of digital governance in the Philippines through open source, collaboration, and community-driven tech.

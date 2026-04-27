@@ -68,8 +68,9 @@ export default function Login() {
         <div className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center mb-4 sm:mb-6">
           <img src="/logo.svg" alt="BetterGovPH Logo" className="w-full h-full object-contain" />
         </div>
-        <h2 className="mt-2 text-center text-xl sm:text-3xl font-bold tracking-tight text-slate-900 font-display leading-tight sm:leading-normal">
-          BetterGovPH Dev Community
+        <h2 className="mt-2 text-center text-xl sm:text-3xl font-bold tracking-tight text-slate-900 font-display leading-tight sm:leading-normal flex flex-col">
+          <span>BetterGovPH</span>
+          <span className="text-blue-900/80">Dev Community</span>
         </h2>
         <p className="mt-2 text-center text-sm text-slate-500">
           Sign in to access your portal
