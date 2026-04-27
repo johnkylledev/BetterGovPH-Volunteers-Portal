@@ -207,12 +207,12 @@ export default function UserDashboard() {
                           <div className="flex flex-col">
                             <span className="text-sm font-bold text-slate-800 leading-tight">{skill.name}</span>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              {skill.level === 'I can teach it' ? <Zap size={8} className="text-blue-600 fill-blue-600" /> :
-                               skill.level === 'I can apply it' ? <CheckCircle2 size={8} className="text-blue-500" /> :
+                              {skill.level === 'Expert' ? <Zap size={8} className="text-blue-600 fill-blue-600" /> :
+                               skill.level === 'Practitioner' ? <CheckCircle2 size={8} className="text-blue-500" /> :
                                <Clock size={8} className="text-slate-400" />}
                               <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                                {skill.level === 'I can teach it' ? 'Expert' :
-                                 skill.level === 'I can apply it' ? 'Practitioner' : 'Learner'}
+                                {skill.level === 'Expert' ? 'Expert' :
+                                 skill.level === 'Practitioner' ? 'Practitioner' : 'Learner'}
                               </span>
                             </div>
                           </div>
