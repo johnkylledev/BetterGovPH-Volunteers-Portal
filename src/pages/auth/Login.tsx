@@ -9,8 +9,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const login = useStore((state) => state.login);
-  const { currentUser, authInitialized } = useStore();
+  const { login, currentUser, authInitialized } = useStore();
   const navigate = useNavigate();
 
   React.useEffect(() => {
@@ -28,18 +27,25 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
-    const res = await login(email, password);
-    if (res.success) {
-      const user = useStore.getState().currentUser;
+    try {
+      const res = await login(email, password);
+      if (res.success) {
+        const user = useStore.getState().currentUser;
 
-      if (user?.isAdmin) {
-        navigate('/admin');
+        if (user?.isAdmin) {
+          navigate('/admin');
+        } else {
+          navigate('/dashboard');
+        }
       } else {
-        navigate('/dashboard');
+        setError(res.message);
       }
-    } else {
-      setError(res.message);
+    } catch (err: any) {
+      setError(err.message || 'Login failed');
+    } finally {
+      setLoading(false);
     }
   };
 

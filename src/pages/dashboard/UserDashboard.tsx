@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { AccessCard } from '../../components/AccessCard';
 import { motion } from 'framer-motion';
-import { ShieldAlert, CheckCircle2, Clock, LogOut, Download, Copy, Code, Check, CreditCard } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, Clock, LogOut, Download, Copy, Code, Check, CreditCard, Info } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import clsx from 'clsx';
 
@@ -44,8 +44,8 @@ export default function UserDashboard() {
   };
 
   const handleCopyEmbed = () => {
-    const url = `${window.location.origin}/verify/${currentUser.memberId || currentUser.id}?embed=true`;
-    const embedCode = `<iframe src="${url}" width="380" height="600" frameborder="0"></iframe>`;
+    const url = `${window.location.origin}/verify/${currentUser.memberId || currentUser.id}`;
+    const embedCode = `<iframe src="${url}?embed=true" width="320" height="480" frameborder="0"></iframe>`;
     navigator.clipboard.writeText(embedCode);
     setCopyStatus('embed-copied');
     setTimeout(() => setCopyStatus('idle'), 2000);
@@ -59,7 +59,7 @@ export default function UserDashboard() {
           <div className="flex justify-between h-16 sm:h-20">
             <div className="flex items-center space-x-2 sm:space-x-3">
               <img src="/logo.svg" alt="BetterGovPH Logo" className="w-7 h-7 sm:w-8 sm:h-8 object-contain brightness-0" />
-              <span className="text-lg sm:text-xl font-display font-bold text-slate-900 truncate">BetterGovPH</span>
+              <span className="text-lg sm:text-xl font-display font-bold text-slate-900 truncate">BetterGovPH Community</span>
             </div>
             <div className="flex items-center space-x-2 sm:space-x-4">
               {currentUser.status === 'Approved' && (
@@ -182,7 +182,19 @@ export default function UserDashboard() {
               className="lg:sticky lg:top-24 flex flex-col items-center"
             >
               <div className="w-full flex justify-between items-center mb-6 px-2">
-                <h2 className="text-base sm:text-lg font-bold text-slate-900">Digital Access Card</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900">Digital Access Card</h2>
+                  <div className="group relative">
+                    <Info className="w-4 h-4 text-slate-400 cursor-help hover:text-blue-500 transition-colors" />
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-slate-900 text-white text-[11px] rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-[60] shadow-2xl border border-white/10 translate-y-1 group-hover:translate-y-0">
+                      <p className="font-bold mb-1 text-blue-400">Portfolio Integration</p>
+                      <p className="text-slate-300 leading-relaxed">
+                        Showcase your official membership by embedding this digital card on your personal portfolio or website using the embed code below.
+                      </p>
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-slate-900" />
+                    </div>
+                  </div>
+                </div>
                 {currentUser.status === 'Approved' && (
                   <span className="px-3 py-1 bg-blue-100 text-blue-800 text-[10px] sm:text-xs font-bold rounded-full uppercase tracking-wide">
                     Ready to use

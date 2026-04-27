@@ -81,23 +81,27 @@ export const getUserData = async (uid: string, email?: string) => {
 };
 
 export const generateUniqueMemberId = async (selectedYear: number) => {
+  // Query only the last generated member_id for the given year to avoid fetching all users
   const { data, error } = await supabase
     .from('users')
     .select('member_id')
-    .not('member_id', 'is', null);
+    .ilike('member_id', `%-${selectedYear}-%`)
+    .order('member_id', { ascending: false })
+    .limit(50); // Fetch a small batch to find the highest sequence
 
   if (error) throw error;
 
   let maxSequence = 0;
-  data.forEach((u: any) => {
-    // Matches both YYYY-NNN and BGPH-YYYY-NNN
-    const parts = u.member_id.split('-');
-    const seqStr = parts[parts.length - 1];
-    const seq = parseInt(seqStr, 10);
-    if (!isNaN(seq) && seq > maxSequence) {
-      maxSequence = seq;
-    }
-  });
+  if (data && data.length > 0) {
+    data.forEach((u: any) => {
+      const parts = u.member_id.split('-');
+      const seqStr = parts[parts.length - 1];
+      const seq = parseInt(seqStr, 10);
+      if (!isNaN(seq) && seq > maxSequence) {
+        maxSequence = seq;
+      }
+    });
+  }
 
   const nextSequence = maxSequence + 1;
   return `BGPH-${selectedYear}-${String(nextSequence).padStart(3, '0')}`;
@@ -218,27 +222,69 @@ export const getUserByEmailAndPassword = async (email: string, _password?: strin
 };
 
 export const getUserByMemberIdOrId = async (id: string) => {
-  const cleanId = id.startsWith('BGPH-') ? id.replace('BGPH-', '') : id;
-  const prefixedId = id.startsWith('BGPH-') ? id : `BGPH-${id}`;
+  if (!id) return null;
+  const trimmedId = id.trim();
 
+  try {
+    // 1. Try matching against member_id first (case-insensitive)
+    // We check the ID as-is, without the prefix, and with the prefix
+    const upperId = trimmedId.toUpperCase();
+    const cleanId = upperId.startsWith('BGPH-') ? upperId.replace('BGPH-', '') : upperId;
+    const prefixedId = upperId.startsWith('BGPH-') ? upperId : `BGPH-${upperId}`;
+
+    const { data: memberData, error: memberError } = await supabase
+      .from('users')
+      .select('*')
+      .or(`member_id.ilike."${upperId}",member_id.ilike."${cleanId}",member_id.ilike."${prefixedId}"`)
+      .maybeSingle();
+
+    if (memberError) {
+      console.error('Member ID lookup error:', memberError);
+    } else if (memberData) {
+      return mapToAppUser(memberData);
+    }
+
+    // 2. If not found by member_id, try by uid only if it looks like a valid UUID
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmedId);
+    if (isUuid) {
+      const { data: uidData, error: uidError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('uid', trimmedId)
+        .maybeSingle();
+
+      if (uidError) {
+        console.error('UID lookup error:', uidError);
+      } else if (uidData) {
+        return mapToAppUser(uidData);
+      }
+    }
+  } catch (error) {
+    console.error('getUserByMemberIdOrId unexpected error:', error);
+  }
+
+  return null;
+};
+
+export const getAllUsers = async (page = 0, pageSize = 1000) => {
   const { data, error } = await supabase
     .from('users')
     .select('*')
-    .or(`uid.eq.${id},member_id.eq.${id},member_id.eq.${cleanId},member_id.eq.${prefixedId}`)
-    .maybeSingle();
+    .order('created_at', { ascending: false })
+    .range(page * pageSize, (page + 1) * pageSize - 1);
 
-  if (error) throw error;
-  return mapToAppUser(data);
-};
-
-export const getAllUsers = async () => {
-  const { data, error } = await supabase.from('users').select('*').order('created_at', { ascending: false });
   if (error) throw error;
   return data.map(mapToAppUser);
 };
 
-export const getNonAdminUsers = async () => {
-  const { data, error } = await supabase.from('users').select('*').eq('is_admin', false).order('created_at', { ascending: false });
+export const getNonAdminUsers = async (page = 0, pageSize = 1000) => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('is_admin', false)
+    .order('created_at', { ascending: false })
+    .range(page * pageSize, (page + 1) * pageSize - 1);
+
   if (error) throw error;
   return data.map(mapToAppUser);
 };

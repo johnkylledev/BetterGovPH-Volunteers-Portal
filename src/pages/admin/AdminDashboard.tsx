@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, CheckCircle2, XCircle, LogOut, Filter, Users, Key, CreditCard, Download, Copy, Code, Check } from 'lucide-react';
+import { Search, CheckCircle2, XCircle, LogOut, Filter, Users, Key, CreditCard, Download, Copy, Code, Check, Clock } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { AccessCard } from '../../components/AccessCard';
 import clsx from 'clsx';
@@ -35,25 +35,7 @@ export default function AdminDashboard() {
     const loadUsers = async () => {
       try {
         const allUsers = await getAllUsers();
-        const normalized = allUsers.map((user: any) => ({
-          id: user.id,
-          uid: user.uid || user.id,
-          fullName: user.fullName || '',
-          email: user.email || '',
-          password: user.password,
-          photoURL: user.photoURL,
-          specialization: user.specialization || '',
-          role: user.role || 'Member',
-          discordUsername: user.discordUsername || '',
-          status: (user.status as ApplicationStatus) || 'Pending',
-          memberId: user.memberId,
-          yearJoined: user.yearJoined,
-          adminNotes: user.adminNotes,
-          isAdmin: !!user.isAdmin,
-          createdAt: user.createdAt || new Date().toISOString(),
-          updatedAt: user.updatedAt,
-        }));
-        setUsers(normalized);
+        setUsers(allUsers);
       } catch (error) {
         console.error('Error loading admin users:', error);
       }
@@ -99,8 +81,8 @@ export default function AdminDashboard() {
   };
 
   const handleCopyEmbed = (user: User) => {
-    const url = `${window.location.origin}/verify/${user.memberId || user.id}?embed=true`;
-    const embedCode = `<iframe src="${url}" width="300" height="450" frameborder="0"></iframe>`;
+    const url = `${window.location.origin}/verify/${user.memberId || user.id}`;
+    const embedCode = `<iframe src="${url}?embed=true" width="320" height="480" frameborder="0"></iframe>`;
     navigator.clipboard.writeText(embedCode);
     setCopyStatus('embed-copied');
     setTimeout(() => setCopyStatus('idle'), 2000);
@@ -146,31 +128,35 @@ export default function AdminDashboard() {
     XLSX.writeFile(workbook, fileName);
   };
 
-  const filteredUsers = users
-    .filter((u) => !u.isAdmin)
-    .filter((user) => {
-      const matchesSearch =
-        user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (user.discordUsername && user.discordUsername.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredUsers = useMemo(() => {
+    return users
+      .filter((u) => !u.isAdmin)
+      .filter((user) => {
+        const matchesSearch =
+          user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (user.discordUsername && user.discordUsername.toLowerCase().includes(searchTerm.toLowerCase()));
 
-      const matchesStatus = statusFilter === 'All' || user.status === statusFilter;
+        const matchesStatus = statusFilter === 'All' || user.status === statusFilter;
 
-      return matchesSearch && matchesStatus;
-    })
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        return matchesSearch && matchesStatus;
+      })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [users, searchTerm, statusFilter]);
 
-  const filteredApprovedMembers = users
-    .filter(u => !u.isAdmin && u.status === 'Approved')
-    .filter((user) => {
-      const matchesSearch =
-        user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (user.discordUsername && user.discordUsername.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (user.memberId && user.memberId.toLowerCase().includes(searchTerm.toLowerCase()));
-      return matchesSearch;
-    })
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const filteredApprovedMembers = useMemo(() => {
+    return users
+      .filter(u => !u.isAdmin && u.status === 'Approved')
+      .filter((user) => {
+        const matchesSearch =
+          user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (user.discordUsername && user.discordUsername.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          (user.memberId && user.memberId.toLowerCase().includes(searchTerm.toLowerCase()));
+        return matchesSearch;
+      })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [users, searchTerm]);
 
   const pendingCount = users.filter(u => !u.isAdmin && u.status === 'Pending').length;
   const approvedCount = users.filter(u => !u.isAdmin && u.status === 'Approved').length;
@@ -711,8 +697,4 @@ export default function AdminDashboard() {
   );
 }
 
-const Clock = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-  </svg>
-);
+

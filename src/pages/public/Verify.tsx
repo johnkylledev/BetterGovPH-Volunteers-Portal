@@ -16,7 +16,8 @@ export default function Verify() {
   const users = useStore((state) => state.users);
   const [userData, setUserData] = useState<any | null>(() => {
     if (!id) return null;
-    return users.find((u) => u.memberId === id || u.id === id) || null;
+    const upperId = id.toUpperCase();
+    return users.find((u) => u.memberId?.toUpperCase() === upperId || u.id === id) || null;
   });
   const [loading, setLoading] = useState(!userData && !!id);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'embed-copied'>('idle');
@@ -36,7 +37,8 @@ export default function Verify() {
       }
 
       // If we already have the data (from initial state), don't set loading again
-      const localUser = users.find((u) => u.memberId === id || u.id === id);
+      const upperId = id.toUpperCase();
+      const localUser = users.find((u) => u.memberId?.toUpperCase() === upperId || u.id === id);
       if (localUser) {
         setUserData(localUser);
         setLoading(false);
@@ -102,7 +104,7 @@ export default function Verify() {
   const handleCopyEmbed = async () => {
     if (!publicUrl) return;
     try {
-      const embedCode = `<iframe src="${publicUrl}" width="300" height="450" frameborder="0"></iframe>`;
+      const embedCode = `<iframe src="${publicUrl}?embed=true" width="320" height="480" frameborder="0"></iframe>`;
       await navigator.clipboard.writeText(embedCode);
       setCopyStatus('embed-copied');
       setTimeout(() => setCopyStatus('idle'), 2000);
@@ -138,7 +140,7 @@ export default function Verify() {
             {!isEmbed && (
               <>
                 <h1 className="text-3xl sm:text-4xl font-display font-bold text-slate-900 mb-3 tracking-tight px-4">
-                  Official Verification
+                  BetterGovPH Community
                 </h1>
                 <p className="text-slate-600 text-lg sm:text-xl font-medium mb-10 sm:mb-12 px-6 sm:px-6 leading-relaxed max-w-2xl">
                   {isValid
@@ -161,8 +163,40 @@ export default function Verify() {
               <AccessCard user={userData} />
             </div>
 
-            {isValid && (
-              <div className="w-full max-w-md mt-12 space-y-4">
+            {isValid && !isEmbed && (
+              <div className="w-full max-w-md mt-12 space-y-4 px-4">
+                <button
+                  onClick={handleCopyLink}
+                  className="flex items-center justify-center gap-2 w-full py-4 bg-blue-900 text-white rounded-xl font-bold text-sm hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/20 active:scale-[0.98]"
+                >
+                  {copyStatus === 'copied' ? (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Link Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4" />
+                      <span>Copy Public Link</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={handleCopyEmbed}
+                  className="flex items-center justify-center gap-2 w-full py-4 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all shadow-sm active:scale-[0.98]"
+                >
+                  {copyStatus === 'embed-copied' ? (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Code Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Code className="w-4 h-4" />
+                      <span>Copy Embed Code</span>
+                    </>
+                  )}
+                </button>
               </div>
             )}
 

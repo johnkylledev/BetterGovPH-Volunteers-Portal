@@ -36,7 +36,7 @@ const Privacy: React.FC = () => {
             <section>
               <h2 className="text-xl font-bold text-slate-900 mb-4">1. Information We Collect</h2>
               <p className="text-slate-600 leading-relaxed">
-                When you apply for a BetterGovPH Developer Community Access Card, we collect personal information you provide, including your full name, email address, GitHub username, and professional background. We also verify your membership in our Discord community.
+                When you apply for a BetterGovPH Developer Community Access Card, we collect personal information you provide, including your full name, email address, Discord username, and professional background. We also verify your membership in our Discord community.
               </p>
             </section>
 
