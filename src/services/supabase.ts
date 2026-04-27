@@ -266,6 +266,22 @@ export const getUserByMemberIdOrId = async (id: string) => {
   return null;
 };
 
+export const isDiscordUsernameTaken = async (discordUsername: string): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('uid')
+      .eq('discord_username', discordUsername)
+      .maybeSingle();
+
+    if (error) throw error;
+    return !!data;
+  } catch (error) {
+    console.error('Error checking discord username:', error);
+    return false;
+  }
+};
+
 export const getAllUsers = async (page = 0, pageSize = 1000) => {
   const { data, error } = await supabase
     .from('users')

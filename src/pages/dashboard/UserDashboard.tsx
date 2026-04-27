@@ -185,14 +185,6 @@ export default function UserDashboard() {
                 <div className="flex items-center gap-2">
                   <h2 className="text-base sm:text-lg font-bold text-slate-900">Digital Access Card</h2>
                   <div className="group relative">
-                    <Info className="w-4 h-4 text-slate-400 cursor-help hover:text-blue-500 transition-colors" />
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-slate-900 text-white text-[11px] rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-[60] shadow-2xl border border-white/10 translate-y-1 group-hover:translate-y-0">
-                      <p className="font-bold mb-1 text-blue-400">Portfolio Integration</p>
-                      <p className="text-slate-300 leading-relaxed">
-                        Showcase your official membership by embedding this digital card on your personal portfolio or website using the embed code below.
-                      </p>
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-slate-900" />
-                    </div>
                   </div>
                 </div>
                 {currentUser.status === 'Approved' && (
@@ -210,7 +202,7 @@ export default function UserDashboard() {
 
                 {currentUser.status !== 'Approved' && (
                   <div className="absolute inset-0 z-50 flex items-center justify-center p-4">
-                  <div className="bg-white/90 backdrop-blur-sm px-6 py-4 rounded-2xl shadow-xl border border-slate-200 text-center">
+                    <div className="bg-white/90 backdrop-blur-sm px-6 py-4 rounded-2xl shadow-xl border border-slate-200 text-center">
                       <p className="text-sm font-bold text-slate-800">Card Unavailable</p>
                       <p className="text-xs text-slate-500 mt-1">Pending Approval</p>
                     </div>

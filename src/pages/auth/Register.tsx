@@ -4,6 +4,7 @@ import { useStore } from '../../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, ChevronDown, Check, MessageSquare, Home, ArrowRight, ArrowLeft, User, Mail, Lock, Briefcase, Users, ShieldCheck, Loader2, AlertCircle } from 'lucide-react';
 import clsx from 'clsx';
+import { isDiscordUsernameTaken } from '../../services/supabase';
 
 const SPECIALIZATIONS = ['Developer', 'Designer', 'Researcher', 'Contributor', 'Volunteer', 'Other'];
 const ROLES = ['Member', 'Fellow', 'Contributor', 'Other'];
@@ -46,7 +47,7 @@ export default function Register() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const validateStep = (step: Step) => {
+  const validateStep = async (step: Step) => {
     setError('');
     if (step === 1) {
       if (!formData.fullName || !formData.email || !formData.password) {
@@ -77,12 +78,26 @@ export default function Register() {
         setError('Discord username is required.');
         return false;
       }
+      
+      setLoading(true);
+      try {
+        const isTaken = await isDiscordUsernameTaken(formData.discordUsername);
+        if (isTaken) {
+          setError('This Discord username is already registered. Please use a different one.');
+          setLoading(false);
+          return false;
+        }
+      } catch (err) {
+        console.error('Error checking Discord username:', err);
+      } finally {
+        setLoading(false);
+      }
     }
     return true;
   };
 
-  const nextStep = () => {
-    if (validateStep(currentStep)) {
+  const nextStep = async () => {
+    if (await validateStep(currentStep)) {
       setCurrentStep((prev) => (prev + 1) as Step);
     }
   };
@@ -93,7 +108,7 @@ export default function Register() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateStep(3)) return;
+    if (!(await validateStep(3))) return;
     
     setError('');
     setLoading(true);
