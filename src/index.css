@@ -65,11 +65,11 @@ body {
 
 @layer components {
   .btn-primary {
-    @apply px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 active:scale-95 flex items-center justify-center gap-2;
+    @apply px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-2xl transition-all duration-300 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 active:scale-95 flex items-center justify-center gap-2;
   }
 
   .btn-secondary {
-    @apply px-6 py-3 bg-white border-2 border-blue-100 hover:border-blue-200 text-blue-600 font-semibold rounded-xl transition-all duration-300 hover:bg-blue-50/50 active:scale-95 flex items-center justify-center gap-2;
+    @apply px-6 py-3 bg-white border-2 border-blue-100 hover:border-blue-200 text-blue-600 font-semibold rounded-2xl transition-all duration-300 hover:bg-blue-50/50 active:scale-95 flex items-center justify-center gap-2;
   }
 
   .glass-card {

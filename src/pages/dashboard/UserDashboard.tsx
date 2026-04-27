@@ -30,7 +30,7 @@ export default function UserDashboard() {
 
   const getStatusIcon = () => {
     switch (currentUser.status) {
-      case 'Approved': return <CheckCircle2 className="w-5 h-5 text-green-500" />;
+      case 'Approved': return <CheckCircle2 className="w-5 h-5 text-blue-500" />;
       case 'Declined': return <ShieldAlert className="w-5 h-5 text-red-500" />;
       default: return <Clock className="w-5 h-5 text-yellow-500" />;
     }
@@ -68,7 +68,7 @@ export default function UserDashboard() {
                     const el = document.getElementById('digital-card-section');
                     el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                   }}
-                  className="inline-flex items-center gap-2 px-3 py-2 text-xs sm:text-sm font-bold text-blue-900 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors"
+                  className="inline-flex items-center gap-2 px-3 py-2 text-xs sm:text-sm font-bold text-blue-900 bg-blue-50 hover:bg-blue-100 rounded-2xl transition-colors"
                 >
                   <CreditCard className="w-4 h-4" />
                   <span className="hidden sm:inline">My Card</span>
@@ -84,7 +84,7 @@ export default function UserDashboard() {
               </div>
               <button
                 onClick={handleLogout}
-                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all"
                 title="Logout"
               >
                 <LogOut className="w-5 h-5" />
@@ -103,12 +103,12 @@ export default function UserDashboard() {
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-white sm:rounded-xl p-6 sm:p-8 shadow-sm border-y sm:border border-slate-100"
+              className="bg-white sm:rounded-2xl p-6 sm:p-8 shadow-sm border-y sm:border border-slate-100"
             >
               <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-4 sm:mb-6">Application Status</h2>
               <div className={clsx(
-                "flex items-start sm:items-center space-x-4 p-4 rounded-lg sm:rounded-xl border",
-                currentUser.status === 'Approved' ? 'bg-green-50 border-green-100' :
+                "flex items-start sm:items-center space-x-4 p-4 rounded-2xl border",
+                currentUser.status === 'Approved' ? 'bg-blue-50 border-blue-100' :
                   currentUser.status === 'Declined' ? 'bg-red-50 border-red-100' :
                     'bg-yellow-50 border-yellow-100'
               )}>
@@ -124,7 +124,7 @@ export default function UserDashboard() {
               </div>
 
               {currentUser.adminNotes && (
-                <div className="mt-4 p-4 bg-slate-50 rounded-lg sm:rounded-xl border border-slate-100">
+                <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Admin Notes</p>
                   <p className="text-sm text-slate-700 leading-relaxed">{currentUser.adminNotes}</p>
                 </div>
@@ -135,7 +135,7 @@ export default function UserDashboard() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="bg-white sm:rounded-xl p-6 sm:p-8 shadow-sm border-y sm:border border-slate-100"
+              className="bg-white sm:rounded-2xl p-6 sm:p-8 shadow-sm border-y sm:border border-slate-100"
             >
               <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-4 sm:mb-6">Profile Information</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 sm:gap-x-8">
@@ -186,7 +186,7 @@ export default function UserDashboard() {
                   <h2 className="text-base sm:text-lg font-bold text-slate-900">Digital Access Card</h2>
                   <div className="group relative">
                     <Info className="w-4 h-4 text-slate-400 cursor-help hover:text-blue-500 transition-colors" />
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-slate-900 text-white text-[11px] rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-[60] shadow-2xl border border-white/10 translate-y-1 group-hover:translate-y-0">
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-slate-900 text-white text-[11px] rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-[60] shadow-2xl border border-white/10 translate-y-1 group-hover:translate-y-0">
                       <p className="font-bold mb-1 text-blue-400">Portfolio Integration</p>
                       <p className="text-slate-300 leading-relaxed">
                         Showcase your official membership by embedding this digital card on your personal portfolio or website using the embed code below.
@@ -210,7 +210,7 @@ export default function UserDashboard() {
 
                 {currentUser.status !== 'Approved' && (
                   <div className="absolute inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white/90 backdrop-blur-sm px-6 py-4 rounded-2xl shadow-xl border border-slate-200 text-center">
+                  <div className="bg-white/90 backdrop-blur-sm px-6 py-4 rounded-2xl shadow-xl border border-slate-200 text-center">
                       <p className="text-sm font-bold text-slate-800">Card Unavailable</p>
                       <p className="text-xs text-slate-500 mt-1">Pending Approval</p>
                     </div>
@@ -228,7 +228,7 @@ export default function UserDashboard() {
                   <div className="flex flex-col gap-3">
                     <button
                       onClick={handleCopyLink}
-                      className="flex items-center justify-center gap-2 w-full py-4 bg-blue-900 text-white rounded-xl font-bold text-sm hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/20 active:scale-[0.98]"
+                      className="flex items-center justify-center gap-2 w-full py-4 bg-blue-900 text-white rounded-2xl font-bold text-sm hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/20 active:scale-[0.98]"
                     >
                       {copyStatus === 'copied' ? (
                         <>
@@ -244,7 +244,7 @@ export default function UserDashboard() {
                     </button>
                     <button
                       onClick={handleCopyEmbed}
-                      className="flex items-center justify-center gap-2 w-full py-4 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all shadow-sm active:scale-[0.98]"
+                      className="flex items-center justify-center gap-2 w-full py-4 bg-white border border-slate-200 text-slate-700 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-all shadow-sm active:scale-[0.98]"
                     >
                       {copyStatus === 'embed-copied' ? (
                         <>

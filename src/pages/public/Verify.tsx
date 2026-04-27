@@ -126,7 +126,7 @@ export default function Verify() {
           isEmbed ? "p-0 h-full bg-transparent overflow-hidden" : "max-w-3xl bg-white sm:rounded-[2.5rem] sm:my-10 px-0 sm:px-12 py-10 sm:py-20 sm:shadow-2xl sm:shadow-slate-200/50 sm:border border-slate-100 min-h-screen sm:min-h-0 overflow-hidden"
         )}
       >
-        {!isEmbed && <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-600 via-blue-400 to-blue-900" />}
+
 
         {loading ? (
           !isEmbed ? (
@@ -247,10 +247,10 @@ export default function Verify() {
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="p-4 sm:p-5 bg-green-50 border border-green-100 rounded-2xl flex items-center justify-between group"
+                  className="p-4 sm:p-5 bg-blue-50 border border-blue-100 rounded-2xl flex items-center justify-between group"
                 >
                   <div className="text-left overflow-hidden">
-                    <p className="text-[9px] sm:text-[10px] font-bold text-green-600 uppercase tracking-widest mb-1 truncate">Official Member Found</p>
+                    <p className="text-[9px] sm:text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1 truncate">Official Member Found</p>
                     <p className="text-sm font-bold text-slate-900 truncate">{searchResult.fullName}</p>
                     <p className="text-xs text-slate-500 truncate">{searchResult.memberId}</p>
                   </div>

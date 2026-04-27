@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { motion, useScroll, useSpring } from 'framer-motion';
 import {
+  Target,
+  Server,
+  Heart,
+  Star,
+  Building2,
   Users,
   ShieldCheck,
   IdCard,
@@ -20,6 +24,7 @@ import { User } from '../../types';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
+import { motion } from 'framer-motion';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -29,12 +34,7 @@ const JOIN_US = "https://bettergov.ph/join-us";
 
 const Landing: React.FC = () => {
   const navigate = useNavigate();
-  const { scrollYProgress } = useScroll();
-  const scaleX = useSpring(scrollYProgress, {
-    stiffness: 100,
-    damping: 30,
-    restDelta: 0.001
-  });
+
 
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -167,36 +167,12 @@ const Landing: React.FC = () => {
 
   return (
     <div ref={containerRef} className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-900 relative">
-      {/* Scroll Progress Bar */}
-      <motion.div
-        className="fixed top-0 left-0 right-0 h-1 bg-blue-600 z-[60] origin-left"
-        style={{ scaleX }}
-      />
 
-      {/* Background blobs */}
-      <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
-        <motion.div
-          animate={{
-            x: [0, 100, 0],
-            y: [0, 50, 0],
-            scale: [1, 1.2, 1]
-          }}
-          transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute -top-[10%] -right-[10%] w-[50%] h-[50%] bg-blue-100/50 blur-[120px] rounded-full"
-        />
-        <motion.div
-          animate={{
-            x: [0, -80, 0],
-            y: [0, 100, 0],
-            scale: [1, 1.1, 1]
-          }}
-          transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-[20%] -left-[10%] w-[40%] h-[40%] bg-indigo-100/40 blur-[100px] rounded-full"
-        />
-      </div>
+
+
 
       {/* Navigation */}
-      <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${isScrolled ? 'bg-white/80 backdrop-blur-md shadow-sm border-b border-blue-100 py-2' : 'bg-transparent py-4'}`}>
+      <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${isScrolled ? 'bg-white/80 backdrop-blur-md shadow-sm py-2' : 'bg-transparent py-4'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center gap-2">
@@ -236,11 +212,7 @@ const Landing: React.FC = () => {
 
       {/* Hero Section */}
       <section className="hero-section relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
-        {/* Background Gradients */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full -z-10">
-          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-100/50 rounded-full blur-[120px]" />
-          <div className="absolute bottom-[10%] right-[-10%] w-[30%] h-[30%] bg-indigo-100/50 rounded-full blur-[120px]" />
-        </div>
+
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
@@ -255,13 +227,13 @@ const Landing: React.FC = () => {
               <p className="text-xl text-slate-600 mb-8 max-w-lg leading-relaxed">
                 Connect with developers, contributors, innovators, and public tech builders shaping BetterGovPH. Get your official Developer Community Access Card today.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <a href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer" className="btn-primary group">
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <a href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer" className="btn-primary group inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/30 active:scale-[0.98]">
                   <MessageSquare size={20} />
                   Join Discord Server
                   <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
                 </a>
-                <button onClick={handleApplyClick} className="btn-secondary">
+                <button onClick={handleApplyClick} className="btn-secondary inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl border-2 border-slate-300 bg-white text-slate-900 font-bold text-sm hover:border-blue-600 hover:text-blue-600 transition-all shadow-sm active:scale-[0.98]">
                   <IdCard size={20} />
                   Apply for Developer Card
                 </button>
@@ -285,8 +257,138 @@ const Landing: React.FC = () => {
         </div>
       </section>
 
+      {/* Our Mission Section */}
+      <section id="mission" className="reveal-section py-24 lg:py-32 bg-white relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center text-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 mb-6 shadow-inner"
+          >
+            <Target size={24} />
+          </motion.div>
+
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-3xl lg:text-5xl font-display font-bold text-slate-900 mb-4"
+          >
+            Our Mission
+          </motion.h2>
+
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.1 }}
+            className="text-slate-500 max-w-2xl mx-auto mb-12 text-lg leading-relaxed"
+          >
+            We're not just building websites -- we're building the future of governance in the Philippines.
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.2 }}
+            className="bg-blue-50/50 backdrop-blur-sm border border-blue-100/50 rounded-2xl p-8 md:p-12 max-w-4xl w-full text-left shadow-xl shadow-blue-900/5"
+          >
+            <p className="text-slate-700 text-lg md:text-xl leading-relaxed mb-8">
+              BetterGov is a <span className="font-bold text-slate-900">volunteer-led tech initiative</span> committed to creating
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-600 text-white rounded-full text-sm font-bold mx-2 shadow-lg shadow-blue-600/20">
+                <Zap size={14} className="fill-white" />
+                #civictech
+              </span>
+              projects aimed at making government more transparent, efficient, and accessible to citizens.
+            </p>
+            <p className="text-slate-700 text-lg md:text-xl leading-relaxed">
+              We've seen a surge of wonderful and impressive tech ideas being launched recently. Our goal is to
+              <span className="font-bold text-slate-900"> support, promote, consolidate, and empower</span> these builders!
+            </p>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* What We Provide Section */}
+      <section id="what-we-provide" className="reveal-section py-24 lg:py-32 bg-slate-50/50 relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-3xl lg:text-5xl font-display font-bold text-slate-900 mb-4"
+            >
+              What We Provide
+            </motion.h2>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="text-slate-600 max-w-2xl mx-auto text-lg leading-relaxed"
+            >
+              Everything you need to build impactful civic tech projects
+            </motion.p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+            {[
+              {
+                icon: <Server size={20} />,
+                title: "Infrastructure & Tools",
+                desc: "Servers, AI credits, development tools, and more!"
+              },
+              {
+                icon: <Users size={20} />,
+                title: "Tech Hackathons",
+                desc: "Regular events to collaborate and build together"
+              },
+              {
+                icon: <Globe size={20} />,
+                title: "Data & APIs",
+                desc: "Access to government data and API endpoints"
+              },
+              {
+                icon: <Heart size={20} />,
+                title: "Find Your Team",
+                desc: "Connect with the right people and resource persons"
+              },
+              {
+                icon: <Star size={20} />,
+                title: "Industry Mentorship",
+                desc: "Guidance from seasoned tech and startup veterans"
+              },
+              {
+                icon: <Building2 size={20} />,
+                title: "Office Space",
+                desc: "Physical workspace for collaboration and meetings"
+              }
+            ].map((item, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                whileHover={{ y: -8 }}
+                className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-lg hover:shadow-blue-900/10 transition-all duration-300 group h-full flex flex-col"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 mb-6 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300 flex-shrink-0">
+                  {item.icon}
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mb-2 leading-snug">{item.title}</h3>
+                <p className="text-slate-600 text-sm leading-relaxed flex-grow">{item.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Why Join Section */}
-      <section id="why-join" className="reveal-section py-24 bg-white relative">
+      <section id="why-join" className="reveal-section py-24 lg:py-32 bg-white relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 40 }}
@@ -295,7 +397,7 @@ const Landing: React.FC = () => {
             className="text-center mb-16"
           >
             <h2 className="text-3xl lg:text-5xl font-display font-bold text-slate-900 mb-4">Why Join Our Community?</h2>
-            <p className="text-slate-600 max-w-2xl mx-auto">Be part of the digital transformation of government services and build tools that matter.</p>
+            <p className="text-slate-600 max-w-2xl mx-auto text-lg leading-relaxed">Be part of the digital transformation of government services and build tools that matter.</p>
           </motion.div>
 
           <motion.div
@@ -305,11 +407,11 @@ const Landing: React.FC = () => {
             variants={{
               show: { transition: { staggerChildren: 0.1 } }
             }}
-            className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
+            className="grid md:grid-cols-2 lg:grid-cols-2 gap-6 sm:gap-8"
           >
             {[
               { icon: <ShieldCheck size={32} className="text-blue-600" />, title: "Verified Membership", desc: "Get officially recognized as a contributor to the BetterGovPH ecosystem." },
-              { icon: <IdCard size={32} className="text-blue-600" />, title: "Official Digital Card", title_sub: "Digital Access Card", desc: "A sleek, professional digital ID with unique QR verification and member ID." },
+              { icon: <IdCard size={32} className="text-blue-600" />, title: "Official Digital Card", desc: "A sleek, professional digital ID with unique QR verification and member ID." },
               { icon: <Code2 size={32} className="text-blue-600" />, title: "Dev Collaboration", desc: "Work alongside talented engineers and designers on public tech projects." },
               { icon: <Network size={32} className="text-blue-600" />, title: "Community Recognition", desc: "Build your reputation and showcase your contributions to the public tech space." },
             ].map((feature, i) => (
@@ -319,14 +421,14 @@ const Landing: React.FC = () => {
                   hidden: { opacity: 0, y: 20 },
                   show: { opacity: 1, y: 0 }
                 }}
-                whileHover={{ y: -5 }}
-                className="p-8 rounded-2xl bg-slate-50 border border-slate-100 hover:border-blue-200 hover:bg-blue-50/30 transition-all duration-300"
+                whileHover={{ y: -8 }}
+                className="p-8 rounded-2xl bg-white border border-slate-200 hover:border-blue-300 hover:shadow-lg hover:shadow-blue-900/5 transition-all duration-300 h-full flex flex-col"
               >
-                <div className="w-12 h-12 flex items-center justify-center mb-6 shrink-0">
+                <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mb-6 shrink-0">
                   {feature.icon}
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-3">{feature.title}</h3>
-                <p className="text-slate-600 leading-relaxed text-sm">{feature.desc}</p>
+                <h3 className="text-lg font-bold text-slate-900 mb-3 leading-snug">{feature.title}</h3>
+                <p className="text-slate-600 leading-relaxed text-sm flex-grow">{feature.desc}</p>
               </motion.div>
             ))}
           </motion.div>
@@ -334,11 +436,26 @@ const Landing: React.FC = () => {
       </section>
 
       {/* How It Works Section */}
-      <section id="how-it-works" className="reveal-section py-24 bg-white">
+      <section id="how-it-works" className="reveal-section py-24 lg:py-32 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl lg:text-5xl font-display font-bold text-slate-900 mb-4">How to Get Started</h2>
-            <p className="text-slate-600">Follow these simple steps to join our elite developer network.</p>
+          <div className="text-center mb-20">
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-3xl lg:text-5xl font-display font-bold text-slate-900 mb-6"
+            >
+              How to Get Started
+            </motion.h2>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="text-slate-600 text-lg leading-relaxed"
+            >
+              Become a pioneer in the civic tech movement.
+            </motion.p>
           </div>
 
           <motion.div
@@ -356,16 +473,6 @@ const Landing: React.FC = () => {
             }}
             className="grid md:grid-cols-5 gap-4 relative"
           >
-            {/* Animated Connection Line (Desktop) */}
-            <div className="hidden md:block absolute top-12 left-10 right-10 h-[2px] bg-slate-100 -z-0 overflow-hidden">
-              <motion.div
-                variants={{
-                  hidden: { width: "0%" },
-                  show: { width: "100%", transition: { duration: 2, ease: "easeInOut", delay: 0.5 } }
-                }}
-                className="h-full bg-gradient-to-r from-blue-400 via-blue-600 to-blue-400"
-              />
-            </div>
 
             {[
               { step: "1", title: "Join Discord", desc: "Jump into our community server first." },
@@ -380,7 +487,7 @@ const Landing: React.FC = () => {
                   hidden: { opacity: 0, scale: 0.8 },
                   show: { opacity: 1, scale: 1, transition: { duration: 0.5, ease: "backOut" } }
                 }}
-                className="relative flex flex-col items-center text-center p-6 bg-white z-10"
+                className="relative flex flex-col items-center text-center p-6 bg-white z-10 rounded-2xl border border-slate-100"
               >
                 {/* Arrow indicator for next step (Desktop) */}
                 {i < 4 && (
@@ -401,8 +508,8 @@ const Landing: React.FC = () => {
                   <div className="absolute inset-0 rounded-full bg-blue-400 animate-ping opacity-20" />
                   <span className="relative z-10">{item.step}</span>
                 </motion.div>
-                <h3 className="font-bold text-slate-900 mb-2">{item.title}</h3>
-                <p className="text-slate-500 text-xs leading-relaxed">{item.desc}</p>
+                <h3 className="font-bold text-slate-900 mb-2 text-base">{item.title}</h3>
+                <p className="text-slate-600 text-sm leading-relaxed">{item.desc}</p>
               </motion.div>
             ))}
           </motion.div>
@@ -422,82 +529,8 @@ const Landing: React.FC = () => {
         </div>
       </section>
 
-      {/* Community Benefits Section */}
-      <section className="py-24 bg-slate-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-blue-600 rounded-2xl p-12 lg:p-20 text-white relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-blue-400/20 rounded-full blur-[100px]" />
-            <div className="relative z-10">
-              <div className="grid lg:grid-cols-2 gap-12 items-center">
-                <div>
-                  <h2 className="text-3xl lg:text-5xl font-display font-bold mb-8">Community Benefits & Perks</h2>
-                  <div className="space-y-6">
-                    {[
-                      { icon: <Users size={20} />, title: "Developer Collaboration", desc: "Pair up with experts on meaningful public interest projects." },
-                      { icon: <Globe size={20} />, title: "Networking Opportunities", desc: "Connect with stakeholders from both government and tech sectors." },
-                      { icon: <Zap size={20} />, title: "Gov-Tech Innovation", desc: "Be at the forefront of digital transformation projects." },
-                      { icon: <CheckCircle2 size={20} />, title: "Contributor Recognition", desc: "Get credited for your work in official repositories and projects." },
-                    ].map((benefit, i) => (
-                      <div key={i} className="flex gap-4">
-                        <div className="flex items-center justify-center shrink-0">
-                          {benefit.icon}
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-lg">{benefit.title}</h4>
-                          <p className="text-blue-100 text-sm">{benefit.desc}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex justify-center gap-4 h-[400px] overflow-hidden relative">
-                  {/* Column 1 */}
-                  <motion.div
-                    animate={{ y: [0, -400] }}
-                    transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                    className="flex flex-col gap-4"
-                  >
-                    {[...Array(2)].map((_, idx) => (
-                      <React.Fragment key={idx}>
-                        <div className="h-40 w-40 bg-white/10 rounded-2xl backdrop-blur-sm border border-white/20 flex items-center justify-center p-6 text-center shrink-0">
-                          <span className="text-xs font-bold uppercase tracking-wider">Open Source Contribution</span>
-                        </div>
-                        <div className="h-48 w-40 bg-white/20 rounded-2xl backdrop-blur-sm border border-white/30 flex items-center justify-center p-6 text-center shrink-0">
-                          <span className="text-xs font-bold text-blue-50 uppercase tracking-wider">Impactful Projects</span>
-                        </div>
-                      </React.Fragment>
-                    ))}
-                  </motion.div>
-
-                  {/* Column 2 */}
-                  <motion.div
-                    animate={{ y: [-400, 0] }}
-                    transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-                    className="flex flex-col gap-4"
-                  >
-                    {[...Array(2)].map((_, idx) => (
-                      <React.Fragment key={idx}>
-                        <div className="h-48 w-40 bg-white/20 rounded-2xl backdrop-blur-sm border border-white/30 flex items-center justify-center p-6 text-center shrink-0">
-                          <span className="text-xs font-bold text-blue-50 uppercase tracking-wider">Career Growth</span>
-                        </div>
-                        <div className="h-40 w-40 bg-white/10 rounded-2xl backdrop-blur-sm border border-white/20 flex items-center justify-center p-6 text-center shrink-0">
-                          <span className="text-xs font-bold uppercase tracking-wider">Civic Tech Network</span>
-                        </div>
-                      </React.Fragment>
-                    ))}
-                  </motion.div>
-
-                  {/* Fade Overlays */}
-                  <div className="absolute inset-0 bg-gradient-to-b from-blue-600 via-transparent to-blue-600 pointer-events-none" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* FAQ Section */}
-      <section id="faq" className="py-24 bg-white">
+      <section id="faq" className="py-24 lg:py-32 bg-white">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -554,14 +587,13 @@ const Landing: React.FC = () => {
       </section>
 
       {/* Footer */}
-      <footer className="bg-slate-50 py-20 border-t border-slate-100">
+      <footer className="bg-slate-50/80 py-20 border-t border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-4 gap-12 mb-16">
             <div className="col-span-2">
               <div className="flex items-center gap-2 mb-6">
                 <img src="/logo.svg" alt="BetterGovPH Logo" className="h-8 w-auto" />
-                <span className="font-display font-bold text-2xl tracking-tight text-blue-900">BetterGovPH Developer Community
-                </span>
+                <span className="font-display font-bold text-2xl tracking-tight text-blue-900">BetterGovPH Developer Community</span>
               </div>
               <p className="text-slate-500 max-w-sm mb-6">
                 Building the future of digital governance in the Philippines through open source, collaboration, and community-driven tech.
@@ -580,7 +612,7 @@ const Landing: React.FC = () => {
               <ul className="space-y-4">
                 <li><a href={DISCORD_INVITE} className="text-slate-500 hover:text-blue-600 text-sm transition-colors">Join Discord</a></li>
                 <li><a href={JOIN_US} target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-blue-600 text-sm transition-colors">Join the Mission</a></li>
-                <li><a href="https://github.com/BetterGovPH" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-blue-600 text-sm transition-colors">Open Source Repos</a></li>
+                <li><a href="https://github.com/BetterGovPH\" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-blue-600 text-sm transition-colors">Open Source Repos</a></li>
               </ul>
             </div>
             <div>

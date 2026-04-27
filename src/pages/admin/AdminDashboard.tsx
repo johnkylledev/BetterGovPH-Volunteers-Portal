@@ -174,7 +174,7 @@ export default function AdminDashboard() {
             <div className="flex items-center space-x-2 sm:space-x-4">
               <button
                 onClick={() => setShowMyCard(true)}
-                className="inline-flex items-center gap-2 px-3 py-2 text-sm font-bold text-blue-900 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                className="inline-flex items-center gap-2 px-3 py-2 text-sm font-bold text-blue-900 bg-blue-50 hover:bg-blue-100 rounded-2xl transition-colors"
               >
                 <CreditCard className="w-4 h-4" />
                 <span className="hidden sm:inline">My Card</span>
@@ -186,7 +186,7 @@ export default function AdminDashboard() {
               </div>
               <button
                 onClick={handleLogout}
-                className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all"
                 title="Logout"
               >
                 <LogOut className="w-5 h-5" />
@@ -270,7 +270,7 @@ export default function AdminDashboard() {
 
         <section className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-5 flex items-center gap-4">
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 flex items-center gap-4">
               <div className="text-blue-600 flex items-center justify-center">
                 <Users className="w-8 h-8" />
               </div>
@@ -279,7 +279,7 @@ export default function AdminDashboard() {
                 <p className="mt-2 text-2xl font-bold text-slate-900">{users.filter((u) => !u.isAdmin).length}</p>
               </div>
             </div>
-            <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-5 flex items-center gap-4">
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 flex items-center gap-4">
               <div className="text-yellow-600 flex items-center justify-center">
                 <Clock className="w-8 h-8" />
               </div>
@@ -288,8 +288,8 @@ export default function AdminDashboard() {
                 <p className="mt-2 text-2xl font-bold text-slate-900">{pendingCount}</p>
               </div>
             </div>
-            <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-5 flex items-center gap-4">
-              <div className="text-green-600 flex items-center justify-center">
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 flex items-center gap-4">
+              <div className="text-blue-600 flex items-center justify-center">
                 <Key className="w-8 h-8" />
               </div>
               <div>
@@ -323,7 +323,7 @@ export default function AdminDashboard() {
                       <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value as ApplicationStatus | 'All')}
-                        className="w-full sm:w-48 pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
+                        className="w-full sm:w-48 pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
                       >
                         <option value="All">All Statuses</option>
                         <option value="Pending">Pending</option>
@@ -370,7 +370,7 @@ export default function AdminDashboard() {
                             <td className="p-4">
                               <span className={clsx(
                                 'px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wide',
-                                user.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                                user.status === 'Approved' ? 'bg-blue-100 text-blue-800' :
                                   user.status === 'Declined' ? 'bg-red-100 text-red-800' :
                                     'bg-yellow-100 text-yellow-800'
                               )}>
@@ -381,7 +381,7 @@ export default function AdminDashboard() {
                             <td className="p-4 pr-6 text-right">
                               <button
                                 onClick={() => setSelectedUser(user)}
-                                className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-sm"
+                                className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-2xl hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-sm"
                               >
                                 Review
                               </button>
@@ -414,7 +414,7 @@ export default function AdminDashboard() {
                     {users.filter(u => !u.isAdmin && u.status === 'Approved').length > 0 && (
                       <button
                         onClick={exportToExcel}
-                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white text-sm font-bold rounded-xl hover:bg-green-700 transition-all shadow-md shadow-green-900/10 active:scale-[0.98]"
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-2xl hover:bg-blue-700 transition-all shadow-md shadow-blue-900/10 active:scale-[0.98]"
                       >
                         <Download className="w-4 h-4" />
                         <span>Export {searchTerm ? 'Filtered' : 'All'} to Excel</span>
@@ -457,7 +457,7 @@ export default function AdminDashboard() {
                             <td className="p-4 pr-6 text-right">
                               <button
                                 onClick={() => setSelectedMember(member)}
-                                className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-sm"
+                                className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-2xl hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-sm"
                               >
                                 View Card
                               </button>
@@ -491,7 +491,7 @@ export default function AdminDashboard() {
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="fixed inset-0 z-50 flex items-center justify-center p-4"
             >
-              <div className="w-full max-w-lg bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                   <div>
                     <h3 className="text-lg font-bold text-slate-900">Review Application</h3>
@@ -546,14 +546,14 @@ export default function AdminDashboard() {
                       value={adminNote}
                       onChange={(e) => setAdminNote(e.target.value)}
                       placeholder="Add notes for the applicant..."
-                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 resize-none h-24 transition-all"
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 resize-none h-24 transition-all"
                     />
                   </div>
                 </div>
 
                 <div className="p-6 border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row justify-end gap-3">
                   {selectedUser.status === 'Approved' ? (
-                    <div className="flex items-center gap-2 text-sm font-bold text-green-600 px-4 py-2.5 bg-green-50 rounded-lg border border-green-100">
+                    <div className="flex items-center gap-2 text-sm font-bold text-blue-600 px-4 py-2.5 bg-blue-50 rounded-2xl border border-blue-100">
                       <CheckCircle2 className="w-4 h-4" />
                       <span>Member Approved</span>
                     </div>
@@ -562,7 +562,7 @@ export default function AdminDashboard() {
                       {selectedUser.status !== 'Declined' && (
                         <button
                           onClick={() => handleStatusUpdate(selectedUser.id, 'Declined')}
-                          className="px-6 py-2.5 bg-white border border-red-200 text-red-600 text-sm font-bold rounded-lg hover:bg-red-50 hover:border-red-300 transition-colors shadow-sm"
+                          className="px-6 py-2.5 bg-white border border-red-200 text-red-600 text-sm font-bold rounded-2xl hover:bg-red-50 hover:border-red-300 transition-colors shadow-sm"
                         >
                           Decline
                         </button>
@@ -570,9 +570,9 @@ export default function AdminDashboard() {
                       <button
                         onClick={() => handleStatusUpdate(selectedUser.id, 'Approved')}
                         className={clsx(
-                          "px-6 py-2.5 text-white text-sm font-bold rounded-lg transition-all shadow-md flex items-center justify-center space-x-2",
+                          "px-6 py-2.5 text-white text-sm font-bold rounded-2xl transition-all shadow-md flex items-center justify-center space-x-2",
                           selectedUser.status === 'Declined'
-                            ? "bg-green-600 hover:bg-green-700 shadow-green-900/10"
+                            ? "bg-blue-600 hover:bg-blue-700 shadow-blue-900/10"
                             : "bg-blue-900 hover:bg-blue-800 shadow-blue-900/10"
                         )}
                       >
