@@ -103,7 +103,7 @@ export default function Register() {
 
     const scores: Record<string, number> = {};
     SPECIALIZATIONS.forEach(spec => {
-      const matchingSkills = formData.skills.filter(s => 
+      const matchingSkills = formData.skills.filter(s =>
         spec.requiredSkills.some(rs => rs.toLowerCase() === s.name.toLowerCase())
       );
       // Simple percentage based on required skills found vs total required count (minimum 3)
@@ -140,6 +140,11 @@ export default function Register() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
+
+  // Scroll to top on step change
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentStep]);
 
   const validateStep = async (step: Step) => {
     setError('');
@@ -233,7 +238,7 @@ export default function Register() {
 
   const getSkillFallbackIcon = (skillName: string) => {
     const lowerSkill = skillName.toLowerCase();
-    
+
     // Specific concept mappings
     if (lowerSkill.includes('prototyp')) return <Layers size={20} />;
     if (lowerSkill.includes('research')) return <Search size={20} />;
@@ -267,20 +272,20 @@ export default function Register() {
         layout
         key={skill}
         className={clsx(
-          "group relative flex flex-col p-2.5 sm:p-3 md:p-3.5 rounded-2xl border-2 transition-all duration-300",
+          "group relative flex flex-col p-2 sm:p-2.5 rounded-lg border-2 transition-all duration-300",
           isSelected
-            ? "bg-white border-blue-900 shadow-xl shadow-blue-900/5"
+            ? "bg-white border-blue-900 shadow-sm"
             : "bg-white border-slate-100 hover:border-blue-200 hover:bg-slate-50/50"
         )}
       >
-        <div className="flex items-center gap-2.5 sm:gap-3.5 md:gap-4 w-full">
+        <div className="flex items-center gap-2.5 sm:gap-3 w-full">
           <div className={clsx(
-            "w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center transition-all duration-300 shrink-0 shadow-sm",
+            "w-9 h-9 sm:w-10 rounded-md flex items-center justify-center transition-all duration-300 shrink-0 border border-slate-100",
             isSelected
               ? "bg-blue-900 text-white"
               : "bg-slate-50 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-900"
           )}>
-            <div className="relative w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 flex items-center justify-center">
+            <div className="relative w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center">
               <img
                 key={`img-${skill}`}
                 src={`https://cdn.simpleicons.org/${skillToSlug(skill)}`}
@@ -300,18 +305,18 @@ export default function Register() {
               </div>
             </div>
           </div>
-          
+
           <div className="flex-1 min-w-0">
-            <span className="text-sm sm:text-base md:text-lg font-bold text-slate-900 block leading-tight tracking-tight break-words">
+            <span className="text-xs sm:text-sm font-bold text-slate-900 block leading-tight tracking-tight break-words">
               {skill}
             </span>
             {isSelected && (
-              <span className="text-[9px] sm:text-[10px] md:text-xs font-black uppercase tracking-wider text-blue-600 mt-1 sm:mt-1.5 block">
+              <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-blue-600 mt-0.5 block">
                 {selectedSkill.level}
               </span>
             )}
           </div>
-          
+
           <button
             type="button"
             onClick={() => {
@@ -328,10 +333,10 @@ export default function Register() {
               }
             }}
             className={clsx(
-              "w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-xl flex items-center justify-center transition-all duration-300 shadow-sm shrink-0",
-              isSelected 
-                ? "bg-blue-600 text-white shadow-blue-600/20" 
-                : "bg-white border border-slate-100 text-slate-300 hover:border-blue-200 hover:text-blue-600"
+              "w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-md flex items-center justify-center transition-all duration-300 shadow-sm shrink-0",
+              isSelected
+                ? "bg-blue-900 text-white hover:bg-blue-800"
+                : "bg-white border border-slate-100 text-slate-300 hover:border-blue-200 hover:text-blue-600 hover:bg-blue-50/50"
             )}
           >
             {isSelected ? <Check className="w-4 h-4 sm:w-5 sm:h-5" strokeWidth={4} /> : <Plus className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={3} />}
@@ -344,7 +349,7 @@ export default function Register() {
             animate={{ opacity: 1, height: 'auto', marginTop: 12 }}
             className="overflow-hidden w-full"
           >
-            <div className="grid grid-cols-3 p-1 sm:p-1.5 bg-slate-50/80 rounded-xl border border-slate-100 min-h-[36px] sm:min-h-[44px]">
+            <div className="grid grid-cols-3 p-1 bg-slate-50 rounded-lg border border-slate-100">
               {SKILL_LEVELS.map((level) => {
                 const isActive = selectedSkill?.level === level;
 
@@ -361,20 +366,21 @@ export default function Register() {
                       }
                     }}
                     className={clsx(
-                        "relative flex items-center justify-center rounded-xl text-[8px] sm:text-[10px] md:text-xs font-black uppercase tracking-tight sm:tracking-normal md:tracking-wider transition-all duration-300 z-10 py-2 sm:py-2.5 px-0.5",
-                        isActive 
-                          ? "text-white" 
-                          : "text-slate-400 hover:text-slate-600"
-                      )}
+                      "relative flex items-center justify-center rounded-md text-[8px] sm:text-[10px] md:text-xs font-black uppercase tracking-tight sm:tracking-normal md:tracking-wider transition-all duration-300 py-2 sm:py-2.5 px-0.5 overflow-hidden",
+                      isActive
+                        ? "text-white"
+                        : "text-slate-400 hover:text-slate-600"
+                    )}
                   >
                     {isActive && (
                       <motion.div
                         layoutId={`activeLevel-${skill}`}
-                        className="absolute inset-0 bg-blue-900 rounded-xl -z-10 shadow-md ring-1 ring-blue-900/50"
+                        className="absolute inset-0 bg-blue-900 rounded-md"
+                        initial={false}
                         transition={{ type: "spring", bounce: 0.1, duration: 0.5 }}
                       />
                     )}
-                    <span className="whitespace-nowrap">{level}</span>
+                    <span className="relative z-10 whitespace-nowrap">{level}</span>
                   </button>
                 );
               })}
@@ -657,17 +663,17 @@ export default function Register() {
                                 type="button"
                                 onClick={() => setFormData({ ...formData, specialization: spec.label })}
                                 className={clsx(
-                                  "group relative flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all duration-300",
+                                  "group relative flex flex-col items-center gap-2.5 p-3 rounded-lg border-2 transition-all duration-300",
                                   isSelected
-                                    ? "bg-blue-900 border-blue-900 text-white shadow-xl shadow-blue-900/20 scale-[1.02] z-10"
+                                    ? "bg-blue-900 border-blue-900 text-white shadow-md z-10"
                                     : "bg-white border-slate-100 text-slate-500 hover:border-blue-200 hover:bg-slate-50"
                                 )}
                               >
                                 <div className={clsx(
-                                  "w-12 h-12 rounded-lg flex items-center justify-center transition-all duration-300",
+                                  "w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-300",
                                   isSelected
-                                    ? "bg-white/10 rotate-6"
-                                    : "bg-slate-50 text-blue-900 group-hover:scale-110 group-hover:-rotate-6"
+                                    ? "bg-white/10"
+                                    : "bg-slate-50 text-blue-900 group-hover:scale-105"
                                 )}>
                                   <Icon size={20} />
                                 </div>
@@ -736,7 +742,7 @@ export default function Register() {
 
                       <div>
                         <label className="block text-base font-bold text-slate-800 mb-4 tracking-tight">Professional Level</label>
-                        <div className="bg-slate-100 p-2 rounded-xl grid grid-cols-2 sm:grid-cols-4 gap-2 border border-slate-200/50">
+                        <div className="bg-slate-100 p-1.5 rounded-lg grid grid-cols-2 sm:grid-cols-4 gap-1.5 border border-slate-200/50">
                           {EXPERIENCE_LEVELS.map((level) => {
                             const isSelected = formData.experienceLevel === level;
                             return (
@@ -745,10 +751,10 @@ export default function Register() {
                                 type="button"
                                 onClick={() => setFormData({ ...formData, experienceLevel: level })}
                                 className={clsx(
-                                  "py-3 rounded-lg text-[10px] sm:text-[11px] font-black uppercase tracking-wider transition-all duration-300 px-1",
+                                  "py-2.5 rounded-md text-[10px] sm:text-[11px] font-black uppercase tracking-wider transition-all duration-300 px-1",
                                   isSelected
-                                    ? "bg-white text-blue-900 shadow-md shadow-slate-200 ring-1 ring-slate-200/50"
-                                    : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
+                                    ? "bg-white text-blue-900 shadow-sm border border-slate-200/50"
+                                    : "text-slate-500 hover:text-slate-800 hover:bg-white/30"
                                 )}
                               >
                                 {level}
@@ -904,7 +910,7 @@ export default function Register() {
                             <p className="text-[11px] text-blue-400 font-bold mt-0.5 leading-tight">Verified skills for {formData.specialization}</p>
                           </div>
                         </div>
-                        
+
                         <div className="grid grid-cols-1 gap-3">
                           {SPECIALIZATIONS.find(s => s.label === formData.specialization)?.suggestedSkills.map(skill => (
                             renderSkillItem(skill)
@@ -1143,7 +1149,7 @@ export default function Register() {
                   <button
                     type="button"
                     onClick={prevStep}
-                    className="flex-1 flex justify-center items-center gap-2 rounded-2xl border-2 border-slate-100 bg-white px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-slate-500 hover:bg-slate-50 hover:border-slate-200 transition-all duration-300 active:scale-[0.98]"
+                    className="flex-1 flex justify-center items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-slate-500 hover:bg-slate-50 hover:border-slate-300 transition-all duration-300"
                   >
                     <ArrowLeft size={16} strokeWidth={3} />
                     <span>Back</span>
@@ -1154,34 +1160,28 @@ export default function Register() {
                   <button
                     type="button"
                     onClick={nextStep}
-                    className="flex-[2] relative flex justify-center items-center gap-2 rounded-2xl bg-blue-900 px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-white shadow-xl shadow-blue-900/20 hover:bg-blue-800 transition-all duration-300 active:scale-[0.98] group overflow-hidden"
+                    className="flex-[2] relative flex justify-center items-center gap-2 rounded-lg bg-blue-900 px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-white shadow-md hover:bg-blue-800 transition-all duration-300 active:scale-[0.98]"
                   >
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:animate-shimmer" />
-                    <span className="relative flex items-center gap-2">
-                      Continue
-                      <ArrowRight size={16} strokeWidth={3} className="group-hover:translate-x-1 transition-transform" />
-                    </span>
+                    Continue
+                    <ArrowRight size={16} strokeWidth={3} className="ml-1" />
                   </button>
                 ) : (
                   <button
                     type="submit"
                     disabled={loading}
-                    className="flex-[2] relative flex justify-center items-center gap-2 rounded-2xl bg-blue-900 px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-white shadow-xl shadow-blue-900/20 hover:bg-blue-800 transition-all duration-300 active:scale-[0.98] disabled:opacity-50 group overflow-hidden"
+                    className="flex-[2] relative flex justify-center items-center gap-2 rounded-lg bg-blue-900 px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-white shadow-md hover:bg-blue-800 transition-all duration-300 active:scale-[0.98] disabled:opacity-50"
                   >
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:animate-shimmer" />
-                    <span className="relative flex items-center gap-2">
-                      {loading ? (
-                        <>
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                          <span>Submitting...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>Complete Application</span>
-                          <Check size={16} strokeWidth={3} />
-                        </>
-                      )}
-                    </span>
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Submitting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Complete Application</span>
+                        <Check size={16} strokeWidth={3} />
+                      </>
+                    )}
                   </button>
                 )}
               </div>

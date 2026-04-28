@@ -69,7 +69,7 @@ export default function UserDashboard() {
                     const el = document.getElementById('digital-card-section');
                     el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                   }}
-                  className="inline-flex items-center gap-2 px-3 py-2 text-xs sm:text-sm font-bold text-blue-900 bg-blue-50 hover:bg-blue-100 rounded-2xl transition-colors"
+                  className="inline-flex items-center gap-2 px-3 py-2 text-xs sm:text-sm font-bold text-blue-900 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
                 >
                   <CreditCard className="w-4 h-4" />
                   <span className="hidden sm:inline">My Card</span>
@@ -85,7 +85,7 @@ export default function UserDashboard() {
               </div>
               <button
                 onClick={handleLogout}
-                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all"
+                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                 title="Logout"
               >
                 <LogOut className="w-5 h-5" />
@@ -104,11 +104,11 @@ export default function UserDashboard() {
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-white sm:rounded-2xl p-6 sm:p-8 shadow-sm border-y sm:border border-slate-100"
+              className="bg-white sm:rounded-lg p-6 sm:p-8 shadow-sm border-y sm:border border-slate-100"
             >
               <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-4 sm:mb-6">Application Status</h2>
               <div className={clsx(
-                "flex items-start sm:items-center space-x-4 p-4 rounded-2xl border",
+                "flex items-start sm:items-center space-x-4 p-4 rounded-lg border",
                 currentUser.status === 'Approved' ? 'bg-blue-50 border-blue-100' :
                   currentUser.status === 'Declined' ? 'bg-red-50 border-red-100' :
                     'bg-yellow-50 border-yellow-100'
@@ -125,7 +125,7 @@ export default function UserDashboard() {
               </div>
 
               {currentUser.adminNotes && (
-                <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                <div className="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-100">
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Admin Notes</p>
                   <p className="text-sm text-slate-700 leading-relaxed">{currentUser.adminNotes}</p>
                 </div>
@@ -136,7 +136,7 @@ export default function UserDashboard() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="bg-white sm:rounded-2xl p-6 sm:p-8 shadow-sm border-y sm:border border-slate-100"
+              className="bg-white sm:rounded-lg p-6 sm:p-8 shadow-sm border-y sm:border border-slate-100"
             >
               <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-4 sm:mb-6">Profile Information</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 sm:gap-x-8">
@@ -146,7 +146,7 @@ export default function UserDashboard() {
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Email</p>
-                  <p className="text-sm font-medium text-slate-900 truncate">{currentUser.email}</p>
+                  <p className="text-sm font-medium text-slate-900 break-all">{currentUser.email}</p>
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Discord</p>
@@ -177,7 +177,7 @@ export default function UserDashboard() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
-              className="bg-white sm:rounded-2xl p-6 sm:p-8 shadow-sm border-y sm:border border-slate-100"
+              className="bg-white sm:rounded-lg p-6 sm:p-8 shadow-sm border-y sm:border border-slate-100"
             >
               <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-6">Skills & Expertise</h2>
               
@@ -189,12 +189,12 @@ export default function UserDashboard() {
                       currentUser.skills.map((skill, index) => (
                         <div 
                           key={index} 
-                          className="flex items-center gap-3 pl-3 pr-4 py-2 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-all group"
+                          className="flex items-center gap-3 pl-3 pr-4 py-2.5 bg-white border border-slate-100 rounded-lg shadow-sm hover:shadow-md transition-all group"
                         >
-                          <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-50 transition-colors">
+                          <div className="w-10 h-10 rounded-md bg-slate-50 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-50 transition-colors border border-slate-100">
                             <img
                               src={`https://cdn.simpleicons.org/${skillToSlug(skill.name)}`}
-                              className="w-4 h-4 object-contain opacity-80 group-hover:opacity-100 transition-opacity"
+                              className="w-5 h-5 object-contain opacity-80 group-hover:opacity-100 transition-opacity"
                               alt=""
                               onError={(e) => {
                                 (e.target as HTMLImageElement).style.display = 'none';
@@ -202,7 +202,7 @@ export default function UserDashboard() {
                                 if (fallback) (fallback as HTMLElement).style.display = 'block';
                               }}
                             />
-                            <Code size={14} style={{ display: 'none' }} className="text-slate-400" />
+                            <Code size={16} style={{ display: 'none' }} className="text-slate-400" />
                           </div>
                           <div className="flex flex-col">
                             <span className="text-sm font-bold text-slate-800 leading-tight">{skill.name}</span>
@@ -247,7 +247,7 @@ export default function UserDashboard() {
                   </div>
                 </div>
                 {currentUser.status === 'Approved' && (
-                  <span className="px-3 py-1 bg-blue-100 text-blue-800 text-[10px] sm:text-xs font-bold rounded-full uppercase tracking-wide">
+                  <span className="px-3 py-1 bg-blue-100 text-blue-800 text-[10px] sm:text-xs font-bold rounded-md uppercase tracking-wide">
                     Ready to use
                   </span>
                 )}
@@ -261,7 +261,7 @@ export default function UserDashboard() {
 
                 {currentUser.status !== 'Approved' && (
                   <div className="absolute inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white/90 backdrop-blur-sm px-6 py-4 rounded-2xl shadow-xl border border-slate-200 text-center">
+                    <div className="bg-white/90 backdrop-blur-sm px-6 py-4 rounded-lg shadow-xl border border-slate-200 text-center">
                       <p className="text-sm font-bold text-slate-800">Card Unavailable</p>
                       <p className="text-xs text-slate-500 mt-1">Pending Approval</p>
                     </div>
@@ -279,7 +279,7 @@ export default function UserDashboard() {
                   <div className="flex flex-col gap-3">
                     <button
                       onClick={handleCopyLink}
-                      className="flex items-center justify-center gap-2 w-full py-4 bg-blue-900 text-white rounded-2xl font-bold text-sm hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/20 active:scale-[0.98]"
+                      className="flex items-center justify-center gap-2 w-full py-4 bg-blue-900 text-white rounded-lg font-bold text-sm hover:bg-blue-800 transition-all shadow-md active:scale-[0.98]"
                     >
                       {copyStatus === 'copied' ? (
                         <>
@@ -295,7 +295,7 @@ export default function UserDashboard() {
                     </button>
                     <button
                       onClick={handleCopyEmbed}
-                      className="flex items-center justify-center gap-2 w-full py-4 bg-white border border-slate-200 text-slate-700 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-all shadow-sm active:scale-[0.98]"
+                      className="flex items-center justify-center gap-2 w-full py-4 bg-white border border-slate-200 text-slate-700 rounded-lg font-bold text-sm hover:bg-slate-50 transition-all shadow-sm active:scale-[0.98]"
                     >
                       {copyStatus === 'embed-copied' ? (
                         <>

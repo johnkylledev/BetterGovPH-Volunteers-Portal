@@ -2,13 +2,13 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, CheckCircle2, XCircle, LogOut, Filter, Users, Key, CreditCard, Download, Copy, Code, Check, Clock, Zap, Briefcase } from 'lucide-react';
+import { Search, CheckCircle2, XCircle, LogOut, Filter, Users, Key, CreditCard, Download, Copy, Code, Check, Clock, Zap, Briefcase, ChevronLeft, ChevronRight } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { AccessCard } from '../../components/AccessCard';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
 import clsx from 'clsx';
 import { User, ApplicationStatus } from '../../types';
-import { getAllUsers } from '../../services/supabase';
+import { getAllUsers, getAdminStats } from '../../services/supabase';
 import * as XLSX from 'xlsx';
 import { skillToSlug } from '../../utils/skillUtils';
 import { SPECIALIZATIONS } from '../../constants/specializations';
@@ -27,26 +27,60 @@ export default function AdminDashboard() {
   const [downloadLoading, setDownloadLoading] = useState(false);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'embed-copied'>('idle');
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize] = useState(20);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isDataLoading, setIsDataLoading] = useState(false);
+  const [stats, setStats] = useState({ total: 0, pending: 0, approved: 0 });
+
   useEffect(() => {
     if (authInitialized && (!currentUser || !currentUser.isAdmin)) {
       navigate('/login');
     }
   }, [currentUser, navigate, authInitialized]);
 
-  useEffect(() => {
+  const loadStats = async () => {
     if (!currentUser?.isAdmin) return;
+    const s = await getAdminStats();
+    setStats(s);
+  };
 
-    const loadUsers = async () => {
-      try {
-        const allUsers = await getAllUsers();
-        setUsers(allUsers);
-      } catch (error) {
-        console.error('Error loading admin users:', error);
-      }
-    };
+  const loadUsers = async (page: number) => {
+    if (!currentUser?.isAdmin) return;
+    setIsDataLoading(true);
+    try {
+      const filters = {
+        status: activeTab === 'members' ? 'Approved' : statusFilter,
+        role: roleFilter,
+        search: searchTerm
+      };
+      const { users: fetchedUsers, totalCount: fetchedTotal } = await getAllUsers(page, pageSize, filters);
+      setUsers(fetchedUsers);
+      setTotalCount(fetchedTotal);
+    } catch (error) {
+      console.error('Error loading admin users:', error);
+    } finally {
+      setIsDataLoading(false);
+    }
+  };
 
-    loadUsers();
-  }, [currentUser, setUsers]);
+  useEffect(() => {
+    loadStats();
+  }, [currentUser]);
+
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [activeTab, statusFilter, roleFilter, searchTerm]);
+
+  useEffect(() => {
+    loadUsers(currentPage);
+  }, [currentUser, setUsers, currentPage, activeTab, statusFilter, roleFilter, searchTerm]);
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   if (!authInitialized || !currentUser) return <LoadingOverlay />;
   if (!currentUser.isAdmin) return null;
@@ -73,6 +107,9 @@ export default function AdminDashboard() {
     if (res && (res as any).success) {
       setSelectedUser(null);
       setAdminNote('');
+      // Refresh data and stats after update
+      loadUsers(currentPage);
+      loadStats();
     } else {
       alert(`Failed to update database: ${(res as any)?.message || 'Unknown error'}. Please check if the user exists in Supabase.`);
     }
@@ -139,43 +176,15 @@ export default function AdminDashboard() {
   };
 
   const filteredUsers = useMemo(() => {
-    return users
-      .filter((u) => !u.isAdmin)
-      .filter((user) => {
-        const matchesSearch =
-          user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (user.discordUsername && user.discordUsername.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (user.specialization && user.specialization.toLowerCase().includes(searchTerm.toLowerCase()));
-
-        const matchesStatus = statusFilter === 'All' || user.status === statusFilter;
-        const matchesRole = roleFilter === 'All' || user.specialization === roleFilter;
-
-        return matchesSearch && matchesStatus && matchesRole;
-      })
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [users, searchTerm, statusFilter, roleFilter]);
+    return (users || []).filter(u => u && !u.isAdmin);
+  }, [users]);
 
   const filteredApprovedMembers = useMemo(() => {
-    return users
-      .filter(u => !u.isAdmin && u.status === 'Approved')
-      .filter((user) => {
-        const matchesSearch =
-          user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (user.discordUsername && user.discordUsername.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (user.memberId && user.memberId.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (user.specialization && user.specialization.toLowerCase().includes(searchTerm.toLowerCase()));
-        
-        const matchesRole = roleFilter === 'All' || user.specialization === roleFilter;
-        
-        return matchesSearch && matchesRole;
-      })
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [users, searchTerm, roleFilter]);
+    return (users || []).filter(u => u && !u.isAdmin && u.status === 'Approved');
+  }, [users]);
 
-  const pendingCount = users.filter(u => !u.isAdmin && u.status === 'Pending').length;
-  const approvedCount = users.filter(u => !u.isAdmin && u.status === 'Approved').length;
+  // Remove the old pendingCount/approvedCount definitions since we use stats now
+  // and we don't need them in the local scope anymore.
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
@@ -230,7 +239,7 @@ export default function AdminDashboard() {
                   "px-2 py-0.5 text-[10px] rounded-full font-bold",
                   activeTab === 'applications' ? "bg-blue-900 text-white" : "bg-slate-100 text-slate-500"
                 )}>
-                  {users.filter(u => !u.isAdmin && u.status === 'Pending').length}
+                  {stats.pending}
                 </span>
               </div>
             </button>
@@ -249,7 +258,7 @@ export default function AdminDashboard() {
                   "px-2 py-0.5 text-[10px] rounded-full font-bold",
                   activeTab === 'members' ? "bg-blue-900 text-white" : "bg-slate-100 text-slate-500"
                 )}>
-                  {approvedCount}
+                  {stats.approved}
                 </span>
               </div>
             </button>
@@ -263,7 +272,7 @@ export default function AdminDashboard() {
             <div className="px-6 py-5 border-b border-slate-100">
               <p className="text-xs uppercase tracking-[0.2em] text-slate-400 font-semibold">Administrator</p>
               <h2 className="mt-3 text-xl font-bold text-slate-900">{currentUser.fullName}</h2>
-              <p className="mt-1 text-sm text-slate-500">{currentUser.email}</p>
+              <p className="mt-1 text-sm text-slate-500 break-all">{currentUser.email}</p>
             </div>
             <div className="px-6 py-5 space-y-4">
               <div>
@@ -276,8 +285,8 @@ export default function AdminDashboard() {
                   <p className="mt-2 text-sm font-semibold text-slate-900">{currentUser.role}</p>
                 </div>
                 <div className="rounded-lg bg-slate-50 border border-slate-200 p-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Applicants</p>
-                  <p className="mt-2 text-3xl font-bold text-slate-900">{users.filter((u) => !u.isAdmin).length}</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Total Users</p>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">{stats.total}</p>
                 </div>
               </div>
             </div>
@@ -291,8 +300,8 @@ export default function AdminDashboard() {
                 <Users className="w-8 h-8" />
               </div>
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-400 font-semibold">Total Applicants</p>
-                <p className="mt-2 text-2xl font-bold text-slate-900">{users.filter((u) => !u.isAdmin).length}</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-400 font-semibold">Total Database Records</p>
+                <p className="mt-2 text-2xl font-bold text-slate-900">{stats.total}</p>
               </div>
             </div>
             <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 flex items-center gap-4">
@@ -301,7 +310,7 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <p className="text-xs uppercase tracking-[0.2em] text-slate-400 font-semibold">Pending Review</p>
-                <p className="mt-2 text-2xl font-bold text-slate-900">{pendingCount}</p>
+                <p className="mt-2 text-2xl font-bold text-slate-900">{stats.pending}</p>
               </div>
             </div>
             <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 flex items-center gap-4">
@@ -310,7 +319,7 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <p className="text-xs uppercase tracking-[0.2em] text-slate-400 font-semibold">IDs Issued</p>
-                <p className="mt-2 text-2xl font-bold text-slate-900">{approvedCount}</p>
+                <p className="mt-2 text-2xl font-bold text-slate-900">{stats.approved}</p>
               </div>
             </div>
           </div>
@@ -318,13 +327,13 @@ export default function AdminDashboard() {
           <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
             {activeTab === 'applications' ? (
               <>
-                <div className="p-6 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4 sm:gap-6">
                   <div>
-                    <h2 className="text-lg font-bold text-slate-900">Application Management</h2>
-                    <p className="text-sm text-slate-500 mt-1">Review non-admin signups, update statuses, and generate IDs.</p>
+                    <h2 className="text-base sm:text-lg font-bold text-slate-900">Application Management</h2>
+                    <p className="text-xs sm:text-sm text-slate-500 mt-1">Review non-admin signups, update statuses, and generate IDs.</p>
                   </div>
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
-                    <div className="relative flex-1 lg:w-64">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full xl:w-auto">
+                    <div className="relative flex-1 xl:w-64">
                       <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                       <input
                         type="text"
@@ -334,31 +343,33 @@ export default function AdminDashboard() {
                         className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
                       />
                     </div>
-                    <div className="relative w-full sm:w-auto">
-                      <Filter className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value as ApplicationStatus | 'All')}
-                        className="w-full sm:w-40 pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
-                      >
-                        <option value="All">All Statuses</option>
-                        <option value="Pending">Pending</option>
-                        <option value="Approved">Approved</option>
-                        <option value="Declined">Declined</option>
-                      </select>
-                    </div>
-                    <div className="relative w-full sm:w-auto">
-                      <Briefcase className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <select
-                        value={roleFilter}
-                        onChange={(e) => setRoleFilter(e.target.value)}
-                        className="w-full sm:w-48 pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
-                      >
-                        <option value="All">All Roles</option>
-                        {SPECIALIZATIONS.map(spec => (
-                          <option key={spec.id} value={spec.label}>{spec.label}</option>
-                        ))}
-                      </select>
+                    <div className="grid grid-cols-2 sm:flex sm:items-center gap-3 w-full sm:w-auto">
+                      <div className="relative w-full sm:w-auto">
+                        <Filter className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <select
+                          value={statusFilter}
+                          onChange={(e) => setStatusFilter(e.target.value as ApplicationStatus | 'All')}
+                          className="w-full sm:w-36 pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
+                        >
+                          <option value="All">All Statuses</option>
+                          <option value="Pending">Pending</option>
+                          <option value="Approved">Approved</option>
+                          <option value="Declined">Declined</option>
+                        </select>
+                      </div>
+                      <div className="relative w-full sm:w-auto">
+                        <Briefcase className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <select
+                          value={roleFilter}
+                          onChange={(e) => setRoleFilter(e.target.value)}
+                          className="w-full sm:w-44 pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
+                        >
+                          <option value="All">All Roles</option>
+                          {SPECIALIZATIONS.map(spec => (
+                            <option key={spec.id} value={spec.label}>{spec.label}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -421,16 +432,44 @@ export default function AdminDashboard() {
                     </tbody>
                   </table>
                 </div>
+
+                {/* Pagination Controls */}
+                <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Showing <span className="text-slate-900">{filteredUsers.length}</span> of <span className="text-slate-900">{totalCount}</span> records
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 0 || isDataLoading}
+                      className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <div className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-xl">
+                      <span className="text-sm font-bold text-slate-900">Page {currentPage + 1}</span>
+                      <span className="text-slate-400 mx-1">of</span>
+                      <span className="text-sm font-bold text-slate-900">{Math.ceil(totalCount / pageSize)}</span>
+                    </div>
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={(currentPage + 1) * pageSize >= totalCount || isDataLoading}
+                      className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
               </>
             ) : (
               <>
-                <div className="p-6 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4 sm:gap-6">
                   <div>
-                    <h2 className="text-lg font-bold text-slate-900">Approved Member Access Cards</h2>
-                    <p className="text-sm text-slate-500 mt-1">Active members are listed below, including their generated IDs.</p>
+                    <h2 className="text-base sm:text-lg font-bold text-slate-900">Approved Member Access Cards</h2>
+                    <p className="text-xs sm:text-sm text-slate-500 mt-1">Active members are listed below, including their generated IDs.</p>
                   </div>
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
-                    <div className="relative flex-1 lg:w-64">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full xl:w-auto">
+                    <div className="relative flex-1 xl:w-64">
                       <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                       <input
                         type="text"
@@ -440,28 +479,30 @@ export default function AdminDashboard() {
                         className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
                       />
                     </div>
-                    <div className="relative w-full sm:w-auto">
-                      <Briefcase className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <select
-                        value={roleFilter}
-                        onChange={(e) => setRoleFilter(e.target.value)}
-                        className="w-full sm:w-48 pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
-                      >
-                        <option value="All">All Roles</option>
-                        {SPECIALIZATIONS.map(spec => (
-                          <option key={spec.id} value={spec.label}>{spec.label}</option>
-                        ))}
-                      </select>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+                      <div className="relative flex-1 sm:w-auto">
+                        <Briefcase className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <select
+                          value={roleFilter}
+                          onChange={(e) => setRoleFilter(e.target.value)}
+                          className="w-full sm:w-44 pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
+                        >
+                          <option value="All">All Roles</option>
+                          {SPECIALIZATIONS.map(spec => (
+                            <option key={spec.id} value={spec.label}>{spec.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      {users.filter(u => u && !u.isAdmin && u.status === 'Approved').length > 0 && (
+                        <button
+                          onClick={exportToExcel}
+                          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-xs sm:text-sm font-bold rounded-lg hover:bg-blue-700 transition-all shadow-md shadow-blue-900/10 active:scale-[0.98]"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span>Export {searchTerm ? 'Filtered' : 'All'} to Excel</span>
+                        </button>
+                      )}
                     </div>
-                    {users.filter(u => !u.isAdmin && u.status === 'Approved').length > 0 && (
-                      <button
-                        onClick={exportToExcel}
-                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-2xl hover:bg-blue-700 transition-all shadow-md shadow-blue-900/10 active:scale-[0.98]"
-                      >
-                        <Download className="w-4 h-4" />
-                        <span>Export {searchTerm ? 'Filtered' : 'All'} to Excel</span>
-                      </button>
-                    )}
                   </div>
                 </div>
                 {filteredApprovedMembers.length === 0 ? (
@@ -470,45 +511,75 @@ export default function AdminDashboard() {
                     <p>{searchTerm ? 'No members match your search' : 'No approved members yet'}</p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200 font-bold">
-                          <th className="p-4 pl-6 font-semibold">Member Name</th>
-                          <th className="p-4 font-semibold">Primary Role</th>
-                          <th className="p-4 font-semibold">Community Role</th>
-                          <th className="p-4 font-semibold">Member ID</th>
-                          <th className="p-4 pr-6 font-semibold text-right">Card Preview</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 text-sm">
-                        {filteredApprovedMembers.map((member) => (
-                          <motion.tr
-                            key={member.id}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="hover:bg-slate-50/50 transition-colors"
-                          >
-                            <td className="p-4 pl-6">
-                              <div className="font-bold text-slate-900">{member.fullName}</div>
-                              <div className="text-xs text-slate-500">{member.email}</div>
-                            </td>
-                            <td className="p-4">{member.specialization}</td>
-                            <td className="p-4">{member.role}</td>
-                            <td className="p-4 font-mono font-bold text-blue-700">{member.memberId}</td>
-                            <td className="p-4 pr-6 text-right">
-                              <button
-                                onClick={() => setSelectedMember(member)}
-                                className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-2xl hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-sm"
-                              >
-                                View Card
-                              </button>
-                            </td>
-                          </motion.tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200 font-bold">
+                            <th className="p-4 pl-6 font-semibold">Member Name</th>
+                            <th className="p-4 font-semibold">Primary Role</th>
+                            <th className="p-4 font-semibold">Community Role</th>
+                            <th className="p-4 font-semibold">Member ID</th>
+                            <th className="p-4 pr-6 font-semibold text-right">Card Preview</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-sm">
+                          {filteredApprovedMembers.map((member) => (
+                            <motion.tr
+                              key={member.id}
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              className="hover:bg-slate-50/50 transition-colors"
+                            >
+                              <td className="p-4 pl-6">
+                                <div className="font-bold text-slate-900">{member.fullName}</div>
+                                <div className="text-xs text-slate-500">{member.email}</div>
+                              </td>
+                              <td className="p-4">{member.specialization}</td>
+                              <td className="p-4">{member.role}</td>
+                              <td className="p-4 font-mono font-bold text-blue-700">{member.memberId}</td>
+                              <td className="p-4 pr-6 text-right">
+                                <button
+                                  onClick={() => setSelectedMember(member)}
+                                  className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-2xl hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-sm"
+                                >
+                                  View Card
+                                </button>
+                              </td>
+                            </motion.tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Pagination Controls for Members Tab */}
+                    <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        Showing <span className="text-slate-900">{filteredApprovedMembers.length}</span> of <span className="text-slate-900">{totalCount}</span> records
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handlePageChange(currentPage - 1)}
+                          disabled={currentPage === 0 || isDataLoading}
+                          className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                          <ChevronLeft className="w-5 h-5" />
+                        </button>
+                        <div className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-xl">
+                          <span className="text-sm font-bold text-slate-900">Page {currentPage + 1}</span>
+                          <span className="text-slate-400 mx-1">of</span>
+                          <span className="text-sm font-bold text-slate-900">{Math.ceil(totalCount / pageSize)}</span>
+                        </div>
+                        <button
+                          onClick={() => handlePageChange(currentPage + 1)}
+                          disabled={(currentPage + 1) * pageSize >= totalCount || isDataLoading}
+                          className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                          <ChevronRight className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+                  </>
                 )}
               </>
             )}
@@ -550,15 +621,15 @@ export default function AdminDashboard() {
                   </button>
                 </div>
 
-                <div className="p-6 overflow-y-auto flex-1">
-                  <div className="grid grid-cols-2 gap-y-6 gap-x-8 mb-10 px-2">
+                <div className="p-4 sm:p-6 overflow-y-auto flex-1 no-scrollbar">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8 mb-10 px-2">
                     <div>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Applicant Name</p>
                       <p className="text-base font-bold text-slate-900">{selectedUser.fullName}</p>
                     </div>
                     <div>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Email Address</p>
-                      <p className="text-sm font-semibold text-slate-600 truncate">{selectedUser.email}</p>
+                      <p className="text-sm font-semibold text-slate-600 break-all">{selectedUser.email}</p>
                     </div>
                     <div>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Discord Username</p>
@@ -596,35 +667,35 @@ export default function AdminDashboard() {
                       <div className="flex flex-wrap gap-2">
                         {Array.isArray(selectedUser.skills) && selectedUser.skills.length > 0 ? (
                           selectedUser.skills.map((skill, i) => (
-                            <div
-                              key={i}
-                              className="flex items-center gap-2 pl-2 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-blue-200 transition-all group"
-                            >
-                              <div className="w-6 h-6 rounded-lg bg-slate-50 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-50 transition-colors">
-                                <img
-                                  src={`https://cdn.simpleicons.org/${skillToSlug(skill.name)}`}
-                                  className="w-3.5 h-3.5 object-contain opacity-70 group-hover:opacity-100 transition-opacity"
-                                  alt=""
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).style.display = 'none';
-                                    const fallback = (e.target as HTMLImageElement).nextElementSibling;
-                                    if (fallback) (fallback as HTMLElement).style.display = 'block';
-                                  }}
-                                />
-                                <Code size={12} style={{ display: 'none' }} className="text-slate-400" />
-                              </div>
-                              <div className="flex flex-col">
-                                <span className="text-[11px] font-bold text-slate-800 leading-tight">{skill.name}</span>
-                                <div className="flex items-center gap-1 mt-0.5">
-                                  {skill.level === 'Expert' ? <Zap size={6} className="text-blue-600 fill-blue-600" /> :
-                                    skill.level === 'Practitioner' ? <CheckCircle2 size={6} className="text-blue-500" /> :
-                                      <Clock size={6} className="text-slate-400" />}
-                                  <span className="text-[7px] font-black uppercase tracking-widest text-slate-400">
-                                    {skill.level}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
+                             <div
+                               key={i}
+                               className="flex items-center gap-3 pl-3 pr-5 py-3 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-blue-200 transition-all group"
+                             >
+                               <div className="w-10 h-10 rounded-md bg-slate-50 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-50 transition-colors border border-slate-100">
+                                 <img
+                                   src={`https://cdn.simpleicons.org/${skillToSlug(skill.name)}`}
+                                   className="w-5 h-5 object-contain opacity-70 group-hover:opacity-100 transition-opacity"
+                                   alt=""
+                                   onError={(e) => {
+                                     (e.target as HTMLImageElement).style.display = 'none';
+                                     const fallback = (e.target as HTMLImageElement).nextElementSibling;
+                                     if (fallback) (fallback as HTMLElement).style.display = 'block';
+                                   }}
+                                 />
+                                 <Code size={16} style={{ display: 'none' }} className="text-slate-400" />
+                               </div>
+                               <div className="flex flex-col">
+                                 <span className="text-sm font-bold text-slate-800 leading-tight">{skill.name}</span>
+                                 <div className="flex items-center gap-1.5 mt-1">
+                                   {skill.level === 'Expert' ? <Zap size={10} className="text-blue-600 fill-blue-600" /> :
+                                     skill.level === 'Practitioner' ? <CheckCircle2 size={10} className="text-blue-500" /> :
+                                       <Clock size={10} className="text-slate-400" />}
+                                   <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                                     {skill.level}
+                                   </span>
+                                 </div>
+                               </div>
+                             </div>
                           ))
                         ) : (
                           <span className="text-xs text-slate-400 italic">None provided</span>
@@ -797,7 +868,7 @@ export default function AdminDashboard() {
                         </div>
                         <div>
                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Email Address</p>
-                          <p className="text-sm font-semibold text-slate-600 truncate">{selectedMember.email}</p>
+                          <p className="text-sm font-semibold text-slate-600 break-all">{selectedMember.email}</p>
                         </div>
                         <div>
                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Discord Handle</p>
@@ -828,20 +899,25 @@ export default function AdminDashboard() {
                         <div className="flex flex-wrap gap-2.5">
                           {Array.isArray(selectedMember.skills) && selectedMember.skills.length > 0 ? (
                             selectedMember.skills.map((skill, i) => (
-                              <div key={i} className="flex items-center gap-2 pl-2 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl hover:border-blue-100 transition-colors group shadow-sm">
-                                <div className="w-6 h-6 rounded-lg bg-slate-50 flex items-center justify-center">
+                              <div key={i} className="flex items-center gap-3 pl-3 pr-5 py-3 bg-white border border-slate-200 rounded-lg hover:border-blue-100 transition-colors group shadow-sm">
+                                <div className="w-10 h-10 rounded-md bg-slate-50 flex items-center justify-center border border-slate-100">
                                   <img
                                     src={`https://cdn.simpleicons.org/${skillToSlug(skill.name)}`}
-                                    className="w-3.5 h-3.5 object-contain opacity-70 group-hover:opacity-100 transition-opacity"
+                                    className="w-5 h-5 object-contain opacity-70 group-hover:opacity-100 transition-opacity"
                                     alt=""
                                     onError={(e) => (e.target as HTMLImageElement).style.display = 'none'}
                                   />
                                 </div>
                                 <div className="flex flex-col">
-                                  <span className="text-[11px] font-bold text-slate-800 leading-tight">{skill.name}</span>
-                                  <span className="text-[7px] font-black uppercase tracking-widest text-blue-600">
-                                    {skill.level}
-                                  </span>
+                                  <span className="text-sm font-bold text-slate-800 leading-tight">{skill.name}</span>
+                                  <div className="flex items-center gap-1.5 mt-1">
+                                    {skill.level === 'Expert' ? <Zap size={10} className="text-blue-600 fill-blue-600" /> :
+                                      skill.level === 'Practitioner' ? <CheckCircle2 size={10} className="text-blue-500" /> :
+                                        <Clock size={10} className="text-slate-400" />}
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-blue-600">
+                                      {skill.level}
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
                             ))

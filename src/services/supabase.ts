@@ -286,27 +286,69 @@ export const isDiscordUsernameTaken = async (discordUsername: string): Promise<b
   }
 };
 
-export const getAllUsers = async (page = 0, pageSize = 1000) => {
-  const { data, error } = await supabase
-    .from('users')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .range(page * pageSize, (page + 1) * pageSize - 1);
+export const getAllUsers = async (page = 0, pageSize = 20, filters?: { status?: string, role?: string, search?: string }) => {
+  try {
+    let query = supabase
+      .from('users')
+      .select('*', { count: 'exact' })
+      .eq('is_admin', false);
 
-  if (error) throw error;
-  return data.map(mapToAppUser);
+    if (filters?.status && filters.status !== 'All') {
+      query = query.eq('status', filters.status);
+    }
+    
+    if (filters?.role && filters.role !== 'All') {
+      query = query.eq('specialization', filters.role);
+    }
+
+    if (filters?.search) {
+      const search = `%${filters.search}%`;
+      query = query.or(`full_name.ilike.${search},email.ilike.${search},discord_username.ilike.${search},member_id.ilike.${search}`);
+    }
+
+    const { data, error, count } = await query
+      .order('created_at', { ascending: false })
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+
+    if (error) throw error;
+    return {
+      users: (data || []).map(mapToAppUser).filter((u): u is User => u !== null),
+      totalCount: count || 0
+    };
+  } catch (error) {
+    console.error('Error in getAllUsers:', error);
+    throw error;
+  }
 };
 
-export const getNonAdminUsers = async (page = 0, pageSize = 1000) => {
-  const { data, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('is_admin', false)
-    .order('created_at', { ascending: false })
-    .range(page * pageSize, (page + 1) * pageSize - 1);
+export const getAdminStats = async () => {
+  try {
+    const { count: total } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_admin', false);
 
-  if (error) throw error;
-  return data.map(mapToAppUser);
+    const { count: pending } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_admin', false)
+      .eq('status', 'Pending');
+
+    const { count: approved } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_admin', false)
+      .eq('status', 'Approved');
+
+    return {
+      total: total || 0,
+      pending: pending || 0,
+      approved: approved || 0
+    };
+  } catch (error) {
+    console.error('Error in getAdminStats:', error);
+    return { total: 0, pending: 0, approved: 0 };
+  }
 };
 
 export const updateUserStatus = async (uid: string, status: string, adminNotes?: string) => {

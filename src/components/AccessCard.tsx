@@ -60,7 +60,7 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
         whileTap={{ scale: 0.98 }}
         onClick={() => !isDemo && navigate(`/verify/${user.memberId || user.id}`)}
         className={clsx(
-          "relative w-[300px] aspect-[1/1.5] rounded-xl p-5 flex flex-col items-center overflow-hidden shadow-2xl shadow-blue-900/40 border border-blue-400/20",
+          "relative w-[300px] aspect-[1/1.5] rounded-lg p-5 flex flex-col items-center overflow-hidden shadow-2xl shadow-blue-900/40 border border-blue-400/20",
           !isDemo ? "cursor-pointer" : "cursor-default"
         )}
       >
