@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, CheckCircle2, XCircle, LogOut, Filter, Users, Key, CreditCard, Download, Copy, Code, Check, Clock, Zap } from 'lucide-react';
+import { Search, CheckCircle2, XCircle, LogOut, Filter, Users, Key, CreditCard, Download, Copy, Code, Check, Clock, Zap, Briefcase } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { AccessCard } from '../../components/AccessCard';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
@@ -11,6 +11,7 @@ import { User, ApplicationStatus } from '../../types';
 import { getAllUsers } from '../../services/supabase';
 import * as XLSX from 'xlsx';
 import { skillToSlug } from '../../utils/skillUtils';
+import { SPECIALIZATIONS } from '../../constants/specializations';
 
 export default function AdminDashboard() {
   const { currentUser, users, logout, updateUserStatus, setUsers, authInitialized } = useStore();
@@ -18,6 +19,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'applications' | 'members'>('applications');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'All'>('All');
+  const [roleFilter, setRoleFilter] = useState<string>('All');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedMember, setSelectedMember] = useState<User | null>(null);
   const [showMyCard, setShowMyCard] = useState(false);
@@ -98,8 +100,8 @@ export default function AdminDashboard() {
       'Full Name': member.fullName,
       'Email': member.email,
       'Member ID': member.memberId || 'N/A',
-      'Specialization': member.specialization || 'N/A',
-      'Role': member.role || 'Member',
+      'Primary Role': member.specialization || 'N/A',
+      'Community Role': member.role || 'Member',
       'Discord Username': member.discordUsername || 'N/A',
       'Year Joined': member.yearJoined || 'N/A',
       'Experience Level': member.experienceLevel || 'N/A',
@@ -120,8 +122,8 @@ export default function AdminDashboard() {
       { wch: 30 }, // Full Name
       { wch: 30 }, // Email
       { wch: 15 }, // Member ID
-      { wch: 20 }, // Specialization
-      { wch: 15 }, // Role
+      { wch: 20 }, // Primary Role
+      { wch: 20 }, // Community Role
       { wch: 20 }, // Discord
       { wch: 12 }, // Year Joined
       { wch: 10 }, // Status
@@ -143,14 +145,16 @@ export default function AdminDashboard() {
         const matchesSearch =
           user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
           user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (user.discordUsername && user.discordUsername.toLowerCase().includes(searchTerm.toLowerCase()));
+          (user.discordUsername && user.discordUsername.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          (user.specialization && user.specialization.toLowerCase().includes(searchTerm.toLowerCase()));
 
         const matchesStatus = statusFilter === 'All' || user.status === statusFilter;
+        const matchesRole = roleFilter === 'All' || user.specialization === roleFilter;
 
-        return matchesSearch && matchesStatus;
+        return matchesSearch && matchesStatus && matchesRole;
       })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [users, searchTerm, statusFilter]);
+  }, [users, searchTerm, statusFilter, roleFilter]);
 
   const filteredApprovedMembers = useMemo(() => {
     return users
@@ -160,11 +164,15 @@ export default function AdminDashboard() {
           user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
           user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
           (user.discordUsername && user.discordUsername.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (user.memberId && user.memberId.toLowerCase().includes(searchTerm.toLowerCase()));
-        return matchesSearch;
+          (user.memberId && user.memberId.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          (user.specialization && user.specialization.toLowerCase().includes(searchTerm.toLowerCase()));
+        
+        const matchesRole = roleFilter === 'All' || user.specialization === roleFilter;
+        
+        return matchesSearch && matchesRole;
       })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [users, searchTerm]);
+  }, [users, searchTerm, roleFilter]);
 
   const pendingCount = users.filter(u => !u.isAdmin && u.status === 'Pending').length;
   const approvedCount = users.filter(u => !u.isAdmin && u.status === 'Approved').length;
@@ -331,12 +339,25 @@ export default function AdminDashboard() {
                       <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value as ApplicationStatus | 'All')}
-                        className="w-full sm:w-48 pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
+                        className="w-full sm:w-40 pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
                       >
                         <option value="All">All Statuses</option>
                         <option value="Pending">Pending</option>
                         <option value="Approved">Approved</option>
                         <option value="Declined">Declined</option>
+                      </select>
+                    </div>
+                    <div className="relative w-full sm:w-auto">
+                      <Briefcase className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <select
+                        value={roleFilter}
+                        onChange={(e) => setRoleFilter(e.target.value)}
+                        className="w-full sm:w-48 pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
+                      >
+                        <option value="All">All Roles</option>
+                        {SPECIALIZATIONS.map(spec => (
+                          <option key={spec.id} value={spec.label}>{spec.label}</option>
+                        ))}
                       </select>
                     </div>
                   </div>
@@ -419,6 +440,19 @@ export default function AdminDashboard() {
                         className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
                       />
                     </div>
+                    <div className="relative w-full sm:w-auto">
+                      <Briefcase className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <select
+                        value={roleFilter}
+                        onChange={(e) => setRoleFilter(e.target.value)}
+                        className="w-full sm:w-48 pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
+                      >
+                        <option value="All">All Roles</option>
+                        {SPECIALIZATIONS.map(spec => (
+                          <option key={spec.id} value={spec.label}>{spec.label}</option>
+                        ))}
+                      </select>
+                    </div>
                     {users.filter(u => !u.isAdmin && u.status === 'Approved').length > 0 && (
                       <button
                         onClick={exportToExcel}
@@ -441,10 +475,10 @@ export default function AdminDashboard() {
                       <thead>
                         <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200 font-bold">
                           <th className="p-4 pl-6 font-semibold">Member Name</th>
-                          <th className="p-4 font-semibold">Specialization</th>
-                          <th className="p-4 font-semibold">Role</th>
+                          <th className="p-4 font-semibold">Primary Role</th>
+                          <th className="p-4 font-semibold">Community Role</th>
                           <th className="p-4 font-semibold">Member ID</th>
-                          <th className="p-4 pr-6 font-semibold text-right">Actions</th>
+                          <th className="p-4 pr-6 font-semibold text-right">Card Preview</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-sm">
@@ -537,11 +571,11 @@ export default function AdminDashboard() {
                       </p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Specialization</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Primary Role</p>
                       <p className="text-sm font-bold text-slate-900">{selectedUser.specialization || 'N/A'}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Role Request</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Community Role</p>
                       <span className="inline-flex px-2 py-0.5 rounded-md bg-slate-100 text-[10px] font-black text-slate-600 uppercase tracking-widest">
                         {selectedUser.role}
                       </span>
@@ -770,7 +804,7 @@ export default function AdminDashboard() {
                           <p className="text-sm font-bold text-blue-600">{selectedMember.discordUsername || 'N/A'}</p>
                         </div>
                         <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Specialization</p>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Primary Role</p>
                           <p className="text-sm font-bold text-slate-900">{selectedMember.specialization || 'N/A'}</p>
                         </div>
                         <div>

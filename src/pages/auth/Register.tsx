@@ -4,50 +4,11 @@ import { useStore } from '../../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { isDiscordUsernameTaken } from '../../services/supabase';
-import { Calendar, ChevronDown, Check, MessageSquare, Home, ArrowRight, ArrowLeft, User, Mail, Lock, Briefcase, Users, ShieldCheck, Loader2, AlertCircle, CheckCircle2, Clock, Search, Plus, X, BookOpen, Wrench, GraduationCap, Sparkles, Brain, Code, Palette, Database, Globe, Cpu, Layers, Server, Smartphone, Zap } from 'lucide-react';
+import { Calendar, ChevronDown, Check, MessageSquare, Home, ArrowRight, ArrowLeft, User, Mail, Lock, Briefcase, Users, ShieldCheck, Loader2, AlertCircle, CheckCircle2, Clock, Search, Plus, X, BookOpen, Wrench, GraduationCap, Brain, Code, Palette, Database, Globe, Cpu, Layers, Server, Smartphone, Zap, Target, BadgeCheck } from 'lucide-react';
 import { SkillLevel, ExperienceLevel, UserSkill } from '../../types';
 import { skillToSlug } from '../../utils/skillUtils';
-
-const SPECIALIZATIONS = [
-  { id: 'frontend', label: 'Frontend Dev', icon: Globe, skills: ['React', 'Vue', 'Angular', 'Tailwind', 'Next.js', 'Frontend'] },
-  { id: 'backend', label: 'Backend Dev', icon: Database, skills: ['Node.js', 'Python', 'Go', 'PHP', 'Laravel', 'Java', 'Backend'] },
-  { id: 'fullstack', label: 'Full Stack Dev', icon: Code, skills: ['Full Stack', 'Next.js', 'PostgreSQL', 'TypeScript'] },
-  { id: 'design', label: 'UI/UX Designer', icon: Palette, skills: ['UI/UX', 'Figma', 'Graphic Design', 'Motion'] },
-  { id: 'data', label: 'Data & AI Dev', icon: Brain, skills: ['Data', 'Machine Learning', 'AI', 'Python', 'Analytics'] },
-  { id: 'devops', label: 'DevOps & Cloud Dev', icon: Cpu, skills: ['Docker', 'Kubernetes', 'Cloud', 'CI/CD', 'Terraform'] },
-  { id: 'security', label: 'Security & Cyber Dev', icon: ShieldCheck, skills: ['Cybersecurity', 'Hacking', 'Security', 'Penetration'] },
-  { id: 'pm', label: 'Project Manager', icon: Briefcase, skills: ['Project Management', 'Agile', 'Documentation'] }
-];
-
-const SKILL_CATEGORIES = {
-  'Software Engineering': [
-    'Frontend Development', 'Backend Development', 'Full Stack Development',
-    'Mobile Development', 'Flutter', 'React / Next.js', 'Vue.js', 'Angular',
-    'Node.js', 'PHP / Laravel', 'Python / Django / FastAPI', 'Java / Spring',
-    'Go (Golang)', 'Rust', 'TypeScript', 'JavaScript'
-  ],
-  'Design & Creative': [
-    'UI/UX Design', 'Graphic Design', 'Motion Graphics', 'Product Design',
-    'Brand Identity', 'Figma / Adobe XD', 'Adobe Photoshop', 'Adobe Illustrator'
-  ],
-  'Data & AI': [
-    'Data Science', 'Data Analytics', 'Machine Learning', 'Artificial Intelligence',
-    'Deep Learning', 'Natural Language Processing', 'Computer Vision',
-    'Big Data', 'SQL / NoSQL Databases'
-  ],
-  'DevOps & Infrastructure': [
-    'DevOps', 'Cloud Computing (AWS/GCP/Azure)', 'Docker', 'Kubernetes',
-    'CI/CD Pipelines', 'System Administration', 'Terraform', 'Serverless'
-  ],
-  'Cybersecurity': [
-    'Ethical Hacking', 'Network Security', 'Application Security',
-    'Penetration Testing', 'Incident Response', 'Security Compliance'
-  ],
-  'Professional & Others': [
-    'Project Management', 'Technical Writing', 'Research & Documentation',
-    'Community Building', 'Public Speaking', 'Open Source Contributor'
-  ]
-};
+import { SPECIALIZATIONS, Specialization } from '../../constants/specializations';
+import { SKILL_CATEGORIES, SkillCategory } from '../../constants/skills';
 
 const LEVEL_CONFIG: Record<SkillLevel, { label: string; icon: any; desc: string }> = {
   'Learner': {
@@ -87,12 +48,13 @@ export default function Register() {
     role: 'Member',
     customRole: '',
     specialization: '',
+    portfolioUrl: '',
   });
   const [skillSearch, setSkillSearch] = useState('');
   const [otherSkill, setOtherSkill] = useState('');
   const [showOtherInput, setShowOtherInput] = useState(false);
   const [isYearOpen, setIsYearOpen] = useState(false);
-  const [activeSkillCategory, setActiveSkillCategory] = useState(Object.keys(SKILL_CATEGORIES)[0]);
+  const [activeSkillCategory, setActiveSkillCategory] = useState<SkillCategory>(Object.keys(SKILL_CATEGORIES)[0] as SkillCategory);
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -129,35 +91,39 @@ export default function Register() {
   }, [activeSkillCategory]);
   const navigate = useNavigate();
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [suggestedSpecialization, setSuggestedSpecialization] = useState<string | null>(null);
+  const [roleScores, setRoleScores] = useState<Record<string, number>>({});
+  const [betterRoleSuggestion, setBetterRoleSuggestion] = useState<string | null>(null);
 
-  // Smart Specialization Detection
   useEffect(() => {
     if (formData.skills.length === 0) {
-      setSuggestedSpecialization(null);
+      setRoleScores({});
+      setBetterRoleSuggestion(null);
       return;
     }
 
-    const skillNames = formData.skills.map(s => s.name.toLowerCase());
-
-    // Score each specialization
-    const scores = SPECIALIZATIONS.map(spec => {
-      const matchCount = spec.skills.filter(specSkill =>
-        skillNames.some(userSkill => userSkill.includes(specSkill.toLowerCase()))
-      ).length;
-      return { id: spec.label, score: matchCount };
+    const scores: Record<string, number> = {};
+    SPECIALIZATIONS.forEach(spec => {
+      const matchingSkills = formData.skills.filter(s => 
+        spec.requiredSkills.some(rs => rs.toLowerCase() === s.name.toLowerCase())
+      );
+      // Simple percentage based on required skills found vs total required count (minimum 3)
+      // Limit to 100% maximum
+      const score = Math.min(100, Math.round((matchingSkills.length / spec.minRequiredCount) * 100));
+      scores[spec.label] = score;
     });
 
-    const bestMatch = scores.sort((a, b) => b.score - a.score)[0];
+    setRoleScores(scores);
 
-    if (bestMatch && bestMatch.score > 0) {
-      setSuggestedSpecialization(bestMatch.id);
-      // Only auto-set if user hasn't manually picked one yet
-      if (!formData.specialization) {
-        setFormData(prev => ({ ...prev, specialization: bestMatch.id }));
-      }
+    // Suggest a better role if another role has a significantly higher score
+    const currentRoleScore = scores[formData.specialization] || 0;
+    const bestRole = Object.entries(scores).reduce((a, b) => a[1] > b[1] ? a : b);
+
+    if (bestRole[0] !== formData.specialization && bestRole[1] > currentRoleScore + 20) {
+      setBetterRoleSuggestion(bestRole[0]);
+    } else {
+      setBetterRoleSuggestion(null);
     }
-  }, [formData.skills]);
+  }, [formData.skills, formData.specialization]);
 
   const { authInitialized } = useStore();
 
@@ -227,6 +193,30 @@ export default function Register() {
       if (formData.skills.length === 0) {
         return triggerError('Please select at least one skill.');
       }
+
+      const spec = SPECIALIZATIONS.find(s => s.label === formData.specialization);
+      if (spec) {
+        const matchingSkills = formData.skills.filter(s =>
+          spec.requiredSkills.some(rs => rs.toLowerCase() === s.name.toLowerCase())
+        );
+
+        if (spec.id === 'fullstack') {
+          // Special rule for fullstack: 2 frontend + 2 backend
+          const frontendSkills = formData.skills.filter(s =>
+            SPECIALIZATIONS.find(sp => sp.id === 'frontend')?.requiredSkills.some(rs => rs.toLowerCase() === s.name.toLowerCase())
+          );
+          const backendSkills = formData.skills.filter(s =>
+            SPECIALIZATIONS.find(sp => sp.id === 'backend')?.requiredSkills.some(rs => rs.toLowerCase() === s.name.toLowerCase())
+          );
+
+          if (frontendSkills.length < 2 || backendSkills.length < 2) {
+            return triggerError(`Full Stack Developer requires at least 2 frontend and 2 backend skills to verify your balance.`);
+          }
+        } else if (matchingSkills.length < spec.minRequiredCount) {
+          return triggerError(`To verify your role as ${spec.label}, please select at least ${spec.minRequiredCount} relevant skills.`);
+        }
+      }
+
       const allLevelsSet = formData.skills.every(s => s.level);
       if (!allLevelsSet) {
         return triggerError('Please set a level for each selected skill.');
@@ -239,6 +229,160 @@ export default function Register() {
     if (await validateStep(currentStep)) {
       setCurrentStep((prev) => (prev + 1) as Step);
     }
+  };
+
+  const getSkillFallbackIcon = (skillName: string) => {
+    const lowerSkill = skillName.toLowerCase();
+    
+    // Specific concept mappings
+    if (lowerSkill.includes('prototyp')) return <Layers size={20} />;
+    if (lowerSkill.includes('research')) return <Search size={20} />;
+    if (lowerSkill.includes('visual') || lowerSkill.includes('design')) return <Palette size={20} />;
+    if (lowerSkill.includes('system')) return <Cpu size={20} />;
+    if (lowerSkill.includes('agile') || lowerSkill.includes('scrum')) return <Zap size={20} />;
+    if (lowerSkill.includes('doc') || lowerSkill.includes('write')) return <BookOpen size={20} />;
+    if (lowerSkill.includes('api') || lowerSkill.includes('backend')) return <Server size={20} />;
+    if (lowerSkill.includes('frontend') || lowerSkill.includes('ui')) return <Globe size={20} />;
+    if (lowerSkill.includes('mobile') || lowerSkill.includes('app')) return <Smartphone size={20} />;
+    if (lowerSkill.includes('data') || lowerSkill.includes('ai')) return <Brain size={20} />;
+
+    for (const [category, skills] of Object.entries(SKILL_CATEGORIES)) {
+      if (skills.includes(skillName)) {
+        if (category === 'Software Engineering') return <Code size={20} />;
+        if (category === 'Design & Creative') return <Palette size={20} />;
+        if (category === 'Data & AI') return <Brain size={20} />;
+        if (category === 'DevOps & Infrastructure') return <Cpu size={20} />;
+        if (category === 'Cybersecurity') return <ShieldCheck size={20} />;
+      }
+    }
+    return <Briefcase size={20} />;
+  };
+
+  const renderSkillItem = (skill: string) => {
+    const selectedSkill = formData.skills.find(s => s.name === skill);
+    const isSelected = !!selectedSkill;
+
+    return (
+      <motion.div
+        layout
+        key={skill}
+        className={clsx(
+          "group relative flex flex-col p-2.5 sm:p-3 md:p-3.5 rounded-2xl border-2 transition-all duration-300",
+          isSelected
+            ? "bg-white border-blue-900 shadow-xl shadow-blue-900/5"
+            : "bg-white border-slate-100 hover:border-blue-200 hover:bg-slate-50/50"
+        )}
+      >
+        <div className="flex items-center gap-2.5 sm:gap-3.5 md:gap-4 w-full">
+          <div className={clsx(
+            "w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center transition-all duration-300 shrink-0 shadow-sm",
+            isSelected
+              ? "bg-blue-900 text-white"
+              : "bg-slate-50 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-900"
+          )}>
+            <div className="relative w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 flex items-center justify-center">
+              <img
+                key={`img-${skill}`}
+                src={`https://cdn.simpleicons.org/${skillToSlug(skill)}`}
+                className={clsx(
+                  "w-full h-full object-contain transition-opacity duration-300",
+                  isSelected ? "brightness-0 invert" : "opacity-80 group-hover:opacity-100"
+                )}
+                alt=""
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                  const fallback = (e.target as HTMLImageElement).nextElementSibling;
+                  if (fallback) (fallback as HTMLElement).style.display = 'flex';
+                }}
+              />
+              <div style={{ display: 'none' }} className="absolute inset-0 items-center justify-center fallback-icon">
+                {getSkillFallbackIcon(skill)}
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex-1 min-w-0">
+            <span className="text-sm sm:text-base md:text-lg font-bold text-slate-900 block leading-tight tracking-tight break-words">
+              {skill}
+            </span>
+            {isSelected && (
+              <span className="text-[9px] sm:text-[10px] md:text-xs font-black uppercase tracking-wider text-blue-600 mt-1 sm:mt-1.5 block">
+                {selectedSkill.level}
+              </span>
+            )}
+          </div>
+          
+          <button
+            type="button"
+            onClick={() => {
+              if (isSelected) {
+                setFormData({
+                  ...formData,
+                  skills: formData.skills.filter(s => s.name !== skill)
+                });
+              } else {
+                setFormData({
+                  ...formData,
+                  skills: [...formData.skills, { name: skill, level: 'Learner' }]
+                });
+              }
+            }}
+            className={clsx(
+              "w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-xl flex items-center justify-center transition-all duration-300 shadow-sm shrink-0",
+              isSelected 
+                ? "bg-blue-600 text-white shadow-blue-600/20" 
+                : "bg-white border border-slate-100 text-slate-300 hover:border-blue-200 hover:text-blue-600"
+            )}
+          >
+            {isSelected ? <Check className="w-4 h-4 sm:w-5 sm:h-5" strokeWidth={4} /> : <Plus className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={3} />}
+          </button>
+        </div>
+
+        {isSelected && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, marginTop: 0 }}
+            animate={{ opacity: 1, height: 'auto', marginTop: 12 }}
+            className="overflow-hidden w-full"
+          >
+            <div className="grid grid-cols-3 p-1 sm:p-1.5 bg-slate-50/80 rounded-xl border border-slate-100 min-h-[36px] sm:min-h-[44px]">
+              {SKILL_LEVELS.map((level) => {
+                const isActive = selectedSkill?.level === level;
+
+                return (
+                  <button
+                    key={level}
+                    type="button"
+                    onClick={() => {
+                      const newSkills = [...formData.skills];
+                      const index = newSkills.findIndex(s => s.name === skill);
+                      if (index !== -1) {
+                        newSkills[index] = { ...newSkills[index], level };
+                        setFormData({ ...formData, skills: newSkills });
+                      }
+                    }}
+                    className={clsx(
+                        "relative flex items-center justify-center rounded-xl text-[8px] sm:text-[10px] md:text-xs font-black uppercase tracking-tight sm:tracking-normal md:tracking-wider transition-all duration-300 z-10 py-2 sm:py-2.5 px-0.5",
+                        isActive 
+                          ? "text-white" 
+                          : "text-slate-400 hover:text-slate-600"
+                      )}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId={`activeLevel-${skill}`}
+                        className="absolute inset-0 bg-blue-900 rounded-xl -z-10 shadow-md ring-1 ring-blue-900/50"
+                        transition={{ type: "spring", bounce: 0.1, duration: 0.5 }}
+                      />
+                    )}
+                    <span className="whitespace-nowrap">{level}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </motion.div>
+    );
   };
 
   const prevStep = () => {
@@ -322,11 +466,11 @@ export default function Register() {
           <div className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center mb-4 sm:mb-6">
             <img src="/logo.svg" alt="BetterGovPH Logo" className="w-full h-full object-contain" />
           </div>
-          <h2 className="mt-2 text-center text-xl sm:text-3xl font-bold tracking-tight text-slate-900 font-display leading-tight sm:leading-normal flex flex-col">
+          <h2 className="mt-2 text-center text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 font-display leading-tight sm:leading-normal flex flex-col">
             <span>BetterGovPH</span>
             <span className="text-blue-900/80">Dev Community</span>
           </h2>
-          <p className="mt-2 text-center text-sm text-slate-500">
+          <p className="mt-2 text-center text-sm sm:text-base text-slate-500">
             Apply for access to the portal
           </p>
         </motion.div>
@@ -360,7 +504,7 @@ export default function Register() {
 
                   {/* Step Label */}
                   <span className={clsx(
-                    "absolute -bottom-7 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap transition-colors duration-300",
+                    "absolute -bottom-7 text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-colors duration-300",
                     currentStep >= step.id ? "text-blue-900" : "text-slate-400"
                   )}>
                     {step.name}
@@ -412,7 +556,7 @@ export default function Register() {
                   >
                     <div className="grid grid-cols-1 gap-5">
                       <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">Full Name</label>
+                        <label className="block text-base font-bold text-slate-800 mb-4 tracking-tight">Full Name</label>
                         <div className="relative group">
                           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-900 transition-colors">
                             <User size={18} />
@@ -423,13 +567,13 @@ export default function Register() {
                             required
                             value={formData.fullName}
                             onChange={handleChange}
-                            className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-3 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base sm:text-sm transition-all"
+                            className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-4 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base transition-all"
                             placeholder="Juan Dela Cruz" />
                         </div>
                       </div>
 
                       <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">Email Address</label>
+                        <label className="block text-base font-bold text-slate-800 mb-4 tracking-tight">Email Address</label>
                         <div className="relative group">
                           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-900 transition-colors">
                             <Mail size={18} />
@@ -440,13 +584,13 @@ export default function Register() {
                             required
                             value={formData.email}
                             onChange={handleChange}
-                            className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-3 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base sm:text-sm transition-all"
+                            className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-4 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base transition-all"
                             placeholder="juan@example.com" />
                         </div>
                       </div>
 
                       <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">Discord Username</label>
+                        <label className="block text-base font-bold text-slate-800 mb-4 tracking-tight">Discord Username</label>
                         <div className="relative group">
                           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-900 transition-colors">
                             <MessageSquare size={18} />
@@ -457,16 +601,16 @@ export default function Register() {
                             required
                             value={formData.discordUsername}
                             onChange={handleChange}
-                            className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-3 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base sm:text-sm transition-all"
+                            className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-4 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base transition-all"
                             placeholder="juan_dev#1234" />
                         </div>
-                        <p className="mt-2 text-[10px] text-blue-600 font-medium">
+                        <p className="mt-2 text-[11px] text-blue-600 font-medium px-1 leading-relaxed">
                           Must be in our <a href="https://discord.com/invite/mHtThpN8bT" target="_blank" rel="noopener noreferrer" className="underline font-bold">Discord server</a> for approval.
                         </p>
                       </div>
 
                       <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">Password</label>
+                        <label className="block text-base font-bold text-slate-800 mb-4 tracking-tight">Password</label>
                         <div className="relative group">
                           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-900 transition-colors">
                             <Lock size={18} />
@@ -477,10 +621,10 @@ export default function Register() {
                             required
                             value={formData.password}
                             onChange={handleChange}
-                            className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-3 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base sm:text-sm transition-all"
+                            className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-4 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base transition-all"
                             placeholder="••••••••" />
                         </div>
-                        <p className="mt-2 text-[10px] text-slate-400 leading-relaxed font-medium">
+                        <p className="mt-2 text-[11px] text-slate-400 leading-relaxed font-medium px-1">
                           Min. 8 chars with uppercase, lowercase, number, and special character.
                         </p>
                       </div>
@@ -500,25 +644,12 @@ export default function Register() {
                     <div className="space-y-6">
                       <div>
                         <div className="flex items-center justify-between mb-4">
-                          <label className="block text-sm font-bold text-slate-800 tracking-tight">Select Specialization</label>
-                          <AnimatePresence>
-                            {suggestedSpecialization && (
-                              <motion.div
-                                initial={{ opacity: 0, x: 10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                className="flex items-center gap-1.5 px-3 py-1 bg-blue-600 text-white rounded-full shadow-sm shadow-blue-200"
-                              >
-                                <Sparkles size={10} className="animate-pulse" />
-                                <span className="text-[8px] font-black uppercase tracking-widest">Recommended</span>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
+                          <label className="block text-base font-bold text-slate-800 tracking-tight">Primary Role (Required)</label>
                         </div>
-                        <div className="grid grid-cols-2 gap-2.5">
+                        <div className="grid grid-cols-2 gap-3">
                           {SPECIALIZATIONS.map((spec) => {
                             const Icon = spec.icon;
                             const isSelected = formData.specialization === spec.label;
-                            const isSuggested = suggestedSpecialization === spec.label;
 
                             return (
                               <button
@@ -526,24 +657,22 @@ export default function Register() {
                                 type="button"
                                 onClick={() => setFormData({ ...formData, specialization: spec.label })}
                                 className={clsx(
-                                  "group relative flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all duration-300",
+                                  "group relative flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all duration-300",
                                   isSelected
                                     ? "bg-blue-900 border-blue-900 text-white shadow-xl shadow-blue-900/20 scale-[1.02] z-10"
-                                    : isSuggested
-                                      ? "bg-white border-blue-200 text-slate-600 hover:border-blue-400 hover:bg-blue-50/30"
-                                      : "bg-white border-slate-100 text-slate-500 hover:border-blue-200 hover:bg-slate-50"
+                                    : "bg-white border-slate-100 text-slate-500 hover:border-blue-200 hover:bg-slate-50"
                                 )}
                               >
                                 <div className={clsx(
-                                  "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300",
+                                  "w-12 h-12 rounded-lg flex items-center justify-center transition-all duration-300",
                                   isSelected
                                     ? "bg-white/10 rotate-6"
                                     : "bg-slate-50 text-blue-900 group-hover:scale-110 group-hover:-rotate-6"
                                 )}>
-                                  <Icon size={18} />
+                                  <Icon size={20} />
                                 </div>
                                 <span className={clsx(
-                                  "text-[10px] font-black uppercase tracking-wider text-center px-1",
+                                  "text-xs font-black uppercase tracking-[0.2em] text-center px-1",
                                   isSelected ? "text-white" : "text-slate-700"
                                 )}>
                                   {spec.label}
@@ -551,9 +680,9 @@ export default function Register() {
                                 {isSelected && (
                                   <motion.div
                                     layoutId="spec-check"
-                                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-white text-blue-900 rounded-full flex items-center justify-center shadow-lg ring-4 ring-blue-900"
+                                    className="absolute -top-1.5 -right-1.5 w-6 h-6 bg-white text-blue-900 rounded-full flex items-center justify-center shadow-lg ring-4 ring-blue-900"
                                   >
-                                    <Check size={12} strokeWidth={4} />
+                                    <Check size={14} strokeWidth={4} />
                                   </motion.div>
                                 )}
                               </button>
@@ -563,7 +692,7 @@ export default function Register() {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-bold text-slate-800 mb-3 tracking-tight">Community Role</label>
+                        <label className="block text-base font-bold text-slate-800 mb-4 tracking-tight">Community Role</label>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                           {ROLES.map((role) => {
                             const isSelected = formData.role === role;
@@ -573,7 +702,7 @@ export default function Register() {
                                 type="button"
                                 onClick={() => setFormData({ ...formData, role: role })}
                                 className={clsx(
-                                  "py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 border-2",
+                                  "py-3 rounded-lg text-xs font-black uppercase tracking-wider transition-all duration-300 border-2",
                                   isSelected
                                     ? "bg-blue-900 border-blue-900 text-white shadow-lg shadow-blue-900/10"
                                     : "bg-white border-slate-100 text-slate-500 hover:border-blue-200 hover:text-slate-700"
@@ -598,7 +727,7 @@ export default function Register() {
                                 placeholder="Specify your role..."
                                 value={formData.customRole}
                                 onChange={(e) => setFormData({ ...formData, customRole: e.target.value })}
-                                className="w-full px-4 py-2.5 rounded-xl border-2 border-blue-100 bg-blue-50/30 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all"
+                                className="w-full px-4 py-3 rounded-lg border-2 border-blue-100 bg-blue-50/30 text-base font-bold focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all"
                               />
                             </motion.div>
                           )}
@@ -606,8 +735,8 @@ export default function Register() {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-bold text-slate-800 mb-3 tracking-tight">Professional Level</label>
-                        <div className="bg-slate-100 p-1 rounded-2xl flex gap-1 border border-slate-200/50">
+                        <label className="block text-base font-bold text-slate-800 mb-4 tracking-tight">Professional Level</label>
+                        <div className="bg-slate-100 p-2 rounded-xl grid grid-cols-2 sm:grid-cols-4 gap-2 border border-slate-200/50">
                           {EXPERIENCE_LEVELS.map((level) => {
                             const isSelected = formData.experienceLevel === level;
                             return (
@@ -616,9 +745,9 @@ export default function Register() {
                                 type="button"
                                 onClick={() => setFormData({ ...formData, experienceLevel: level })}
                                 className={clsx(
-                                  "flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300",
+                                  "py-3 rounded-lg text-[10px] sm:text-[11px] font-black uppercase tracking-wider transition-all duration-300 px-1",
                                   isSelected
-                                    ? "bg-white text-blue-900 shadow-lg shadow-slate-200 ring-1 ring-slate-200/50"
+                                    ? "bg-white text-blue-900 shadow-md shadow-slate-200 ring-1 ring-slate-200/50"
                                     : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
                                 )}
                               >
@@ -630,7 +759,7 @@ export default function Register() {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-3">Member Since</label>
+                        <label className="block text-base font-bold text-slate-800 mb-4 tracking-tight">Member Since</label>
                         <div className="relative">
                           <button
                             type="button"
@@ -706,22 +835,103 @@ export default function Register() {
                     transition={{ duration: 0.3 }}
                     className="space-y-6"
                   >
-                    <div className="flex flex-col gap-4">
-                      <label className="block text-sm font-bold text-slate-800 tracking-tight">Skills & Proficiency</label>
-                      <div className="flex flex-col gap-3">
+                    {/* Role Compatibility Score & Suggestions */}
+                    {formData.specialization && Object.keys(roleScores).length > 0 && (
+                      <div className="space-y-4">
+                        <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Role Compatibility Score</span>
+                            <span className={clsx(
+                              "text-sm font-black",
+                              (roleScores[formData.specialization] || 0) >= 70 ? "text-green-600" :
+                                (roleScores[formData.specialization] || 0) >= 40 ? "text-blue-600" : "text-amber-600"
+                            )}>
+                              {roleScores[formData.specialization] || 0}% Match
+                            </span>
+                          </div>
+                          <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${roleScores[formData.specialization] || 0}%` }}
+                              className={clsx(
+                                "h-full transition-all duration-500",
+                                (roleScores[formData.specialization] || 0) >= 70 ? "bg-green-500" :
+                                  (roleScores[formData.specialization] || 0) >= 40 ? "bg-blue-600" : "bg-amber-500"
+                              )}
+                            />
+                          </div>
+                        </div>
+
+                        <AnimatePresence>
+                          {betterRoleSuggestion && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -10 }}
+                              className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex gap-4"
+                            >
+                              <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                                <BadgeCheck size={24} />
+                              </div>
+                              <div className="flex-1 text-left">
+                                <p className="text-xs font-bold text-amber-900 mb-1">Suggest Better Role</p>
+                                <p className="text-[11px] text-amber-700 leading-relaxed mb-4">
+                                  We noticed your skills align more with <span className="font-black text-amber-900">{betterRoleSuggestion}</span>.
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={() => setFormData({ ...formData, specialization: betterRoleSuggestion })}
+                                  className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-900 bg-amber-200/50 hover:bg-amber-200 px-4 py-2 rounded-xl transition-colors"
+                                >
+                                  Switch to {betterRoleSuggestion}
+                                </button>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    )}
+
+                    {/* Recommended Skills Section */}
+                    {formData.specialization && (
+                      <div className="bg-slate-50/50 rounded-xl p-4 sm:p-5 border border-slate-100 shadow-sm">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-sm">
+                            <Target size={20} />
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-900">Recommended for You</p>
+                            <p className="text-[11px] text-blue-400 font-bold mt-0.5 leading-tight">Verified skills for {formData.specialization}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 gap-3">
+                          {SPECIALIZATIONS.find(s => s.label === formData.specialization)?.suggestedSkills.map(skill => (
+                            renderSkillItem(skill)
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex flex-col gap-6">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-base font-bold text-slate-800 tracking-tight">Explore More Skills</label>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Optional</span>
+                      </div>
+                      <div className="flex flex-col gap-4">
                         <div className="relative group">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 transition-colors group-focus-within:text-blue-500" />
+                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 transition-colors group-focus-within:text-blue-500" />
                           <input
                             type="text"
                             placeholder="Search skills..."
                             value={skillSearch}
                             onChange={(e) => setSkillSearch(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 rounded-2xl border-2 border-slate-100 text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all bg-white" />
+                            className="w-full pl-11 pr-4 py-3 rounded-xl border-2 border-slate-100 text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all bg-white" />
                         </div>
 
                         <div
                           ref={dragContainerRef}
-                          className="overflow-hidden bg-slate-100 p-1.5 rounded-2xl border border-slate-200/50 cursor-grab active:cursor-grabbing relative"
+                          className="overflow-hidden bg-slate-100/50 p-1 rounded-xl border border-slate-200/50 cursor-grab active:cursor-grabbing relative"
                         >
                           <motion.div
                             ref={dragContentRef}
@@ -736,16 +946,16 @@ export default function Register() {
                                 <button
                                   key={category}
                                   type="button"
-                                  onClick={() => setActiveSkillCategory(category)}
+                                  onClick={() => setActiveSkillCategory(category as SkillCategory)}
                                   className={clsx(
-                                    "relative px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-colors duration-300 flex-shrink-0 z-10",
+                                    "relative px-4 py-2 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] whitespace-nowrap transition-colors duration-300 flex-shrink-0 z-10",
                                     isActive ? "text-blue-900" : "text-slate-500 hover:text-slate-800"
                                   )}
                                 >
                                   {isActive && (
                                     <motion.div
                                       layoutId="activeCategory"
-                                      className="absolute inset-0 bg-white rounded-xl shadow-sm border border-slate-200/50 -z-10"
+                                      className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/50 -z-10"
                                       transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                                     />
                                   )}
@@ -765,122 +975,11 @@ export default function Register() {
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -10 }}
                             transition={{ duration: 0.2 }}
-                            className="grid grid-cols-1 gap-3"
+                            className="grid grid-cols-1 gap-3.5"
                           >
                             {SKILL_CATEGORIES[activeSkillCategory as keyof typeof SKILL_CATEGORIES]
                               .filter(skill => skill.toLowerCase().includes(skillSearch.toLowerCase()))
-                              .map((skill) => {
-                                const selectedSkill = formData.skills.find(s => s.name === skill);
-                                const isSelected = !!selectedSkill;
-
-                                return (
-                                  <div
-                                    key={skill}
-                                    className={clsx(
-                                      "group relative flex flex-col p-4 rounded-2xl border-2 transition-all duration-300",
-                                      isSelected
-                                        ? "bg-blue-50/50 border-blue-200 shadow-sm"
-                                        : "bg-white border-slate-100 hover:border-blue-100"
-                                    )}
-                                  >
-                                    <div className="flex items-center justify-between mb-3">
-                                      <div className="flex items-center gap-3">
-                                        <div className={clsx(
-                                          "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300",
-                                          isSelected
-                                            ? "bg-blue-900 text-white shadow-lg shadow-blue-900/20"
-                                            : "bg-slate-50 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-900"
-                                        )}>
-                                          <img
-                                            src={`https://cdn.simpleicons.org/${skillToSlug(skill)}`}
-                                            className={clsx(
-                                              "w-5 h-5 object-contain transition-all duration-300",
-                                              isSelected ? "brightness-0 invert" : "opacity-80 group-hover:opacity-100"
-                                            )}
-                                            alt=""
-                                            onError={(e) => {
-                                              (e.target as HTMLImageElement).style.display = 'none';
-                                              const fallback = (e.target as HTMLImageElement).nextElementSibling;
-                                              if (fallback) (fallback as HTMLElement).style.display = 'block';
-                                            }}
-                                          />
-                                          <div style={{ display: 'none' }} className="fallback-icon">
-                                            {activeSkillCategory === 'Software Engineering' ? <Code size={18} /> :
-                                              activeSkillCategory === 'Design & Creative' ? <Palette size={18} /> :
-                                                activeSkillCategory === 'Data & AI' ? <Brain size={18} /> :
-                                                  activeSkillCategory === 'DevOps & Infrastructure' ? <Cpu size={18} /> :
-                                                    activeSkillCategory === 'Cybersecurity' ? <ShieldCheck size={18} /> :
-                                                      <Users size={18} />}
-                                          </div>
-                                        </div>
-                                        <span className="text-sm font-bold text-slate-800">{skill}</span>
-                                      </div>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          if (isSelected) {
-                                            setFormData({
-                                              ...formData,
-                                              skills: formData.skills.filter(s => s.name !== skill)
-                                            });
-                                          } else {
-                                            setFormData({
-                                              ...formData,
-                                              skills: [...formData.skills, { name: skill, level: 'Learner' }]
-                                            });
-                                          }
-                                        }}
-                                        className={clsx(
-                                          "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300",
-                                          isSelected ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-400 hover:bg-blue-100 hover:text-blue-600"
-                                        )}
-                                      >
-                                        {isSelected ? <Check size={14} strokeWidth={3} /> : <Plus size={14} strokeWidth={3} />}
-                                      </button>
-                                    </div>
-
-                                    {isSelected && (
-                                      <motion.div
-                                        initial={{ opacity: 0, height: 0 }}
-                                        animate={{ opacity: 1, height: 'auto' }}
-                                        className="flex gap-1.5 pt-1 relative"
-                                      >
-                                        {SKILL_LEVELS.map((level) => {
-                                          const isActive = selectedSkill?.level === level;
-
-                                          return (
-                                            <button
-                                              key={level}
-                                              type="button"
-                                              onClick={() => {
-                                                const newSkills = [...formData.skills];
-                                                const index = newSkills.findIndex(s => s.name === skill);
-                                                if (index !== -1) {
-                                                  newSkills[index] = { ...newSkills[index], level };
-                                                  setFormData({ ...formData, skills: newSkills });
-                                                }
-                                              }}
-                                              className={clsx(
-                                                "relative flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-colors duration-300 z-10",
-                                                isActive ? "text-white" : "text-slate-500 hover:text-slate-800 bg-white border border-slate-200"
-                                              )}
-                                            >
-                                              {isActive && (
-                                                <motion.div
-                                                  layoutId={`activeLevel-${skill}`}
-                                                  className="absolute inset-0 bg-blue-900 rounded-xl shadow-md shadow-blue-900/20 -z-10"
-                                                  transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                                                />
-                                              )}
-                                              {level}
-                                            </button>
-                                          );
-                                        })}
-                                      </motion.div>
-                                    )}
-                                  </div>
-                                );
-                              })}
+                              .map((skill) => renderSkillItem(skill))}
                           </motion.div>
                         </AnimatePresence>
                       </div>
@@ -892,7 +991,7 @@ export default function Register() {
                         <button
                           type="button"
                           onClick={() => setShowOtherInput(true)}
-                          className="flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-dashed border-slate-100 text-slate-400 text-[11px] font-black uppercase tracking-widest hover:border-blue-200 hover:text-blue-600 hover:bg-blue-50/30 transition-all w-full group"
+                          className="flex items-center justify-center gap-2 py-4 rounded-xl border-2 border-dashed border-slate-100 text-slate-400 text-xs font-black uppercase tracking-[0.2em] hover:border-blue-200 hover:text-blue-600 hover:bg-blue-50/30 transition-all w-full group"
                         >
                           <Plus size={14} strokeWidth={3} className="group-hover:scale-110 transition-transform" />
                           <span>Add custom skill</span>
@@ -901,7 +1000,7 @@ export default function Register() {
                         <motion.div
                           initial={{ opacity: 0, scale: 0.95 }}
                           animate={{ opacity: 1, scale: 1 }}
-                          className="flex gap-2 p-1 bg-blue-50/50 rounded-2xl border-2 border-blue-100"
+                          className="flex gap-2 p-1 bg-blue-50/50 rounded-xl border-2 border-blue-100"
                         >
                           <input
                             type="text"
@@ -909,7 +1008,7 @@ export default function Register() {
                             autoFocus
                             value={otherSkill}
                             onChange={(e) => setOtherSkill(e.target.value)}
-                            className="flex-1 px-4 py-2 bg-white rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition-all placeholder:text-slate-300"
+                            className="flex-1 px-4 py-2 bg-white rounded-lg text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition-all placeholder:text-slate-300"
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') {
                                 e.preventDefault();
@@ -942,14 +1041,14 @@ export default function Register() {
                                   }
                                 }
                               }}
-                              className="p-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+                              className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                             >
                               <Check size={18} strokeWidth={3} />
                             </button>
                             <button
                               type="button"
                               onClick={() => setShowOtherInput(false)}
-                              className="p-2.5 bg-white text-slate-500 border border-slate-200 rounded-xl hover:text-red-600 hover:border-red-100 hover:bg-red-50 transition-all"
+                              className="p-2.5 bg-white text-slate-500 border border-slate-200 rounded-lg hover:text-red-600 hover:border-red-100 hover:bg-red-50 transition-all"
                             >
                               <X size={18} strokeWidth={3} />
                             </button>
@@ -958,45 +1057,64 @@ export default function Register() {
                       )}
                     </div>
 
-                    <div className="pt-8 border-t border-slate-100">
-                      <div className="flex items-center justify-between mb-4">
+                    <div className="pt-6 border-t border-slate-100">
+                      <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
-                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">Selected Expertise</p>
-                          <div className="w-1 h-1 rounded-full bg-slate-300" />
-                          <span className="text-[10px] font-black text-blue-900">
-                            {formData.skills.length} Total
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Selected Stack</p>
+                          <span className="px-1.5 py-0.5 bg-blue-900 text-white text-[9px] font-black rounded-full">
+                            {formData.skills.length}
                           </span>
                         </div>
+                        {formData.skills.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setFormData({ ...formData, skills: [] })}
+                            className="text-[10px] font-black uppercase tracking-[0.2em] text-red-500 hover:text-red-600 transition-colors"
+                          >
+                            Clear All
+                          </button>
+                        )}
                       </div>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-1.5">
                         {formData.skills.length === 0 ? (
-                          <div className="w-full py-8 rounded-2xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center gap-2">
-                            <Code size={20} className="text-slate-200" />
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">No skills added yet</p>
+                          <div className="w-full py-4 rounded-xl bg-slate-50 border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-1.5 opacity-60">
+                            <Code size={16} className="text-slate-400" />
+                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em]">No skills selected</p>
                           </div>
                         ) : (
-                          <AnimatePresence>
+                          <AnimatePresence mode="popLayout">
                             {formData.skills.map((skill) => (
                               <motion.div
                                 key={skill.name}
+                                layout
                                 initial={{ opacity: 0, scale: 0.8 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.8 }}
-                                className="flex items-center gap-2 pl-3 pr-1 py-1 bg-white border-2 border-slate-100 rounded-xl hover:border-blue-200 hover:shadow-sm transition-all group"
+                                className="flex items-center gap-2 pl-3 pr-1.5 py-2 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-blue-300 transition-all group"
                               >
-                                <span className="text-[11px] font-bold text-slate-700">{skill.name}</span>
+                                <div className="w-5 h-5 flex items-center justify-center shrink-0 relative">
+                                  <img
+                                    src={`https://cdn.simpleicons.org/${skillToSlug(skill.name)}`}
+                                    className="w-full h-full object-contain"
+                                    alt=""
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).style.display = 'none';
+                                      const fallback = (e.target as HTMLImageElement).nextElementSibling;
+                                      if (fallback) (fallback as HTMLElement).style.display = 'flex';
+                                    }}
+                                  />
+                                  <div style={{ display: 'none' }} className="absolute inset-0 items-center justify-center">
+                                    {getSkillFallbackIcon(skill.name)}
+                                  </div>
+                                </div>
+                                <span className="text-xs font-bold text-slate-700">{skill.name}</span>
                                 <div className={clsx(
-                                  "px-2 py-1 rounded-lg flex items-center gap-1.5",
+                                  "px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider",
                                   skill.level === 'Expert' ? "bg-blue-900 text-white" :
-                                    skill.level === 'Practitioner' ? "bg-blue-50 text-blue-900" :
-                                      "bg-slate-50 text-slate-600"
+                                    skill.level === 'Practitioner' ? "bg-blue-100 text-blue-900" :
+                                      "bg-slate-100 text-slate-600"
                                 )}>
-                                  {skill.level === 'Expert' ? <Zap size={8} className="fill-white" /> :
-                                    skill.level === 'Practitioner' ? <CheckCircle2 size={8} /> :
-                                      <Clock size={8} />}
-                                  <span className="text-[8px] font-black uppercase tracking-widest">
-                                    {skill.level}
-                                  </span>
+                                  {skill.level}
                                 </div>
                                 <button
                                   type="button"
@@ -1006,9 +1124,9 @@ export default function Register() {
                                       skills: formData.skills.filter(s => s.name !== skill.name)
                                     });
                                   }}
-                                  className="ml-1 p-1.5 text-slate-400 hover:text-white hover:bg-red-500 rounded-lg transition-all"
+                                  className="ml-0.5 p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                                 >
-                                  <X size={10} strokeWidth={4} />
+                                  <X size={12} strokeWidth={3} />
                                 </button>
                               </motion.div>
                             ))}
@@ -1025,7 +1143,7 @@ export default function Register() {
                   <button
                     type="button"
                     onClick={prevStep}
-                    className="flex-1 flex justify-center items-center gap-2 rounded-2xl border-2 border-slate-100 bg-white px-4 py-4 text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-50 hover:border-slate-200 transition-all duration-300 active:scale-[0.98]"
+                    className="flex-1 flex justify-center items-center gap-2 rounded-2xl border-2 border-slate-100 bg-white px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-slate-500 hover:bg-slate-50 hover:border-slate-200 transition-all duration-300 active:scale-[0.98]"
                   >
                     <ArrowLeft size={16} strokeWidth={3} />
                     <span>Back</span>
@@ -1036,7 +1154,7 @@ export default function Register() {
                   <button
                     type="button"
                     onClick={nextStep}
-                    className="flex-[2] relative flex justify-center items-center gap-2 rounded-2xl bg-blue-900 px-4 py-4 text-xs font-black uppercase tracking-widest text-white shadow-xl shadow-blue-900/20 hover:bg-blue-800 transition-all duration-300 active:scale-[0.98] group overflow-hidden"
+                    className="flex-[2] relative flex justify-center items-center gap-2 rounded-2xl bg-blue-900 px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-white shadow-xl shadow-blue-900/20 hover:bg-blue-800 transition-all duration-300 active:scale-[0.98] group overflow-hidden"
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:animate-shimmer" />
                     <span className="relative flex items-center gap-2">
@@ -1048,7 +1166,7 @@ export default function Register() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="flex-[2] relative flex justify-center items-center gap-2 rounded-2xl bg-blue-900 px-4 py-4 text-xs font-black uppercase tracking-widest text-white shadow-xl shadow-blue-900/20 hover:bg-blue-800 transition-all duration-300 active:scale-[0.98] disabled:opacity-50 group overflow-hidden"
+                    className="flex-[2] relative flex justify-center items-center gap-2 rounded-2xl bg-blue-900 px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-white shadow-xl shadow-blue-900/20 hover:bg-blue-800 transition-all duration-300 active:scale-[0.98] disabled:opacity-50 group overflow-hidden"
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:animate-shimmer" />
                     <span className="relative flex items-center gap-2">
@@ -1111,7 +1229,7 @@ export default function Register() {
 
                 <div className="space-y-4">
                   <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-left">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Status</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Status</p>
                     <div className="flex items-center gap-2 text-blue-900 font-bold">
                       <Clock size={16} />
                       <span>Pending Review</span>
@@ -1120,7 +1238,7 @@ export default function Register() {
 
                   <button
                     onClick={() => navigate('/dashboard')}
-                    className="w-full py-4 bg-blue-900 text-white rounded-2xl font-bold shadow-lg shadow-blue-900/20 hover:bg-blue-800 transition-all active:scale-[0.98]"
+                    className="w-full py-4 bg-blue-900 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-lg shadow-blue-900/20 hover:bg-blue-800 transition-all active:scale-[0.98]"
                   >
                     Go to Portal
                   </button>

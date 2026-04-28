@@ -153,11 +153,11 @@ export default function UserDashboard() {
                   <p className="text-sm font-medium text-slate-900 truncate">{currentUser.discordUsername}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Specialization</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Primary Role</p>
                   <p className="text-sm font-medium text-slate-900">{currentUser.specialization}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Role</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Community Role</p>
                   <p className="text-sm font-medium text-slate-900">{currentUser.role}</p>
                 </div>
                 <div>
