@@ -6,7 +6,14 @@ const getSupabaseConfig = () => {
     process.env.VITE_SUPABASE_URL ||
     process.env.NEXT_PUBLIC_SUPABASE_URL ||
     '';
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE || '';
+  const serviceKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_SERVICE_ROLE ||
+    process.env.VITE_SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.VITE_SUPABASE_SERVICE_ROLE ||
+    process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE ||
+    '';
   return { url, serviceKey };
 };
 
@@ -45,7 +52,10 @@ export default async function handler(req: any, res: any) {
 
   const { url: supabaseUrl, serviceKey: serviceRoleKey } = getSupabaseConfig();
   if (!supabaseUrl || !serviceRoleKey) {
-    res.status(500).json({ error: 'Server not configured' });
+    const missing: string[] = [];
+    if (!supabaseUrl) missing.push('SUPABASE_URL');
+    if (!serviceRoleKey) missing.push('SUPABASE_SERVICE_ROLE_KEY');
+    res.status(500).json({ error: 'Server not configured', missing });
     return;
   }
 
