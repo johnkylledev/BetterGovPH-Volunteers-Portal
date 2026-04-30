@@ -6,15 +6,12 @@ const getSupabaseConfig = () => {
     process.env.VITE_SUPABASE_URL ||
     process.env.NEXT_PUBLIC_SUPABASE_URL ||
     '';
-  const serviceKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_SERVICE_ROLE ||
-    process.env.VITE_SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.VITE_SUPABASE_SERVICE_ROLE ||
-    process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE ||
+  const anonKey =
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.VITE_SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     '';
-  return { url, serviceKey };
+  return { url, anonKey };
 };
 
 const getStringParam = (value: unknown) => {
@@ -32,11 +29,11 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  const { url: supabaseUrl, serviceKey: serviceRoleKey } = getSupabaseConfig();
-  if (!supabaseUrl || !serviceRoleKey) {
+  const { url: supabaseUrl, anonKey: supabaseAnonKey } = getSupabaseConfig();
+  if (!supabaseUrl || !supabaseAnonKey) {
     const missing: string[] = [];
     if (!supabaseUrl) missing.push('SUPABASE_URL');
-    if (!serviceRoleKey) missing.push('SUPABASE_SERVICE_ROLE_KEY');
+    if (!supabaseAnonKey) missing.push('SUPABASE_ANON_KEY');
     res.status(500).json({ error: 'Server not configured', missing });
     return;
   }
@@ -48,11 +45,11 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await supabase
     .from('users')
     .select('uid')
     .eq('discord_username', username)

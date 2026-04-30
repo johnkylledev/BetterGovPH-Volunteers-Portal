@@ -6,6 +6,11 @@ const getSupabaseConfig = () => {
     process.env.VITE_SUPABASE_URL ||
     process.env.NEXT_PUBLIC_SUPABASE_URL ||
     '';
+  const anonKey =
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.VITE_SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    '';
   const serviceKey =
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
     process.env.SUPABASE_SERVICE_ROLE ||
@@ -14,7 +19,7 @@ const getSupabaseConfig = () => {
     process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE ||
     '';
-  return { url, serviceKey };
+  return { url, anonKey, serviceKey };
 };
 
 const getBearerToken = (authorizationHeader: unknown) => {
@@ -54,11 +59,11 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  const { url: supabaseUrl, serviceKey: serviceRoleKey } = getSupabaseConfig();
-  if (!supabaseUrl || !serviceRoleKey) {
+  const { url: supabaseUrl, anonKey: supabaseAnonKey } = getSupabaseConfig();
+  if (!supabaseUrl || !supabaseAnonKey) {
     const missing: string[] = [];
     if (!supabaseUrl) missing.push('SUPABASE_URL');
-    if (!serviceRoleKey) missing.push('SUPABASE_SERVICE_ROLE_KEY');
+    if (!supabaseAnonKey) missing.push('SUPABASE_ANON_KEY');
     res.status(500).json({ error: 'Server not configured', missing });
     return;
   }
@@ -69,18 +74,13 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
+  const { data: authData, error: authError } = await supabase.auth.getUser(token);
   if (authError || !authData?.user) {
     const message = typeof (authError as any)?.message === 'string' ? String((authError as any).message) : '';
-    const lower = message.toLowerCase();
-    if (lower.includes('invalid api key') || lower.includes('apikey')) {
-      res.status(500).json({ error: 'Server not configured' });
-      return;
-    }
     res.status(401).json({ error: message || 'Invalid token' });
     return;
   }
@@ -90,7 +90,7 @@ export default async function handler(req: any, res: any) {
   const fullNameFromAuth = (authData.user.user_metadata as any)?.full_name ?? '';
 
   if (req.method === 'GET') {
-    const { data, error } = await supabaseAdmin.from('users').select('*').eq('uid', uid).maybeSingle();
+    const { data, error } = await supabase.from('users').select('*').eq('uid', uid).maybeSingle();
     if (error) {
       res.status(500).json({ error: 'Failed to load profile' });
       return;
@@ -117,7 +117,7 @@ export default async function handler(req: any, res: any) {
         updated_at: now,
       };
 
-      const { data: inserted, error: insertError } = await supabaseAdmin
+      const { data: inserted, error: insertError } = await supabase
         .from('users')
         .insert(insertRow)
         .select('*')
@@ -153,7 +153,7 @@ export default async function handler(req: any, res: any) {
   updates.email = email;
   if (!updates.full_name && fullNameFromAuth) updates.full_name = fullNameFromAuth;
 
-  const { data: updatedRows, error: updateError } = await supabaseAdmin
+  const { data: updatedRows, error: updateError } = await supabase
     .from('users')
     .update(updates)
     .eq('uid', uid)
@@ -186,7 +186,7 @@ export default async function handler(req: any, res: any) {
       updated_at: now,
     };
 
-    const { data: inserted, error: insertError } = await supabaseAdmin
+    const { data: inserted, error: insertError } = await supabase
       .from('users')
       .insert(insertRow)
       .select('*')
