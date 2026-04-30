@@ -61,23 +61,34 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  const supabaseKey = serviceRoleKey || supabaseAnonKey;
-  const supabase = createClient(supabaseUrl, supabaseKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  const makeClient = (key: string) =>
+    createClient(supabaseUrl, key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+  const primaryKey = (serviceRoleKey || supabaseAnonKey) as string;
+  const fallbackKey = (serviceRoleKey && supabaseAnonKey && serviceRoleKey !== supabaseAnonKey ? supabaseAnonKey : '') as
+    | string
+    | '';
+  let supabase = makeClient(primaryKey);
 
   const token = getBearerToken(req.headers?.authorization);
   let isAdminCaller = false;
   if (token && serviceRoleKey) {
-    const { data: authData, error: authError } = await supabase.auth.getUser(token);
-    if (!authError && authData?.user) {
-      const callerUid = authData.user.id;
-      const { data: callerRow } = await supabase
-        .from('users')
-        .select('is_admin')
-        .eq('uid', callerUid)
-        .maybeSingle();
-      isAdminCaller = !!callerRow?.is_admin;
+    try {
+      const adminSupabase = makeClient(serviceRoleKey);
+      const { data: authData, error: authError } = await adminSupabase.auth.getUser(token);
+      if (!authError && authData?.user) {
+        const callerUid = authData.user.id;
+        const { data: callerRow } = await adminSupabase
+          .from('users')
+          .select('is_admin')
+          .eq('uid', callerUid)
+          .maybeSingle();
+        isAdminCaller = !!callerRow?.is_admin;
+      }
+    } catch {
+      isAdminCaller = false;
     }
   }
 
@@ -102,11 +113,27 @@ export default async function handler(req: any, res: any) {
   const cleanId = upperId.startsWith('BGPH-') ? upperId.replace('BGPH-', '') : upperId;
   const prefixedId = upperId.startsWith('BGPH-') ? upperId : `BGPH-${upperId}`;
 
-  const { data: byMember, error: byMemberError } = await supabase
+  let { data: byMember, error: byMemberError } = await supabase
     .from('users')
     .select('uid, full_name, specialization, role, status, member_id, year_joined, discord_username, is_admin')
     .or(`member_id.ilike.${upperId},member_id.ilike.${cleanId},member_id.ilike.${prefixedId}`)
     .maybeSingle();
+
+  if (
+    byMemberError &&
+    fallbackKey &&
+    typeof (byMemberError as any)?.message === 'string' &&
+    String((byMemberError as any).message).toLowerCase().includes('invalid api key')
+  ) {
+    supabase = makeClient(fallbackKey);
+    const retry = await supabase
+      .from('users')
+      .select('uid, full_name, specialization, role, status, member_id, year_joined, discord_username, is_admin')
+      .or(`member_id.ilike.${upperId},member_id.ilike.${cleanId},member_id.ilike.${prefixedId}`)
+      .maybeSingle();
+    byMember = retry.data;
+    byMemberError = retry.error;
+  }
 
   if (byMemberError) {
     const message = typeof (byMemberError as any)?.message === 'string' ? String((byMemberError as any).message) : '';
