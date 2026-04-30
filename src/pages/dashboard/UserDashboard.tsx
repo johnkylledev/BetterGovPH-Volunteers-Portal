@@ -1,9 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { AccessCard } from '../../components/AccessCard';
 import { motion } from 'framer-motion';
-import { ShieldAlert, CheckCircle2, Clock, LogOut, Download, Copy, Code, Check, CreditCard, Info, Zap } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, Clock, LogOut, Download, Copy, Code, Check, CreditCard, Info, Zap, User, Mail, Calendar, Award, MapPin, ExternalLink, Share2, Sparkles } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import clsx from 'clsx';
 import { skillToSlug } from '../../utils/skillUtils';
@@ -31,7 +31,7 @@ export default function UserDashboard() {
 
   const getStatusIcon = () => {
     switch (currentUser.status) {
-      case 'Approved': return <CheckCircle2 className="w-5 h-5 text-blue-500" />;
+      case 'Approved': return <CheckCircle2 className="w-5 h-5 text-green-500" />;
       case 'Declined': return <ShieldAlert className="w-5 h-5 text-red-500" />;
       default: return <Clock className="w-5 h-5 text-yellow-500" />;
     }
@@ -53,9 +53,9 @@ export default function UserDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-12 sm:pb-0">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 pb-12 sm:pb-0">
       {/* Navbar */}
-      <nav className="bg-white border-b border-slate-200 sticky top-0 z-50">
+      <nav className="bg-white/80 backdrop-blur-xl border-b border-slate-200/60 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 sm:h-20">
             <div className="flex items-center space-x-2 sm:space-x-3">
@@ -69,7 +69,7 @@ export default function UserDashboard() {
                     const el = document.getElementById('digital-card-section');
                     el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                   }}
-                  className="inline-flex items-center gap-2 px-3 py-2 text-xs sm:text-sm font-bold text-blue-900 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all duration-200"
                 >
                   <CreditCard className="w-4 h-4" />
                   <span className="hidden sm:inline">My Card</span>
@@ -78,14 +78,14 @@ export default function UserDashboard() {
               )}
               <div className="h-6 w-[1px] bg-slate-200" />
               <div className="flex flex-col items-end">
-                <span className="text-xs sm:text-sm font-bold text-slate-900 leading-none truncate max-w-[100px] sm:max-w-none">
+                <span className="text-xs sm:text-sm font-semibold text-slate-900 leading-none truncate max-w-[100px] sm:max-w-none">
                   {currentUser.fullName.split(' ')[0]}
                 </span>
-                <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">{currentUser.role}</span>
+                <span className="text-[9px] sm:text-[10px] font-medium text-slate-400 uppercase tracking-wider mt-1">{currentUser.role}</span>
               </div>
               <button
                 onClick={handleLogout}
-                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all duration-200"
                 title="Logout"
               >
                 <LogOut className="w-5 h-5" />
@@ -96,7 +96,7 @@ export default function UserDashboard() {
       </nav>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
 
           {/* Left Column: Status and Info */}
@@ -104,19 +104,19 @@ export default function UserDashboard() {
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-white sm:rounded-lg p-6 sm:p-8 shadow-sm border-y sm:border border-slate-100"
+              className="bg-white sm:rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-100/80"
             >
-              <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-4 sm:mb-6">Application Status</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-slate-900 mb-4 sm:mb-6">Application Status</h2>
               <div className={clsx(
-                "flex items-start sm:items-center space-x-4 p-4 rounded-lg border",
-                currentUser.status === 'Approved' ? 'bg-blue-50 border-blue-100' :
-                  currentUser.status === 'Declined' ? 'bg-red-50 border-red-100' :
-                    'bg-yellow-50 border-yellow-100'
+                "flex items-start sm:items-center space-x-4 p-5 rounded-xl border",
+                currentUser.status === 'Approved' ? 'bg-emerald-50/50 border-emerald-200/60' :
+                  currentUser.status === 'Declined' ? 'bg-red-50/50 border-red-200/60' :
+                    'bg-amber-50/50 border-amber-200/60'
               )}>
                 <div className="mt-0.5 sm:mt-0">{getStatusIcon()}</div>
-                <div>
-                  <p className="text-sm font-bold text-slate-900">{currentUser.status}</p>
-                  <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-slate-900">{currentUser.status}</p>
+                  <p className="text-xs text-slate-600 mt-1 leading-relaxed">
                     {currentUser.status === 'Approved' ? 'Your application has been approved. Your ID is ready.' :
                       currentUser.status === 'Declined' ? 'Your application was declined by the administrator.' :
                         'Your application is currently under review by our team.'}
@@ -125,8 +125,8 @@ export default function UserDashboard() {
               </div>
 
               {currentUser.adminNotes && (
-                <div className="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-100">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Admin Notes</p>
+                <div className="mt-5 p-5 bg-slate-50/80 rounded-xl border border-slate-100/80">
+                  <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Admin Notes</p>
                   <p className="text-sm text-slate-700 leading-relaxed">{currentUser.adminNotes}</p>
                 </div>
               )}
@@ -136,38 +136,38 @@ export default function UserDashboard() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="bg-white sm:rounded-lg p-6 sm:p-8 shadow-sm border-y sm:border border-slate-100"
+              className="bg-white sm:rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-100/80"
             >
-              <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-4 sm:mb-6">Profile Information</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-slate-900 mb-4 sm:mb-6">Profile Information</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 sm:gap-x-8">
                 <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Full Name</p>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Full Name</p>
                   <p className="text-sm font-medium text-slate-900 truncate">{currentUser.fullName}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Email</p>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Email</p>
                   <p className="text-sm font-medium text-slate-900 break-all">{currentUser.email}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Discord</p>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Discord</p>
                   <p className="text-sm font-medium text-slate-900 truncate">{currentUser.discordUsername}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Primary Role</p>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Primary Role</p>
                   <p className="text-sm font-medium text-slate-900">{currentUser.specialization}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Community Role</p>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Community Role</p>
                   <p className="text-sm font-medium text-slate-900">{currentUser.role}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Member Since</p>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Member Since</p>
                   <p className="text-sm font-medium text-slate-900">{currentUser.yearJoined || '-'}</p>
                 </div>
                 {currentUser.memberId && (
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Member ID</p>
-                    <p className="text-sm font-mono font-bold text-blue-600">{currentUser.memberId}</p>
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Member ID</p>
+                    <p className="text-sm font-mono font-semibold text-blue-600">{currentUser.memberId}</p>
                   </div>
                 )}
               </div>
@@ -177,21 +177,21 @@ export default function UserDashboard() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
-              className="bg-white sm:rounded-lg p-6 sm:p-8 shadow-sm border-y sm:border border-slate-100"
+              className="bg-white sm:rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-100/80"
             >
-              <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-6">Skills & Expertise</h2>
-              
+              <h2 className="text-base sm:text-lg font-semibold text-slate-900 mb-6">Skills & Expertise</h2>
+
               <div className="space-y-6">
                 <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Core Skills</p>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-4">Core Skills</p>
                   <div className="flex flex-wrap gap-3">
                     {currentUser.skills && currentUser.skills.length > 0 ? (
                       currentUser.skills.map((skill, index) => (
-                        <div 
-                          key={index} 
-                          className="flex items-center gap-3 pl-3 pr-4 py-2.5 bg-white border border-slate-100 rounded-lg shadow-sm hover:shadow-md transition-all group"
+                        <div
+                          key={index}
+                          className="flex items-center gap-3 pl-3 pr-4 py-3 bg-white border border-slate-100/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 group"
                         >
-                          <div className="w-10 h-10 rounded-md bg-slate-50 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-50 transition-colors border border-slate-100">
+                          <div className="w-11 h-11 rounded-lg bg-slate-50/80 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-50/80 transition-colors border border-slate-100/60">
                             <img
                               src={`https://cdn.simpleicons.org/${skillToSlug(skill.name)}`}
                               className="w-5 h-5 object-contain opacity-80 group-hover:opacity-100 transition-opacity"
@@ -205,12 +205,12 @@ export default function UserDashboard() {
                             <Code size={16} style={{ display: 'none' }} className="text-slate-400" />
                           </div>
                           <div className="flex flex-col">
-                            <span className="text-sm font-bold text-slate-800 leading-tight">{skill.name}</span>
-                            <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-sm font-semibold text-slate-800 leading-tight">{skill.name}</span>
+                            <div className="flex items-center gap-1.5 mt-1">
                               {skill.level === 'Expert' ? <Zap size={8} className="text-blue-600 fill-blue-600" /> :
                                skill.level === 'Practitioner' ? <CheckCircle2 size={8} className="text-blue-500" /> :
                                <Clock size={8} className="text-slate-400" />}
-                              <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                              <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-400">
                                 {skill.level === 'Expert' ? 'Expert' :
                                  skill.level === 'Practitioner' ? 'Practitioner' : 'Learner'}
                               </span>
@@ -225,8 +225,8 @@ export default function UserDashboard() {
                 </div>
 
                 <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Experience Level</p>
-                    <p className="text-sm font-bold text-slate-900">{currentUser.experienceLevel || '-'}</p>
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Experience Level</p>
+                    <p className="text-sm font-semibold text-slate-900">{currentUser.experienceLevel || '-'}</p>
                   </div>
               </div>
             </motion.div>
@@ -242,12 +242,12 @@ export default function UserDashboard() {
             >
               <div className="w-full flex justify-between items-center mb-6 px-2">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-base sm:text-lg font-bold text-slate-900">Digital Access Card</h2>
+                  <h2 className="text-base sm:text-lg font-semibold text-slate-900">Digital Access Card</h2>
                   <div className="group relative">
                   </div>
                 </div>
                 {currentUser.status === 'Approved' && (
-                  <span className="px-3 py-1 bg-blue-100 text-blue-800 text-[10px] sm:text-xs font-bold rounded-md uppercase tracking-wide">
+                  <span className="px-3 py-1.5 bg-emerald-100/80 text-emerald-800 text-[10px] sm:text-xs font-semibold rounded-lg uppercase tracking-wide">
                     Ready to use
                   </span>
                 )}
@@ -261,8 +261,8 @@ export default function UserDashboard() {
 
                 {currentUser.status !== 'Approved' && (
                   <div className="absolute inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white/90 backdrop-blur-sm px-6 py-4 rounded-lg shadow-xl border border-slate-200 text-center">
-                      <p className="text-sm font-bold text-slate-800">Card Unavailable</p>
+                    <div className="bg-white/95 backdrop-blur-sm px-8 py-5 rounded-2xl shadow-xl border border-slate-200/80 text-center">
+                      <p className="text-sm font-semibold text-slate-800">Card Unavailable</p>
                       <p className="text-xs text-slate-500 mt-1">Pending Approval</p>
                     </div>
                   </div>
@@ -279,7 +279,7 @@ export default function UserDashboard() {
                   <div className="flex flex-col gap-3">
                     <button
                       onClick={handleCopyLink}
-                      className="flex items-center justify-center gap-2 w-full py-4 bg-blue-900 text-white rounded-lg font-bold text-sm hover:bg-blue-800 transition-all shadow-md active:scale-[0.98]"
+                      className="flex items-center justify-center gap-2 w-full py-4 bg-slate-900 text-white rounded-xl font-semibold text-sm hover:bg-slate-800 transition-all duration-200 shadow-lg active:scale-[0.98]"
                     >
                       {copyStatus === 'copied' ? (
                         <>
@@ -295,7 +295,7 @@ export default function UserDashboard() {
                     </button>
                     <button
                       onClick={handleCopyEmbed}
-                      className="flex items-center justify-center gap-2 w-full py-4 bg-white border border-slate-200 text-slate-700 rounded-lg font-bold text-sm hover:bg-slate-50 transition-all shadow-sm active:scale-[0.98]"
+                      className="flex items-center justify-center gap-2 w-full py-4 bg-white border border-slate-200/80 text-slate-700 rounded-xl font-semibold text-sm hover:bg-slate-50 transition-all duration-200 shadow-sm active:scale-[0.98]"
                     >
                       {copyStatus === 'embed-copied' ? (
                         <>

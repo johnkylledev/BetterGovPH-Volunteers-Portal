@@ -1,0 +1,181 @@
+import { createClient } from '@supabase/supabase-js';
+
+const getBearerToken = (authorizationHeader: unknown) => {
+  if (typeof authorizationHeader !== 'string') return null;
+  const trimmed = authorizationHeader.trim();
+  if (!trimmed.toLowerCase().startsWith('bearer ')) return null;
+  const token = trimmed.slice('bearer '.length).trim();
+  return token.length > 0 ? token : null;
+};
+
+const mapUserRow = (row: any) => ({
+  id: row.uid,
+  uid: row.uid,
+  fullName: row.full_name ?? '',
+  email: row.email ?? '',
+  specialization: row.specialization ?? '',
+  role: row.role ?? 'Member',
+  discordUsername: row.discord_username ?? '',
+  status: row.status ?? 'Pending',
+  memberId: row.member_id ?? undefined,
+  yearJoined: row.year_joined ?? undefined,
+  skills: row.skills ?? [],
+  experienceLevel: row.experience_level ?? undefined,
+  adminNotes: row.admin_notes ?? undefined,
+  isAdmin: !!row.is_admin,
+  authProvider: row.auth_provider ?? 'traditional',
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+export default async function handler(req: any, res: any) {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !serviceRoleKey) {
+    res.status(500).json({ error: 'Server not configured' });
+    return;
+  }
+
+  const token = getBearerToken(req.headers?.authorization);
+  if (!token) {
+    res.status(401).json({ error: 'Missing Authorization bearer token' });
+    return;
+  }
+
+  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
+  if (authError || !authData?.user) {
+    res.status(401).json({ error: 'Invalid token' });
+    return;
+  }
+
+  const uid = authData.user.id;
+  const email = authData.user.email ?? '';
+  const fullNameFromAuth = (authData.user.user_metadata as any)?.full_name ?? '';
+
+  if (req.method === 'GET') {
+    const { data, error } = await supabaseAdmin.from('users').select('*').eq('uid', uid).maybeSingle();
+    if (error) {
+      res.status(500).json({ error: 'Failed to load profile' });
+      return;
+    }
+
+    if (!data) {
+      const now = new Date().toISOString();
+      const insertRow = {
+        uid,
+        email,
+        full_name: fullNameFromAuth,
+        specialization: '',
+        role: 'Member',
+        discord_username: '',
+        status: 'Pending',
+        member_id: null,
+        year_joined: null,
+        skills: [],
+        experience_level: null,
+        admin_notes: null,
+        is_admin: false,
+        auth_provider: 'traditional',
+        created_at: now,
+        updated_at: now,
+      };
+
+      const { data: inserted, error: insertError } = await supabaseAdmin
+        .from('users')
+        .insert(insertRow)
+        .select('*')
+        .maybeSingle();
+
+      if (insertError || !inserted) {
+        res.status(500).json({ error: 'Failed to create profile' });
+        return;
+      }
+
+      res.status(200).json({ user: mapUserRow(inserted) });
+      return;
+    }
+
+    res.status(200).json({ user: mapUserRow(data) });
+    return;
+  }
+
+  const body = req.body ?? {};
+  const updates: any = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (typeof body.fullName === 'string') updates.full_name = body.fullName.trim();
+  if (typeof body.specialization === 'string') updates.specialization = body.specialization.trim();
+  if (typeof body.role === 'string') updates.role = body.role.trim();
+  if (typeof body.discordUsername === 'string') updates.discord_username = body.discordUsername.trim();
+  if (typeof body.yearJoined === 'number') updates.year_joined = body.yearJoined;
+  if (Array.isArray(body.skills)) updates.skills = body.skills;
+  if (typeof body.experienceLevel === 'string') updates.experience_level = body.experienceLevel;
+  if (typeof body.authProvider === 'string') updates.auth_provider = body.authProvider;
+
+  updates.email = email;
+  if (!updates.full_name && fullNameFromAuth) updates.full_name = fullNameFromAuth;
+
+  const { data: updatedRows, error: updateError } = await supabaseAdmin
+    .from('users')
+    .update(updates)
+    .eq('uid', uid)
+    .select('*');
+
+  if (updateError) {
+    res.status(500).json({ error: 'Failed to update profile' });
+    return;
+  }
+
+  const updated = Array.isArray(updatedRows) ? updatedRows[0] : null;
+  if (!updated) {
+    const now = new Date().toISOString();
+    const insertRow = {
+      uid,
+      email,
+      full_name: updates.full_name ?? fullNameFromAuth ?? '',
+      specialization: updates.specialization ?? '',
+      role: updates.role ?? 'Member',
+      discord_username: updates.discord_username ?? '',
+      status: 'Pending',
+      member_id: null,
+      year_joined: updates.year_joined ?? null,
+      skills: updates.skills ?? [],
+      experience_level: updates.experience_level ?? null,
+      admin_notes: null,
+      is_admin: false,
+      auth_provider: updates.auth_provider ?? 'traditional',
+      created_at: now,
+      updated_at: now,
+    };
+
+    const { data: inserted, error: insertError } = await supabaseAdmin
+      .from('users')
+      .insert(insertRow)
+      .select('*')
+      .maybeSingle();
+
+    if (insertError || !inserted) {
+      res.status(500).json({ error: 'Failed to create profile' });
+      return;
+    }
+
+    res.status(200).json({ user: mapUserRow(inserted) });
+    return;
+  }
+
+  res.status(200).json({ user: mapUserRow(updated) });
+}
+

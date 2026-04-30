@@ -46,6 +46,15 @@ const Landing: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Add click handlers for navigation links
+  const handleExternalLink = (url: string) => {
+    if (url.startsWith('http')) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } else {
+      scrollToSection(url.replace('#', ''));
+    }
+  };
+
   const mockUser: User = {
     id: 'preview-id',
     fullName: 'Juan Dela Cruz',
@@ -163,6 +172,13 @@ const Landing: React.FC = () => {
 
   const handleApplyClick = () => {
     navigate('/register');
+  };
+
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   return (

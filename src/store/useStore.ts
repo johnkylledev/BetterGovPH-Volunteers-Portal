@@ -102,11 +102,6 @@ export const useStore = create<AuthState>()(
           }
 
           if (supabaseUserData) {
-            // Check if admin status in DB matches what we might have locally
-            if (supabaseUserData.isAdmin && !supabaseUserData.memberId) {
-              supabaseUserData.memberId = await supabaseService.ensureUserHasMemberId(uid);
-            }
-
             const user: User = {
               id: uid,
               uid: uid,

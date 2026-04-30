@@ -6,6 +6,28 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+const getAccessToken = async () => {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token || null;
+};
+
+const apiRequest = async <T = any>(path: string, init?: RequestInit): Promise<T> => {
+  const res = await fetch(path, init);
+  const contentType = res.headers.get('content-type') || '';
+  const isJson = contentType.includes('application/json');
+  const payload = isJson ? await res.json().catch(() => null) : await res.text().catch(() => null);
+
+  if (!res.ok) {
+    const message =
+      (payload && typeof payload === 'object' && 'error' in payload && typeof (payload as any).error === 'string')
+        ? (payload as any).error
+        : `Request failed (${res.status})`;
+    throw new Error(message);
+  }
+
+  return payload as T;
+};
+
 const mapToAppUser = (dbUser: any): User | null => {
   if (!dbUser) return null;
   return {
@@ -57,129 +79,53 @@ export const signOut = async () => {
 
 // Database Functions
 export const getUserData = async (uid: string, email?: string) => {
-  try {
-    let { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('uid', uid)
-      .maybeSingle();
-
-    if (error) throw error;
-
-    if (!data && email) {
-      const { data: emailData, error: emailError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .maybeSingle();
-
-      if (emailError) throw emailError;
-      return mapToAppUser(emailData);
-    }
-
-    return mapToAppUser(data);
-  } catch (error) {
-    console.error('Error getting user data:', error);
-    throw error;
-  }
+  const token = await getAccessToken();
+  if (!token) return null;
+  const response = await apiRequest<{ user: User | null }>('/api/me', {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const user = response?.user ?? null;
+  if (!user) return null;
+  if (uid && user.uid !== uid && user.id !== uid) return null;
+  if (email && user.email && user.email !== email) return null;
+  return user;
 };
 
 export const generateUniqueMemberId = async (selectedYear: number) => {
-  // Query only the last generated member_id for the given year to avoid fetching all users
-  const { data, error } = await supabase
-    .from('users')
-    .select('member_id')
-    .ilike('member_id', `%-${selectedYear}-%`)
-    .order('member_id', { ascending: false })
-    .limit(50); // Fetch a small batch to find the highest sequence
-
-  if (error) throw error;
-
-  let maxSequence = 0;
-  if (data && data.length > 0) {
-    data.forEach((u: any) => {
-      const parts = u.member_id.split('-');
-      const seqStr = parts[parts.length - 1];
-      const seq = parseInt(seqStr, 10);
-      if (!isNaN(seq) && seq > maxSequence) {
-        maxSequence = seq;
-      }
-    });
-  }
-
-  const nextSequence = maxSequence + 1;
-  return `BGPH-${selectedYear}-${String(nextSequence).padStart(3, '0')}`;
+  throw new Error('Member ID generation must be performed server-side.');
 };
 
 export const ensureUserHasMemberId = async (uid: string) => {
-  const { data, error } = await supabase
-    .from('users')
-    .select('member_id, year_joined')
-    .eq('uid', uid)
-    .single();
-
-  if (error) throw error;
-  if (data?.member_id) return data.member_id;
-
-  const yearJoined = data?.year_joined || new Date().getFullYear();
-  const memberId = await generateUniqueMemberId(yearJoined);
-  await supabase
-    .from('users')
-    .update({ member_id: memberId, updated_at: new Date().toISOString() })
-    .eq('uid', uid);
-
-  return memberId;
+  throw new Error('Member ID generation must be performed server-side.');
 };
 
 export const createOrUpdateUserRecord = async (user: any) => {
-  try {
-    const uid = user.uid || user.id;
-    const { data: existingData } = await supabase
-      .from('users')
-      .select('*')
-      .eq('uid', uid)
-      .maybeSingle();
-
-    const isAdmin = existingData?.is_admin ?? user.isAdmin ?? false;
-    const dbValues = mapToDbUser({
-      ...user,
-      isAdmin,
-      role: existingData?.role ?? user.role ?? 'Member',
-      status: isAdmin ? 'Approved' : (existingData?.status ?? user.status ?? 'Pending'),
-      authProvider: existingData?.auth_provider ?? user.authProvider ?? 'traditional',
-    });
-
-    if (!existingData) {
-      // @ts-ignore
-      dbValues.created_at = new Date().toISOString();
-    }
-
-    if (isAdmin && !existingData?.member_id) {
-      const yearJoined = user.yearJoined || new Date().getFullYear();
-      const memberId = await generateUniqueMemberId(yearJoined);
-      // @ts-ignore
-      dbValues.member_id = memberId;
-    }
-
-    const { error } = await supabase.from('users').upsert(dbValues);
-    if (error) throw error;
-  } catch (error) {
-    console.error('Error creating/updating user record:', error);
-    throw error;
-  }
+  const token = await getAccessToken();
+  if (!token) throw new Error('Not authenticated');
+  await apiRequest<{ user: User }>('/api/me', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      fullName: user.fullName,
+      specialization: user.specialization,
+      role: user.role,
+      discordUsername: user.discordUsername,
+      yearJoined: user.yearJoined,
+      skills: user.skills,
+      experienceLevel: user.experienceLevel,
+      authProvider: user.authProvider,
+    }),
+  });
 };
 
 export const updateUserData = async (uid: string, data: any) => {
-  try {
-    const { error } = await supabase
-      .from('users')
-      .update(mapToDbUser(data))
-      .eq('uid', uid);
-    if (error) throw error;
-  } catch (error) {
-    console.error('Error updating user data:', error);
-    throw error;
-  }
+  await createOrUpdateUserRecord({ uid, ...data });
 };
 
 export const registerWithEmailPassword = async (userData: any) => {
@@ -195,10 +141,14 @@ export const registerWithEmailPassword = async (userData: any) => {
 
   if (error) throw error;
   if (data.user) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) {
+      await supabase.auth.signInWithPassword({ email: userData.email, password: userData.password });
+    }
     await createOrUpdateUserRecord({
       uid: data.user.id,
       ...userData,
-      authProvider: 'traditional'
+      authProvider: 'traditional',
     });
   }
   return { uid: data.user?.id };
@@ -214,177 +164,88 @@ export const signInWithEmailPassword = async (email: string, password: string) =
 };
 
 export const getUserByEmailAndPassword = async (email: string, _password?: string) => {
-  // This is now primarily a lookup function for user metadata
-  const { data, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('email', email)
-    .maybeSingle();
-
-  if (error) throw error;
-  return mapToAppUser(data);
+  const token = await getAccessToken();
+  if (!token) return null;
+  const response = await apiRequest<{ user: User | null }>('/api/me', {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const user = response?.user ?? null;
+  if (!user) return null;
+  return user.email === email ? user : null;
 };
 
 export const getUserByMemberIdOrId = async (id: string) => {
   if (!id) return null;
-  const trimmedId = id.trim();
-
   try {
-    // 1. Try matching against member_id first (case-insensitive)
-    // We check the ID as-is, without the prefix, and with the prefix
-    const upperId = trimmedId.toUpperCase();
-    const cleanId = upperId.startsWith('BGPH-') ? upperId.replace('BGPH-', '') : upperId;
-    const prefixedId = upperId.startsWith('BGPH-') ? upperId : `BGPH-${upperId}`;
-
-    const { data: memberData, error: memberError } = await supabase
-      .from('users')
-      .select('*')
-      .or(`member_id.ilike."${upperId}",member_id.ilike."${cleanId}",member_id.ilike."${prefixedId}"`)
-      .maybeSingle();
-
-    if (memberError) {
-      console.error('Member ID lookup error:', memberError);
-    } else if (memberData) {
-      return mapToAppUser(memberData);
-    }
-
-    // 2. If not found by member_id, try by uid only if it looks like a valid UUID
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmedId);
-    if (isUuid) {
-      const { data: uidData, error: uidError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('uid', trimmedId)
-        .maybeSingle();
-
-      if (uidError) {
-        console.error('UID lookup error:', uidError);
-      } else if (uidData) {
-        return mapToAppUser(uidData);
-      }
-    }
-  } catch (error) {
-    console.error('getUserByMemberIdOrId unexpected error:', error);
+    const data = await apiRequest<any>(`/api/verify?id=${encodeURIComponent(id)}`, { method: 'GET' });
+    return data;
+  } catch {
+    return null;
   }
-
-  return null;
 };
 
 export const isDiscordUsernameTaken = async (discordUsername: string): Promise<boolean> => {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('uid')
-      .eq('discord_username', discordUsername)
-      .maybeSingle();
-
-    if (error) throw error;
-    return !!data;
-  } catch (error) {
-    console.error('Error checking discord username:', error);
+    const data = await apiRequest<{ taken: boolean }>(
+      `/api/discord-username-taken?username=${encodeURIComponent(discordUsername)}`,
+      { method: 'GET' }
+    );
+    return !!data?.taken;
+  } catch {
     return false;
   }
 };
 
 export const getAllUsers = async (page = 0, pageSize = 20, filters?: { status?: string, role?: string, search?: string }) => {
-  try {
-    let query = supabase
-      .from('users')
-      .select('*', { count: 'exact' })
-      .eq('is_admin', false);
+  const token = await getAccessToken();
+  if (!token) throw new Error('Not authenticated');
+  const params = new URLSearchParams();
+  params.set('page', String(page));
+  params.set('pageSize', String(pageSize));
+  if (filters?.status) params.set('status', filters.status);
+  if (filters?.role) params.set('role', filters.role);
+  if (filters?.search) params.set('search', filters.search);
 
-    if (filters?.status && filters.status !== 'All') {
-      query = query.eq('status', filters.status);
-    }
-    
-    if (filters?.role && filters.role !== 'All') {
-      query = query.eq('specialization', filters.role);
-    }
-
-    if (filters?.search) {
-      const search = `%${filters.search}%`;
-      query = query.or(`full_name.ilike.${search},email.ilike.${search},discord_username.ilike.${search},member_id.ilike.${search}`);
-    }
-
-    const { data, error, count } = await query
-      .order('created_at', { ascending: false })
-      .range(page * pageSize, (page + 1) * pageSize - 1);
-
-    if (error) throw error;
-    return {
-      users: (data || []).map(mapToAppUser).filter((u): u is User => u !== null),
-      totalCount: count || 0
-    };
-  } catch (error) {
-    console.error('Error in getAllUsers:', error);
-    throw error;
-  }
+  const response = await apiRequest<{ users: User[]; totalCount: number }>(`/api/admin/users?${params.toString()}`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return response;
 };
 
 export const getAdminStats = async () => {
   try {
-    const { count: total } = await supabase
-      .from('users')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_admin', false);
-
-    const { count: pending } = await supabase
-      .from('users')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_admin', false)
-      .eq('status', 'Pending');
-
-    const { count: approved } = await supabase
-      .from('users')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_admin', false)
-      .eq('status', 'Approved');
-
-    return {
-      total: total || 0,
-      pending: pending || 0,
-      approved: approved || 0
-    };
-  } catch (error) {
-    console.error('Error in getAdminStats:', error);
+    const token = await getAccessToken();
+    if (!token) return { total: 0, pending: 0, approved: 0 };
+    const response = await apiRequest<{ total: number; pending: number; approved: number }>('/api/admin/stats', {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response;
+  } catch {
     return { total: 0, pending: 0, approved: 0 };
   }
 };
 
 export const updateUserStatus = async (uid: string, status: string, adminNotes?: string) => {
-  const updates: any = {
-    status,
-    updated_at: new Date().toISOString()
-  };
-
-  if (adminNotes !== undefined) {
-    updates.admin_notes = adminNotes;
-  }
-
-  let memberId: string | undefined;
-
-  if (status === 'Approved') {
-    memberId = await ensureUserHasMemberId(uid);
-    updates.member_id = memberId;
-  }
-
-  const { data, error } = await supabase
-    .from('users')
-    .update(updates)
-    .eq('uid', uid)
-    .select();
-
-  if (error) {
-    console.error('Supabase Status Update Failure:', error);
-    throw new Error(`Database error: ${error.message}`);
-  }
-
-  if (!data || data.length === 0) {
-    // If the record exists but update fails with 0 rows, it's almost certainly RLS
-    throw new Error(`The record was found in the list but the update was rejected by Supabase. \n\nThis typically means Row Level Security (RLS) is enabled and you are missing an 'UPDATE' policy for administrators. \n\nPlease run the SQL policy for Admins in your Supabase dashboard.`);
-  }
-
-  return memberId;
+  const token = await getAccessToken();
+  if (!token) throw new Error('Not authenticated');
+  const response = await apiRequest<{ memberId: string | null }>('/api/admin/update-user-status', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ uid, status, adminNotes }),
+  });
+  return response?.memberId ?? undefined;
 };
 
 export const onAuthStateChange = (callback: (user: any) => void) => {
