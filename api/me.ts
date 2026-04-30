@@ -92,7 +92,8 @@ export default async function handler(req: any, res: any) {
   if (req.method === 'GET') {
     const { data, error } = await supabase.from('users').select('*').eq('uid', uid).maybeSingle();
     if (error) {
-      res.status(500).json({ error: 'Failed to load profile' });
+      const message = typeof (error as any)?.message === 'string' ? String((error as any).message) : '';
+      res.status(500).json({ error: 'Failed to load profile', details: message || undefined });
       return;
     }
 
@@ -124,7 +125,8 @@ export default async function handler(req: any, res: any) {
         .maybeSingle();
 
       if (insertError || !inserted) {
-        res.status(500).json({ error: 'Failed to create profile' });
+        const message = typeof (insertError as any)?.message === 'string' ? String((insertError as any).message) : '';
+        res.status(500).json({ error: 'Failed to create profile', details: message || undefined });
         return;
       }
 
@@ -160,7 +162,8 @@ export default async function handler(req: any, res: any) {
     .select('*');
 
   if (updateError) {
-    res.status(500).json({ error: 'Failed to update profile' });
+    const message = typeof (updateError as any)?.message === 'string' ? String((updateError as any).message) : '';
+    res.status(500).json({ error: 'Failed to update profile', details: message || undefined });
     return;
   }
 
@@ -193,7 +196,8 @@ export default async function handler(req: any, res: any) {
       .maybeSingle();
 
     if (insertError || !inserted) {
-      res.status(500).json({ error: 'Failed to create profile' });
+      const message = typeof (insertError as any)?.message === 'string' ? String((insertError as any).message) : '';
+      res.status(500).json({ error: 'Failed to create profile', details: message || undefined });
       return;
     }
 

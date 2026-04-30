@@ -56,7 +56,8 @@ export default async function handler(req: any, res: any) {
     .maybeSingle();
 
   if (error) {
-    res.status(500).json({ error: 'Lookup failed' });
+    const message = typeof (error as any)?.message === 'string' ? String((error as any).message) : '';
+    res.status(500).json({ error: 'Lookup failed', details: message || undefined });
     return;
   }
 

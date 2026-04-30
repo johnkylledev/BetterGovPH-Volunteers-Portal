@@ -109,7 +109,8 @@ export default async function handler(req: any, res: any) {
     .maybeSingle();
 
   if (byMemberError) {
-    res.status(500).json({ error: 'Lookup failed' });
+    const message = typeof (byMemberError as any)?.message === 'string' ? String((byMemberError as any).message) : '';
+    res.status(500).json({ error: 'Lookup failed', details: message || undefined });
     return;
   }
 
@@ -123,7 +124,8 @@ export default async function handler(req: any, res: any) {
       .maybeSingle();
 
     if (byUidError) {
-      res.status(500).json({ error: 'Lookup failed' });
+      const message = typeof (byUidError as any)?.message === 'string' ? String((byUidError as any).message) : '';
+      res.status(500).json({ error: 'Lookup failed', details: message || undefined });
       return;
     }
 
