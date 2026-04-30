@@ -75,7 +75,13 @@ export default async function handler(req: any, res: any) {
 
   const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
   if (authError || !authData?.user) {
-    res.status(401).json({ error: 'Invalid token' });
+    const message = typeof (authError as any)?.message === 'string' ? String((authError as any).message) : '';
+    const lower = message.toLowerCase();
+    if (lower.includes('invalid api key') || lower.includes('apikey')) {
+      res.status(500).json({ error: 'Server not configured' });
+      return;
+    }
+    res.status(401).json({ error: message || 'Invalid token' });
     return;
   }
 

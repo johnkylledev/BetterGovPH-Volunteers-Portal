@@ -27,7 +27,10 @@ const getBearerToken = (authorizationHeader: unknown) => {
 
 const assertAdmin = async (supabaseAdmin: any, token: string) => {
   const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
-  if (authError || !authData?.user) return { ok: false as const, error: 'Invalid token' };
+  if (authError || !authData?.user) {
+    const message = typeof (authError as any)?.message === 'string' ? String((authError as any).message) : '';
+    return { ok: false as const, error: message || 'Invalid token' };
+  }
 
   const uid = authData.user.id;
   const { data: callerRow, error: callerError } = await supabaseAdmin
