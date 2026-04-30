@@ -199,6 +199,13 @@ const Landing: React.FC = () => {
               </div>
             </div>
             <div className="hidden md:flex items-center gap-8">
+              <Link
+                to="/projects"
+                className="text-sm font-semibold text-slate-600 hover:text-blue-600 transition-all hover:scale-105 active:scale-95 relative group"
+              >
+                Projects
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-600 transition-all group-hover:w-full" />
+              </Link>
               {[
                 { name: 'Main Website', href: MAIN_WEBSITE, isExternal: true },
                 { name: 'Why Join', href: '#why-join' },

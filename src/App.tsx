@@ -8,6 +8,7 @@ import Verify from "./pages/public/Verify";
 import Landing from "./pages/public/Landing";
 import Privacy from "./pages/public/Privacy";
 import Terms from "./pages/public/Terms";
+import Projects from "./pages/public/Projects";
 import { useStore } from "./store/useStore";
 import { onAuthStateChange } from "./services/supabase";
 import { LoadingOverlay } from "./components/LoadingOverlay";
@@ -65,6 +66,7 @@ export default function App() {
           <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
           <Route path="/verify" element={<Verify />} />
           <Route path="/verify/:id" element={<Verify />} />
+          <Route path="/projects" element={<Projects />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
         </Routes>

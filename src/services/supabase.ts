@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { User } from '../types';
+import { Project, ProjectSubmission, User, VolunteerCall } from '../types';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -18,10 +18,23 @@ const apiRequest = async <T = any>(path: string, init?: RequestInit): Promise<T>
   const payload = isJson ? await res.json().catch(() => null) : await res.text().catch(() => null);
 
   if (!res.ok) {
-    const message =
-      (payload && typeof payload === 'object' && 'error' in payload && typeof (payload as any).error === 'string')
-        ? (payload as any).error
-        : `Request failed (${res.status})`;
+    const payloadError =
+      payload && typeof payload === 'object' && 'error' in payload && typeof (payload as any).error === 'string'
+        ? String((payload as any).error)
+        : '';
+    const payloadDetails =
+      payload && typeof payload === 'object' && 'details' in payload && typeof (payload as any).details === 'string'
+        ? String((payload as any).details)
+        : '';
+    const payloadMissing =
+      payload && typeof payload === 'object' && 'missing' in payload && Array.isArray((payload as any).missing)
+        ? (payload as any).missing.filter((x: any) => typeof x === 'string').join(', ')
+        : '';
+    const message = payloadError
+      ? [payloadError, payloadDetails || payloadMissing ? `(${[payloadDetails, payloadMissing].filter(Boolean).join(' | ')})` : '']
+          .filter(Boolean)
+          .join(' ')
+      : `Request failed (${res.status})`;
     throw new Error(message);
   }
 
@@ -257,6 +270,184 @@ export const updateUserStatus = async (uid: string, status: string, adminNotes?:
     body: JSON.stringify({ uid, status, adminNotes }),
   });
   return response?.memberId ?? undefined;
+};
+
+export const submitProjectSubmission = async (input: {
+  projectName: string;
+  projectUrl: string;
+  description: string;
+  projType?: string;
+}) => {
+  const token = await getAccessToken();
+  if (!token) throw new Error('Not authenticated');
+  const response = await apiRequest<{ message: string; submissionId: string }>('/api/submit-project', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      project_name: input.projectName,
+      project_url: input.projectUrl,
+      description: input.description,
+      proj_type: input.projType,
+    }),
+  });
+  return response;
+};
+
+export const getMyProjectSubmissions = async (page = 0, pageSize = 20) => {
+  const token = await getAccessToken();
+  if (!token) throw new Error('Not authenticated');
+  const params = new URLSearchParams();
+  params.set('page', String(page));
+  params.set('pageSize', String(pageSize));
+  const response = await apiRequest<{ submissions: ProjectSubmission[]; totalCount: number }>(
+    `/api/my-project-submissions?${params.toString()}`,
+    {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+  return response;
+};
+
+export const getProjectSubmissions = async (
+  page = 0,
+  pageSize = 20,
+  filters?: { status?: string }
+) => {
+  const token = await getAccessToken();
+  if (!token) throw new Error('Not authenticated');
+  const params = new URLSearchParams();
+  params.set('page', String(page));
+  params.set('pageSize', String(pageSize));
+  if (filters?.status) params.set('status', filters.status);
+
+  const response = await apiRequest<{ submissions: ProjectSubmission[]; totalCount: number }>(
+    `/api/admin/project-submissions?${params.toString()}`,
+    {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+  return response;
+};
+
+export const updateProjectSubmission = async (id: string, action: 'approve' | 'reject') => {
+  const token = await getAccessToken();
+  if (!token) throw new Error('Not authenticated');
+  const response = await apiRequest<{ message: string }>('/api/admin/project-submissions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ id, action }),
+  });
+  return response;
+};
+
+export const deleteProjectSubmission = async (id: string, options?: { deleteUser?: boolean }) => {
+  const token = await getAccessToken();
+  if (!token) throw new Error('Not authenticated');
+  const response = await apiRequest<{ message: string }>('/api/admin/project-submissions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ id, action: 'delete', deleteUser: !!options?.deleteUser }),
+  });
+  return response;
+};
+
+export const createVolunteerCall = async (input: {
+  title: string;
+  projectUrl: string;
+  description: string;
+  rolesNeeded?: string;
+  contact?: string;
+}) => {
+  const token = await getAccessToken();
+  if (!token) throw new Error('Not authenticated');
+  const response = await apiRequest<{ message: string; id: string }>('/api/volunteer-calls', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      title: input.title,
+      project_url: input.projectUrl,
+      description: input.description,
+      roles_needed: input.rolesNeeded,
+      contact: input.contact,
+    }),
+  });
+  return response;
+};
+
+export const getVolunteerCalls = async (options?: { mine?: boolean }) => {
+  const token = await getAccessToken();
+  if (!token) throw new Error('Not authenticated');
+  const params = new URLSearchParams();
+  if (options?.mine) params.set('mine', '1');
+  const response = await apiRequest<{ calls: VolunteerCall[]; totalCount: number }>(
+    `/api/volunteer-calls?${params.toString()}`,
+    {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+  return response;
+};
+
+export const getAdminVolunteerCalls = async (filters?: { status?: 'open' | 'closed' | 'All' }) => {
+  const token = await getAccessToken();
+  if (!token) throw new Error('Not authenticated');
+  const params = new URLSearchParams();
+  params.set('admin', '1');
+  if (filters?.status) params.set('status', filters.status);
+  const response = await apiRequest<{ calls: VolunteerCall[]; totalCount: number }>(
+    `/api/volunteer-calls?${params.toString()}`,
+    {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+  return response;
+};
+
+export const deleteVolunteerCall = async (id: string, options?: { deleteUser?: boolean }) => {
+  const token = await getAccessToken();
+  if (!token) throw new Error('Not authenticated');
+  const response = await apiRequest<{ message: string }>('/api/volunteer-calls', {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ id, deleteUser: !!options?.deleteUser }),
+  });
+  return response;
+};
+
+export const getApprovedProjects = async () => {
+  const token = await getAccessToken();
+  const response = await apiRequest<{ projects: Project[] }>('/api/projects', {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+  return response.projects ?? [];
 };
 
 export const onAuthStateChange = (callback: (user: any) => void) => {

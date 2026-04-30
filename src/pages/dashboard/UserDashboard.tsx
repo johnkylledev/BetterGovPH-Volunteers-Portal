@@ -3,16 +3,38 @@ import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { AccessCard } from '../../components/AccessCard';
 import { motion } from 'framer-motion';
-import { ShieldAlert, CheckCircle2, Clock, LogOut, Download, Copy, Code, Check, CreditCard, Info, Zap, User, Mail, Calendar, Award, MapPin, ExternalLink, Share2, Sparkles } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, Clock, LogOut, Download, Copy, Code, Check, Info, Zap, User, Mail, Calendar, Award, MapPin, ExternalLink, Share2, Sparkles } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import clsx from 'clsx';
 import { skillToSlug } from '../../utils/skillUtils';
+import { createVolunteerCall, getMyProjectSubmissions, getVolunteerCalls, submitProjectSubmission } from '../../services/supabase';
+import { ProjectSubmission, VolunteerCall } from '../../types';
 
 export default function UserDashboard() {
   const { currentUser, logout, authInitialized } = useStore();
   const navigate = useNavigate();
   const [downloadLoading, setDownloadLoading] = React.useState(false);
   const [copyStatus, setCopyStatus] = React.useState<'idle' | 'copied' | 'embed-copied'>('idle');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'submit-project' | 'volunteer'>('dashboard');
+  const [projectName, setProjectName] = useState('');
+  const [projectUrl, setProjectUrl] = useState('');
+  const [projectDescription, setProjectDescription] = useState('');
+  const [projectProjType, setProjectProjType] = useState('');
+  const [projectSubmitStatus, setProjectSubmitStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [projectSubmitMessage, setProjectSubmitMessage] = useState<string>('');
+  const [mySubmissions, setMySubmissions] = useState<ProjectSubmission[]>([]);
+  const [mySubmissionsLoading, setMySubmissionsLoading] = useState(false);
+  const [mySubmissionsError, setMySubmissionsError] = useState<string>('');
+  const [volunteerTitle, setVolunteerTitle] = useState('');
+  const [volunteerProjectUrl, setVolunteerProjectUrl] = useState('');
+  const [volunteerDescription, setVolunteerDescription] = useState('');
+  const [volunteerRolesNeeded, setVolunteerRolesNeeded] = useState('');
+  const [volunteerContact, setVolunteerContact] = useState('');
+  const [volunteerSubmitStatus, setVolunteerSubmitStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [volunteerSubmitMessage, setVolunteerSubmitMessage] = useState('');
+  const [volunteerCalls, setVolunteerCalls] = useState<VolunteerCall[]>([]);
+  const [volunteerCallsLoading, setVolunteerCallsLoading] = useState(false);
+  const [volunteerCallsError, setVolunteerCallsError] = useState('');
 
   useEffect(() => {
     if (authInitialized && !currentUser) {
@@ -52,6 +74,110 @@ export default function UserDashboard() {
     setTimeout(() => setCopyStatus('idle'), 2000);
   };
 
+  const loadMySubmissions = async () => {
+    setMySubmissionsLoading(true);
+    setMySubmissionsError('');
+    try {
+      const { submissions } = await getMyProjectSubmissions(0, 50);
+      setMySubmissions(submissions);
+    } catch (err: any) {
+      const message = err instanceof Error ? err.message : typeof err?.message === 'string' ? err.message : 'Failed to load submissions';
+      setMySubmissionsError(message);
+    } finally {
+      setMySubmissionsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab !== 'submit-project') return;
+    loadMySubmissions();
+  }, [activeTab]);
+
+  const loadVolunteerCalls = async () => {
+    setVolunteerCallsLoading(true);
+    setVolunteerCallsError('');
+    try {
+      const { calls } = await getVolunteerCalls();
+      setVolunteerCalls(calls);
+    } catch (err: any) {
+      const message = err instanceof Error ? err.message : typeof err?.message === 'string' ? err.message : 'Failed to load volunteer calls';
+      setVolunteerCallsError(message);
+    } finally {
+      setVolunteerCallsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab !== 'volunteer') return;
+    loadVolunteerCalls();
+  }, [activeTab]);
+
+  const handleVolunteerSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!volunteerTitle.trim() || !volunteerProjectUrl.trim() || !volunteerDescription.trim()) {
+      setVolunteerSubmitStatus('error');
+      setVolunteerSubmitMessage('Title, Project URL, and Description are required.');
+      return;
+    }
+    setVolunteerSubmitStatus('loading');
+    setVolunteerSubmitMessage('');
+    try {
+      const res = await createVolunteerCall({
+        title: volunteerTitle.trim(),
+        projectUrl: volunteerProjectUrl.trim(),
+        description: volunteerDescription.trim(),
+        rolesNeeded: volunteerRolesNeeded.trim() || undefined,
+        contact: volunteerContact.trim() || undefined,
+      });
+      setVolunteerSubmitStatus('success');
+      setVolunteerSubmitMessage(res?.message || 'Posted successfully!');
+      setVolunteerTitle('');
+      setVolunteerProjectUrl('');
+      setVolunteerDescription('');
+      setVolunteerRolesNeeded('');
+      setVolunteerContact('');
+      if (activeTab === 'volunteer') {
+        loadVolunteerCalls();
+      }
+    } catch (err: any) {
+      const message = err instanceof Error ? err.message : typeof err?.message === 'string' ? err.message : 'Failed to post';
+      setVolunteerSubmitStatus('error');
+      setVolunteerSubmitMessage(message);
+    }
+  };
+
+  const handleProjectSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!projectName.trim() || !projectUrl.trim() || !projectDescription.trim()) {
+      setProjectSubmitStatus('error');
+      setProjectSubmitMessage('Project Name, Project URL, and Description are required.');
+      return;
+    }
+    setProjectSubmitStatus('loading');
+    setProjectSubmitMessage('');
+    try {
+      const res = await submitProjectSubmission({
+        projectName: projectName.trim(),
+        projectUrl: projectUrl.trim(),
+        description: projectDescription.trim(),
+        projType: projectProjType.trim() || undefined,
+      });
+      setProjectSubmitStatus('success');
+      setProjectSubmitMessage(res?.message || 'Submitted successfully!');
+      setProjectName('');
+      setProjectUrl('');
+      setProjectDescription('');
+      setProjectProjType('');
+      if (activeTab === 'submit-project') {
+        loadMySubmissions();
+      }
+    } catch (err: any) {
+      const message = err instanceof Error ? err.message : typeof err?.message === 'string' ? err.message : 'Submission failed';
+      setProjectSubmitStatus('error');
+      setProjectSubmitMessage(message);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 pb-12 sm:pb-0">
       {/* Navbar */}
@@ -63,19 +189,6 @@ export default function UserDashboard() {
               <span className="text-lg sm:text-xl font-display font-bold text-slate-900 truncate">BetterGovPH Community</span>
             </div>
             <div className="flex items-center space-x-2 sm:space-x-4">
-              {currentUser.status === 'Approved' && (
-                <button
-                  onClick={() => {
-                    const el = document.getElementById('digital-card-section');
-                    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  }}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all duration-200"
-                >
-                  <CreditCard className="w-4 h-4" />
-                  <span className="hidden sm:inline">My Card</span>
-                  <span className="sm:hidden">Card</span>
-                </button>
-              )}
               <div className="h-6 w-[1px] bg-slate-200" />
               <div className="flex flex-col items-end">
                 <span className="text-xs sm:text-sm font-semibold text-slate-900 leading-none truncate max-w-[100px] sm:max-w-none">
@@ -95,9 +208,49 @@ export default function UserDashboard() {
         </div>
       </nav>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
+      <div className="bg-white/80 backdrop-blur-xl border-b border-slate-200/60 sticky top-[64px] sm:top-[80px] z-40 overflow-x-auto no-scrollbar">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-w-max sm:min-w-0">
+          <div className="flex space-x-4 sm:space-x-8">
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={clsx(
+                "py-4 text-sm font-bold border-b-2 transition-all px-1",
+                activeTab === 'dashboard'
+                  ? "border-blue-900 text-blue-900"
+                  : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+              )}
+            >
+              Dashboard
+            </button>
+            <button
+              onClick={() => setActiveTab('submit-project')}
+              className={clsx(
+                "py-4 text-sm font-bold border-b-2 transition-all px-1",
+                activeTab === 'submit-project'
+                  ? "border-blue-900 text-blue-900"
+                  : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+              )}
+            >
+              Submit Project
+            </button>
+            <button
+              onClick={() => setActiveTab('volunteer')}
+              className={clsx(
+                "py-4 text-sm font-bold border-b-2 transition-all px-1",
+                activeTab === 'volunteer'
+                  ? "border-blue-900 text-blue-900"
+                  : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+              )}
+            >
+              Volunteers
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {activeTab === 'dashboard' ? (
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
 
           {/* Left Column: Status and Info */}
           <div className="lg:col-span-7 space-y-6 order-2 lg:order-1">
@@ -230,6 +383,7 @@ export default function UserDashboard() {
                   </div>
               </div>
             </motion.div>
+
           </div>
 
           {/* Right Column: Digital ID */}
@@ -315,8 +469,369 @@ export default function UserDashboard() {
             </motion.div>
           </div>
 
-        </div>
-      </main>
+          </div>
+        </main>
+      ) : activeTab === 'submit-project' ? (
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+          <div className="bg-white sm:rounded-2xl shadow-sm border border-slate-100/80 overflow-hidden">
+            <div className="p-6 sm:p-8 border-b border-slate-100">
+              <h2 className="text-base sm:text-lg font-semibold text-slate-900">Submit a New Project</h2>
+              <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                Submit your project for admin review. Approved projects will appear in the main projects list.
+              </p>
+            </div>
+
+            <div className="p-6 sm:p-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <form onSubmit={handleProjectSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                      Project Name
+                    </label>
+                    <input
+                      type="text"
+                      value={projectName}
+                      onChange={(e) => setProjectName(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                      placeholder="e.g., BetterGovPH Tracker"
+                      disabled={projectSubmitStatus === 'loading'}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                      Project URL (GitHub / Demo / Docs)
+                    </label>
+                    <input
+                      type="text"
+                      value={projectUrl}
+                      onChange={(e) => setProjectUrl(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                      placeholder="https://github.com/..."
+                      disabled={projectSubmitStatus === 'loading'}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                      Description
+                    </label>
+                    <textarea
+                      value={projectDescription}
+                      onChange={(e) => setProjectDescription(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all min-h-[140px] resize-none"
+                      placeholder="What is this project about?"
+                      disabled={projectSubmitStatus === 'loading'}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                      Project Type
+                    </label>
+                    <select
+                      value={projectProjType}
+                      onChange={(e) => setProjectProjType(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
+                      disabled={projectSubmitStatus === 'loading'}
+                    >
+                      <option value="">Select type</option>
+                      <option value="web">Web</option>
+                      <option value="api">API</option>
+                      <option value="mobile">Mobile</option>
+                      <option value="data">Data</option>
+                      <option value="policy">Policy</option>
+                      <option value="blockchain">Blockchain</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+
+                  {projectSubmitMessage && (
+                    <div
+                      className={clsx(
+                        'px-4 py-3 rounded-xl text-sm border',
+                        projectSubmitStatus === 'success'
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                          : 'bg-red-50 border-red-200 text-red-900'
+                      )}
+                    >
+                      {projectSubmitMessage}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={projectSubmitStatus === 'loading'}
+                    className={clsx(
+                      'w-full py-4 rounded-xl font-semibold text-sm transition-all duration-200 shadow-sm active:scale-[0.98]',
+                      projectSubmitStatus === 'loading'
+                        ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                        : 'bg-blue-900 text-white hover:bg-blue-800'
+                    )}
+                  >
+                    {projectSubmitStatus === 'loading' ? 'Submitting...' : 'Submit'}
+                  </button>
+                </form>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200/70 rounded-2xl overflow-hidden">
+                <div className="px-5 py-4 bg-white border-b border-slate-200/70 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">My Submitted Projects</p>
+                    <p className="text-xs text-slate-500 mt-1">Loaded only when this tab is open.</p>
+                  </div>
+                  <button
+                    onClick={loadMySubmissions}
+                    disabled={mySubmissionsLoading}
+                    className="px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                  >
+                    Refresh
+                  </button>
+                </div>
+
+                <div className="p-5 h-[60vh] lg:h-[70vh] overflow-y-auto overscroll-contain">
+                  {mySubmissionsLoading ? (
+                    <div className="text-sm text-slate-600">Loading...</div>
+                  ) : mySubmissionsError ? (
+                    <div className="text-sm text-red-700">{mySubmissionsError}</div>
+                  ) : mySubmissions.length === 0 ? (
+                    <div className="text-sm text-slate-600">No submissions yet.</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {mySubmissions.map((s) => (
+                        <div key={s.id} className="bg-white border border-slate-200/70 rounded-xl p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-slate-900 truncate">{s.projectName}</p>
+                              <a
+                                href={s.projectUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs text-blue-700 hover:underline break-all"
+                              >
+                                {s.projectUrl}
+                              </a>
+                            </div>
+                            <span
+                              className={clsx(
+                                'px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border',
+                                s.status === 'approved'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : s.status === 'rejected'
+                                    ? 'bg-red-50 text-red-700 border-red-200'
+                                    : 'bg-amber-50 text-amber-700 border-amber-200'
+                              )}
+                            >
+                              {s.status}
+                            </span>
+                          </div>
+
+                          <p className="mt-3 text-xs text-slate-600 whitespace-pre-wrap break-words">{s.description}</p>
+
+                          <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] text-slate-500">
+                            <span className="font-semibold uppercase tracking-wider">
+                              {s.createdAt ? new Date(s.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) : ''}
+                            </span>
+                            {s.projType && (
+                              <span className="px-2 py-1 rounded-lg bg-slate-100 text-slate-600 font-semibold">
+                                {s.projType}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      ) : (
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+          <div className="bg-white sm:rounded-2xl shadow-sm border border-slate-100/80 overflow-hidden">
+            <div className="p-6 sm:p-8 border-b border-slate-100">
+              <h2 className="text-base sm:text-lg font-semibold text-slate-900">Volunteer Hub</h2>
+              <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                Post a volunteer call for your project and browse open volunteer opportunities.
+              </p>
+            </div>
+
+            <div className="p-6 sm:p-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <form onSubmit={handleVolunteerSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                      Project / Role Title
+                    </label>
+                    <input
+                      type="text"
+                      value={volunteerTitle}
+                      onChange={(e) => setVolunteerTitle(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                      placeholder="e.g., Need Frontend Dev for Civic App"
+                      disabled={volunteerSubmitStatus === 'loading'}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                      Project URL
+                    </label>
+                    <input
+                      type="text"
+                      value={volunteerProjectUrl}
+                      onChange={(e) => setVolunteerProjectUrl(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                      placeholder="https://github.com/..."
+                      disabled={volunteerSubmitStatus === 'loading'}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                      Details
+                    </label>
+                    <textarea
+                      value={volunteerDescription}
+                      onChange={(e) => setVolunteerDescription(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all min-h-[140px] resize-none"
+                      placeholder="What help do you need? Scope, timeline, requirements..."
+                      disabled={volunteerSubmitStatus === 'loading'}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                      (Optional) Roles Needed
+                    </label>
+                    <input
+                      type="text"
+                      value={volunteerRolesNeeded}
+                      onChange={(e) => setVolunteerRolesNeeded(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                      placeholder="Frontend, Backend, UI/UX..."
+                      disabled={volunteerSubmitStatus === 'loading'}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                      (Optional) Contact
+                    </label>
+                    <input
+                      type="text"
+                      value={volunteerContact}
+                      onChange={(e) => setVolunteerContact(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                      placeholder="Discord / Email / Link"
+                      disabled={volunteerSubmitStatus === 'loading'}
+                    />
+                  </div>
+
+                  {volunteerSubmitMessage && (
+                    <div
+                      className={clsx(
+                        'px-4 py-3 rounded-xl text-sm border',
+                        volunteerSubmitStatus === 'success'
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                          : 'bg-red-50 border-red-200 text-red-900'
+                      )}
+                    >
+                      {volunteerSubmitMessage}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={volunteerSubmitStatus === 'loading'}
+                    className={clsx(
+                      'w-full py-4 rounded-xl font-semibold text-sm transition-all duration-200 shadow-sm active:scale-[0.98]',
+                      volunteerSubmitStatus === 'loading'
+                        ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                        : 'bg-blue-900 text-white hover:bg-blue-800'
+                    )}
+                  >
+                    {volunteerSubmitStatus === 'loading' ? 'Posting...' : 'Post Volunteer Call'}
+                  </button>
+                </form>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200/70 rounded-2xl overflow-hidden">
+                <div className="px-5 py-4 bg-white border-b border-slate-200/70 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">Open Volunteer Calls</p>
+                    <p className="text-xs text-slate-500 mt-1">Loaded only when this tab is open.</p>
+                  </div>
+                  <button
+                    onClick={loadVolunteerCalls}
+                    disabled={volunteerCallsLoading}
+                    className="px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                  >
+                    Refresh
+                  </button>
+                </div>
+
+                <div className="p-5 h-[60vh] lg:h-[70vh] overflow-y-auto overscroll-contain">
+                  {volunteerCallsLoading ? (
+                    <div className="text-sm text-slate-600">Loading...</div>
+                  ) : volunteerCallsError ? (
+                    <div className="text-sm text-red-700">{volunteerCallsError}</div>
+                  ) : volunteerCalls.length === 0 ? (
+                    <div className="text-sm text-slate-600">No open volunteer calls yet.</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {volunteerCalls.map((c) => (
+                        <div key={c.id} className="bg-white border border-slate-200/70 rounded-xl p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-slate-900">{c.title}</p>
+                              <a
+                                href={c.projectUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs text-blue-700 hover:underline break-all"
+                              >
+                                {c.projectUrl}
+                              </a>
+                              {c.postedBy?.fullName && (
+                                <p className="mt-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                                  Posted by {c.postedBy.fullName}
+                                </p>
+                              )}
+                            </div>
+                            <span className="px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border bg-emerald-50 text-emerald-700 border-emerald-200">
+                              open
+                            </span>
+                          </div>
+
+                          <p className="mt-3 text-xs text-slate-600 whitespace-pre-wrap break-words">{c.description}</p>
+
+                          <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] text-slate-500">
+                            <span className="font-semibold uppercase tracking-wider">
+                              {c.createdAt ? new Date(c.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) : ''}
+                            </span>
+                            {c.rolesNeeded && (
+                              <span className="px-2 py-1 rounded-lg bg-slate-100 text-slate-600 font-semibold">
+                                {c.rolesNeeded}
+                              </span>
+                            )}
+                            {c.contact && (
+                              <span className="px-2 py-1 rounded-lg bg-blue-50 text-blue-700 font-semibold">
+                                {c.contact}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      )}
     </div>
 
   );

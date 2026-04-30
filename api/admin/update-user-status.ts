@@ -6,6 +6,11 @@ const getSupabaseConfig = () => {
     process.env.VITE_SUPABASE_URL ||
     process.env.NEXT_PUBLIC_SUPABASE_URL ||
     '';
+  const anonKey =
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.VITE_SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    '';
   const serviceKey =
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
     process.env.SUPABASE_SERVICE_ROLE ||
@@ -14,7 +19,7 @@ const getSupabaseConfig = () => {
     process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE ||
     '';
-  return { url, serviceKey };
+  return { url, anonKey, serviceKey };
 };
 
 const getBearerToken = (authorizationHeader: unknown) => {
@@ -97,11 +102,14 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  const { url: supabaseUrl, serviceKey: serviceRoleKey } = getSupabaseConfig();
-  if (!supabaseUrl || !serviceRoleKey) {
+  const { url: supabaseUrl, anonKey: supabaseAnonKey, serviceKey: serviceRoleKey } = getSupabaseConfig();
+  const primaryKey = serviceRoleKey || supabaseAnonKey;
+  const fallbackKey = supabaseAnonKey && serviceRoleKey && supabaseAnonKey !== serviceRoleKey ? supabaseAnonKey : '';
+
+  if (!supabaseUrl || !primaryKey) {
     const missing: string[] = [];
     if (!supabaseUrl) missing.push('SUPABASE_URL');
-    if (!serviceRoleKey) missing.push('SUPABASE_SERVICE_ROLE_KEY');
+    if (!primaryKey) missing.push('SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY');
     res.status(500).json({ error: 'Server not configured', missing });
     return;
   }
@@ -112,11 +120,23 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  const makeClient = (key: string, bearerToken?: string) =>
+    createClient(supabaseUrl, key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: bearerToken ? { headers: { Authorization: `Bearer ${bearerToken}` } } : undefined,
+    });
 
-  const adminCheck = await assertAdmin(supabaseAdmin, token);
+  let supabaseAdmin = makeClient(primaryKey, primaryKey === supabaseAnonKey ? token : undefined);
+  let adminCheck = await assertAdmin(supabaseAdmin, token);
+  if (
+    !adminCheck.ok &&
+    fallbackKey &&
+    typeof (adminCheck as any)?.error === 'string' &&
+    String((adminCheck as any).error).toLowerCase().includes('invalid api key')
+  ) {
+    supabaseAdmin = makeClient(fallbackKey, token);
+    adminCheck = await assertAdmin(supabaseAdmin, token);
+  }
   if (!adminCheck.ok) {
     res.status(adminCheck.error === 'Admin only' ? 403 : 401).json({ error: adminCheck.error });
     return;

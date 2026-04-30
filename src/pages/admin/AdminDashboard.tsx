@@ -2,13 +2,13 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, CheckCircle2, XCircle, LogOut, Filter, Users, Key, CreditCard, Download, Copy, Code, Check, Clock, Zap, Briefcase, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, CheckCircle2, XCircle, LogOut, Filter, Users, Key, CreditCard, Download, Copy, Code, Check, Clock, Zap, Briefcase, ChevronLeft, ChevronRight, Trash2, UserX } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { AccessCard } from '../../components/AccessCard';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
 import clsx from 'clsx';
-import { User, ApplicationStatus } from '../../types';
-import { getAllUsers, getAdminStats } from '../../services/supabase';
+import { User, ApplicationStatus, ProjectSubmission } from '../../types';
+import { deleteProjectSubmission, getAllUsers, getAdminStats, getProjectSubmissions, updateProjectSubmission } from '../../services/supabase';
 import * as XLSX from 'xlsx';
 import { skillToSlug } from '../../utils/skillUtils';
 import { SPECIALIZATIONS } from '../../constants/specializations';
@@ -16,7 +16,7 @@ import { SPECIALIZATIONS } from '../../constants/specializations';
 export default function AdminDashboard() {
   const { currentUser, users, logout, updateUserStatus, setUsers, authInitialized } = useStore();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'applications' | 'members'>('applications');
+  const [activeTab, setActiveTab] = useState<'applications' | 'members' | 'projects'>('applications');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'All'>('All');
   const [roleFilter, setRoleFilter] = useState<string>('All');
@@ -26,6 +26,11 @@ export default function AdminDashboard() {
   const [adminNote, setAdminNote] = useState('');
   const [downloadLoading, setDownloadLoading] = useState(false);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'embed-copied'>('idle');
+  const [projectSubmissions, setProjectSubmissions] = useState<ProjectSubmission[]>([]);
+  const [projectSubmissionsTotal, setProjectSubmissionsTotal] = useState(0);
+  const [projectSubmissionsLoading, setProjectSubmissionsLoading] = useState(false);
+  const [projectActionLoadingId, setProjectActionLoadingId] = useState<string | null>(null);
+  const [projectStats, setProjectStats] = useState({ total: 0, pending: 0, approved: 0, rejected: 0 });
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(0);
@@ -48,6 +53,7 @@ export default function AdminDashboard() {
 
   const loadUsers = async (page: number) => {
     if (!currentUser?.isAdmin) return;
+    if (activeTab === 'projects') return;
     setIsDataLoading(true);
     try {
       const filters = {
@@ -65,6 +71,32 @@ export default function AdminDashboard() {
     }
   };
 
+  const loadProjectSubmissions = async () => {
+    if (!currentUser?.isAdmin) return;
+    setProjectSubmissionsLoading(true);
+    try {
+      const [pendingRes, totalRes, approvedRes, rejectedRes] = await Promise.all([
+        getProjectSubmissions(0, 50, { status: 'pending' }),
+        getProjectSubmissions(0, 1),
+        getProjectSubmissions(0, 1, { status: 'approved' }),
+        getProjectSubmissions(0, 1, { status: 'rejected' }),
+      ]);
+      const { submissions, totalCount: fetchedTotal } = pendingRes;
+      setProjectSubmissions(submissions);
+      setProjectSubmissionsTotal(fetchedTotal);
+      setProjectStats({
+        total: totalRes.totalCount,
+        pending: fetchedTotal,
+        approved: approvedRes.totalCount,
+        rejected: rejectedRes.totalCount,
+      });
+    } catch (error) {
+      console.error('Error loading project submissions:', error);
+    } finally {
+      setProjectSubmissionsLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadStats();
   }, [currentUser]);
@@ -74,8 +106,14 @@ export default function AdminDashboard() {
   }, [activeTab, statusFilter, roleFilter, searchTerm]);
 
   useEffect(() => {
+    if (activeTab === 'projects') return;
     loadUsers(currentPage);
   }, [currentUser, setUsers, currentPage, activeTab, statusFilter, roleFilter, searchTerm]);
+
+  useEffect(() => {
+    if (activeTab !== 'projects') return;
+    loadProjectSubmissions();
+  }, [activeTab]);
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
@@ -112,6 +150,39 @@ export default function AdminDashboard() {
       loadStats();
     } else {
       alert(`Failed to update database: ${(res as any)?.message || 'Unknown error'}. Please check if the user exists in Supabase.`);
+    }
+  };
+
+  const handleProjectAction = async (submissionId: string, action: 'approve' | 'reject') => {
+    if (!submissionId) return;
+    setProjectActionLoadingId(submissionId);
+    try {
+      await updateProjectSubmission(submissionId, action);
+      await loadProjectSubmissions();
+    } catch (error) {
+      console.error('Error updating project submission:', error);
+      alert('Failed to update project submission.');
+    } finally {
+      setProjectActionLoadingId(null);
+    }
+  };
+
+  const handleProjectDelete = async (submissionId: string, options?: { deleteUser?: boolean }) => {
+    if (!submissionId) return;
+    const message = options?.deleteUser
+      ? 'Delete this project submission AND permanently delete the user and their related records?'
+      : 'Delete this project submission?';
+    if (!window.confirm(message)) return;
+    setProjectActionLoadingId(submissionId);
+    try {
+      await deleteProjectSubmission(submissionId, { deleteUser: !!options?.deleteUser });
+      await loadProjectSubmissions();
+      await loadStats();
+    } catch (error) {
+      console.error('Error deleting project submission:', error);
+      alert('Failed to delete project submission.');
+    } finally {
+      setProjectActionLoadingId(null);
     }
   };
 
@@ -262,6 +333,25 @@ export default function AdminDashboard() {
                 </span>
               </div>
             </button>
+            <button
+              onClick={() => setActiveTab('projects')}
+              className={clsx(
+                "py-4 text-sm font-bold border-b-2 transition-all px-1",
+                activeTab === 'projects'
+                  ? "border-blue-900 text-blue-900"
+                  : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <span>Projects</span>
+                <span className={clsx(
+                  "px-2 py-0.5 text-[10px] rounded-full font-bold",
+                  activeTab === 'projects' ? "bg-blue-900 text-white" : "bg-slate-100 text-slate-500"
+                )}>
+                  {projectSubmissionsTotal}
+                </span>
+              </div>
+            </button>
           </div>
         </div>
       </div>
@@ -300,8 +390,10 @@ export default function AdminDashboard() {
                 <Users className="w-8 h-8" />
               </div>
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-400 font-semibold">Total Database Records</p>
-                <p className="mt-2 text-2xl font-bold text-slate-900">{stats.total}</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-400 font-semibold">
+                  {activeTab === 'projects' ? 'Total Submissions' : 'Total Database Records'}
+                </p>
+                <p className="mt-2 text-2xl font-bold text-slate-900">{activeTab === 'projects' ? projectStats.total : stats.total}</p>
               </div>
             </div>
             <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 flex items-center gap-4">
@@ -310,7 +402,7 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <p className="text-xs uppercase tracking-[0.2em] text-slate-400 font-semibold">Pending Review</p>
-                <p className="mt-2 text-2xl font-bold text-slate-900">{stats.pending}</p>
+                <p className="mt-2 text-2xl font-bold text-slate-900">{activeTab === 'projects' ? projectStats.pending : stats.pending}</p>
               </div>
             </div>
             <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 flex items-center gap-4">
@@ -318,8 +410,10 @@ export default function AdminDashboard() {
                 <Key className="w-8 h-8" />
               </div>
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-400 font-semibold">IDs Issued</p>
-                <p className="mt-2 text-2xl font-bold text-slate-900">{stats.approved}</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-400 font-semibold">
+                  {activeTab === 'projects' ? 'Approved' : 'IDs Issued'}
+                </p>
+                <p className="mt-2 text-2xl font-bold text-slate-900">{activeTab === 'projects' ? projectStats.approved : stats.approved}</p>
               </div>
             </div>
           </div>
@@ -460,6 +554,105 @@ export default function AdminDashboard() {
                     </button>
                   </div>
                 </div>
+              </>
+            ) : activeTab === 'projects' ? (
+              <>
+                <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4 sm:gap-6">
+                  <div>
+                    <h2 className="text-base sm:text-lg font-bold text-slate-900">Project Submissions</h2>
+                    <p className="text-xs sm:text-sm text-slate-500 mt-1">Review user-submitted projects. Approving marks it as approved and displays it on the public Projects page.</p>
+                  </div>
+                  <div className="text-xs font-bold text-slate-500">Pending: {projectSubmissionsTotal}</div>
+                </div>
+                {projectSubmissionsLoading ? (
+                  <div className="p-12 text-center text-slate-500">
+                    Loading submissions...
+                  </div>
+                ) : projectSubmissions.length === 0 ? (
+                  <div className="p-12 text-center text-slate-500">
+                    No pending submissions.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200 font-bold">
+                          <th className="p-4 pl-6 font-semibold">Project</th>
+                          <th className="p-4 font-semibold">Submitted By</th>
+                          <th className="p-4 font-semibold">Description</th>
+                          <th className="p-4 pr-6 font-semibold text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-sm">
+                        {projectSubmissions.map((submission) => (
+                          <tr key={submission.id} className="hover:bg-slate-50/60 transition-colors">
+                            <td className="p-4 pl-6 align-top">
+                              <div className="font-bold text-slate-900">{submission.projectName}</div>
+                              <a
+                                href={submission.projectUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs text-blue-700 hover:underline break-all"
+                              >
+                                {submission.projectUrl}
+                              </a>
+                              {submission.projType && (
+                                <div className="mt-2 text-xs text-slate-500">{submission.projType}</div>
+                              )}
+                            </td>
+                            <td className="p-4 align-top">
+                              <div className="font-semibold text-slate-900">
+                                {submission.submittedBy?.fullName || submission.submittedBy?.email || submission.userId}
+                              </div>
+                              {submission.submittedBy?.email && submission.submittedBy?.fullName && (
+                                <div className="text-xs text-slate-500 break-all">{submission.submittedBy.email}</div>
+                              )}
+                            </td>
+                            <td className="p-4 align-top max-w-[520px]">
+                              <div className="text-slate-700 whitespace-pre-wrap break-words">{submission.description}</div>
+                            </td>
+                            <td className="p-4 pr-6 align-top text-right">
+                              <div className="flex flex-wrap items-center justify-end gap-2">
+                                <button
+                                  onClick={() => handleProjectAction(submission.id, 'approve')}
+                                  disabled={projectActionLoadingId === submission.id}
+                                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                                >
+                                  <CheckCircle2 className="w-4 h-4" />
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => handleProjectAction(submission.id, 'reject')}
+                                  disabled={projectActionLoadingId === submission.id}
+                                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-red-600 text-white text-xs font-bold hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                  Reject
+                                </button>
+                                <button
+                                  onClick={() => handleProjectDelete(submission.id)}
+                                  disabled={projectActionLoadingId === submission.id}
+                                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-red-200 text-red-700 text-xs font-bold hover:bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  Delete
+                                </button>
+                                <button
+                                  onClick={() => handleProjectDelete(submission.id, { deleteUser: true })}
+                                  disabled={projectActionLoadingId === submission.id}
+                                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-red-700 text-white text-xs font-bold hover:bg-red-800 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                                >
+                                  <UserX className="w-4 h-4" />
+                                  Delete User
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </>
             ) : (
               <>
@@ -954,5 +1147,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-
-
