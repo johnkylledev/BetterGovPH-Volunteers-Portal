@@ -81,12 +81,23 @@ export const signOut = async () => {
 export const getUserData = async (uid: string, email?: string) => {
   const token = await getAccessToken();
   if (!token) return null;
-  const response = await apiRequest<{ user: User | null }>('/api/me', {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  let response: { user: User | null } | null = null;
+  try {
+    response = await apiRequest<{ user: User | null }>('/api/me', {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  } catch (err: any) {
+    const message = err instanceof Error ? err.message : typeof err?.message === 'string' ? err.message : '';
+    if (message === 'Invalid token') {
+      await supabase.auth.signOut().catch(() => null);
+      return null;
+    }
+    throw err;
+  }
+
   const user = response?.user ?? null;
   if (!user) return null;
   if (uid && user.uid !== uid && user.id !== uid) return null;
