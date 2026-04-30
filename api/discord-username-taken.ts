@@ -1,5 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 
+const getSupabaseConfig = () => {
+  const url =
+    process.env.SUPABASE_URL ||
+    process.env.VITE_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    '';
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE || '';
+  return { url, serviceKey };
+};
+
 const getStringParam = (value: unknown) => {
   if (typeof value === 'string') return value;
   if (Array.isArray(value)) return typeof value[0] === 'string' ? value[0] : null;
@@ -15,8 +25,7 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const { url: supabaseUrl, serviceKey: serviceRoleKey } = getSupabaseConfig();
   if (!supabaseUrl || !serviceRoleKey) {
     res.status(500).json({ error: 'Server not configured' });
     return;
@@ -46,4 +55,3 @@ export default async function handler(req: any, res: any) {
 
   res.status(200).json({ taken: !!data });
 }
-
