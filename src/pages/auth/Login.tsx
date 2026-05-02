@@ -2,23 +2,9 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Home } from 'lucide-react';
-import { Show, SignIn, SignUp, UserButton } from '@clerk/react';
+import { Show, SignIn, UserButton } from '@clerk/react';
 
 export default function Login() {
-  const [tab, setTab] = React.useState<'sign-in' | 'sign-up'>(() => {
-    const hash = typeof window !== 'undefined' ? window.location.hash : '';
-    return hash.toLowerCase().includes('sign-up') ? 'sign-up' : 'sign-in';
-  });
-
-  React.useEffect(() => {
-    const onHashChange = () => {
-      const hash = window.location.hash;
-      setTab(hash.toLowerCase().includes('sign-up') ? 'sign-up' : 'sign-in');
-    };
-    window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
-  }, []);
-
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 selection:bg-blue-900/20 relative">
       <Link
@@ -53,55 +39,13 @@ export default function Login() {
       >
         <div className="bg-white py-8 px-4 shadow-sm sm:rounded-lg sm:px-10 border sm:border-slate-100">
           <Show when="signed-out">
-            <div className="space-y-5">
-              <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    window.location.hash = 'sign-in';
-                    setTab('sign-in');
-                  }}
-                  className={
-                    tab === 'sign-in'
-                      ? 'rounded-lg bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm'
-                      : 'rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 hover:text-slate-900'
-                  }
-                >
-                  Sign in
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    window.location.hash = 'sign-up';
-                    setTab('sign-up');
-                  }}
-                  className={
-                    tab === 'sign-up'
-                      ? 'rounded-lg bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm'
-                      : 'rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 hover:text-slate-900'
-                  }
-                >
-                  Create account
-                </button>
-              </div>
-
-              <div className="flex justify-center">
-                {tab === 'sign-in' ? (
-                  <SignIn
-                    routing="hash"
-                    fallbackRedirectUrl="/dashboard"
-                    signUpUrl="/login#sign-up"
-                    signUpFallbackRedirectUrl="/register"
-                  />
-                ) : (
-                  <SignUp
-                    routing="hash"
-                    fallbackRedirectUrl="/register"
-                    signInUrl="/login#sign-in"
-                    signInFallbackRedirectUrl="/dashboard"
-                  />
-                )}
-              </div>
+            <div className="flex justify-center">
+              <SignIn
+                routing="hash"
+                fallbackRedirectUrl="/dashboard"
+                signUpUrl="/register"
+                signUpFallbackRedirectUrl="/register"
+              />
             </div>
           </Show>
 

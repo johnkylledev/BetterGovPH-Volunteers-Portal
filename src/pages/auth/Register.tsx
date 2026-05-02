@@ -547,8 +547,8 @@ function LegacyRegister() {
                         <div className="flex justify-center">
                           <SignUp
                             routing="hash"
-                            fallbackRedirectUrl="/dashboard"
-                            signInUrl="/login#sign-in"
+                            fallbackRedirectUrl="/register"
+                            signInUrl="/login"
                             signInFallbackRedirectUrl="/dashboard"
                           />
                         </div>
@@ -1111,47 +1111,49 @@ function LegacyRegister() {
                 )}
               </AnimatePresence>
 
-              <div className="pt-8 flex gap-3">
-                {currentStep > 1 && (
-                  <button
-                    type="button"
-                    onClick={prevStep}
-                    className="flex-1 flex justify-center items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-slate-500 hover:bg-slate-50 hover:border-slate-300 transition-all duration-300"
-                  >
-                    <ArrowLeft size={16} strokeWidth={3} />
-                    <span>Back</span>
-                  </button>
-                )}
+              {!(currentStep === 1 && !isSignedIn) && (
+                <div className="pt-8 flex gap-3">
+                  {currentStep > 1 && (
+                    <button
+                      type="button"
+                      onClick={prevStep}
+                      className="flex-1 flex justify-center items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-slate-500 hover:bg-slate-50 hover:border-slate-300 transition-all duration-300"
+                    >
+                      <ArrowLeft size={16} strokeWidth={3} />
+                      <span>Back</span>
+                    </button>
+                  )}
 
-                {currentStep < 3 ? (
-                  <button
-                    type="button"
-                    onClick={nextStep}
-                    className="flex-[2] relative flex justify-center items-center gap-2 rounded-lg bg-blue-900 px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-white shadow-md hover:bg-blue-800 transition-all duration-300 active:scale-[0.98]"
-                  >
-                    Continue
-                    <ArrowRight size={16} strokeWidth={3} className="ml-1" />
-                  </button>
-                ) : (
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="flex-[2] relative flex justify-center items-center gap-2 rounded-lg bg-blue-900 px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-white shadow-md hover:bg-blue-800 transition-all duration-300 active:scale-[0.98] disabled:opacity-50"
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        <span>Submitting...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>Complete Application</span>
-                        <Check size={16} strokeWidth={3} />
-                      </>
-                    )}
-                  </button>
-                )}
-              </div>
+                  {currentStep < 3 ? (
+                    <button
+                      type="button"
+                      onClick={nextStep}
+                      className="flex-[2] relative flex justify-center items-center gap-2 rounded-lg bg-blue-900 px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-white shadow-md hover:bg-blue-800 transition-all duration-300 active:scale-[0.98]"
+                    >
+                      Continue
+                      <ArrowRight size={16} strokeWidth={3} className="ml-1" />
+                    </button>
+                  ) : (
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="flex-[2] relative flex justify-center items-center gap-2 rounded-lg bg-blue-900 px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-white shadow-md hover:bg-blue-800 transition-all duration-300 active:scale-[0.98] disabled:opacity-50"
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          <span>Submitting...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Complete Application</span>
+                          <Check size={16} strokeWidth={3} />
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              )}
 
               <div className="mt-8 pt-6 border-t border-slate-100 text-center">
                 <p className="text-sm text-slate-600">
