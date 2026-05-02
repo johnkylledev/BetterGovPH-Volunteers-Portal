@@ -1,3 +1,9 @@
+const sanitizeSkillSlug = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/^-+|-+$/g, '') || 'code';
+
 export const skillToSlug = (skill: string) => {
   const cleanSkill = skill.toLowerCase().trim();
   
@@ -90,10 +96,10 @@ export const skillToSlug = (skill: string) => {
     'zapier': 'zapier',
   };
 
-  if (map[cleanSkill]) return map[cleanSkill];
+  if (map[cleanSkill]) return sanitizeSkillSlug(map[cleanSkill]);
 
   // Fallback: remove common noise words to find the brand slug
-  return cleanSkill
+  const fallbackSlug = cleanSkill
     .replace(/development/g, '')
     .replace(/design/g, '')
     .replace(/developer/g, '')
@@ -106,4 +112,6 @@ export const skillToSlug = (skill: string) => {
     .replace(/[ .]/g, '')
     .replace(/\//g, '')
     .trim();
+
+  return sanitizeSkillSlug(fallbackSlug);
 };
