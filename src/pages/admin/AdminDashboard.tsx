@@ -12,9 +12,11 @@ import { deleteProjectSubmission, getAllUsers, getAdminStats, getProjectSubmissi
 import * as XLSX from 'xlsx';
 import { skillToSlug } from '../../utils/skillUtils';
 import { SPECIALIZATIONS } from '../../constants/specializations';
+import { useClerk } from '@clerk/react';
 
 export default function AdminDashboard() {
-  const { currentUser, users, logout, updateUserStatus, setUsers, authInitialized } = useStore();
+  const { currentUser, users, updateUserStatus, setUsers, authInitialized } = useStore();
+  const clerk = useClerk();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'applications' | 'members' | 'projects'>('applications');
   const [searchTerm, setSearchTerm] = useState('');
@@ -123,9 +125,8 @@ export default function AdminDashboard() {
   if (!authInitialized || !currentUser) return <LoadingOverlay />;
   if (!currentUser.isAdmin) return null;
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
+  const handleLogout = async () => {
+    await clerk.signOut();
   };
 
   const handleStatusUpdate = async (userId: string, status: ApplicationStatus) => {

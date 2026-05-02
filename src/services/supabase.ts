@@ -7,8 +7,15 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const getAccessToken = async () => {
-  const { data } = await supabase.auth.getSession();
-  return data.session?.access_token || null;
+  const w = typeof window !== 'undefined' ? (window as any) : null;
+  const clerk = w?.Clerk;
+  if (!clerk?.session) return null;
+  try {
+    const token = await clerk.session.getToken();
+    return typeof token === 'string' && token.trim() ? token : null;
+  } catch {
+    return null;
+  }
 };
 
 const apiRequest = async <T = any>(path: string, init?: RequestInit): Promise<T> => {
@@ -40,6 +47,20 @@ const apiRequest = async <T = any>(path: string, init?: RequestInit): Promise<T>
 
   return payload as T;
 };
+
+const normalizeUrl = (value: unknown) => {
+  if (typeof value !== 'string') return '';
+  return value.replace(/`/g, '').trim();
+};
+
+const mapProjectRow = (row: any): Project => ({
+  id: row?.id ?? '',
+  title: row?.project_name ?? row?.title ?? '',
+  description: row?.description ?? '',
+  url: normalizeUrl(row?.project_url ?? row?.url ?? ''),
+  projType: row?.proj_type ?? row?.tech_stack ?? undefined,
+  createdAt: row?.created_at ?? undefined,
+});
 
 const mapToAppUser = (dbUser: any): User | null => {
   if (!dbUser) return null;
@@ -86,8 +107,12 @@ const mapToDbUser = (user: any) => {
 
 // Auth Providers
 export const signOut = async () => {
-  const { error } = await supabase.auth.signOut();
-  if (error) throw error;
+  const w = typeof window !== 'undefined' ? (window as any) : null;
+  const clerk = w?.Clerk;
+  if (clerk?.signOut) {
+    await clerk.signOut();
+    return;
+  }
 };
 
 // Database Functions
@@ -113,8 +138,6 @@ export const getUserData = async (uid: string, email?: string) => {
 
   const user = response?.user ?? null;
   if (!user) return null;
-  if (uid && user.uid !== uid && user.id !== uid) return null;
-  if (email && user.email && user.email !== email) return null;
   return user;
 };
 
@@ -443,11 +466,49 @@ export const deleteVolunteerCall = async (id: string, options?: { deleteUser?: b
 
 export const getApprovedProjects = async () => {
   const token = await getAccessToken();
-  const response = await apiRequest<{ projects: Project[] }>('/api/projects', {
-    method: 'GET',
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-  });
-  return response.projects ?? [];
+  try {
+    const response = await apiRequest<any>('/api/projects', {
+      method: 'GET',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+    if (response && typeof response === 'object' && Array.isArray((response as any).projects)) {
+      return ((response as any).projects as any[]).map(mapProjectRow);
+    }
+  } catch {
+  }
+
+  const runQuery = async () => {
+    let result = await supabase
+      .from('project_submissions')
+      .select('*')
+      .in('status', ['approved', 'Approved', 'APPROVED'])
+      .order('created_at', { ascending: false })
+      .limit(100);
+    if (
+      result.error &&
+      typeof (result.error as any)?.message === 'string' &&
+      String((result.error as any).message).toLowerCase().includes('created_at')
+    ) {
+      result = await supabase
+        .from('project_submissions')
+        .select('*')
+        .in('status', ['approved', 'Approved', 'APPROVED'])
+        .order('id', { ascending: false })
+        .limit(100);
+    }
+    return result;
+  };
+
+  const result = await runQuery();
+  if (result.error) {
+    const message =
+      typeof (result.error as any)?.message === 'string'
+        ? String((result.error as any).message)
+        : 'Failed to load projects';
+    throw new Error(message);
+  }
+
+  return (result.data ?? []).map(mapProjectRow);
 };
 
 export const onAuthStateChange = (callback: (user: any) => void) => {

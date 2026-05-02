@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { AccessCard } from '../../components/AccessCard';
+import { LoadingOverlay } from '../../components/LoadingOverlay';
 import { motion } from 'framer-motion';
 import { ShieldAlert, CheckCircle2, Clock, LogOut, Download, Copy, Code, Check, Info, Zap, User, Mail, Calendar, Award, MapPin, ExternalLink, Share2, Sparkles } from 'lucide-react';
 import html2canvas from 'html2canvas';
@@ -9,9 +10,11 @@ import clsx from 'clsx';
 import { skillToSlug } from '../../utils/skillUtils';
 import { createVolunteerCall, getMyProjectSubmissions, getVolunteerCalls, submitProjectSubmission } from '../../services/supabase';
 import { ProjectSubmission, VolunteerCall } from '../../types';
+import { useClerk } from '@clerk/react';
 
 export default function UserDashboard() {
-  const { currentUser, logout, authInitialized } = useStore();
+  const { currentUser, authInitialized } = useStore();
+  const clerk = useClerk();
   const navigate = useNavigate();
   const [downloadLoading, setDownloadLoading] = React.useState(false);
   const [copyStatus, setCopyStatus] = React.useState<'idle' | 'copied' | 'embed-copied'>('idle');
@@ -37,18 +40,15 @@ export default function UserDashboard() {
   const [volunteerCallsError, setVolunteerCallsError] = useState('');
 
   useEffect(() => {
-    if (authInitialized && !currentUser) {
-      navigate('/login');
-    } else if (authInitialized && currentUser?.isAdmin) {
+    if (authInitialized && currentUser?.isAdmin) {
       navigate('/admin');
     }
   }, [currentUser, navigate, authInitialized]);
 
-  if (!authInitialized || !currentUser) return null;
+  if (!authInitialized || !currentUser) return <LoadingOverlay />;
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
+  const handleLogout = async () => {
+    await clerk.signOut();
   };
 
   const getStatusIcon = () => {

@@ -1,4 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
+import { verifyToken } from '@clerk/backend';
+import crypto from 'crypto';
 
 const getSupabaseConfig = () => {
   const url =
@@ -48,23 +50,16 @@ const getBody = (req: any) => {
   return body;
 };
 
-const assertAdmin = async (supabaseAdmin: any, token: string) => {
-  const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
-  if (authError || !authData?.user) {
-    const message = typeof (authError as any)?.message === 'string' ? String((authError as any).message) : '';
-    return { ok: false as const, error: message || 'Invalid token' };
-  }
-
-  const uid = authData.user.id;
-  const { data: callerRow, error: callerError } = await supabaseAdmin
-    .from('users')
-    .select('is_admin')
-    .eq('uid', uid)
-    .maybeSingle();
-
-  if (callerError) return { ok: false as const, error: 'Failed to validate admin' };
-  if (!callerRow?.is_admin) return { ok: false as const, error: 'Admin only' };
-  return { ok: true as const };
+const uuidV5 = (name: string, namespace: string) => {
+  const ns = namespace.replace(/-/g, '');
+  if (!/^[0-9a-f]{32}$/i.test(ns)) throw new Error('Invalid namespace uuid');
+  const nsBytes = Buffer.from(ns, 'hex');
+  const nameBytes = Buffer.from(name, 'utf8');
+  const hash = crypto.createHash('sha1').update(nsBytes).update(nameBytes).digest();
+  hash[6] = (hash[6] & 0x0f) | 0x50;
+  hash[8] = (hash[8] & 0x3f) | 0x80;
+  const hex = hash.subarray(0, 16).toString('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 };
 
 const mapCallRow = (row: any, postedBy?: { fullName: string; email: string }) => ({
@@ -89,14 +84,11 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  const { url: supabaseUrl, anonKey: supabaseAnonKey, serviceKey: serviceRoleKey } = getSupabaseConfig();
-  const primaryKey = supabaseAnonKey || serviceRoleKey;
-  const fallbackKey = supabaseAnonKey && serviceRoleKey && supabaseAnonKey !== serviceRoleKey ? serviceRoleKey : '';
-
-  if (!supabaseUrl || !primaryKey) {
+  const { url: supabaseUrl, serviceKey: serviceRoleKey } = getSupabaseConfig();
+  if (!supabaseUrl || !serviceRoleKey) {
     const missing: string[] = [];
     if (!supabaseUrl) missing.push('SUPABASE_URL');
-    if (!primaryKey) missing.push('SUPABASE_ANON_KEY or SUPABASE_SERVICE_ROLE_KEY');
+    if (!serviceRoleKey) missing.push('SUPABASE_SERVICE_ROLE_KEY');
     res.status(500).json({ error: 'Server not configured', missing });
     return;
   }
@@ -107,34 +99,24 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  const makeClient = (key: string, bearerToken?: string) =>
-    createClient(supabaseUrl, key, {
-      auth: { persistSession: false, autoRefreshToken: false },
-      global: bearerToken ? { headers: { Authorization: `Bearer ${bearerToken}` } } : undefined,
-    });
-
-  let supabaseAuth = makeClient(primaryKey);
-  let { data: authData, error: authError } = await supabaseAuth.auth.getUser(token);
-  if (
-    authError &&
-    fallbackKey &&
-    typeof (authError as any)?.message === 'string' &&
-    String((authError as any).message).toLowerCase().includes('invalid api key')
-  ) {
-    supabaseAuth = makeClient(fallbackKey);
-    const retry = await supabaseAuth.auth.getUser(token);
-    authData = retry.data;
-    authError = retry.error;
-  }
-  if (authError || !authData?.user) {
-    const message = typeof (authError as any)?.message === 'string' ? String((authError as any).message) : '';
-    res.status(401).json({ error: message || 'Invalid token' });
+  const clerkSecretKey = process.env.CLERK_SECRET_KEY;
+  if (!clerkSecretKey) {
+    res.status(500).json({ error: 'Server not configured', missing: ['CLERK_SECRET_KEY'] });
     return;
   }
+  const verified = await verifyToken(token, { secretKey: clerkSecretKey }).catch(() => null);
+  const clerkUserId = typeof (verified as any)?.sub === 'string' ? String((verified as any).sub) : '';
+  if (!clerkUserId) {
+    res.status(401).json({ error: 'Invalid token' });
+    return;
+  }
+  const uid = uuidV5(clerkUserId, 'a6d53c49-7ee9-4cd5-a5b1-6d33c0a8f5b1');
 
-  const uid = authData.user.id;
-  let supabaseDb = serviceRoleKey ? makeClient(serviceRoleKey) : makeClient(primaryKey, token);
-  const prefersService = !!serviceRoleKey;
+  const supabaseDb = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data: callerRow } = await supabaseDb.from('users').select('is_admin').eq('uid', uid).maybeSingle();
+  const isAdmin = !!callerRow?.is_admin;
 
   if (req.method === 'GET') {
     const mine = getStringParam(req.query?.mine);
@@ -142,23 +124,9 @@ export default async function handler(req: any, res: any) {
     const wantsAdmin = adminMode === '1' || adminMode === 'true';
     const statusFilter = getStringParam(req.query?.status);
 
-    if (wantsAdmin) {
-      let supabaseAdmin = makeClient(primaryKey, primaryKey === supabaseAnonKey ? token : undefined);
-      let adminCheck = await assertAdmin(supabaseAdmin, token);
-      if (
-        !adminCheck.ok &&
-        fallbackKey &&
-        typeof (adminCheck as any)?.error === 'string' &&
-        String((adminCheck as any).error).toLowerCase().includes('invalid api key')
-      ) {
-        supabaseAdmin = makeClient(fallbackKey, token);
-        adminCheck = await assertAdmin(supabaseAdmin, token);
-      }
-      if (!adminCheck.ok) {
-        res.status(adminCheck.error === 'Admin only' ? 403 : 401).json({ error: adminCheck.error });
-        return;
-      }
-      supabaseDb = supabaseAdmin;
+    if (wantsAdmin && !isAdmin) {
+      res.status(403).json({ error: 'Admin only' });
+      return;
     }
 
     let query = supabaseDb.from('volunteer_calls').select('*', { count: 'exact' }).order('created_at', { ascending: false });
@@ -166,25 +134,7 @@ export default async function handler(req: any, res: any) {
     if (!wantsAdmin && mine !== '1' && mine !== 'true') query = query.eq('status', 'open');
     if (wantsAdmin && statusFilter && statusFilter !== 'All') query = query.eq('status', statusFilter);
 
-    let { data, error, count } = await query.limit(50);
-    if (
-      error &&
-      prefersService &&
-      typeof (error as any)?.message === 'string' &&
-      String((error as any).message).toLowerCase().includes('invalid api key')
-    ) {
-      supabaseDb = makeClient(primaryKey, token);
-      query = supabaseDb.from('volunteer_calls').select('*', { count: 'exact' }).order('created_at', { ascending: false });
-      if (mine === '1' || mine === 'true') {
-        query = query.eq('user_id', uid);
-      } else {
-        query = query.eq('status', 'open');
-      }
-      const retry = await query.limit(50);
-      data = retry.data;
-      error = retry.error;
-      count = (retry as any).count;
-    }
+    const { data, error, count } = await query.limit(50);
     if (error) {
       const message = typeof (error as any)?.message === 'string' ? String((error as any).message) : '';
       res.status(500).json({ error: 'Failed to load volunteer calls', details: message || undefined });
@@ -219,23 +169,12 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
-    let supabaseAdmin = makeClient(primaryKey, primaryKey === supabaseAnonKey ? token : undefined);
-    let adminCheck = await assertAdmin(supabaseAdmin, token);
-    if (
-      !adminCheck.ok &&
-      fallbackKey &&
-      typeof (adminCheck as any)?.error === 'string' &&
-      String((adminCheck as any).error).toLowerCase().includes('invalid api key')
-    ) {
-      supabaseAdmin = makeClient(fallbackKey, token);
-      adminCheck = await assertAdmin(supabaseAdmin, token);
-    }
-    if (!adminCheck.ok) {
-      res.status(adminCheck.error === 'Admin only' ? 403 : 401).json({ error: adminCheck.error });
+    if (!isAdmin) {
+      res.status(403).json({ error: 'Admin only' });
       return;
     }
 
-    const { data: call, error: callError } = await supabaseAdmin
+    const { data: call, error: callError } = await supabaseDb
       .from('volunteer_calls')
       .select('id, user_id')
       .eq('id', id)
@@ -250,7 +189,7 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
-    const { error: deleteError } = await supabaseAdmin.from('volunteer_calls').delete().eq('id', id);
+    const { error: deleteError } = await supabaseDb.from('volunteer_calls').delete().eq('id', id);
     if (deleteError) {
       res.status(500).json({ error: 'Failed to delete volunteer call' });
       return;
@@ -259,18 +198,9 @@ export default async function handler(req: any, res: any) {
     if (deleteUser) {
       const userId = typeof (call as any).user_id === 'string' ? String((call as any).user_id) : '';
       if (userId) {
-        await supabaseAdmin.from('project_submissions').delete().eq('user_id', userId);
-        await supabaseAdmin.from('volunteer_calls').delete().eq('user_id', userId);
-        await supabaseAdmin.from('users').delete().eq('uid', userId);
-        if (serviceRoleKey) {
-          const serviceClient = makeClient(serviceRoleKey);
-          try {
-            await (serviceClient as any).auth.admin.deleteUser(userId);
-          } catch {
-            res.status(200).json({ message: 'Deleted volunteer call and user (auth delete skipped)' });
-            return;
-          }
-        }
+        await supabaseDb.from('project_submissions').delete().eq('user_id', userId);
+        await supabaseDb.from('volunteer_calls').delete().eq('user_id', userId);
+        await supabaseDb.from('users').delete().eq('uid', userId);
       }
     }
 
@@ -290,7 +220,7 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  let { data, error } = await supabaseDb
+  const { data, error } = await supabaseDb
     .from('volunteer_calls')
     .insert([
       {
@@ -305,32 +235,6 @@ export default async function handler(req: any, res: any) {
     ])
     .select('id')
     .maybeSingle();
-
-  if (
-    error &&
-    prefersService &&
-    typeof (error as any)?.message === 'string' &&
-    String((error as any).message).toLowerCase().includes('invalid api key')
-  ) {
-    supabaseDb = makeClient(primaryKey, token);
-    const retry = await supabaseDb
-      .from('volunteer_calls')
-      .insert([
-        {
-          user_id: uid,
-          title,
-          project_url: projectUrl,
-          description,
-          roles_needed: rolesNeeded || null,
-          contact: contact || null,
-          status: 'open',
-        },
-      ])
-      .select('id')
-      .maybeSingle();
-    data = retry.data;
-    error = retry.error;
-  }
 
   if (error || !data?.id) {
     const message = typeof (error as any)?.message === 'string' ? String((error as any).message) : '';

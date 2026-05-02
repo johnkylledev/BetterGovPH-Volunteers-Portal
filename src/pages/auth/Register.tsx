@@ -3,12 +3,13 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
-import { isDiscordUsernameTaken } from '../../services/supabase';
 import { Calendar, ChevronDown, Check, MessageSquare, Home, ArrowRight, ArrowLeft, User, Mail, Lock, Briefcase, Users, ShieldCheck, Loader2, AlertCircle, CheckCircle2, Clock, Search, Plus, X, BookOpen, Wrench, GraduationCap, Brain, Code, Palette, Database, Globe, Cpu, Layers, Server, Smartphone, Zap, Target, BadgeCheck } from 'lucide-react';
+import { Show, SignUp, UserButton, useUser } from '@clerk/react';
 import { SkillLevel, ExperienceLevel, UserSkill } from '../../types';
 import { skillToSlug } from '../../utils/skillUtils';
 import { SPECIALIZATIONS, Specialization } from '../../constants/specializations';
 import { SKILL_CATEGORIES, SkillCategory } from '../../constants/skills';
+import { createOrUpdateUserRecord, getUserData } from '../../services/supabase';
 
 const LEVEL_CONFIG: Record<SkillLevel, { label: string; icon: any; desc: string }> = {
   'Learner': {
@@ -35,12 +36,10 @@ const ROLES = ['Member', 'Fellow', 'Contributor', 'Other'];
 
 type Step = 1 | 2 | 3;
 
-export default function Register() {
+function LegacyRegister() {
   const [currentStep, setCurrentStep] = useState<Step>(1);
   const [formData, setFormData] = useState({
     fullName: '',
-    email: '',
-    password: '',
     discordUsername: '',
     yearJoined: new Date().getFullYear(),
     skills: [] as UserSkill[],
@@ -48,7 +47,6 @@ export default function Register() {
     role: 'Member',
     customRole: '',
     specialization: '',
-    portfolioUrl: '',
   });
   const [skillSearch, setSkillSearch] = useState('');
   const [otherSkill, setOtherSkill] = useState('');
@@ -59,8 +57,8 @@ export default function Register() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [shouldShake, setShouldShake] = useState(false);
-  const register = useStore((state) => state.register);
-  const currentUser = useStore((state) => state.currentUser);
+  const { isSignedIn, user } = useUser();
+  const setCurrentUser = useStore((state) => state.setCurrentUser);
 
   const dragContainerRef = React.useRef<HTMLDivElement>(null);
   const dragContentRef = React.useRef<HTMLDivElement>(null);
@@ -95,6 +93,28 @@ export default function Register() {
   const [betterRoleSuggestion, setBetterRoleSuggestion] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!user) return;
+    try {
+      const raw = window.localStorage.getItem(`bgph_profile:${user.id}`);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return;
+      setFormData((prev) => ({
+        ...prev,
+        fullName: typeof (parsed as any).fullName === 'string' ? (parsed as any).fullName : prev.fullName,
+        discordUsername: typeof (parsed as any).discordUsername === 'string' ? (parsed as any).discordUsername : prev.discordUsername,
+        yearJoined: typeof (parsed as any).yearJoined === 'number' ? (parsed as any).yearJoined : prev.yearJoined,
+        specialization: typeof (parsed as any).specialization === 'string' ? (parsed as any).specialization : prev.specialization,
+        role: typeof (parsed as any).role === 'string' ? (parsed as any).role : prev.role,
+        experienceLevel: typeof (parsed as any).experienceLevel === 'string' ? (parsed as any).experienceLevel : prev.experienceLevel,
+        skills: Array.isArray((parsed as any).skills) ? (parsed as any).skills : prev.skills,
+      }));
+    } catch {
+      return;
+    }
+  }, [user]);
+
+  useEffect(() => {
     if (formData.skills.length === 0) {
       setRoleScores({});
       setBetterRoleSuggestion(null);
@@ -125,18 +145,6 @@ export default function Register() {
     }
   }, [formData.skills, formData.specialization]);
 
-  const { authInitialized } = useStore();
-
-  useEffect(() => {
-    if (authInitialized && currentUser && !showSuccessModal) {
-      if (currentUser.isAdmin) {
-        navigate('/admin');
-      } else {
-        navigate('/dashboard');
-      }
-    }
-  }, [currentUser, authInitialized, navigate, showSuccessModal]);
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -156,37 +164,9 @@ export default function Register() {
     };
 
     if (step === 1) {
-      if (!formData.fullName || !formData.email || !formData.password || !formData.discordUsername) {
-        return triggerError('Please fill in all required fields.');
-      }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-        return triggerError('Please enter a valid email address.');
-      }
-
-      const pass = formData.password;
-      const hasLower = /[a-z]/.test(pass);
-      const hasUpper = /[A-Z]/.test(pass);
-      const hasNumber = /[0-9]/.test(pass);
-      const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(pass);
-
-      if (pass.length < 8) {
-        return triggerError('Password must be at least 8 characters long.');
-      }
-      if (!hasLower || !hasUpper || !hasNumber || !hasSpecial) {
-        return triggerError('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.');
-      }
-
-      setLoading(true);
-      try {
-        const isTaken = await isDiscordUsernameTaken(formData.discordUsername);
-        if (isTaken) {
-          return triggerError('This Discord username is already registered. Please use a different one.');
-        }
-      } catch (err) {
-        console.error('Error checking Discord username:', err);
-      } finally {
-        setLoading(false);
-      }
+      if (!isSignedIn) return triggerError('Please create an account (or sign in) to continue.');
+      if (!formData.fullName.trim()) return triggerError('Please enter your full name.');
+      if (!formData.discordUsername.trim()) return triggerError('Please enter your Discord username.');
     } else if (step === 2) {
       if (!formData.specialization) {
         return triggerError('Please select your specialization.');
@@ -412,24 +392,26 @@ export default function Register() {
     }
 
     try {
-      const res = await register({
-        fullName: formData.fullName,
-        email: formData.email,
-        password: formData.password,
-        discordUsername: formData.discordUsername,
-        specialization: primaryRole, // Use user selected specialization
+      if (!user) {
+        setError('Please create an account (or sign in) to continue.');
+        return;
+      }
+
+      await createOrUpdateUserRecord({
+        uid: user.id,
+        fullName: formData.fullName.trim(),
+        specialization: primaryRole,
         role: rl,
+        discordUsername: formData.discordUsername.trim(),
         yearJoined: Number(formData.yearJoined),
         skills: formData.skills,
         experienceLevel: formData.experienceLevel,
-        authProvider: 'traditional',
+        authProvider: 'clerk',
       });
 
-      if (res.success) {
-        setShowSuccessModal(true);
-      } else {
-        setError(res.message);
-      }
+      const updated = await getUserData(user.id).catch(() => null);
+      if (updated) setCurrentUser(updated as any);
+      setShowSuccessModal(true);
     } catch (err: any) {
       setError(err.message || 'Registration failed');
     } finally {
@@ -560,80 +542,130 @@ export default function Register() {
                     transition={{ duration: 0.3 }}
                     className="space-y-5 sm:space-y-6"
                   >
-                    <div className="grid grid-cols-1 gap-5">
-                      <div>
-                        <label className="block text-base font-bold text-slate-800 mb-4 tracking-tight">Full Name</label>
-                        <div className="relative group">
-                          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-900 transition-colors">
-                            <User size={18} />
-                          </div>
-                          <input
-                            name="fullName"
-                            type="text"
-                            required
-                            value={formData.fullName}
-                            onChange={handleChange}
-                            className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-4 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base transition-all"
-                            placeholder="Juan Dela Cruz" />
+                    <div className="space-y-4">
+                      <Show when="signed-out">
+                        <div className="flex justify-center">
+                          <SignUp
+                            routing="hash"
+                            fallbackRedirectUrl="/dashboard"
+                            signInUrl="/login#sign-in"
+                            signInFallbackRedirectUrl="/dashboard"
+                          />
                         </div>
-                      </div>
+                      </Show>
 
-                      <div>
-                        <label className="block text-base font-bold text-slate-800 mb-4 tracking-tight">Email Address</label>
-                        <div className="relative group">
-                          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-900 transition-colors">
-                            <Mail size={18} />
+                      <Show when="signed-in">
+                        <div className="space-y-5">
+                          <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
+                            <div className="flex items-center justify-between gap-4">
+                              <div className="min-w-0">
+                                <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Account</p>
+                                <p className="mt-2 text-sm font-bold text-slate-900 truncate">Signed in</p>
+                              </div>
+                              <UserButton />
+                            </div>
                           </div>
-                          <input
-                            name="email"
-                            type="email"
-                            required
-                            value={formData.email}
-                            onChange={handleChange}
-                            className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-4 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base transition-all"
-                            placeholder="juan@example.com" />
-                        </div>
-                      </div>
 
-                      <div>
-                        <label className="block text-base font-bold text-slate-800 mb-4 tracking-tight">Discord Username</label>
-                        <div className="relative group">
-                          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-900 transition-colors">
-                            <MessageSquare size={18} />
+                          <div>
+                            <label className="block text-base font-bold text-slate-800 mb-4 tracking-tight">Full Name</label>
+                            <div className="relative group">
+                              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-900 transition-colors">
+                                <User size={18} />
+                              </div>
+                              <input
+                                name="fullName"
+                                type="text"
+                                value={formData.fullName}
+                                onChange={handleChange}
+                                className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-4 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base transition-all"
+                                placeholder="Juan Dela Cruz"
+                              />
+                            </div>
                           </div>
-                          <input
-                            name="discordUsername"
-                            type="text"
-                            required
-                            value={formData.discordUsername}
-                            onChange={handleChange}
-                            className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-4 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base transition-all"
-                            placeholder="juan_dev#1234" />
-                        </div>
-                        <p className="mt-2 text-[11px] text-blue-600 font-medium px-1 leading-relaxed">
-                          Must be in our <a href="https://discord.com/invite/mHtThpN8bT" target="_blank" rel="noopener noreferrer" className="underline font-bold">Discord server</a> for approval.
-                        </p>
-                      </div>
 
-                      <div>
-                        <label className="block text-base font-bold text-slate-800 mb-4 tracking-tight">Password</label>
-                        <div className="relative group">
-                          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-900 transition-colors">
-                            <Lock size={18} />
+                          <div>
+                            <label className="block text-base font-bold text-slate-800 mb-4 tracking-tight">Discord Username</label>
+                            <div className="relative group">
+                              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-900 transition-colors">
+                                <MessageSquare size={18} />
+                              </div>
+                              <input
+                                name="discordUsername"
+                                type="text"
+                                value={formData.discordUsername}
+                                onChange={handleChange}
+                                className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-4 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base transition-all"
+                                placeholder="juan_dev#1234"
+                              />
+                            </div>
                           </div>
-                          <input
-                            name="password"
-                            type="password"
-                            required
-                            value={formData.password}
-                            onChange={handleChange}
-                            className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-4 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base transition-all"
-                            placeholder="••••••••" />
+
+                          <div>
+                            <label className="block text-base font-bold text-slate-800 mb-4 tracking-tight">Member Since</label>
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() => setIsYearOpen(!isYearOpen)}
+                                className={clsx(
+                                  "relative w-full flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-500/10",
+                                  isYearOpen ? "border-blue-500 ring-4 ring-blue-500/10 bg-white shadow-sm" : "border-slate-200 bg-white hover:border-slate-300"
+                                )}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="text-blue-900">
+                                    <Calendar className="w-4 h-4" />
+                                  </div>
+                                  <span className="text-sm font-bold text-slate-900">{formData.yearJoined}</span>
+                                </div>
+                                <ChevronDown className={clsx("w-4 h-4 text-slate-400 transition-transform duration-300", isYearOpen && "rotate-180")} />
+                              </button>
+
+                              <AnimatePresence>
+                                {isYearOpen && (
+                                  <>
+                                    <motion.div
+                                      initial={{ opacity: 0 }}
+                                      animate={{ opacity: 1 }}
+                                      exit={{ opacity: 0 }}
+                                      onClick={() => setIsYearOpen(false)}
+                                      className="fixed inset-0 z-10"
+                                    />
+                                    <motion.div
+                                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                      transition={{ duration: 0.2, ease: "easeOut" }}
+                                      className="absolute left-0 right-0 mt-2 z-20 bg-white border border-slate-100 rounded-lg shadow-xl shadow-blue-900/10 overflow-hidden max-h-[200px] overflow-y-auto no-scrollbar"
+                                    >
+                                      <div className="p-2 grid grid-cols-1 gap-1">
+                                        {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i).map((year) => (
+                                          <button
+                                            key={year}
+                                            type="button"
+                                            onClick={() => {
+                                              setFormData({ ...formData, yearJoined: year });
+                                              setIsYearOpen(false);
+                                            }}
+                                            className={clsx(
+                                              "flex items-center justify-between w-full px-4 py-3 rounded-lg text-sm font-bold transition-colors",
+                                              formData.yearJoined === year
+                                                ? "bg-blue-50 text-blue-900"
+                                                : "text-slate-600 hover:bg-slate-50"
+                                            )}
+                                          >
+                                            <span>{year}</span>
+                                            {formData.yearJoined === year && <Check className="w-4 h-4 text-blue-900" />}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </motion.div>
+                                  </>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          </div>
                         </div>
-                        <p className="mt-2 text-[11px] text-slate-400 leading-relaxed font-medium px-1">
-                          Min. 8 chars with uppercase, lowercase, number, and special character.
-                        </p>
-                      </div>
+                      </Show>
                     </div>
                   </motion.div>
                 )}
@@ -761,71 +793,6 @@ export default function Register() {
                               </button>
                             );
                           })}
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-base font-bold text-slate-800 mb-4 tracking-tight">Member Since</label>
-                        <div className="relative">
-                          <button
-                            type="button"
-                            onClick={() => setIsYearOpen(!isYearOpen)}
-                            className={clsx(
-                              "relative w-full flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-500/10",
-                              isYearOpen ? "border-blue-500 ring-4 ring-blue-500/10 bg-white shadow-sm" : "border-slate-200 bg-white hover:border-slate-300"
-                            )}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="text-blue-900">
-                                <Calendar className="w-4 h-4" />
-                              </div>
-                              <span className="text-sm font-bold text-slate-900">{formData.yearJoined}</span>
-                            </div>
-                            <ChevronDown className={clsx("w-4 h-4 text-slate-400 transition-transform duration-300", isYearOpen && "rotate-180")} />
-                          </button>
-
-                          {/* Year Dropdown stays the same */}
-                          <AnimatePresence>
-                            {isYearOpen && (
-                              <>
-                                <motion.div
-                                  initial={{ opacity: 0 }}
-                                  animate={{ opacity: 1 }}
-                                  exit={{ opacity: 0 }}
-                                  onClick={() => setIsYearOpen(false)}
-                                  className="fixed inset-0 z-10" />
-                                <motion.div
-                                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                  transition={{ duration: 0.2, ease: "easeOut" }}
-                                  className="absolute left-0 right-0 mt-2 z-20 bg-white border border-slate-100 rounded-lg shadow-xl shadow-blue-900/10 overflow-hidden max-h-[200px] overflow-y-auto no-scrollbar"
-                                >
-                                  <div className="p-2 grid grid-cols-1 gap-1">
-                                    {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map((year) => (
-                                      <button
-                                        key={year}
-                                        type="button"
-                                        onClick={() => {
-                                          setFormData({ ...formData, yearJoined: year });
-                                          setIsYearOpen(false);
-                                        }}
-                                        className={clsx(
-                                          "flex items-center justify-between w-full px-4 py-3 rounded-lg text-sm font-bold transition-colors",
-                                          formData.yearJoined === year
-                                            ? "bg-blue-50 text-blue-900"
-                                            : "text-slate-600 hover:bg-slate-50"
-                                        )}
-                                      >
-                                        <span>{year}</span>
-                                        {formData.yearJoined === year && <Check className="w-4 h-4 text-blue-900" />}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </motion.div>
-                              </>
-                            )}
-                          </AnimatePresence>
                         </div>
                       </div>
                     </div>
@@ -1221,10 +1188,9 @@ export default function Register() {
                   <CheckCircle2 size={40} className="animate-bounce" />
                 </div>
 
-                <h2 className="text-2xl font-bold text-slate-900 mb-2">Registration Successful!</h2>
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">Application Submitted</h2>
                 <p className="text-slate-500 mb-8 leading-relaxed">
-                  Your application has been submitted to the BetterGovPH community.
-                  An administrator will review your profile shortly.
+                  Your profile is pending review.
                 </p>
 
                 <div className="space-y-4">
@@ -1251,3 +1217,5 @@ export default function Register() {
     </div>
   );
 }
+
+export default LegacyRegister;

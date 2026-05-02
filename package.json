@@ -12,6 +12,8 @@
     "check": "tsc -b --noEmit"
   },
   "dependencies": {
+    "@clerk/backend": "^3.4.4",
+    "@clerk/react": "^6.5.0",
     "@gsap/react": "^2.1.2",
     "@supabase/supabase-js": "^2.104.1",
     "clsx": "^2.1.1",

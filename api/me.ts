@@ -1,4 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
+import { createClerkClient, verifyToken } from '@clerk/backend';
+import crypto from 'crypto';
 
 const getSupabaseConfig = () => {
   const url =
@@ -30,6 +32,30 @@ const getBearerToken = (authorizationHeader: unknown) => {
   return token.length > 0 ? token : null;
 };
 
+const getBody = (req: any) => {
+  const body = req.body ?? {};
+  if (typeof body === 'string') {
+    try {
+      return JSON.parse(body);
+    } catch {
+      return {};
+    }
+  }
+  return body;
+};
+
+const uuidV5 = (name: string, namespace: string) => {
+  const ns = namespace.replace(/-/g, '');
+  if (!/^[0-9a-f]{32}$/i.test(ns)) throw new Error('Invalid namespace uuid');
+  const nsBytes = Buffer.from(ns, 'hex');
+  const nameBytes = Buffer.from(name, 'utf8');
+  const hash = crypto.createHash('sha1').update(nsBytes).update(nameBytes).digest();
+  hash[6] = (hash[6] & 0x0f) | 0x50;
+  hash[8] = (hash[8] & 0x3f) | 0x80;
+  const hex = hash.subarray(0, 16).toString('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+};
+
 const mapUserRow = (row: any) => ({
   id: row.uid,
   uid: row.uid,
@@ -50,6 +76,14 @@ const mapUserRow = (row: any) => ({
   updatedAt: row.updated_at,
 });
 
+const schemaMismatchResponse = (details: string) => ({
+  error: 'Database schema mismatch',
+  details,
+  fixSql: [
+    'alter table public.users drop constraint if exists users_uid_fkey;',
+  ],
+});
+
 export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
@@ -60,13 +94,11 @@ export default async function handler(req: any, res: any) {
   }
 
   const { url: supabaseUrl, anonKey: supabaseAnonKey, serviceKey: serviceRoleKey } = getSupabaseConfig();
-  const primaryKey = supabaseAnonKey || serviceRoleKey;
-  const fallbackKey = supabaseAnonKey && serviceRoleKey && supabaseAnonKey !== serviceRoleKey ? serviceRoleKey : '';
 
-  if (!supabaseUrl || !primaryKey) {
+  if (!supabaseUrl || !serviceRoleKey) {
     const missing: string[] = [];
     if (!supabaseUrl) missing.push('SUPABASE_URL');
-    if (!primaryKey) missing.push('SUPABASE_ANON_KEY or SUPABASE_SERVICE_ROLE_KEY');
+    if (!serviceRoleKey) missing.push('SUPABASE_SERVICE_ROLE_KEY');
     res.status(500).json({ error: 'Server not configured', missing });
     return;
   }
@@ -77,34 +109,37 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  const makeClient = (key: string) =>
-    createClient(supabaseUrl, key, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-
-  let supabase = makeClient(primaryKey);
-
-  let { data: authData, error: authError } = await supabase.auth.getUser(token);
-  if (
-    authError &&
-    fallbackKey &&
-    typeof (authError as any)?.message === 'string' &&
-    String((authError as any).message).toLowerCase().includes('invalid api key')
-  ) {
-    supabase = makeClient(fallbackKey);
-    const retry = await supabase.auth.getUser(token);
-    authData = retry.data;
-    authError = retry.error;
-  }
-  if (authError || !authData?.user) {
-    const message = typeof (authError as any)?.message === 'string' ? String((authError as any).message) : '';
-    res.status(401).json({ error: message || 'Invalid token' });
+  const clerkSecretKey = process.env.CLERK_SECRET_KEY;
+  if (!clerkSecretKey) {
+    res.status(500).json({ error: 'Server not configured', missing: ['CLERK_SECRET_KEY'] });
     return;
   }
 
-  const uid = authData.user.id;
-  const email = authData.user.email ?? '';
-  const fullNameFromAuth = (authData.user.user_metadata as any)?.full_name ?? '';
+  const verified = await verifyToken(token, { secretKey: clerkSecretKey }).catch(() => null);
+  const clerkUserId = typeof (verified as any)?.sub === 'string' ? String((verified as any).sub) : '';
+  if (!clerkUserId) {
+    res.status(401).json({ error: 'Invalid token' });
+    return;
+  }
+  const uid = uuidV5(clerkUserId, 'a6d53c49-7ee9-4cd5-a5b1-6d33c0a8f5b1');
+
+  const clerk = createClerkClient({ secretKey: clerkSecretKey } as any);
+  const clerkEmail = await (async () => {
+    try {
+      const u = await (clerk as any).users.getUser(clerkUserId);
+      const primary = u?.primaryEmailAddress?.emailAddress;
+      if (typeof primary === 'string' && primary.trim()) return primary.trim();
+      const list = Array.isArray(u?.emailAddresses) ? u.emailAddresses : [];
+      const first = list.find((e: any) => typeof e?.emailAddress === 'string' && e.emailAddress.trim());
+      return typeof first?.emailAddress === 'string' ? first.emailAddress.trim() : '';
+    } catch {
+      return '';
+    }
+  })();
+
+  const supabase = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 
   if (req.method === 'GET') {
     const { data, error } = await supabase.from('users').select('*').eq('uid', uid).maybeSingle();
@@ -118,8 +153,8 @@ export default async function handler(req: any, res: any) {
       const now = new Date().toISOString();
       const insertRow = {
         uid,
-        email,
-        full_name: fullNameFromAuth,
+        email: clerkEmail,
+        full_name: '',
         specialization: '',
         role: 'Member',
         discord_username: '',
@@ -130,7 +165,7 @@ export default async function handler(req: any, res: any) {
         experience_level: null,
         admin_notes: null,
         is_admin: false,
-        auth_provider: 'traditional',
+        auth_provider: 'clerk',
         created_at: now,
         updated_at: now,
       };
@@ -143,6 +178,14 @@ export default async function handler(req: any, res: any) {
 
       if (insertError || !inserted) {
         const message = typeof (insertError as any)?.message === 'string' ? String((insertError as any).message) : '';
+        if (message.includes('users_uid_fkey')) {
+          res.status(500).json(
+            schemaMismatchResponse(
+              'public.users.uid has a foreign key to auth.users. Using Clerk IDs requires removing that FK (or creating matching auth.users rows).'
+            )
+          );
+          return;
+        }
         res.status(500).json({ error: 'Failed to create profile', details: message || undefined });
         return;
       }
@@ -151,15 +194,29 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
+    if ((!data.email || String(data.email).trim() === '') && clerkEmail) {
+      const { data: updated, error: updateEmailError } = await supabase
+        .from('users')
+        .update({ email: clerkEmail, updated_at: new Date().toISOString() })
+        .eq('uid', uid)
+        .select('*')
+        .maybeSingle();
+      if (!updateEmailError && updated) {
+        res.status(200).json({ user: mapUserRow(updated) });
+        return;
+      }
+    }
+
     res.status(200).json({ user: mapUserRow(data) });
     return;
   }
 
-  const body = req.body ?? {};
+  const body = getBody(req);
   const updates: any = {
     updated_at: new Date().toISOString(),
   };
 
+  if (clerkEmail) updates.email = clerkEmail;
   if (typeof body.fullName === 'string') updates.full_name = body.fullName.trim();
   if (typeof body.specialization === 'string') updates.specialization = body.specialization.trim();
   if (typeof body.role === 'string') updates.role = body.role.trim();
@@ -167,10 +224,7 @@ export default async function handler(req: any, res: any) {
   if (typeof body.yearJoined === 'number') updates.year_joined = body.yearJoined;
   if (Array.isArray(body.skills)) updates.skills = body.skills;
   if (typeof body.experienceLevel === 'string') updates.experience_level = body.experienceLevel;
-  if (typeof body.authProvider === 'string') updates.auth_provider = body.authProvider;
-
-  updates.email = email;
-  if (!updates.full_name && fullNameFromAuth) updates.full_name = fullNameFromAuth;
+  updates.auth_provider = 'clerk';
 
   const { data: updatedRows, error: updateError } = await supabase
     .from('users')
@@ -189,8 +243,8 @@ export default async function handler(req: any, res: any) {
     const now = new Date().toISOString();
     const insertRow = {
       uid,
-      email,
-      full_name: updates.full_name ?? fullNameFromAuth ?? '',
+      email: clerkEmail,
+      full_name: updates.full_name ?? '',
       specialization: updates.specialization ?? '',
       role: updates.role ?? 'Member',
       discord_username: updates.discord_username ?? '',
@@ -201,7 +255,7 @@ export default async function handler(req: any, res: any) {
       experience_level: updates.experience_level ?? null,
       admin_notes: null,
       is_admin: false,
-      auth_provider: updates.auth_provider ?? 'traditional',
+      auth_provider: 'clerk',
       created_at: now,
       updated_at: now,
     };
@@ -214,6 +268,14 @@ export default async function handler(req: any, res: any) {
 
     if (insertError || !inserted) {
       const message = typeof (insertError as any)?.message === 'string' ? String((insertError as any).message) : '';
+      if (message.includes('users_uid_fkey')) {
+        res.status(500).json(
+          schemaMismatchResponse(
+            'public.users.uid has a foreign key to auth.users. Using Clerk IDs requires removing that FK (or creating matching auth.users rows).'
+          )
+        );
+        return;
+      }
       res.status(500).json({ error: 'Failed to create profile', details: message || undefined });
       return;
     }

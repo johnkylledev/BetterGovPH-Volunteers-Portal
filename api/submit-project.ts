@@ -1,4 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
+import { verifyToken } from '@clerk/backend';
+import crypto from 'crypto';
 
 const getSupabaseConfig = () => {
   const url =
@@ -42,6 +44,18 @@ const getBody = (req: any) => {
   return body;
 };
 
+const uuidV5 = (name: string, namespace: string) => {
+  const ns = namespace.replace(/-/g, '');
+  if (!/^[0-9a-f]{32}$/i.test(ns)) throw new Error('Invalid namespace uuid');
+  const nsBytes = Buffer.from(ns, 'hex');
+  const nameBytes = Buffer.from(name, 'utf8');
+  const hash = crypto.createHash('sha1').update(nsBytes).update(nameBytes).digest();
+  hash[6] = (hash[6] & 0x0f) | 0x50;
+  hash[8] = (hash[8] & 0x3f) | 0x80;
+  const hex = hash.subarray(0, 16).toString('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+};
+
 export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
@@ -51,14 +65,11 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  const { url: supabaseUrl, anonKey: supabaseAnonKey, serviceKey: serviceRoleKey } = getSupabaseConfig();
-  const primaryKey = supabaseAnonKey || serviceRoleKey;
-  const fallbackKey = supabaseAnonKey && serviceRoleKey && supabaseAnonKey !== serviceRoleKey ? serviceRoleKey : '';
-
-  if (!supabaseUrl || !primaryKey) {
+  const { url: supabaseUrl, serviceKey: serviceRoleKey } = getSupabaseConfig();
+  if (!supabaseUrl || !serviceRoleKey) {
     const missing: string[] = [];
     if (!supabaseUrl) missing.push('SUPABASE_URL');
-    if (!primaryKey) missing.push('SUPABASE_ANON_KEY or SUPABASE_SERVICE_ROLE_KEY');
+    if (!serviceRoleKey) missing.push('SUPABASE_SERVICE_ROLE_KEY');
     res.status(500).json({ error: 'Server not configured', missing });
     return;
   }
@@ -69,32 +80,19 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  const makeClient = (key: string, bearerToken?: string) =>
-    createClient(supabaseUrl, key, {
-      auth: { persistSession: false, autoRefreshToken: false },
-      global: bearerToken ? { headers: { Authorization: `Bearer ${bearerToken}` } } : undefined,
-    });
-
-  let supabaseAuth = makeClient(primaryKey);
-  let { data: authData, error: authError } = await supabaseAuth.auth.getUser(token);
-  if (
-    authError &&
-    fallbackKey &&
-    typeof (authError as any)?.message === 'string' &&
-    String((authError as any).message).toLowerCase().includes('invalid api key')
-  ) {
-    supabaseAuth = makeClient(fallbackKey);
-    const retry = await supabaseAuth.auth.getUser(token);
-    authData = retry.data;
-    authError = retry.error;
-  }
-  if (authError || !authData?.user) {
-    const message = typeof (authError as any)?.message === 'string' ? String((authError as any).message) : '';
-    res.status(401).json({ error: message || 'Invalid token' });
+  const clerkSecretKey = process.env.CLERK_SECRET_KEY;
+  if (!clerkSecretKey) {
+    res.status(500).json({ error: 'Server not configured', missing: ['CLERK_SECRET_KEY'] });
     return;
   }
+  const verified = await verifyToken(token, { secretKey: clerkSecretKey }).catch(() => null);
+  const clerkUserId = typeof (verified as any)?.sub === 'string' ? String((verified as any).sub) : '';
+  if (!clerkUserId) {
+    res.status(401).json({ error: 'Invalid token' });
+    return;
+  }
+  const uid = uuidV5(clerkUserId, 'a6d53c49-7ee9-4cd5-a5b1-6d33c0a8f5b1');
 
-  const uid = authData.user.id;
   const body = getBody(req);
 
   const projectName = typeof body.project_name === 'string' ? body.project_name.trim() : '';
@@ -117,8 +115,9 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  let supabaseDb = serviceRoleKey ? makeClient(serviceRoleKey) : makeClient(primaryKey, token);
-  const prefersService = !!serviceRoleKey;
+  const supabaseDb = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
   const insertWithProjType = async () =>
     supabaseDb
       .from('project_submissions')
@@ -160,27 +159,6 @@ export default async function handler(req: any, res: any) {
     const retry = await insertWithTechStack();
     data = retry.data;
     error = retry.error;
-  }
-
-  if (
-    error &&
-    prefersService &&
-    typeof (error as any)?.message === 'string' &&
-    String((error as any).message).toLowerCase().includes('invalid api key')
-  ) {
-    supabaseDb = makeClient(primaryKey, token);
-    const retry = await insertWithProjType();
-    data = retry.data;
-    error = retry.error;
-    if (
-      error &&
-      typeof (error as any)?.message === 'string' &&
-      String((error as any).message).toLowerCase().includes('proj_type')
-    ) {
-      const retry2 = await insertWithTechStack();
-      data = retry2.data;
-      error = retry2.error;
-    }
   }
 
   if (error || !data?.id) {

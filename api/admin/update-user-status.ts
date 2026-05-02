@@ -1,4 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
+import { verifyToken } from '@clerk/backend';
+import crypto from 'crypto';
 
 const getSupabaseConfig = () => {
   const url =
@@ -30,20 +32,24 @@ const getBearerToken = (authorizationHeader: unknown) => {
   return token.length > 0 ? token : null;
 };
 
-const assertAdmin = async (supabaseAdmin: any, token: string) => {
-  const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
-  if (authError || !authData?.user) {
-    const message = typeof (authError as any)?.message === 'string' ? String((authError as any).message) : '';
-    return { ok: false as const, error: message || 'Invalid token' };
-  }
+const uuidV5 = (name: string, namespace: string) => {
+  const ns = namespace.replace(/-/g, '');
+  if (!/^[0-9a-f]{32}$/i.test(ns)) throw new Error('Invalid namespace uuid');
+  const nsBytes = Buffer.from(ns, 'hex');
+  const nameBytes = Buffer.from(name, 'utf8');
+  const hash = crypto.createHash('sha1').update(nsBytes).update(nameBytes).digest();
+  hash[6] = (hash[6] & 0x0f) | 0x50;
+  hash[8] = (hash[8] & 0x3f) | 0x80;
+  const hex = hash.subarray(0, 16).toString('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+};
 
-  const uid = authData.user.id;
+const assertAdmin = async (supabaseAdmin: any, uid: string) => {
   const { data: callerRow, error: callerError } = await supabaseAdmin
     .from('users')
     .select('is_admin')
     .eq('uid', uid)
     .maybeSingle();
-
   if (callerError) return { ok: false as const, error: 'Failed to validate admin' };
   if (!callerRow?.is_admin) return { ok: false as const, error: 'Admin only' };
   return { ok: true as const };
@@ -102,14 +108,11 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  const { url: supabaseUrl, anonKey: supabaseAnonKey, serviceKey: serviceRoleKey } = getSupabaseConfig();
-  const primaryKey = serviceRoleKey || supabaseAnonKey;
-  const fallbackKey = supabaseAnonKey && serviceRoleKey && supabaseAnonKey !== serviceRoleKey ? supabaseAnonKey : '';
-
-  if (!supabaseUrl || !primaryKey) {
+  const { url: supabaseUrl, serviceKey: serviceRoleKey } = getSupabaseConfig();
+  if (!supabaseUrl || !serviceRoleKey) {
     const missing: string[] = [];
     if (!supabaseUrl) missing.push('SUPABASE_URL');
-    if (!primaryKey) missing.push('SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY');
+    if (!serviceRoleKey) missing.push('SUPABASE_SERVICE_ROLE_KEY');
     res.status(500).json({ error: 'Server not configured', missing });
     return;
   }
@@ -120,23 +123,23 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  const makeClient = (key: string, bearerToken?: string) =>
-    createClient(supabaseUrl, key, {
-      auth: { persistSession: false, autoRefreshToken: false },
-      global: bearerToken ? { headers: { Authorization: `Bearer ${bearerToken}` } } : undefined,
-    });
-
-  let supabaseAdmin = makeClient(primaryKey, primaryKey === supabaseAnonKey ? token : undefined);
-  let adminCheck = await assertAdmin(supabaseAdmin, token);
-  if (
-    !adminCheck.ok &&
-    fallbackKey &&
-    typeof (adminCheck as any)?.error === 'string' &&
-    String((adminCheck as any).error).toLowerCase().includes('invalid api key')
-  ) {
-    supabaseAdmin = makeClient(fallbackKey, token);
-    adminCheck = await assertAdmin(supabaseAdmin, token);
+  const clerkSecretKey = process.env.CLERK_SECRET_KEY;
+  if (!clerkSecretKey) {
+    res.status(500).json({ error: 'Server not configured', missing: ['CLERK_SECRET_KEY'] });
+    return;
   }
+  const verified = await verifyToken(token, { secretKey: clerkSecretKey }).catch(() => null);
+  const clerkUserId = typeof (verified as any)?.sub === 'string' ? String((verified as any).sub) : '';
+  if (!clerkUserId) {
+    res.status(401).json({ error: 'Invalid token' });
+    return;
+  }
+  const callerUid = uuidV5(clerkUserId, 'a6d53c49-7ee9-4cd5-a5b1-6d33c0a8f5b1');
+
+  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const adminCheck = await assertAdmin(supabaseAdmin, callerUid);
   if (!adminCheck.ok) {
     res.status(adminCheck.error === 'Admin only' ? 403 : 401).json({ error: adminCheck.error });
     return;
