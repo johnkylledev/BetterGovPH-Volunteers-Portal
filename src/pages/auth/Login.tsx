@@ -6,7 +6,7 @@ import { Show, SignIn, UserButton } from '@clerk/react';
 
 export default function Login() {
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 selection:bg-blue-900/20 relative">
+    <div className="min-h-screen bg-white flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 selection:bg-blue-900/20 relative">
       <Link
         to="/"
         className="absolute top-6 left-6 flex items-center gap-2 text-slate-500 hover:text-blue-900 transition-colors text-sm font-semibold group"
@@ -37,7 +37,7 @@ export default function Login() {
         transition={{ delay: 0.1 }}
         className="mt-8 sm:mx-auto sm:w-full sm:max-w-md"
       >
-        <div className="bg-white py-8 px-4 shadow-sm sm:rounded-lg sm:px-10 border sm:border-slate-100">
+        <div className="py-2 px-0">
           <Show when="signed-out">
             <div className="flex justify-center">
               <SignIn

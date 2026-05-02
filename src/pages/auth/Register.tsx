@@ -92,6 +92,44 @@ function LegacyRegister() {
   const [roleScores, setRoleScores] = useState<Record<string, number>>({});
   const [betterRoleSuggestion, setBetterRoleSuggestion] = useState<string | null>(null);
 
+  if (!isSignedIn) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 selection:bg-blue-900/20 relative">
+        <Link
+          to="/"
+          className="absolute top-6 left-6 flex items-center gap-2 text-slate-500 hover:text-blue-900 transition-colors text-sm font-semibold group"
+        >
+          <Home className="w-4 h-4" />
+          <span>Home</span>
+        </Link>
+
+        <div className="sm:mx-auto sm:w-full sm:max-w-md flex flex-col items-center">
+          <div className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center mb-4 sm:mb-6">
+            <img src="/logo.svg" alt="BetterGovPH Logo" className="w-full h-full object-contain" />
+          </div>
+          <h2 className="mt-2 text-center text-xl sm:text-3xl font-bold tracking-tight text-slate-900 font-display leading-tight sm:leading-normal flex flex-col">
+            <span>BetterGovPH</span>
+            <span className="text-blue-900/80">Dev Community</span>
+          </h2>
+          <p className="mt-2 text-center text-sm text-slate-500">
+            Create an account to continue
+          </p>
+        </div>
+
+        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+          <div className="flex justify-center">
+            <SignUp
+              routing="hash"
+              fallbackRedirectUrl="/register"
+              signInUrl="/login"
+              signInFallbackRedirectUrl="/dashboard"
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   useEffect(() => {
     if (!user) return;
     try {
