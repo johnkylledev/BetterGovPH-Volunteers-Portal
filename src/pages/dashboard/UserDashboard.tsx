@@ -10,11 +10,10 @@ import clsx from 'clsx';
 import { skillToSlug } from '../../utils/skillUtils';
 import { createVolunteerCall, getMyProjectSubmissions, getVolunteerCalls, submitProjectSubmission } from '../../services/supabase';
 import { ProjectSubmission, VolunteerCall } from '../../types';
-import { useClerk } from '@clerk/react';
 
 export default function UserDashboard() {
   const { currentUser, authInitialized } = useStore();
-  const clerk = useClerk();
+  const logout = useStore((s) => s.logout);
   const navigate = useNavigate();
   const [downloadLoading, setDownloadLoading] = React.useState(false);
   const [copyStatus, setCopyStatus] = React.useState<'idle' | 'copied' | 'embed-copied'>('idle');
@@ -48,7 +47,8 @@ export default function UserDashboard() {
   if (!authInitialized || !currentUser) return <LoadingOverlay />;
 
   const handleLogout = async () => {
-    await clerk.signOut();
+    await logout();
+    navigate('/login', { replace: true });
   };
 
   const getStatusIcon = () => {

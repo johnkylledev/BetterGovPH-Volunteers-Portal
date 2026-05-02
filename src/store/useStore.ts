@@ -6,6 +6,7 @@ import * as supabaseService from '../services/supabase';
 interface AuthState {
   users: User[];
   currentUser: User | null;
+  sessionUserId: string | null;
   register: (user: Omit<User, 'id' | 'uid' | 'status' | 'isAdmin' | 'createdAt' | 'updatedAt'> & { authProvider?: 'traditional' | 'google' }) => Promise<{ success: boolean; message: string }>;
   login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
@@ -13,6 +14,7 @@ interface AuthState {
   generateMemberId: (userId: string) => void;
   setUsers: (users: User[]) => void;
   setCurrentUser: (user: User | null) => void;
+  setSessionUserId: (uid: string | null) => void;
   updateCurrentUserFromSupabase: (uid: string) => Promise<void>;
   authInitialized: boolean;
   setAuthInitialized: (val: boolean) => void;
@@ -26,8 +28,10 @@ export const useStore = create<AuthState>()(
     (set, get) => ({
       users: [],
       currentUser: null,
+      sessionUserId: null,
       authInitialized: false,
       setAuthInitialized: (val: boolean) => set({ authInitialized: val }),
+      setSessionUserId: (uid: string | null) => set({ sessionUserId: uid }),
 
       register: async (userData) => {
         const { users } = get();
@@ -78,7 +82,7 @@ export const useStore = create<AuthState>()(
       logout: async () => {
         try {
           await supabaseService.signOut();
-          set({ currentUser: null, users: [] });
+          set({ currentUser: null, users: [], sessionUserId: null });
         } catch (error) {
           console.error('Logout error:', error);
           set({ currentUser: null });

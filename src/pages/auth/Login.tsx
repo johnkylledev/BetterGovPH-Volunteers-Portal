@@ -1,10 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Home } from 'lucide-react';
-import { Show, SignIn, UserButton } from '@clerk/react';
+import { LoadingOverlay } from '../../components/LoadingOverlay';
+import { useStore } from '../../store/useStore';
+import { signInWithGoogle } from '../../services/supabase';
 
 export default function Login() {
+  const { authInitialized, sessionUserId } = useStore();
+  const setSessionUserId = useStore((s: any) => s.setSessionUserId);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  if (!authInitialized) return <LoadingOverlay />;
   return (
     <div className="min-h-screen bg-white flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 selection:bg-blue-900/20 relative">
       <Link
@@ -38,30 +45,28 @@ export default function Login() {
         className="mt-8 sm:mx-auto sm:w-full sm:max-w-md"
       >
         <div className="py-2 px-0">
-          <Show when="signed-out">
-            <div className="flex justify-center">
-              <SignIn
-                routing="hash"
-                fallbackRedirectUrl="/dashboard"
-                signUpUrl="/register"
-                signUpFallbackRedirectUrl="/register"
-              />
+          {error && (
+            <div className="mb-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+              {error}
             </div>
-          </Show>
-
-          <Show when="signed-in">
-            <div className="space-y-4">
-              <div className="flex items-center justify-center">
-                <UserButton />
-              </div>
-              <Link
-                to="/dashboard"
-                className="flex w-full justify-center rounded-lg bg-blue-900 px-4 py-3.5 text-sm font-semibold text-white shadow-md hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-900/20 transition-all active:scale-[0.98]"
-              >
-                Continue
-              </Link>
-            </div>
-          </Show>
+          )}
+          <button
+            type="button"
+            disabled={loading || !!sessionUserId}
+            onClick={async () => {
+              setError('');
+              setLoading(true);
+              try {
+                await signInWithGoogle(`${window.location.origin}/register`);
+              } catch (e: any) {
+                setError(e?.message || 'Failed to sign in with Google');
+                setLoading(false);
+              }
+            }}
+            className="flex w-full justify-center rounded-lg bg-blue-900 px-4 py-3.5 text-sm font-semibold text-white shadow-md hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-900/20 transition-all active:scale-[0.98] disabled:opacity-60"
+          >
+            {loading ? 'Redirecting...' : 'Continue with Google'}
+          </button>
         </div>
       </motion.div>
     </div>

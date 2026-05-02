@@ -4,12 +4,12 @@ import { useStore } from '../../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { Calendar, ChevronDown, Check, MessageSquare, Home, ArrowRight, ArrowLeft, User, Mail, Lock, Briefcase, Users, ShieldCheck, Loader2, AlertCircle, CheckCircle2, Clock, Search, Plus, X, BookOpen, Wrench, GraduationCap, Brain, Code, Palette, Database, Globe, Cpu, Layers, Server, Smartphone, Zap, Target, BadgeCheck } from 'lucide-react';
-import { Show, SignUp, UserButton, useUser } from '@clerk/react';
+import { LoadingOverlay } from '../../components/LoadingOverlay';
 import { SkillLevel, ExperienceLevel, UserSkill } from '../../types';
 import { skillToSlug } from '../../utils/skillUtils';
 import { SPECIALIZATIONS, Specialization } from '../../constants/specializations';
 import { SKILL_CATEGORIES, SkillCategory } from '../../constants/skills';
-import { createOrUpdateUserRecord, getUserData } from '../../services/supabase';
+import { createOrUpdateUserRecord, getUserData, signInWithGoogle } from '../../services/supabase';
 
 const LEVEL_CONFIG: Record<SkillLevel, { label: string; icon: any; desc: string }> = {
   'Learner': {
@@ -57,8 +57,9 @@ function LegacyRegister() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [shouldShake, setShouldShake] = useState(false);
-  const { isSignedIn, user } = useUser();
   const setCurrentUser = useStore((state) => state.setCurrentUser);
+  const authInitialized = useStore((state) => state.authInitialized);
+  const sessionUserId = useStore((state) => state.sessionUserId);
 
   const dragContainerRef = React.useRef<HTMLDivElement>(null);
   const dragContentRef = React.useRef<HTMLDivElement>(null);
@@ -92,7 +93,41 @@ function LegacyRegister() {
   const [roleScores, setRoleScores] = useState<Record<string, number>>({});
   const [betterRoleSuggestion, setBetterRoleSuggestion] = useState<string | null>(null);
 
-  if (!isSignedIn) {
+  useEffect(() => {
+    if (formData.skills.length === 0) {
+      setRoleScores({});
+      setBetterRoleSuggestion(null);
+      return;
+    }
+
+    const scores: Record<string, number> = {};
+    SPECIALIZATIONS.forEach(spec => {
+      const matchingSkills = formData.skills.filter(s =>
+        spec.requiredSkills.some(rs => rs.toLowerCase() === s.name.toLowerCase())
+      );
+      const score = Math.min(100, Math.round((matchingSkills.length / spec.minRequiredCount) * 100));
+      scores[spec.label] = score;
+    });
+
+    setRoleScores(scores);
+
+    const currentRoleScore = scores[formData.specialization] || 0;
+    const bestRole = Object.entries(scores).reduce((a, b) => a[1] > b[1] ? a : b);
+
+    if (bestRole[0] !== formData.specialization && bestRole[1] > currentRoleScore + 20) {
+      setBetterRoleSuggestion(bestRole[0]);
+    } else {
+      setBetterRoleSuggestion(null);
+    }
+  }, [formData.skills, formData.specialization]);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentStep]);
+
+  if (!authInitialized) return <LoadingOverlay />;
+
+  if (!sessionUserId) {
     return (
       <div className="min-h-screen bg-white flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 selection:bg-blue-900/20 relative">
         <Link
@@ -118,79 +153,32 @@ function LegacyRegister() {
 
         <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
           <div className="flex justify-center">
-            <SignUp
-              routing="hash"
-              fallbackRedirectUrl="/register"
-              signInUrl="/login"
-              signInFallbackRedirectUrl="/dashboard"
-            />
+            <button
+              type="button"
+              disabled={loading}
+              onClick={async () => {
+                setError('');
+                setLoading(true);
+                try {
+                  await signInWithGoogle(`${window.location.origin}/register`);
+                } catch (e: any) {
+                  setError(e?.message || 'Failed to continue with Google');
+                  setLoading(false);
+                }
+              }}
+              className="w-full max-w-md flex justify-center rounded-lg bg-blue-900 px-4 py-3.5 text-sm font-semibold text-white shadow-md hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-900/20 transition-all active:scale-[0.98] disabled:opacity-60"
+            >
+              {loading ? 'Redirecting...' : 'Continue with Google'}
+            </button>
           </div>
         </div>
       </div>
     );
   }
 
-  useEffect(() => {
-    if (!user) return;
-    try {
-      const raw = window.localStorage.getItem(`bgph_profile:${user.id}`);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (!parsed || typeof parsed !== 'object') return;
-      setFormData((prev) => ({
-        ...prev,
-        fullName: typeof (parsed as any).fullName === 'string' ? (parsed as any).fullName : prev.fullName,
-        discordUsername: typeof (parsed as any).discordUsername === 'string' ? (parsed as any).discordUsername : prev.discordUsername,
-        yearJoined: typeof (parsed as any).yearJoined === 'number' ? (parsed as any).yearJoined : prev.yearJoined,
-        specialization: typeof (parsed as any).specialization === 'string' ? (parsed as any).specialization : prev.specialization,
-        role: typeof (parsed as any).role === 'string' ? (parsed as any).role : prev.role,
-        experienceLevel: typeof (parsed as any).experienceLevel === 'string' ? (parsed as any).experienceLevel : prev.experienceLevel,
-        skills: Array.isArray((parsed as any).skills) ? (parsed as any).skills : prev.skills,
-      }));
-    } catch {
-      return;
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (formData.skills.length === 0) {
-      setRoleScores({});
-      setBetterRoleSuggestion(null);
-      return;
-    }
-
-    const scores: Record<string, number> = {};
-    SPECIALIZATIONS.forEach(spec => {
-      const matchingSkills = formData.skills.filter(s =>
-        spec.requiredSkills.some(rs => rs.toLowerCase() === s.name.toLowerCase())
-      );
-      // Simple percentage based on required skills found vs total required count (minimum 3)
-      // Limit to 100% maximum
-      const score = Math.min(100, Math.round((matchingSkills.length / spec.minRequiredCount) * 100));
-      scores[spec.label] = score;
-    });
-
-    setRoleScores(scores);
-
-    // Suggest a better role if another role has a significantly higher score
-    const currentRoleScore = scores[formData.specialization] || 0;
-    const bestRole = Object.entries(scores).reduce((a, b) => a[1] > b[1] ? a : b);
-
-    if (bestRole[0] !== formData.specialization && bestRole[1] > currentRoleScore + 20) {
-      setBetterRoleSuggestion(bestRole[0]);
-    } else {
-      setBetterRoleSuggestion(null);
-    }
-  }, [formData.skills, formData.specialization]);
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
-
-  // Scroll to top on step change
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [currentStep]);
 
   const validateStep = async (step: Step) => {
     setError('');
@@ -202,7 +190,7 @@ function LegacyRegister() {
     };
 
     if (step === 1) {
-      if (!isSignedIn) return triggerError('Please create an account (or sign in) to continue.');
+      if (!sessionUserId) return triggerError('Please create an account (or sign in) to continue.');
       if (!formData.fullName.trim()) return triggerError('Please enter your full name.');
       if (!formData.discordUsername.trim()) return triggerError('Please enter your Discord username.');
     } else if (step === 2) {
@@ -430,13 +418,13 @@ function LegacyRegister() {
     }
 
     try {
-      if (!user) {
+      if (!sessionUserId) {
         setError('Please create an account (or sign in) to continue.');
         return;
       }
 
-      await createOrUpdateUserRecord({
-        uid: user.id,
+      const saved = await createOrUpdateUserRecord({
+        uid: sessionUserId,
         fullName: formData.fullName.trim(),
         specialization: primaryRole,
         role: rl,
@@ -444,11 +432,9 @@ function LegacyRegister() {
         yearJoined: Number(formData.yearJoined),
         skills: formData.skills,
         experienceLevel: formData.experienceLevel,
-        authProvider: 'clerk',
+        authProvider: 'google',
       });
-
-      const updated = await getUserData(user.id).catch(() => null);
-      if (updated) setCurrentUser(updated as any);
+      if (saved) setCurrentUser(saved as any);
       setShowSuccessModal(true);
     } catch (err: any) {
       setError(err.message || 'Registration failed');
@@ -581,82 +567,69 @@ function LegacyRegister() {
                     className="space-y-5 sm:space-y-6"
                   >
                     <div className="space-y-4">
-                      <Show when="signed-out">
-                        <div className="flex justify-center">
-                          <SignUp
-                            routing="hash"
-                            fallbackRedirectUrl="/register"
-                            signInUrl="/login"
-                            signInFallbackRedirectUrl="/dashboard"
-                          />
+                      <div className="space-y-5">
+                        <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="min-w-0">
+                              <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Account</p>
+                              <p className="mt-2 text-sm font-bold text-slate-900 truncate">Signed in</p>
+                            </div>
+                          </div>
                         </div>
-                      </Show>
 
-                      <Show when="signed-in">
-                        <div className="space-y-5">
-                          <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
-                            <div className="flex items-center justify-between gap-4">
-                              <div className="min-w-0">
-                                <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Account</p>
-                                <p className="mt-2 text-sm font-bold text-slate-900 truncate">Signed in</p>
-                              </div>
-                              <UserButton />
+                        <div>
+                          <label className="block text-base font-bold text-slate-800 mb-4 tracking-tight">Full Name</label>
+                          <div className="relative group">
+                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-900 transition-colors">
+                              <User size={18} />
                             </div>
+                            <input
+                              name="fullName"
+                              type="text"
+                              value={formData.fullName}
+                              onChange={handleChange}
+                              className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-4 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base transition-all"
+                              placeholder="Juan Dela Cruz"
+                            />
                           </div>
+                        </div>
 
-                          <div>
-                            <label className="block text-base font-bold text-slate-800 mb-4 tracking-tight">Full Name</label>
-                            <div className="relative group">
-                              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-900 transition-colors">
-                                <User size={18} />
-                              </div>
-                              <input
-                                name="fullName"
-                                type="text"
-                                value={formData.fullName}
-                                onChange={handleChange}
-                                className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-4 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base transition-all"
-                                placeholder="Juan Dela Cruz"
-                              />
+                        <div>
+                          <label className="block text-base font-bold text-slate-800 mb-4 tracking-tight">Discord Username</label>
+                          <div className="relative group">
+                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-900 transition-colors">
+                              <MessageSquare size={18} />
                             </div>
+                            <input
+                              name="discordUsername"
+                              type="text"
+                              value={formData.discordUsername}
+                              onChange={handleChange}
+                              className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-4 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base transition-all"
+                              placeholder="juan_dev#1234"
+                            />
                           </div>
+                        </div>
 
-                          <div>
-                            <label className="block text-base font-bold text-slate-800 mb-4 tracking-tight">Discord Username</label>
-                            <div className="relative group">
-                              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-900 transition-colors">
-                                <MessageSquare size={18} />
-                              </div>
-                              <input
-                                name="discordUsername"
-                                type="text"
-                                value={formData.discordUsername}
-                                onChange={handleChange}
-                                className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-4 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base transition-all"
-                                placeholder="juan_dev#1234"
-                              />
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="block text-base font-bold text-slate-800 mb-4 tracking-tight">Member Since</label>
-                            <div className="relative">
-                              <button
-                                type="button"
-                                onClick={() => setIsYearOpen(!isYearOpen)}
-                                className={clsx(
-                                  "relative w-full flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-500/10",
-                                  isYearOpen ? "border-blue-500 ring-4 ring-blue-500/10 bg-white shadow-sm" : "border-slate-200 bg-white hover:border-slate-300"
-                                )}
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div className="text-blue-900">
-                                    <Calendar className="w-4 h-4" />
-                                  </div>
-                                  <span className="text-sm font-bold text-slate-900">{formData.yearJoined}</span>
+                        <div>
+                          <label className="block text-base font-bold text-slate-800 mb-4 tracking-tight">Member Since</label>
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setIsYearOpen(!isYearOpen)}
+                              className={clsx(
+                                "relative w-full flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-500/10",
+                                isYearOpen ? "border-blue-500 ring-4 ring-blue-500/10 bg-white shadow-sm" : "border-slate-200 bg-white hover:border-slate-300"
+                              )}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="text-blue-900">
+                                  <Calendar className="w-4 h-4" />
                                 </div>
-                                <ChevronDown className={clsx("w-4 h-4 text-slate-400 transition-transform duration-300", isYearOpen && "rotate-180")} />
-                              </button>
+                                <span className="text-sm font-bold text-slate-900">{formData.yearJoined}</span>
+                              </div>
+                              <ChevronDown className={clsx("w-4 h-4 text-slate-400 transition-transform duration-300", isYearOpen && "rotate-180")} />
+                            </button>
 
                               <AnimatePresence>
                                 {isYearOpen && (
@@ -701,9 +674,8 @@ function LegacyRegister() {
                                 )}
                               </AnimatePresence>
                             </div>
-                          </div>
                         </div>
-                      </Show>
+                      </div>
                     </div>
                   </motion.div>
                 )}
@@ -1149,7 +1121,7 @@ function LegacyRegister() {
                 )}
               </AnimatePresence>
 
-              {!(currentStep === 1 && !isSignedIn) && (
+              {!(currentStep === 1 && !sessionUserId) && (
                 <div className="pt-8 flex gap-3">
                   {currentStep > 1 && (
                     <button

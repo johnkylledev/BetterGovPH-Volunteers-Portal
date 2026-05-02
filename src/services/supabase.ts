@@ -7,19 +7,26 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const getAccessToken = async () => {
-  const w = typeof window !== 'undefined' ? (window as any) : null;
-  const clerk = w?.Clerk;
-  if (!clerk?.session) return null;
-  try {
-    const token = await clerk.session.getToken();
-    return typeof token === 'string' && token.trim() ? token : null;
-  } catch {
-    return null;
-  }
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token || null;
 };
 
 const apiRequest = async <T = any>(path: string, init?: RequestInit): Promise<T> => {
-  const res = await fetch(path, init);
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timeoutMs = 8000;
+  const t = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+  let res: Response;
+  try {
+    res = await fetch(path, { ...(init || {}), signal: controller?.signal });
+  } catch (e: any) {
+    if (t) clearTimeout(t);
+    const isAbort =
+      e?.name === 'AbortError' ||
+      (typeof e?.message === 'string' && e.message.toLowerCase().includes('aborted'));
+    if (isAbort) throw new Error('Request timed out');
+    throw e;
+  }
+  if (t) clearTimeout(t);
   const contentType = res.headers.get('content-type') || '';
   const isJson = contentType.includes('application/json');
   const payload = isJson ? await res.json().catch(() => null) : await res.text().catch(() => null);
@@ -107,12 +114,15 @@ const mapToDbUser = (user: any) => {
 
 // Auth Providers
 export const signOut = async () => {
-  const w = typeof window !== 'undefined' ? (window as any) : null;
-  const clerk = w?.Clerk;
-  if (clerk?.signOut) {
-    await clerk.signOut();
-    return;
-  }
+  await supabase.auth.signOut();
+};
+
+export const signInWithGoogle = async (redirectTo: string) => {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo },
+  });
+  if (error) throw error;
 };
 
 // Database Functions
@@ -152,7 +162,7 @@ export const ensureUserHasMemberId = async (uid: string) => {
 export const createOrUpdateUserRecord = async (user: any) => {
   const token = await getAccessToken();
   if (!token) throw new Error('Not authenticated');
-  await apiRequest<{ user: User }>('/api/me', {
+  const res = await apiRequest<{ user: User }>('/api/me', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -169,6 +179,7 @@ export const createOrUpdateUserRecord = async (user: any) => {
       authProvider: user.authProvider,
     }),
   });
+  return res.user;
 };
 
 export const updateUserData = async (uid: string, data: any) => {
