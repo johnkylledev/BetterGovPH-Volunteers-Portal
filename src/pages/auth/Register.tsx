@@ -9,7 +9,7 @@ import { SkillLevel, ExperienceLevel, UserSkill } from '../../types';
 import { skillToSlug } from '../../utils/skillUtils';
 import { SPECIALIZATIONS, Specialization } from '../../constants/specializations';
 import { SKILL_CATEGORIES, SkillCategory } from '../../constants/skills';
-import { createOrUpdateUserRecord, getUserData, signInWithGoogle } from '../../services/supabase';
+import { createOrUpdateUserRecord, getUserData, signInWithGoogle, supabase } from '../../services/supabase';
 
 const LEVEL_CONFIG: Record<SkillLevel, { label: string; icon: any; desc: string }> = {
   'Learner': {
@@ -57,6 +57,7 @@ function LegacyRegister() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [shouldShake, setShouldShake] = useState(false);
+  const [userEmail, setUserEmail] = useState<string>('');
   const setCurrentUser = useStore((state) => state.setCurrentUser);
   const authInitialized = useStore((state) => state.authInitialized);
   const sessionUserId = useStore((state) => state.sessionUserId);
@@ -124,6 +125,15 @@ function LegacyRegister() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentStep]);
+
+  useEffect(() => {
+    if (sessionUserId) {
+      (async () => {
+        const { data } = await supabase.auth.getSession();
+        setUserEmail(data.session?.user?.email || '');
+      })();
+    }
+  }, [sessionUserId]);
 
   if (!authInitialized) return <LoadingOverlay />;
 
@@ -642,7 +652,7 @@ function LegacyRegister() {
                           <div className="flex items-center justify-between gap-4">
                             <div className="min-w-0">
                               <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Account</p>
-                              <p className="mt-2 text-sm font-bold text-slate-900 truncate">Signed in</p>
+                              <p className="mt-2 text-sm font-bold text-slate-900 truncate">{userEmail || 'Loading...'}</p>
                             </div>
                           </div>
                         </div>
