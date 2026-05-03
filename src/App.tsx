@@ -101,17 +101,44 @@ export default function App() {
       setSessionUserId(uid);
       if (!uid) {
         setCurrentUser(null);
-        return;
+      } else {
+        const profile = await getUserData(uid).catch(() => null);
+        setCurrentUser(profile);
       }
-      const profile = await getUserData(uid).catch(() => null);
-      setCurrentUser(profile);
     });
 
     return () => {
       cancelled = true;
-      sub?.subscription?.unsubscribe();
+      sub.subscription.unsubscribe();
     };
-  }, [setAuthInitialized, setCurrentUser, setSessionUserId]);
+  }, [setCurrentUser, setAuthInitialized, setSessionUserId]);
+
+  useEffect(() => {
+    if (!sessionUserId) return;
+
+    const channel = supabase
+      .channel('user-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'users',
+          filter: `uid=eq.${sessionUserId}`,
+        },
+        async (payload) => {
+          const profile = await getUserData(sessionUserId).catch(() => null);
+          if (profile) {
+            setCurrentUser(profile);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [sessionUserId, setCurrentUser]);
 
   useEffect(() => {
     if (!sessionUserId) return;

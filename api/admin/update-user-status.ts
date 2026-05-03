@@ -133,17 +133,20 @@ export default async function handler(req: any, res: any) {
   const uid = typeof body.uid === 'string' ? body.uid : typeof body.id === 'string' ? body.id : null;
   const status = typeof body.status === 'string' ? body.status : null;
   const adminNotes = typeof body.adminNotes === 'string' ? body.adminNotes : undefined;
+  const isAdmin = typeof body.isAdmin === 'boolean' ? body.isAdmin : undefined;
 
-  if (!uid || !status) {
-    res.status(400).json({ error: 'Missing uid and/or status' });
+  if (!uid) {
+    res.status(400).json({ error: 'Missing uid' });
     return;
   }
 
-  const updates: any = { status, updated_at: new Date().toISOString() };
+  const updates: any = { updated_at: new Date().toISOString() };
+  if (status) updates.status = status;
   if (adminNotes !== undefined) updates.admin_notes = adminNotes;
+  if (isAdmin !== undefined) updates.is_admin = isAdmin;
 
   let memberId: string | undefined;
-  if (status === 'Approved') {
+  if (status === 'Approved' || isAdmin === true) {
     try {
       memberId = await ensureUserHasMemberId(supabaseAdmin, uid);
       updates.member_id = memberId;

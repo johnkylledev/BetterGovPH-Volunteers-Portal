@@ -40,9 +40,9 @@ export default function UserDashboard() {
 
   useEffect(() => {
     if (authInitialized && currentUser?.isAdmin) {
-      navigate('/admin');
+      navigate('/admin', { replace: true });
     }
-  }, [currentUser, navigate, authInitialized]);
+  }, [currentUser?.isAdmin, navigate, authInitialized]);
 
   if (!authInitialized || !currentUser) return <LoadingOverlay />;
 
