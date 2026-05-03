@@ -193,6 +193,17 @@ export default async function handler(req: any, res: any) {
 
   const updated = Array.isArray(updatedRows) ? updatedRows[0] : null;
   if (!updated) {
+    const { data: existingUser, error: checkError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('uid', uid)
+      .maybeSingle();
+
+    if (existingUser) {
+      res.status(200).json({ user: mapUserRow(existingUser) });
+      return;
+    }
+
     const now = new Date().toISOString();
     const insertRow = {
       uid,
@@ -219,9 +230,26 @@ export default async function handler(req: any, res: any) {
       .select('*')
       .maybeSingle();
 
-    if (insertError || !inserted) {
+    if (insertError) {
+      if (insertError.message?.includes('duplicate key') || insertError.code === '23505') {
+        const { data: retryFetch } = await supabase
+          .from('users')
+          .select('*')
+          .eq('uid', uid)
+          .maybeSingle();
+        
+        if (retryFetch) {
+          res.status(200).json({ user: mapUserRow(retryFetch) });
+          return;
+        }
+      }
       const message = typeof (insertError as any)?.message === 'string' ? String((insertError as any).message) : '';
       res.status(500).json({ error: 'Failed to create profile', details: message || undefined });
+      return;
+    }
+
+    if (!inserted) {
+      res.status(500).json({ error: 'Failed to create profile' });
       return;
     }
 

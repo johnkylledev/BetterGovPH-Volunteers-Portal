@@ -58,7 +58,9 @@ function LegacyRegister() {
   const [loading, setLoading] = useState(false);
   const [shouldShake, setShouldShake] = useState(false);
   const [userEmail, setUserEmail] = useState<string>('');
+  const [checkingProfile, setCheckingProfile] = useState(false);
   const setCurrentUser = useStore((state) => state.setCurrentUser);
+  const currentUser = useStore((state) => state.currentUser);
   const authInitialized = useStore((state) => state.authInitialized);
   const sessionUserId = useStore((state) => state.sessionUserId);
 
@@ -128,14 +130,29 @@ function LegacyRegister() {
 
   useEffect(() => {
     if (sessionUserId) {
+      setCheckingProfile(true);
       (async () => {
         const { data } = await supabase.auth.getSession();
         setUserEmail(data.session?.user?.email || '');
+        
+        const profile = await getUserData(sessionUserId);
+        if (profile) {
+          setCurrentUser(profile);
+          const isComplete = profile.fullName && profile.discordUsername && profile.specialization && profile.yearJoined;
+          if (isComplete) {
+            if (profile.isAdmin) {
+              navigate('/admin', { replace: true });
+            } else {
+              navigate('/dashboard', { replace: true });
+            }
+          }
+        }
+        setCheckingProfile(false);
       })();
     }
   }, [sessionUserId]);
 
-  if (!authInitialized) return <LoadingOverlay />;
+  if (!authInitialized || checkingProfile) return <LoadingOverlay />;
 
   if (!sessionUserId) {
     return (
