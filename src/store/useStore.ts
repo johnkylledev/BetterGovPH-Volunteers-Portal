@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { User, ApplicationStatus } from '../types';
 import * as supabaseService from '../services/supabase';
 
@@ -23,11 +22,9 @@ interface AuthState {
 const generateId = () => Math.random().toString(36).substring(2, 9);
 const generateMemberCode = () => `BGPH-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
 
-export const useStore = create<AuthState>()(
-  persist(
-    (set, get) => ({
-      users: [],
-      currentUser: null,
+export const useStore = create<AuthState>()((set, get) => ({
+  users: [],
+  currentUser: null,
       sessionUserId: null,
       authInitialized: false,
       setAuthInitialized: (val: boolean) => set({ authInitialized: val }),
@@ -83,12 +80,10 @@ export const useStore = create<AuthState>()(
         try {
           await supabaseService.signOut();
           set({ currentUser: null, users: [], sessionUserId: null, authInitialized: false });
-          localStorage.removeItem('auth-storage');
           window.location.href = '/login';
         } catch (error) {
           console.error('Logout error:', error);
           set({ currentUser: null, sessionUserId: null, authInitialized: false });
-          localStorage.removeItem('auth-storage');
           window.location.href = '/login';
         }
       },
@@ -196,16 +191,4 @@ export const useStore = create<AuthState>()(
       },
 
       setUsers: (users) => set({ users }),
-    }),
-    {
-      name: 'bettergovph-store-v2',
-      partialize: (state) => ({
-        users: state.users,
-        currentUser: state.currentUser ? {
-          ...state.currentUser,
-          password: undefined,
-        } : null,
-      }),
-    }
-  )
-);
+    }));
