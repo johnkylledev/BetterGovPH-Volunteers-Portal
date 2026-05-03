@@ -67,10 +67,12 @@ export default function App() {
     
     (async () => {
       try {
+        console.log('App: Fetching session...');
         const { data } = await supabase.auth.getSession();
         const uid = data.session?.user?.id ?? null;
         if (cancelled) return;
         
+        console.log('App: Session fetched, uid:', uid);
         setSessionUserId(uid);
         setAuthInitialized(true);
         setBootstrapping(false);
@@ -80,10 +82,13 @@ export default function App() {
           return;
         }
 
+        console.log('App: Fetching user profile...');
         const profile = await getUserData(uid).catch(() => null);
         if (cancelled) return;
+        console.log('App: Profile fetched:', profile?.fullName);
         setCurrentUser(profile);
-      } catch {
+      } catch (err) {
+        console.error('App: Initialization error:', err);
         if (!cancelled) {
           setSessionUserId(null);
           setCurrentUser(null);
@@ -124,6 +129,7 @@ export default function App() {
           filter: `uid=eq.${sessionUserId}`,
         },
         async (payload) => {
+          console.log('Real-time: Current user profile updated');
           const profile = await getUserData(sessionUserId).catch(() => null);
           if (profile) {
             setCurrentUser(profile);
@@ -134,31 +140,6 @@ export default function App() {
 
     return () => {
       channel.unsubscribe();
-    };
-  }, [sessionUserId, setCurrentUser]);
-
-  useEffect(() => {
-    if (!sessionUserId) return;
-    let cancelled = false;
-    const refresh = async () => {
-      const profile = await getUserData(sessionUserId).catch(() => null);
-      if (cancelled) return;
-      if (profile) setCurrentUser(profile);
-    };
-    refresh();
-    const intervalMs = 10000;
-    const t = setInterval(refresh, intervalMs);
-    const onFocus = () => refresh();
-    window.addEventListener('focus', onFocus);
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') refresh();
-    };
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => {
-      cancelled = true;
-      clearInterval(t);
-      window.removeEventListener('focus', onFocus);
-      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [sessionUserId, setCurrentUser]);
 
