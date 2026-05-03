@@ -110,8 +110,12 @@ export default function AdminDashboard() {
     if (!currentUser?.isAdmin) return;
     if (activeTab === 'projects') {
       loadProjectSubmissions();
+      const interval = setInterval(loadProjectSubmissions, 5000);
+      return () => clearInterval(interval);
     } else {
       loadUsers(currentPage);
+      const interval = setInterval(() => loadUsers(currentPage), 5000);
+      return () => clearInterval(interval);
     }
   }, [currentUser, currentPage, activeTab, statusFilter, roleFilter, searchTerm]);
 

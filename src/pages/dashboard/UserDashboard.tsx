@@ -113,6 +113,22 @@ export default function UserDashboard() {
   }, [activeTab]);
 
   useEffect(() => {
+    if (activeTab === 'submit-project') {
+      loadMySubmissions();
+      const interval = setInterval(loadMySubmissions, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'volunteer') {
+      loadVolunteerCalls();
+      const interval = setInterval(loadVolunteerCalls, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
     if (!currentUser) return;
 
     const projectsChannel = supabase
@@ -126,9 +142,7 @@ export default function UserDashboard() {
           filter: `user_id=eq.${currentUser.id}`,
         },
         () => {
-          if (activeTab === 'submit-project') {
-            loadMySubmissions();
-          }
+          loadMySubmissions();
         }
       )
       .subscribe();
@@ -143,9 +157,8 @@ export default function UserDashboard() {
           table: 'volunteer_calls',
         },
         () => {
-          if (activeTab === 'volunteer') {
-            loadVolunteerCalls();
-          }
+          console.log('Real-time: Volunteer calls changed');
+          loadVolunteerCalls();
         }
       )
       .subscribe();
@@ -154,7 +167,7 @@ export default function UserDashboard() {
       projectsChannel.unsubscribe();
       volunteerChannel.unsubscribe();
     };
-  }, [currentUser, activeTab]);
+  }, [currentUser]);
 
   const handleVolunteerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
