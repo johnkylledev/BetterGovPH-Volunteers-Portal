@@ -141,16 +141,20 @@ export default function AdminDashboard() {
       if (!confirmApproval) return;
     }
 
-    const res = await updateUserStatus(userId, status, adminNote);
+    try {
+      const res = await updateUserStatus(userId, status, adminNote);
 
-    if (res && (res as any).success) {
-      setSelectedUser(null);
-      setAdminNote('');
-      // Refresh data and stats after update
-      loadUsers(currentPage);
-      loadStats();
-    } else {
-      alert(`Failed to update database: ${(res as any)?.message || 'Unknown error'}. Please check if the user exists in Supabase.`);
+      if (res && (res as any).success) {
+        setSelectedUser(null);
+        setAdminNote('');
+        loadUsers(currentPage);
+        loadStats();
+      } else {
+        alert(`Failed to update database: ${(res as any)?.message || 'Unknown error'}. Please check if the user exists in Supabase.`);
+      }
+    } catch (error: any) {
+      console.error('Error updating user status:', error);
+      alert(`Error: ${error.message || 'Failed to update user status'}`);
     }
   };
 

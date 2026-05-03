@@ -135,8 +135,15 @@ export default async function handler(req: any, res: any) {
   const adminNotes = typeof body.adminNotes === 'string' ? body.adminNotes : undefined;
   const isAdmin = typeof body.isAdmin === 'boolean' ? body.isAdmin : undefined;
 
+  console.log('Update user status request:', { uid, status, adminNotes, isAdmin });
+
   if (!uid) {
     res.status(400).json({ error: 'Missing uid' });
+    return;
+  }
+
+  if (!status && isAdmin === undefined) {
+    res.status(400).json({ error: 'Must provide status or isAdmin' });
     return;
   }
 
@@ -150,7 +157,8 @@ export default async function handler(req: any, res: any) {
     try {
       memberId = await ensureUserHasMemberId(supabaseAdmin, uid);
       updates.member_id = memberId;
-    } catch {
+    } catch (err) {
+      console.error('Failed to generate member ID:', err);
       res.status(500).json({ error: 'Failed to generate memberId' });
       return;
     }
