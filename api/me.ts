@@ -111,6 +111,17 @@ export default async function handler(req: any, res: any) {
     }
 
     if (!data) {
+      const { data: emailCheck } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (emailCheck) {
+        res.status(200).json({ user: mapUserRow(emailCheck) });
+        return;
+      }
+
       const now = new Date().toISOString();
       const insertRow = {
         uid,
@@ -137,9 +148,37 @@ export default async function handler(req: any, res: any) {
         .select('*')
         .maybeSingle();
 
-      if (insertError || !inserted) {
+      if (insertError) {
+        if (insertError.message?.includes('duplicate key') || insertError.code === '23505') {
+          const { data: retryByUid } = await supabase
+            .from('users')
+            .select('*')
+            .eq('uid', uid)
+            .maybeSingle();
+          
+          if (retryByUid) {
+            res.status(200).json({ user: mapUserRow(retryByUid) });
+            return;
+          }
+
+          const { data: retryByEmail } = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', email)
+            .maybeSingle();
+          
+          if (retryByEmail) {
+            res.status(200).json({ user: mapUserRow(retryByEmail) });
+            return;
+          }
+        }
         const message = typeof (insertError as any)?.message === 'string' ? String((insertError as any).message) : '';
         res.status(500).json({ error: 'Failed to create profile', details: message || undefined });
+        return;
+      }
+
+      if (!inserted) {
+        res.status(500).json({ error: 'Failed to create profile' });
         return;
       }
 
