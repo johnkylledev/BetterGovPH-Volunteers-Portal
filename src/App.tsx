@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
@@ -39,10 +39,14 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { currentUser, authInitialized } = useStore();
   const { sessionUserId } = useStore();
+  const location = useLocation();
 
   if (!authInitialized) return <LoadingOverlay />;
   if (sessionUserId) {
-    if (!currentUser) return <Navigate to="/register" replace />;
+    if (!currentUser) {
+      if (location.pathname === "/login") return <Navigate to="/register" replace />;
+      return <LoadingOverlay />;
+    }
     if (currentUser?.isAdmin) return <Navigate to="/admin" replace />;
     return <Navigate to={isProfileComplete(currentUser) ? "/dashboard" : "/register"} replace />;
   }
