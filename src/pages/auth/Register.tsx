@@ -746,7 +746,7 @@ function LegacyRegister() {
                                       className="absolute left-0 right-0 mt-2 z-20 bg-white border border-slate-100 rounded-lg shadow-xl shadow-blue-900/10 overflow-hidden max-h-[200px] overflow-y-auto no-scrollbar"
                                     >
                                       <div className="p-2 grid grid-cols-1 gap-1">
-                                        {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i).map((year) => (
+                                        {Array.from({ length: new Date().getFullYear() - 2024 }, (_, i) => new Date().getFullYear() - i).map((year) => (
                                           <button
                                             key={year}
                                             type="button"

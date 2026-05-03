@@ -107,14 +107,13 @@ export default function AdminDashboard() {
   }, [activeTab, statusFilter, roleFilter, searchTerm]);
 
   useEffect(() => {
-    if (activeTab === 'projects') return;
-    loadUsers(currentPage);
-  }, [currentUser, setUsers, currentPage, activeTab, statusFilter, roleFilter, searchTerm]);
-
-  useEffect(() => {
-    if (activeTab !== 'projects') return;
-    loadProjectSubmissions();
-  }, [activeTab]);
+    if (!currentUser?.isAdmin) return;
+    if (activeTab === 'projects') {
+      loadProjectSubmissions();
+    } else {
+      loadUsers(currentPage);
+    }
+  }, [currentUser, currentPage, activeTab, statusFilter, roleFilter, searchTerm]);
 
   useEffect(() => {
     if (!currentUser?.isAdmin) return;
@@ -129,7 +128,10 @@ export default function AdminDashboard() {
           table: 'users',
         },
         () => {
-          loadUsers(currentPage);
+          console.log('Real-time: Users table changed');
+          if (activeTab !== 'projects') {
+            loadUsers(currentPage);
+          }
           loadStats();
         }
       )
@@ -145,6 +147,7 @@ export default function AdminDashboard() {
           table: 'project_submissions',
         },
         () => {
+          console.log('Real-time: Project submissions changed');
           if (activeTab === 'projects') {
             loadProjectSubmissions();
           }
