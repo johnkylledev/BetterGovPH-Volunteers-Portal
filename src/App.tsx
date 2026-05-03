@@ -62,6 +62,15 @@ export default function App() {
   const [_bootstrapping, setBootstrapping] = useState(false);
 
   useEffect(() => {
+    const STORAGE_VERSION = '1.0';
+    const currentVersion = localStorage.getItem('app-version');
+    if (currentVersion !== STORAGE_VERSION) {
+      localStorage.clear();
+      localStorage.setItem('app-version', STORAGE_VERSION);
+    }
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     setBootstrapping(true);
     setAuthInitialized(true);
