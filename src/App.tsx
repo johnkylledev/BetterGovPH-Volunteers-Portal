@@ -64,13 +64,15 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
     setBootstrapping(true);
-    setAuthInitialized(true);
+    
     (async () => {
       try {
         const { data } = await supabase.auth.getSession();
         const uid = data.session?.user?.id ?? null;
         if (cancelled) return;
+        
         setSessionUserId(uid);
+        setAuthInitialized(true);
         setBootstrapping(false);
 
         if (!uid) {
@@ -78,19 +80,14 @@ export default function App() {
           return;
         }
 
-        (async () => {
-          let profile = await getUserData(uid).catch(() => null);
-          for (let i = 0; i < 10 && !cancelled && !profile; i++) {
-            await new Promise((r) => setTimeout(r, 250));
-            profile = await getUserData(uid).catch(() => null);
-          }
-          if (cancelled) return;
-          setCurrentUser(profile);
-        })();
+        const profile = await getUserData(uid).catch(() => null);
+        if (cancelled) return;
+        setCurrentUser(profile);
       } catch {
         if (!cancelled) {
           setSessionUserId(null);
           setCurrentUser(null);
+          setAuthInitialized(true);
           setBootstrapping(false);
         }
       }

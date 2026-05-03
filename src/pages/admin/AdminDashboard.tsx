@@ -170,8 +170,15 @@ export default function AdminDashboard() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  if (!authInitialized || !currentUser) return <LoadingOverlay />;
-  if (!currentUser.isAdmin) return null;
+  if (!authInitialized) return <LoadingOverlay />;
+  if (!currentUser) {
+    navigate('/login');
+    return null;
+  }
+  if (!currentUser.isAdmin) {
+    navigate('/dashboard');
+    return null;
+  }
 
   const handleLogout = async () => {
     await logout();
