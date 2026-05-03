@@ -8,7 +8,7 @@ import { AccessCard } from '../../components/AccessCard';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
 import clsx from 'clsx';
 import { User, ApplicationStatus, ProjectSubmission } from '../../types';
-import { deleteProjectSubmission, getAllUsers, getAdminStats, getProjectSubmissions, updateProjectSubmission } from '../../services/supabase';
+import { deleteProjectSubmission, getAllUsers, getAdminStats, getProjectSubmissions, updateProjectSubmission, supabase } from '../../services/supabase';
 import * as XLSX from 'xlsx';
 import { skillToSlug } from '../../utils/skillUtils';
 import { SPECIALIZATIONS } from '../../constants/specializations';
@@ -115,6 +115,48 @@ export default function AdminDashboard() {
     if (activeTab !== 'projects') return;
     loadProjectSubmissions();
   }, [activeTab]);
+
+  useEffect(() => {
+    if (!currentUser?.isAdmin) return;
+
+    const usersChannel = supabase
+      .channel('admin-users-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'users',
+        },
+        () => {
+          loadUsers(currentPage);
+          loadStats();
+        }
+      )
+      .subscribe();
+
+    const projectsChannel = supabase
+      .channel('admin-projects-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'project_submissions',
+        },
+        () => {
+          if (activeTab === 'projects') {
+            loadProjectSubmissions();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      usersChannel.unsubscribe();
+      projectsChannel.unsubscribe();
+    };
+  }, [currentUser?.isAdmin, currentPage, activeTab]);
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);

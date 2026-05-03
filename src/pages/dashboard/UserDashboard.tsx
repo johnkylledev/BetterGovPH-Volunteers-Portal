@@ -8,7 +8,7 @@ import { ShieldAlert, CheckCircle2, Clock, LogOut, Download, Copy, Code, Check, 
 import html2canvas from 'html2canvas';
 import clsx from 'clsx';
 import { skillToSlug } from '../../utils/skillUtils';
-import { createVolunteerCall, getMyProjectSubmissions, getVolunteerCalls, submitProjectSubmission } from '../../services/supabase';
+import { createVolunteerCall, getMyProjectSubmissions, getVolunteerCalls, submitProjectSubmission, supabase } from '../../services/supabase';
 import { ProjectSubmission, VolunteerCall } from '../../types';
 
 export default function UserDashboard() {
@@ -111,6 +111,50 @@ export default function UserDashboard() {
     if (activeTab !== 'volunteer') return;
     loadVolunteerCalls();
   }, [activeTab]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const projectsChannel = supabase
+      .channel('user-projects-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'project_submissions',
+          filter: `user_id=eq.${currentUser.id}`,
+        },
+        () => {
+          if (activeTab === 'submit-project') {
+            loadMySubmissions();
+          }
+        }
+      )
+      .subscribe();
+
+    const volunteerChannel = supabase
+      .channel('user-volunteer-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'volunteer_calls',
+        },
+        () => {
+          if (activeTab === 'volunteer') {
+            loadVolunteerCalls();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      projectsChannel.unsubscribe();
+      volunteerChannel.unsubscribe();
+    };
+  }, [currentUser, activeTab]);
 
   const handleVolunteerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
