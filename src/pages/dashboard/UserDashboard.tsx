@@ -37,14 +37,16 @@ export default function UserDashboard() {
   const [volunteerCalls, setVolunteerCalls] = useState<VolunteerCall[]>([]);
   const [volunteerCallsLoading, setVolunteerCallsLoading] = useState(false);
   const [volunteerCallsError, setVolunteerCallsError] = useState('');
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
-    if (authInitialized && currentUser?.isAdmin) {
+    if (authInitialized && currentUser?.isAdmin && !isRedirecting) {
+      setIsRedirecting(true);
       navigate('/admin', { replace: true });
     }
-  }, [currentUser?.isAdmin, navigate, authInitialized]);
+  }, [currentUser?.isAdmin, navigate, authInitialized, isRedirecting]);
 
-  if (!authInitialized || !currentUser) return <LoadingOverlay />;
+  if (!authInitialized || !currentUser || isRedirecting) return <LoadingOverlay />;
 
   const handleLogout = async () => {
     await logout();
