@@ -82,10 +82,14 @@ export const useStore = create<AuthState>()(
       logout: async () => {
         try {
           await supabaseService.signOut();
-          set({ currentUser: null, users: [], sessionUserId: null });
+          set({ currentUser: null, users: [], sessionUserId: null, authInitialized: false });
+          localStorage.removeItem('auth-storage');
+          window.location.href = '/login';
         } catch (error) {
           console.error('Logout error:', error);
-          set({ currentUser: null });
+          set({ currentUser: null, sessionUserId: null, authInitialized: false });
+          localStorage.removeItem('auth-storage');
+          window.location.href = '/login';
         }
       },
 
