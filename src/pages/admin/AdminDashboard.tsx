@@ -698,14 +698,6 @@ export default function AdminDashboard() {
                                   <Trash2 className="w-4 h-4" />
                                   Delete
                                 </button>
-                                <button
-                                  onClick={() => handleProjectDelete(submission.id, { deleteUser: true })}
-                                  disabled={projectActionLoadingId === submission.id}
-                                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-red-700 text-white text-xs font-bold hover:bg-red-800 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
-                                >
-                                  <UserX className="w-4 h-4" />
-                                  Delete User
-                                </button>
                               </div>
                             </td>
                           </tr>
