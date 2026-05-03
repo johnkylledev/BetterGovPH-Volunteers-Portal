@@ -218,83 +218,80 @@ export default async function handler(req: any, res: any) {
   if (typeof body.experienceLevel === 'string') updates.experience_level = body.experienceLevel;
   updates.auth_provider = 'google';
 
-  const { data: updatedRows, error: updateError } = await supabase
+  const { data: existingUser } = await supabase
     .from('users')
-    .update(updates)
+    .select('*')
     .eq('uid', uid)
-    .select('*');
+    .maybeSingle();
 
-  if (updateError) {
-    const message = typeof (updateError as any)?.message === 'string' ? String((updateError as any).message) : '';
-    res.status(500).json({ error: 'Failed to update profile', details: message || undefined });
-    return;
-  }
-
-  const updated = Array.isArray(updatedRows) ? updatedRows[0] : null;
-  if (!updated) {
-    const { data: existingUser, error: checkError } = await supabase
+  if (existingUser) {
+    const { data: updatedRows, error: updateError } = await supabase
       .from('users')
-      .select('*')
+      .update(updates)
       .eq('uid', uid)
-      .maybeSingle();
+      .select('*');
 
-    if (existingUser) {
-      res.status(200).json({ user: mapUserRow(existingUser) });
+    if (updateError) {
+      const message = typeof (updateError as any)?.message === 'string' ? String((updateError as any).message) : '';
+      res.status(500).json({ error: 'Failed to update profile', details: message || undefined });
       return;
     }
 
-    const now = new Date().toISOString();
-    const insertRow = {
-      uid,
-      email,
-      full_name: updates.full_name ?? '',
-      specialization: updates.specialization ?? '',
-      role: updates.role ?? 'Member',
-      discord_username: updates.discord_username ?? '',
-      status: 'Pending',
-      member_id: null,
-      year_joined: updates.year_joined ?? null,
-      skills: updates.skills ?? [],
-      experience_level: updates.experience_level ?? null,
-      admin_notes: null,
-      is_admin: false,
-      auth_provider: 'google',
-      created_at: now,
-      updated_at: now,
-    };
+    const updated = Array.isArray(updatedRows) ? updatedRows[0] : null;
+    if (updated) {
+      res.status(200).json({ user: mapUserRow(updated) });
+      return;
+    }
+  }
 
-    const { data: inserted, error: insertError } = await supabase
-      .from('users')
-      .insert(insertRow)
-      .select('*')
-      .maybeSingle();
+  const now = new Date().toISOString();
+  const insertRow = {
+    uid,
+    email,
+    full_name: updates.full_name ?? '',
+    specialization: updates.specialization ?? '',
+    role: updates.role ?? 'Member',
+    discord_username: updates.discord_username ?? '',
+    status: 'Pending',
+    member_id: null,
+    year_joined: updates.year_joined ?? null,
+    skills: updates.skills ?? [],
+    experience_level: updates.experience_level ?? null,
+    admin_notes: null,
+    is_admin: false,
+    auth_provider: 'google',
+    created_at: now,
+    updated_at: now,
+  };
 
-    if (insertError) {
-      if (insertError.message?.includes('duplicate key') || insertError.code === '23505') {
-        const { data: retryFetch } = await supabase
-          .from('users')
-          .select('*')
-          .eq('uid', uid)
-          .maybeSingle();
-        
-        if (retryFetch) {
-          res.status(200).json({ user: mapUserRow(retryFetch) });
-          return;
-        }
+  const { data: inserted, error: insertError } = await supabase
+    .from('users')
+    .insert(insertRow)
+    .select('*')
+    .maybeSingle();
+
+  if (insertError) {
+    if (insertError.message?.includes('duplicate key') || insertError.code === '23505') {
+      const { data: retryFetch } = await supabase
+        .from('users')
+        .select('*')
+        .eq('uid', uid)
+        .maybeSingle();
+      
+      if (retryFetch) {
+        res.status(200).json({ user: mapUserRow(retryFetch) });
+        return;
       }
-      const message = typeof (insertError as any)?.message === 'string' ? String((insertError as any).message) : '';
-      res.status(500).json({ error: 'Failed to create profile', details: message || undefined });
-      return;
     }
-
-    if (!inserted) {
-      res.status(500).json({ error: 'Failed to create profile' });
-      return;
-    }
-
-    res.status(200).json({ user: mapUserRow(inserted) });
+    const message = typeof (insertError as any)?.message === 'string' ? String((insertError as any).message) : '';
+    res.status(500).json({ error: 'Failed to create profile', details: message || undefined });
     return;
   }
 
-  res.status(200).json({ user: mapUserRow(updated) });
+  if (!inserted) {
+    res.status(500).json({ error: 'Failed to create profile' });
+    return;
+  }
+
+  res.status(200).json({ user: mapUserRow(inserted) });
 }

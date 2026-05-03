@@ -13,7 +13,7 @@ const getAccessToken = async () => {
 
 const apiRequest = async <T = any>(path: string, init?: RequestInit): Promise<T> => {
   const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-  const timeoutMs = 8000;
+  const timeoutMs = 30000;
   const t = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
   let res: Response;
   try {
