@@ -42,27 +42,42 @@ const assertAdmin = async (supabaseAdmin: any, uid: string) => {
 };
 
 const generateUniqueMemberId = async (supabaseAdmin: any, selectedYear: number) => {
-  const { data, error } = await supabaseAdmin
-    .from('users')
-    .select('member_id')
-    .ilike('member_id', `%-${selectedYear}-%`)
-    .order('member_id', { ascending: false })
-    .limit(50);
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data, error } = await supabaseAdmin
+      .from('users')
+      .select('member_id')
+      .ilike('member_id', `BGPH-${selectedYear}-%`)
+      .order('member_id', { ascending: false })
+      .limit(100);
 
-  if (error) throw error;
+    if (error) throw error;
 
-  let maxSequence = 0;
-  for (const u of data ?? []) {
-    const memberId = u.member_id;
-    if (typeof memberId !== 'string') continue;
-    const parts = memberId.split('-');
-    const seqStr = parts[parts.length - 1];
-    const seq = parseInt(seqStr, 10);
-    if (!isNaN(seq) && seq > maxSequence) maxSequence = seq;
+    let maxSequence = 0;
+    for (const u of data ?? []) {
+      const memberId = u.member_id;
+      if (typeof memberId !== 'string') continue;
+      const match = memberId.match(/^BGPH-(\d{4})-(\d{3})$/);
+      if (match && parseInt(match[1]) === selectedYear) {
+        const seq = parseInt(match[2], 10);
+        if (!isNaN(seq) && seq > maxSequence) maxSequence = seq;
+      }
+    }
+
+    const nextSequence = maxSequence + 1;
+    const newMemberId = `BGPH-${selectedYear}-${String(nextSequence).padStart(3, '0')}`;
+    
+    const { data: checkDuplicate } = await supabaseAdmin
+      .from('users')
+      .select('member_id')
+      .eq('member_id', newMemberId)
+      .maybeSingle();
+    
+    if (!checkDuplicate) {
+      return newMemberId;
+    }
   }
-
-  const nextSequence = maxSequence + 1;
-  return `BGPH-${selectedYear}-${String(nextSequence).padStart(3, '0')}`;
+  
+  throw new Error('Failed to generate unique member ID after 5 attempts');
 };
 
 const ensureUserHasMemberId = async (supabaseAdmin: any, uid: string) => {
