@@ -6,7 +6,6 @@
   "scripts": {
     "dev": "vite --port 3000",
     "dev:full": "set VERCEL_DISABLE_UPDATE_CHECK=1&& npx vercel dev -L -y -A vercel.dev.json --listen 3001",
-
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -44,6 +43,7 @@
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^16.0.0",
     "postcss": "^8.5.3",
+    "supabase": "^2.98.2",
     "tailwindcss": "^3.4.17",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.30.1",
