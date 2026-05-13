@@ -31,6 +31,9 @@
   },
   "include": [
     "src",
-    "api"
+    "api",
+    "tests",
+    "vitest.config.ts",
+    "vitest.live.config.ts"
   ]
 }
