@@ -848,9 +848,13 @@ export default function AdminDashboard() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              onClick={() => setSelectedUser(null)}
               className="fixed inset-0 z-50 flex items-center justify-center p-4"
             >
-              <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]">
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]"
+              >
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                   <div>
                     <h3 className="text-lg font-bold text-slate-900">Review Application</h3>
@@ -1013,9 +1017,13 @@ export default function AdminDashboard() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              onClick={() => setShowMyCard(false)}
               className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4"
             >
-              <div className="w-full max-w-lg bg-white rounded-xl shadow-2xl border border-slate-200 flex flex-col max-h-[95vh] sm:max-h-[90vh]">
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-lg bg-white rounded-xl shadow-2xl border border-slate-200 flex flex-col max-h-[95vh] sm:max-h-[90vh]"
+              >
                 <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 flex-shrink-0">
                   <div>
                     <h3 className="text-base sm:text-lg font-bold text-slate-900">My Access Card</h3>
@@ -1066,9 +1074,13 @@ export default function AdminDashboard() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              onClick={() => setSelectedMember(null)}
               className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4"
             >
-              <div className="w-full max-w-4xl bg-white rounded-[2rem] shadow-2xl border border-slate-200 flex flex-col max-h-[95vh] sm:max-h-[90vh] overflow-hidden">
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-4xl bg-white rounded-[2rem] shadow-2xl border border-slate-200 flex flex-col max-h-[95vh] sm:max-h-[90vh] overflow-hidden"
+              >
                 <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 flex-shrink-0">
                   <div>
                     <h3 className="text-xl font-bold text-slate-900 tracking-tight">Member Profile</h3>
