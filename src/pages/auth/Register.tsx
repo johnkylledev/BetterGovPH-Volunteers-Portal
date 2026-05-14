@@ -127,6 +127,10 @@ function LegacyRegister() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentStep]);
+  
+  useEffect(() => {
+    setError('');
+  }, [currentStep]);
 
   useEffect(() => {
     if (sessionUserId) {
@@ -134,7 +138,7 @@ function LegacyRegister() {
       (async () => {
         const { data } = await supabase.auth.getSession();
         setUserEmail(data.session?.user?.email || '');
-        
+
         const profile = await getUserData(sessionUserId);
         if (profile) {
           setCurrentUser(profile);
@@ -369,6 +373,7 @@ function LegacyRegister() {
   const renderSkillItem = (skill: string) => {
     const selectedSkill = formData.skills.find(s => s.name === skill);
     const isSelected = !!selectedSkill;
+    const skillSlug = skillToSlug(skill);
 
     return (
       <motion.div
@@ -389,21 +394,23 @@ function LegacyRegister() {
               : "bg-slate-50 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-900"
           )}>
             <div className="relative w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center">
-              <img
-                key={`img-${skill}`}
-                src={`https://cdn.simpleicons.org/${skillToSlug(skill)}`}
-                className={clsx(
-                  "w-full h-full object-contain transition-opacity duration-300",
-                  isSelected ? "brightness-0 invert" : "opacity-80 group-hover:opacity-100"
-                )}
-                alt=""
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                  const fallback = (e.target as HTMLImageElement).nextElementSibling;
-                  if (fallback) (fallback as HTMLElement).style.display = 'flex';
-                }}
-              />
-              <div style={{ display: 'none' }} className="absolute inset-0 items-center justify-center fallback-icon">
+              {skillSlug ? (
+                <img
+                  key={`img-${skill}`}
+                  src={`https://cdn.simpleicons.org/${skillSlug}`}
+                  className={clsx(
+                    "w-full h-full object-contain transition-opacity duration-300",
+                    isSelected ? "brightness-0 invert" : "opacity-80 group-hover:opacity-100"
+                  )}
+                  alt=""
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                    const fallback = (e.target as HTMLImageElement).nextElementSibling;
+                    if (fallback) (fallback as HTMLElement).style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <div style={{ display: skillSlug ? 'none' : 'flex' }} className="absolute inset-0 items-center justify-center fallback-icon">
                 {getSkillFallbackIcon(skill)}
               </div>
             </div>
@@ -495,6 +502,7 @@ function LegacyRegister() {
   };
 
   const prevStep = () => {
+    setError('');
     setCurrentStep((prev) => (prev - 1) as Step);
   };
 
@@ -1173,17 +1181,19 @@ function LegacyRegister() {
                                 className="flex items-center gap-2 pl-3 pr-1.5 py-2 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-blue-300 transition-all group"
                               >
                                 <div className="w-5 h-5 flex items-center justify-center shrink-0 relative">
-                                  <img
-                                    src={`https://cdn.simpleicons.org/${skillToSlug(skill.name)}`}
-                                    className="w-full h-full object-contain"
-                                    alt=""
-                                    onError={(e) => {
-                                      (e.target as HTMLImageElement).style.display = 'none';
-                                      const fallback = (e.target as HTMLImageElement).nextElementSibling;
-                                      if (fallback) (fallback as HTMLElement).style.display = 'flex';
-                                    }}
-                                  />
-                                  <div style={{ display: 'none' }} className="absolute inset-0 items-center justify-center">
+                                  {skillToSlug(skill.name) ? (
+                                    <img
+                                      src={`https://cdn.simpleicons.org/${skillToSlug(skill.name)}`}
+                                      className="w-full h-full object-contain"
+                                      alt=""
+                                      onError={(e) => {
+                                        (e.target as HTMLImageElement).style.display = 'none';
+                                        const fallback = (e.target as HTMLImageElement).nextElementSibling;
+                                        if (fallback) (fallback as HTMLElement).style.display = 'flex';
+                                      }}
+                                    />
+                                  ) : null}
+                                  <div style={{ display: skillToSlug(skill.name) ? 'none' : 'flex' }} className="absolute inset-0 items-center justify-center">
                                     {getSkillFallbackIcon(skill.name)}
                                   </div>
                                 </div>
@@ -1233,6 +1243,7 @@ function LegacyRegister() {
 
                   {currentStep < 3 ? (
                     <button
+                      key="continue-step"
                       type="button"
                       onClick={nextStep}
                       className="flex-[2] relative flex justify-center items-center gap-2 rounded-lg bg-blue-900 px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-white shadow-md hover:bg-blue-800 transition-all duration-300 active:scale-[0.98]"
@@ -1242,6 +1253,7 @@ function LegacyRegister() {
                     </button>
                   ) : (
                     <button
+                      key="submit-step"
                       type="submit"
                       disabled={loading}
                       className="flex-[2] relative flex justify-center items-center gap-2 rounded-lg bg-blue-900 px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-white shadow-md hover:bg-blue-800 transition-all duration-300 active:scale-[0.98] disabled:opacity-50"
