@@ -146,7 +146,7 @@ function LegacyRegister() {
                 const { data } = await supabase.auth.getSession();
                 setUserEmail(data.session?.user?.email || '');
 
-                const profile = await getUserData(hasSession);
+                const profile = await getUserData(sessionUserId);
                 if (profile) {
                     setCurrentUser(profile);
                     const isComplete = profile.fullName && profile.discordUsername && profile.specialization && profile.yearJoined;
