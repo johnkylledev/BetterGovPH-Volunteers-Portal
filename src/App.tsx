@@ -120,6 +120,26 @@ export default function App() {
   }, [setCurrentUser, setAuthInitialized, setSessionUserId]);
 
   useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible') {
+        const { data } = await supabase.auth.getSession();
+        const uid = data.session?.user?.id ?? null;
+        if (uid) {
+          const profile = await getUserData(uid).catch(() => null);
+          if (profile) {
+            setCurrentUser(profile);
+          }
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [setCurrentUser]);
+
+  useEffect(() => {
     if (!sessionUserId) return;
 
     const channel = supabase
