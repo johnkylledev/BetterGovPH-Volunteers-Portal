@@ -86,7 +86,9 @@ export default function App() {
         const profile = await getUserData(uid).catch(() => null);
         if (cancelled) return;
         console.log('App: Profile fetched:', profile?.fullName);
-        setCurrentUser(profile);
+        if (profile) {
+          setCurrentUser(profile);
+        }
       } catch (err) {
         console.error('App: Initialization error:', err);
         if (!cancelled) {
@@ -105,7 +107,9 @@ export default function App() {
         setCurrentUser(null);
       } else {
         const profile = await getUserData(uid).catch(() => null);
-        setCurrentUser(profile);
+        if (profile) {
+          setCurrentUser(profile);
+        }
       }
     });
 
