@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port 3000",
-    "dev:full": "set VERCEL_DISABLE_UPDATE_CHECK=1&& npx vercel dev -L -y -A vercel.dev.json --listen 3001",
+    "dev:full": "set VERCEL_DISABLE_UPDATE_CHECK=1&& npx vercel dev -L -y -A vercel.dev.json --listen 3000",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
