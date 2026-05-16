@@ -71,4 +71,7 @@ export interface User {
   experienceLevel?: ExperienceLevel;
   createdAt: string;
   updatedAt?: string;
+  discordId?: string;
+  discordConnected?: boolean;
+  discordVerified?: boolean;
 }

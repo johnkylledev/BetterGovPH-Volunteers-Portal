@@ -60,6 +60,9 @@ const mapUserRow = (row: any) => ({
   authProvider: row.auth_provider ?? 'traditional',
   createdAt: row.created_at,
   updatedAt: row.updated_at,
+  discordId: row.discord_id ?? undefined,
+  discordConnected: row.discord_connected ?? false,
+  discordVerified: row.discord_verified ?? false,
 });
 
 export default async function handler(req: any, res: any) {
