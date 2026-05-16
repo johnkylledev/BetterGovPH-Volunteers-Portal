@@ -9,6 +9,7 @@ import Landing from "./pages/public/Landing";
 import Privacy from "./pages/public/Privacy";
 import Terms from "./pages/public/Terms";
 import Projects from "./pages/public/Projects";
+import DiscordCallback from "./pages/auth/DiscordCallback";
 import { useStore } from "./store/useStore";
 import { LoadingOverlay } from "./components/LoadingOverlay";
 import { getUserData } from "./services/supabase";
@@ -184,6 +185,7 @@ export default function App() {
           <Route path="/projects" element={<Projects />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
+          <Route path="/discord-callback" element={<DiscordCallback />} />
         </Routes>
       </Router>
     </>
