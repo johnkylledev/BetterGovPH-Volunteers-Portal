@@ -522,6 +522,33 @@ export const getApprovedProjects = async () => {
   return (result.data ?? []).map(mapProjectRow);
 };
 
+export const connectDiscord = async (): Promise<{ url: string }> => {
+  const token = await getAccessToken();
+  if (!token) throw new Error('Not authenticated');
+  return apiRequest<{ url: string }>('/api/discord/login', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+export const syncDiscord = async (): Promise<any> => {
+  const token = await getAccessToken();
+  if (!token) throw new Error('Not authenticated');
+  return apiRequest<any>('/api/discord/sync', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+export const getDiscordStatus = async (): Promise<any> => {
+  const token = await getAccessToken();
+  if (!token) return { connected: false };
+  return apiRequest<any>('/api/discord/status', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
 export const onAuthStateChange = (callback: (user: any) => void) => {
   const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
     callback(session?.user ? { uid: session.user.id, email: session.user.email, ...session.user } : null);

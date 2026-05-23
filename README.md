@@ -4,7 +4,8 @@ A membership platform for [BetterGovPH](https://bettergov.ph/) — a civic tech 
 
 ## Features
 
-- **Member registration** — email/password or Google OAuth via Supabase Auth
+- **Member registration** — email/password or Google OAuth via Supabase Auth, with a 4-step onboarding flow (Account → Profile → Skills → Connections)
+- **Discord integration** — members link their Discord account via OAuth during onboarding; guild membership in the BetterGovPH server is verified automatically
 - **Digital access card** — animated, downloadable card showing name, specialization, skills, and a QR code for public verification
 - **Public verification** — `/verify/:memberId` lets anyone confirm a member's identity without logging in
 - **Admin dashboard** — review applications, approve/decline members, manage project submissions and volunteer calls
@@ -22,6 +23,7 @@ A membership platform for [BetterGovPH](https://bettergov.ph/) — a civic tech 
 | State | Zustand |
 | Auth & DB | Supabase (PostgreSQL + Auth) |
 | API | Vercel Serverless Functions |
+| Discord OAuth | [bettygo](https://github.com/zelkim/bettygo) Cloudflare Worker |
 | Deployment | Vercel |
 
 ## Local Development
@@ -31,6 +33,7 @@ A membership platform for [BetterGovPH](https://bettergov.ph/) — a civic tech 
 - Node.js ≥ 18
 - [Vercel CLI](https://vercel.com/docs/cli): `npm i -g vercel`
 - A Supabase project
+- A running [bettygo](https://github.com/zelkim/bettygo) instance for Discord OAuth (use `wrangler dev` locally)
 
 ### Environment variables
 
@@ -45,6 +48,14 @@ SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
 
 # Required for the contribution scoring endpoint and live tests
 GITHUB_TOKEN=<github-pat>
+
+# Discord OAuth — via bettygo (https://github.com/zelkim/bettygo)
+# API_SECRET configured on the bettygo worker
+BETTYGO_API_KEY=<bettygo-api-secret>
+# Base URL of the bettygo worker (defaults to https://bg.zel.kim in production)
+BETTYGO_BASE_URL=http://localhost:8787
+# Must match an entry in bettygo's WEBAPP_REDIRECT_URI allowlist
+DISCORD_CALLBACK_URL=http://localhost:3000/discord-callback
 ```
 
 `GITHUB_TOKEN` should be a GitHub Personal Access Token (classic or fine-grained) with at minimum **read access to public repositories** (`public_repo` scope for classic PATs). It is only used server-side and is never sent to the browser.
@@ -58,10 +69,19 @@ npm install
 npm run dev          # http://localhost:3000
 
 # Full-stack (Vercel Functions + Vite proxy)
-npm run dev:full     # vercel dev on :3001; open http://localhost:3000
+npm run dev:full     # vercel dev + vite, open http://localhost:3000
 ```
 
-`dev:full` runs `vercel dev` on port 3001 and Vite's dev server on port 3000. Vite proxies all `/api/*` requests to 3001, so you need both processes running simultaneously (open two terminals, or use a process manager).
+`dev:full` runs `vercel dev` and Vite's dev server together. Vite proxies all `/api/*` requests to the Vercel dev server, so both processes must be running.
+
+For Discord OAuth to work locally you also need bettygo running:
+
+```bash
+cd ../bettygo
+wrangler dev          # starts on http://localhost:8787 by default
+```
+
+Then set `BETTYGO_BASE_URL=http://localhost:8787` and `DISCORD_CALLBACK_URL=http://localhost:3000/discord-callback` in your `.env`, and ensure those values are in bettygo's `WEBAPP_REDIRECT_URI` and `ALLOWED_ORIGIN` vars in its `wrangler.jsonc`.
 
 ## Contribution Scoring
 
@@ -140,13 +160,15 @@ Live tests are automatically skipped when `GITHUB_TOKEN` is absent. They log the
 
 ## Deployment
 
-The project deploys to Vercel. `vercel.json` routes `/api/*` to serverless functions and everything else to `index.html` for client-side routing. Set all environment variables (including `SUPABASE_SERVICE_ROLE_KEY`) in the Vercel project settings.
+The project deploys to Vercel. `vercel.json` routes `/api/*` to serverless functions and everything else to `index.html` for client-side routing. Set all environment variables in the Vercel project settings — including `SUPABASE_SERVICE_ROLE_KEY` and the three `BETTYGO_*` / `DISCORD_CALLBACK_URL` vars.
+
+For production, omit `BETTYGO_BASE_URL` (it defaults to `https://bg.zel.kim`). Make sure the production `/discord-callback` URL is added to bettygo's `WEBAPP_REDIRECT_URI` and `ALLOWED_ORIGIN` in `wrangler.jsonc`, then redeploy bettygo.
 
 ## Database Schema (Supabase)
 
 Key tables:
 
-- **`users`** — member profiles (`uid`, `full_name`, `email`, `specialization`, `role`, `discord_username`, `status`, `member_id`, `is_admin`, `skills` jsonb, etc.)
+- **`users`** — member profiles (`uid`, `full_name`, `email`, `specialization`, `role`, `discord_username`, `discord_id`, `discord_connected`, `discord_verified`, `status`, `member_id`, `is_admin`, `skills` jsonb, etc.)
 - **`project_submissions`** — civic project submissions (`project_name`, `project_url`, `description`, `proj_type`, `status`, `user_id`)
 - **`volunteer_calls`** — volunteer collaboration posts
 
@@ -159,6 +181,10 @@ api/
   _lib/
     contributionScoring.ts  Contribution scoring core logic (not a route)
   admin/                    Admin-only endpoints
+  discord/
+    login.ts                GET  /api/discord/login   — returns bettygo OAuth URL
+    status.ts               GET  /api/discord/status  — reads Discord connection (no DB write)
+    sync.ts                 POST /api/discord/sync    — persists Discord connection to Supabase
   contribution-scores.ts    GET /api/contribution-scores
   ...                       Other Vercel serverless functions
 src/
@@ -167,12 +193,14 @@ src/
   hooks/                    Custom hooks
   pages/
     admin/                  AdminDashboard
-    auth/                   Login, Register
+    auth/                   Login, Register (4-step onboarding), DiscordCallback
     dashboard/              UserDashboard
     public/                 Landing, Verify, Projects, Privacy, Terms
   services/supabase.ts      All API calls and Supabase client
   store/useStore.ts         Zustand global store
   types/index.ts            Shared TypeScript types
+supabase/
+  migrations/               SQL migration files applied in order
 tests/
   unit/                     Unit tests (mocked, no network)
   live/                     Live integration tests (requires GITHUB_TOKEN)
