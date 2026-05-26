@@ -64,7 +64,19 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
-    const bettygoRes = await fetch(`${bettygoBaseUrl}/users/${uid}/discord`, {
+    const { data: userData } = await supabase
+      .from('users')
+      .select('discord_id')
+      .eq('uid', uid)
+      .single();
+
+    const discordId = userData?.discord_id;
+    if (!discordId) {
+      res.status(200).json({ connected: false });
+      return;
+    }
+
+    const bettygoRes = await fetch(`${bettygoBaseUrl}/users/${discordId}/discord`, {
       headers: { 'X-Api-Key': bettygoKey },
     });
 
@@ -75,7 +87,7 @@ export default async function handler(req: any, res: any) {
     }
 
     const data = await bettygoRes.json();
-    res.status(200).json(data);
+    res.status(200).json({ connected: true, discord_id: discordId, ...data });
     return;
   }
 
@@ -124,7 +136,22 @@ export default async function handler(req: any, res: any) {
         return;
       }
 
-      const bettygoRes = await fetch(`${bettygoBaseUrl}/users/${uid}/discord`, {
+      const body = req.body ?? {};
+      const discordIdFromBody: string | undefined = typeof body.discord_id === 'string' ? body.discord_id : undefined;
+
+      const { data: userData } = await supabase
+        .from('users')
+        .select('discord_id')
+        .eq('uid', uid)
+        .single();
+
+      const discordId = discordIdFromBody ?? userData?.discord_id;
+      if (!discordId) {
+        res.status(200).json({ connected: false });
+        return;
+      }
+
+      const bettygoRes = await fetch(`${bettygoBaseUrl}/users/${discordId}/discord`, {
         headers: { 'X-Api-Key': bettygoKey },
       });
 
@@ -133,18 +160,16 @@ export default async function handler(req: any, res: any) {
         return;
       }
 
-      const discordData = await bettygoRes.json();
+      const { verified } = await bettygoRes.json();
 
-      if (discordData.connected) {
-        await supabase.from('users').update({
-          discord_id: discordData.discord_id ?? null,
-          discord_connected: true,
-          discord_verified: discordData.verified ?? false,
-          updated_at: new Date().toISOString(),
-        }).eq('uid', uid);
-      }
+      await supabase.from('users').update({
+        discord_id: discordId,
+        discord_connected: true,
+        discord_verified: verified ?? false,
+        updated_at: new Date().toISOString(),
+      }).eq('uid', uid);
 
-      res.status(200).json(discordData);
+      res.status(200).json({ connected: true, discord_id: discordId, verified });
       return;
     }
 

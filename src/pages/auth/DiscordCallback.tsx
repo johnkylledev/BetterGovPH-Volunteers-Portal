@@ -25,10 +25,12 @@ export default function DiscordCallback() {
       return () => clearTimeout(timer);
     }
 
+    const discordId = params.get('discord_id') ?? undefined;
+
     let cancelled = false;
     (async () => {
       try {
-        await syncDiscord();
+        await syncDiscord(discordId);
       } catch {
         // ignore sync errors — still return to step 4
       }

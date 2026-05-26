@@ -599,12 +599,13 @@ export const connectDiscord = async (): Promise<{ url: string }> => {
   });
 };
 
-export const syncDiscord = async (): Promise<any> => {
+export const syncDiscord = async (discordId?: string): Promise<any> => {
   const token = await getAccessToken();
   if (!token) throw new Error('Not authenticated');
   return apiRequest<any>('/api/discord', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ discord_id: discordId }),
   });
 };
 

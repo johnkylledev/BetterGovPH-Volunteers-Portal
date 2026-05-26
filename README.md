@@ -5,7 +5,7 @@ A membership platform for [BetterGovPH](https://bettergov.ph/) — a civic tech 
 ## Features
 
 - **Member registration** — email/password or Google OAuth via Supabase Auth, with a 4-step onboarding flow (Account → Profile → Skills → Connections)
-- **Discord integration** — members link their Discord account via OAuth during onboarding; guild membership in the BetterGovPH server is verified automatically
+- **Discord integration** — members link their Discord account via OAuth during onboarding; the Discord user ID is saved to Supabase after the callback, and guild membership in the BetterGovPH server is verified live on demand via bettygo
 - **Digital access card** — animated, downloadable card showing name, specialization, skills, and a QR code for public verification
 - **Public verification** — `/verify/:memberId` lets anyone confirm a member's identity without logging in
 - **Admin dashboard** — review applications, approve/decline members, manage project submissions and volunteer calls
@@ -82,6 +82,12 @@ wrangler dev          # starts on http://localhost:8787 by default
 ```
 
 Then set `BETTYGO_BASE_URL=http://localhost:8787` and `DISCORD_CALLBACK_URL=http://localhost:3000/discord-callback` in your `.env`, and ensure those values are in bettygo's `WEBAPP_REDIRECT_URI` and `ALLOWED_ORIGIN` vars in its `wrangler.jsonc`.
+
+**Discord integration flow:**
+1. `/auth/callback` page receives `?user_id=<supabase_uid>&discord_id=<discord_snowflake>` from bettygo
+2. The callback page passes `discord_id` to `syncDiscord()`, which POSTs it to `/api/discord?action=sync`
+3. The sync function calls bettygo's `GET /users/:discord_id/discord` for a live guild membership check, then writes `discord_id`, `discord_connected`, and `discord_verified` to Supabase
+4. Subsequent status checks (`GET /api/discord`) look up `discord_id` from Supabase first, then call bettygo for a fresh membership result
 
 ## Contribution Scoring
 
@@ -168,7 +174,7 @@ For production, omit `BETTYGO_BASE_URL` (it defaults to `https://bg.zel.kim`). M
 
 Key tables:
 
-- **`users`** — member profiles (`uid`, `full_name`, `email`, `specialization`, `role`, `discord_username`, `discord_id`, `discord_connected`, `discord_verified`, `status`, `member_id`, `is_admin`, `skills` jsonb, etc.)
+- **`users`** — member profiles (`uid`, `full_name`, `email`, `specialization`, `role`, `discord_username`, `discord_id`, `discord_connected`, `discord_verified`, `status`, `member_id`, `is_admin`, `skills` jsonb, etc.). `discord_id` is the Discord snowflake saved from bettygo's OAuth callback redirect; `discord_verified` reflects the most recent live guild membership check via bettygo and is updated on every sync.
 - **`project_submissions`** — civic project submissions (`project_name`, `project_url`, `description`, `proj_type`, `status`, `user_id`)
 - **`volunteer_calls`** — volunteer collaboration posts
 
