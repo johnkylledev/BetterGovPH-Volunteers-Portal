@@ -13,7 +13,6 @@ export default defineConfig({
             if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
               return 'vendor-react';
             }
-            
             if (id.includes('firebase')) {
               return 'vendor-firebase';
             }
@@ -22,9 +21,6 @@ export default defineConfig({
             }
             if (id.includes('xlsx')) {
               return 'vendor-xlsx';
-            }
-            if (id.includes('framer-motion') || id.includes('gsap')) {
-              return 'vendor-motion';
             }
             return 'vendor';
           }
