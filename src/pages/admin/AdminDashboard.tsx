@@ -8,7 +8,7 @@ import { AccessCard } from '../../components/AccessCard';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
 import clsx from 'clsx';
 import { User, ApplicationStatus, ProjectSubmission } from '../../types';
-import { deleteProjectSubmission, getAllUsers, getAdminStats, getProjectSubmissions, updateProjectSubmission, supabase } from '../../services/supabase';
+import { deleteProjectSubmission, editProjectSubmission, getAllUsers, getAdminStats, getProjectSubmissions, updateProjectSubmission, supabase } from '../../services/supabase';
 import * as XLSX from 'xlsx';
 import { skillToSlug } from '../../utils/skillUtils';
 import { SPECIALIZATIONS } from '../../constants/specializations';
@@ -32,6 +32,13 @@ export default function AdminDashboard() {
   const [projectSubmissionsLoading, setProjectSubmissionsLoading] = useState(false);
   const [projectActionLoadingId, setProjectActionLoadingId] = useState<string | null>(null);
   const [projectStats, setProjectStats] = useState({ total: 0, pending: 0, approved: 0, rejected: 0 });
+  const [projectStatusFilter, setProjectStatusFilter] = useState<'All' | 'pending' | 'approved' | 'rejected'>('All');
+  const [projectPage, setProjectPage] = useState(0);
+  const [projectPageSize] = useState(5);
+  const [projectTotalCount, setProjectTotalCount] = useState(0);
+  const [editingSubmission, setEditingSubmission] = useState<ProjectSubmission | null>(null);
+  const [editForm, setEditForm] = useState({ projectName: '', projectUrl: '', description: '', projType: '', status: '' });
+  const [editSaving, setEditSaving] = useState(false);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(0);
@@ -58,7 +65,7 @@ export default function AdminDashboard() {
     setIsDataLoading(true);
     try {
       const filters = {
-        status: activeTab === 'members' ? 'Approved' : statusFilter,
+        status: activeTab === 'members' ? 'Approved' : activeTab === 'applications' ? 'Pending' : statusFilter,
         role: roleFilter,
         search: searchTerm
       };
@@ -76,18 +83,20 @@ export default function AdminDashboard() {
     if (!currentUser?.isAdmin) return;
     setProjectSubmissionsLoading(true);
     try {
-      const [pendingRes, totalRes, approvedRes, rejectedRes] = await Promise.all([
-        getProjectSubmissions(0, 50, { status: 'pending' }),
+      const [mainRes, totalRes, pendingRes, approvedRes, rejectedRes] = await Promise.all([
+        getProjectSubmissions(projectPage, projectPageSize, { status: projectStatusFilter === 'All' ? undefined : projectStatusFilter }),
         getProjectSubmissions(0, 1),
+        getProjectSubmissions(0, 1, { status: 'pending' }),
         getProjectSubmissions(0, 1, { status: 'approved' }),
         getProjectSubmissions(0, 1, { status: 'rejected' }),
       ]);
-      const { submissions, totalCount: fetchedTotal } = pendingRes;
+      const { submissions, totalCount: fetchedTotal } = mainRes;
       setProjectSubmissions(submissions);
+      setProjectTotalCount(fetchedTotal);
       setProjectSubmissionsTotal(fetchedTotal);
       setProjectStats({
         total: totalRes.totalCount,
-        pending: fetchedTotal,
+        pending: pendingRes.totalCount,
         approved: approvedRes.totalCount,
         rejected: rejectedRes.totalCount,
       });
@@ -104,7 +113,8 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     setCurrentPage(0);
-  }, [activeTab, statusFilter, roleFilter, searchTerm]);
+    setProjectPage(0);
+  }, [activeTab, statusFilter, roleFilter, searchTerm, projectStatusFilter]);
 
   useEffect(() => {
     if (!currentUser?.isAdmin) return;
@@ -117,7 +127,7 @@ export default function AdminDashboard() {
       const interval = setInterval(() => loadUsers(currentPage), 5000);
       return () => clearInterval(interval);
     }
-  }, [currentUser, currentPage, activeTab, statusFilter, roleFilter, searchTerm]);
+  }, [currentUser, currentPage, activeTab, statusFilter, roleFilter, searchTerm, projectStatusFilter, projectPage]);
 
   useEffect(() => {
     if (!currentUser?.isAdmin) return;
@@ -232,6 +242,42 @@ export default function AdminDashboard() {
       alert('Failed to update project submission.');
     } finally {
       setProjectActionLoadingId(null);
+    }
+  };
+
+  const handleEditClick = (submission: ProjectSubmission) => {
+    setEditingSubmission(submission);
+    setEditForm({
+      projectName: submission.projectName,
+      projectUrl: submission.projectUrl,
+      description: submission.description,
+      projType: submission.projType || '',
+      status: submission.status,
+    });
+  };
+
+  const handleEditSave = async () => {
+    if (!editingSubmission) return;
+    if (!editForm.projectName.trim() || !editForm.projectUrl.trim() || !editForm.description.trim()) {
+      alert('Project name, URL, and description are required.');
+      return;
+    }
+    setEditSaving(true);
+    try {
+      await editProjectSubmission(editingSubmission.id, {
+        project_name: editForm.projectName.trim(),
+        project_url: editForm.projectUrl.trim(),
+        description: editForm.description.trim(),
+        proj_type: editForm.projType.trim() || undefined,
+        status: editForm.status || undefined,
+      });
+      setEditingSubmission(null);
+      await loadProjectSubmissions();
+    } catch (error) {
+      console.error('Error editing project submission:', error);
+      alert('Failed to update project submission.');
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -507,19 +553,6 @@ export default function AdminDashboard() {
                     </div>
                     <div className="grid grid-cols-2 sm:flex sm:items-center gap-3 w-full sm:w-auto">
                       <div className="relative w-full sm:w-auto">
-                        <Filter className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                        <select
-                          value={statusFilter}
-                          onChange={(e) => setStatusFilter(e.target.value as ApplicationStatus | 'All')}
-                          className="w-full sm:w-36 pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
-                        >
-                          <option value="All">All Statuses</option>
-                          <option value="Pending">Pending</option>
-                          <option value="Approved">Approved</option>
-                          <option value="Declined">Declined</option>
-                        </select>
-                      </div>
-                      <div className="relative w-full sm:w-auto">
                         <Briefcase className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                         <select
                           value={roleFilter}
@@ -630,7 +663,24 @@ export default function AdminDashboard() {
                     <h2 className="text-base sm:text-lg font-bold text-slate-900">Project Submissions</h2>
                     <p className="text-xs sm:text-sm text-slate-500 mt-1">Review user-submitted projects. Approving marks it as approved and displays it on the public Projects page.</p>
                   </div>
-                  <div className="text-xs font-bold text-slate-500">Pending: {projectSubmissionsTotal}</div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
+                      {(['All', 'pending', 'approved', 'rejected'] as const).map((f) => (
+                        <button
+                          key={f}
+                          onClick={() => setProjectStatusFilter(f)}
+                          className={clsx(
+                            "px-3 py-1.5 text-xs font-bold rounded-md transition-all capitalize",
+                            projectStatusFilter === f
+                              ? "bg-white text-slate-900 shadow-sm"
+                              : "text-slate-500 hover:text-slate-700"
+                          )}
+                        >
+                          {f === 'All' ? 'All' : f}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
                 {projectSubmissionsLoading ? (
                   <div className="p-12 text-center text-slate-500">
@@ -638,7 +688,7 @@ export default function AdminDashboard() {
                   </div>
                 ) : projectSubmissions.length === 0 ? (
                   <div className="p-12 text-center text-slate-500">
-                    No pending submissions.
+                    No {projectStatusFilter === 'All' ? '' : projectStatusFilter} submissions found.
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -647,6 +697,7 @@ export default function AdminDashboard() {
                         <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200 font-bold">
                           <th className="p-4 pl-6 font-semibold">Project</th>
                           <th className="p-4 font-semibold">Submitted By</th>
+                          <th className="p-4 font-semibold">Status</th>
                           <th className="p-4 font-semibold">Description</th>
                           <th className="p-4 pr-6 font-semibold text-right">Actions</th>
                         </tr>
@@ -676,27 +727,48 @@ export default function AdminDashboard() {
                                 <div className="text-xs text-slate-500 break-all">{submission.submittedBy.email}</div>
                               )}
                             </td>
-                            <td className="p-4 align-top max-w-[520px]">
+                            <td className="p-4 align-top">
+                              <span className={clsx(
+                                "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold capitalize",
+                                submission.status === 'approved' && "bg-emerald-100 text-emerald-800",
+                                submission.status === 'rejected' && "bg-red-100 text-red-800",
+                                submission.status === 'pending' && "bg-amber-100 text-amber-800"
+                              )}>
+                                {submission.status}
+                              </span>
+                            </td>
+                            <td className="p-4 align-top max-w-[420px]">
                               <div className="text-slate-700 whitespace-pre-wrap break-words">{submission.description}</div>
                             </td>
                             <td className="p-4 pr-6 align-top text-right">
                               <div className="flex flex-wrap items-center justify-end gap-2">
                                 <button
-                                  onClick={() => handleProjectAction(submission.id, 'approve')}
+                                  onClick={() => handleEditClick(submission)}
                                   disabled={projectActionLoadingId === submission.id}
-                                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
                                 >
-                                  <CheckCircle2 className="w-4 h-4" />
-                                  Approve
+                                  Edit
                                 </button>
-                                <button
-                                  onClick={() => handleProjectAction(submission.id, 'reject')}
-                                  disabled={projectActionLoadingId === submission.id}
-                                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-red-600 text-white text-xs font-bold hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
-                                >
-                                  <XCircle className="w-4 h-4" />
-                                  Reject
-                                </button>
+                                {submission.status === 'pending' && (
+                                  <>
+                                    <button
+                                      onClick={() => handleProjectAction(submission.id, 'approve')}
+                                      disabled={projectActionLoadingId === submission.id}
+                                      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                                    >
+                                      <CheckCircle2 className="w-4 h-4" />
+                                      Approve
+                                    </button>
+                                    <button
+                                      onClick={() => handleProjectAction(submission.id, 'reject')}
+                                      disabled={projectActionLoadingId === submission.id}
+                                      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-red-600 text-white text-xs font-bold hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                                    >
+                                      <XCircle className="w-4 h-4" />
+                                      Reject
+                                    </button>
+                                  </>
+                                )}
                                 <button
                                   onClick={() => handleProjectDelete(submission.id)}
                                   disabled={projectActionLoadingId === submission.id}
@@ -711,6 +783,34 @@ export default function AdminDashboard() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                )}
+                {projectTotalCount > projectPageSize && (
+                  <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                      Showing <span className="text-slate-900">{projectSubmissions.length}</span> of <span className="text-slate-900">{projectTotalCount}</span> records
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setProjectPage(projectPage - 1)}
+                        disabled={projectPage === 0 || projectSubmissionsLoading}
+                        className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                      >
+                        <ChevronLeft className="w-5 h-5" />
+                      </button>
+                      <div className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-xl">
+                        <span className="text-sm font-bold text-slate-900">Page {projectPage + 1}</span>
+                        <span className="text-slate-400 mx-1">of</span>
+                        <span className="text-sm font-bold text-slate-900">{Math.ceil(projectTotalCount / projectPageSize)}</span>
+                      </div>
+                      <button
+                        onClick={() => setProjectPage(projectPage + 1)}
+                        disabled={(projectPage + 1) * projectPageSize >= projectTotalCount || projectSubmissionsLoading}
+                        className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                      >
+                        <ChevronRight className="w-5 h-5" />
+                      </button>
+                    </div>
                   </div>
                 )}
               </>
@@ -921,37 +1021,17 @@ export default function AdminDashboard() {
                   <div className="mb-6 space-y-4">
                     <div>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Selected Skills</p>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-1.5">
                         {Array.isArray(selectedUser.skills) && selectedUser.skills.length > 0 ? (
                           selectedUser.skills.map((skill, i) => (
                              <div
                                key={i}
-                               className="flex items-center gap-3 pl-3 pr-5 py-3 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-blue-200 transition-all group"
+                               className="flex items-center gap-1.5 pl-2 pr-3 py-1.5 bg-white border border-slate-200 rounded-md shadow-sm group"
                              >
-                               <div className="w-10 h-10 rounded-md bg-slate-50 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-50 transition-colors border border-slate-100">
-                                 <img
-                                   src={`https://cdn.simpleicons.org/${skillToSlug(skill.name)}`}
-                                   className="w-5 h-5 object-contain opacity-70 group-hover:opacity-100 transition-opacity"
-                                   alt=""
-                                   onError={(e) => {
-                                     (e.target as HTMLImageElement).style.display = 'none';
-                                     const fallback = (e.target as HTMLImageElement).nextElementSibling;
-                                     if (fallback) (fallback as HTMLElement).style.display = 'block';
-                                   }}
-                                 />
-                                 <Code size={16} style={{ display: 'none' }} className="text-slate-400" />
-                               </div>
-                               <div className="flex flex-col">
-                                 <span className="text-sm font-bold text-slate-800 leading-tight">{skill.name}</span>
-                                 <div className="flex items-center gap-1.5 mt-1">
-                                   {skill.level === 'Expert' ? <Zap size={10} className="text-blue-600 fill-blue-600" /> :
-                                     skill.level === 'Practitioner' ? <CheckCircle2 size={10} className="text-blue-500" /> :
-                                       <Clock size={10} className="text-slate-400" />}
-                                   <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                                     {skill.level}
-                                   </span>
-                                 </div>
-                               </div>
+                               <span className="text-xs font-semibold text-slate-800">{skill.name}</span>
+                               <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                                 {skill.level}
+                               </span>
                              </div>
                           ))
                         ) : (
@@ -1210,6 +1290,101 @@ export default function AdminDashboard() {
                       )}
                     </div>
                   </div>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+        {editingSubmission && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setEditingSubmission(null)}
+              className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-40"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              onClick={() => setEditingSubmission(null)}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]"
+              >
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                  <h3 className="text-lg font-bold text-slate-900">Edit Project Submission</h3>
+                  <button onClick={() => setEditingSubmission(null)} className="text-slate-400 hover:text-slate-600">
+                    <XCircle className="w-6 h-6" />
+                  </button>
+                </div>
+                <div className="p-6 overflow-y-auto flex-1 space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">Project Name</label>
+                    <input
+                      type="text"
+                      value={editForm.projectName}
+                      onChange={(e) => setEditForm({ ...editForm, projectName: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">Project URL</label>
+                    <input
+                      type="text"
+                      value={editForm.projectUrl}
+                      onChange={(e) => setEditForm({ ...editForm, projectUrl: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">Description</label>
+                    <textarea
+                      value={editForm.description}
+                      onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                      rows={4}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 resize-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">Project Type</label>
+                    <input
+                      type="text"
+                      value={editForm.projType}
+                      onChange={(e) => setEditForm({ ...editForm, projType: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">Status</label>
+                    <select
+                      value={editForm.status}
+                      onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="approved">Approved</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+                  <button
+                    onClick={() => setEditingSubmission(null)}
+                    className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 text-sm font-bold rounded-2xl hover:bg-slate-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleEditSave}
+                    disabled={editSaving}
+                    className="px-6 py-2.5 bg-blue-900 text-white text-sm font-bold rounded-2xl hover:bg-blue-800 disabled:opacity-60 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+                  >
+                    {editSaving ? 'Saving...' : 'Save Changes'}
+                  </button>
                 </div>
               </div>
             </motion.div>

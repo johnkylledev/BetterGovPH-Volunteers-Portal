@@ -454,6 +454,23 @@ export const updateProjectSubmission = async (id: string, action: 'approve' | 'r
   return response;
 };
 
+export const editProjectSubmission = async (
+  id: string,
+  fields: { project_name?: string; project_url?: string; description?: string; proj_type?: string; status?: string }
+) => {
+  const token = await getAccessToken();
+  if (!token) throw new Error('Not authenticated');
+  const response = await apiRequest<{ message: string }>('/api/admin?resource=submissions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ id, action: 'update', ...fields }),
+  });
+  return response;
+};
+
 export const deleteProjectSubmission = async (id: string, options?: { deleteUser?: boolean }) => {
   const token = await getAccessToken();
   if (!token) throw new Error('Not authenticated');

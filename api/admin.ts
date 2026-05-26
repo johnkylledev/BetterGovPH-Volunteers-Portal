@@ -503,8 +503,8 @@ export default async function handler(req: any, res: any) {
     const action = typeof body.action === 'string' ? body.action : '';
     const deleteUser = typeof body.deleteUser === 'boolean' ? body.deleteUser : false;
 
-    if (!id || (action !== 'approve' && action !== 'reject' && action !== 'delete')) {
-      res.status(400).json({ error: 'id and action (approve|reject|delete) are required' });
+    if (!id || (action !== 'approve' && action !== 'reject' && action !== 'delete' && action !== 'update')) {
+      res.status(400).json({ error: 'id and action (approve|reject|delete|update) are required' });
       return;
     }
 
@@ -527,11 +527,12 @@ export default async function handler(req: any, res: any) {
     if (action === 'approve') {
       const { error: approveError } = await supabaseAdmin
         .from('project_submissions')
-        .update({ status: 'approved', updated_at: new Date().toISOString() })
+        .update({ status: 'approved' })
         .eq('id', id);
 
       if (approveError) {
-        res.status(500).json({ error: 'Failed to approve submission' });
+        console.error('Approve submission error:', approveError);
+        res.status(500).json({ error: 'Failed to approve submission', details: approveError.message });
         return;
       }
 
@@ -542,15 +543,45 @@ export default async function handler(req: any, res: any) {
     if (action === 'reject') {
       const { error: rejectError } = await supabaseAdmin
         .from('project_submissions')
-        .update({ status: 'rejected', updated_at: new Date().toISOString() })
+        .update({ status: 'rejected' })
         .eq('id', id);
 
       if (rejectError) {
-        res.status(500).json({ error: 'Failed to reject submission' });
+        console.error('Reject submission error:', rejectError);
+        res.status(500).json({ error: 'Failed to reject submission', details: rejectError.message });
         return;
       }
 
       res.status(200).json({ message: 'Rejected submission' });
+      return;
+    }
+
+    if (action === 'update') {
+      const updateFields: Record<string, any> = {};
+      if (typeof body.project_name === 'string') updateFields.project_name = body.project_name.trim();
+      if (typeof body.project_url === 'string') updateFields.project_url = body.project_url.trim();
+      if (typeof body.description === 'string') updateFields.description = body.description.trim();
+      if (typeof body.proj_type === 'string') updateFields.proj_type = body.proj_type.trim();
+      if (typeof body.status === 'string' && ['pending', 'approved', 'rejected'].includes(body.status)) {
+        updateFields.status = body.status;
+      }
+
+      if (Object.keys(updateFields).length === 0) {
+        res.status(400).json({ error: 'No fields to update' });
+        return;
+      }
+
+      const { error: updateError } = await supabaseAdmin
+        .from('project_submissions')
+        .update(updateFields)
+        .eq('id', id);
+
+      if (updateError) {
+        res.status(500).json({ error: 'Failed to update submission' });
+        return;
+      }
+
+      res.status(200).json({ message: 'Updated submission' });
       return;
     }
 
