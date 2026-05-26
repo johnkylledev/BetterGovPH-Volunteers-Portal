@@ -15,7 +15,16 @@ function getSupabaseClient(): SupabaseClient {
     import.meta.env.SUPABASE_ANON_KEY || 
     import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   
-
+  console.log('[DEBUG] ENV CHECK:', { 
+    VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
+    VITE_SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY ? 'SET' : 'MISSING',
+    ALL_ENV_PREFIXED: Object.keys(import.meta.env).filter(k => k.includes('SUPABASE'))
+  });
+  
+  if (!supabaseUrl || !supabaseAnonKey) {
+    const envKeys = Object.keys(import.meta.env).filter(k => k.toLowerCase().includes('supabase'));
+    throw new Error(`SUPABASE ENV MISSING! Checked: VITE_SUPABASE_URL, SUPABASE_URL, NEXT_PUBLIC_SUPABASE_URL. Found keys: ${envKeys.join(', ')}`);
+  }
   
   _supabase = createClient(supabaseUrl, supabaseAnonKey);
   return _supabase;
