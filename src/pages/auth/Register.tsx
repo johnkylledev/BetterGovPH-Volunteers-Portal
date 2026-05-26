@@ -155,10 +155,13 @@ function LegacyRegister() {
                     setCurrentUser(profile);
                     const isComplete = profile.fullName && profile.specialization && profile.yearJoined;
                     if (isComplete && localStorage.getItem('onboarding_connections') !== '1') {
-                        if (profile.isAdmin) {
-                            navigate('/admin', { replace: true });
-                        } else {
-                            navigate('/dashboard', { replace: true });
+                        const alreadyOnRegister = window.location.pathname.startsWith('/register');
+                        if (!alreadyOnRegister) {
+                            if (profile.isAdmin) {
+                                navigate('/admin', { replace: true });
+                            } else {
+                                navigate('/dashboard', { replace: true });
+                            }
                         }
                     }
                 }

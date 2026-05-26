@@ -218,7 +218,8 @@ export default async function handler(req: any, res: any) {
     const { count: pending, error: pendingError } = await supabaseAdmin
       .from('users')
       .select('*', { count: 'exact', head: true })
-      .eq('status', 'Pending');
+      .eq('status', 'Pending')
+      .not('full_name', 'eq', '');
 
     if (pendingError) {
       res.status(500).json({ error: 'Failed to load stats' });
@@ -282,7 +283,8 @@ export default async function handler(req: any, res: any) {
     let query = supabaseAdmin
       .from('users')
       .select('*', { count: 'exact' })
-      .eq('is_admin', false);
+      .eq('is_admin', false)
+      .not('full_name', 'eq', '');
 
     if (statusFilter && statusFilter !== 'All') {
       query = query.eq('status', statusFilter);

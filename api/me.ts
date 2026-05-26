@@ -121,72 +121,46 @@ export default async function handler(req: any, res: any) {
         .maybeSingle();
 
       if (emailCheck) {
+        // Update the uid on the email-matched record so future lookups find it
+        if (emailCheck.uid !== uid) {
+          await supabase
+            .from('users')
+            .update({ uid, updated_at: new Date().toISOString() })
+            .eq('email', email);
+        }
         res.status(200).json({ user: mapUserRow(emailCheck) });
         return;
       }
 
-      const now = new Date().toISOString();
-      const insertRow = {
-        uid,
-        email,
-        full_name: '',
-        specialization: '',
-        role: 'Member',
-        discord_username: '',
-        status: 'Pending',
-        member_id: null,
-        year_joined: null,
-        skills: [],
-        experience_level: null,
-        admin_notes: null,
-        is_admin: false,
-        auth_provider: 'google',
-        created_at: now,
-        updated_at: now,
-      };
+      res.status(200).json({ user: null });
+      return;
+    }
 
-      const { data: inserted, error: insertError } = await supabase
+    // Deduplication: if the found record is a stub (empty full_name) and
+    // a more complete record exists with the same email, use that instead
+    if ((!data.full_name || String(data.full_name).trim() === '') && email) {
+      const { data: completeRecord } = await supabase
         .from('users')
-        .insert(insertRow)
         .select('*')
+        .eq('email', email)
+        .not('uid', 'eq', uid)
+        .not('full_name', 'eq', '')
         .maybeSingle();
 
-      if (insertError) {
-        if (insertError.message?.includes('duplicate key') || insertError.code === '23505') {
-          const { data: retryByUid } = await supabase
-            .from('users')
-            .select('*')
-            .eq('uid', uid)
-            .maybeSingle();
-          
-          if (retryByUid) {
-            res.status(200).json({ user: mapUserRow(retryByUid) });
-            return;
-          }
-
-          const { data: retryByEmail } = await supabase
-            .from('users')
-            .select('*')
-            .eq('email', email)
-            .maybeSingle();
-          
-          if (retryByEmail) {
-            res.status(200).json({ user: mapUserRow(retryByEmail) });
-            return;
-          }
-        }
-        const message = typeof (insertError as any)?.message === 'string' ? String((insertError as any).message) : '';
-        res.status(500).json({ error: 'Failed to create profile', details: message || undefined });
+      if (completeRecord) {
+        // Migrate the uid to the complete record and delete the stub
+        await supabase
+          .from('users')
+          .update({ uid, updated_at: new Date().toISOString() })
+          .eq('uid', completeRecord.uid);
+        await supabase
+          .from('users')
+          .delete()
+          .eq('uid', uid)
+          .neq('uid', completeRecord.uid);
+        res.status(200).json({ user: mapUserRow(completeRecord) });
         return;
       }
-
-      if (!inserted) {
-        res.status(500).json({ error: 'Failed to create profile' });
-        return;
-      }
-
-      res.status(200).json({ user: mapUserRow(inserted) });
-      return;
     }
 
     if ((!data.email || String(data.email).trim() === '') && email) {
@@ -244,6 +218,29 @@ export default async function handler(req: any, res: any) {
     if (updated) {
       res.status(200).json({ user: mapUserRow(updated) });
       return;
+    }
+  }
+
+  // If no user found by uid, try to find by email to prevent duplicates
+  if (!existingUser && email) {
+    const { data: userByEmail } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (userByEmail) {
+      // Update the existing record with the new uid and provided data
+      const { data: updatedRows, error: updateError } = await supabase
+        .from('users')
+        .update({ ...updates, uid, updated_at: new Date().toISOString() })
+        .eq('email', email)
+        .select('*');
+
+      if (!updateError && updatedRows && updatedRows[0]) {
+        res.status(200).json({ user: mapUserRow(updatedRows[0]) });
+        return;
+      }
     }
   }
 

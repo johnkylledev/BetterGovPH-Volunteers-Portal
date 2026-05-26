@@ -17,10 +17,9 @@ import DiscordCallback from "./pages/auth/DiscordCallback";
 const isProfileComplete = (u: any) => {
   if (!u) return false;
   const fullNameOk = typeof u.fullName === 'string' && u.fullName.trim().length > 0;
-  const discordOk = typeof u.discordUsername === 'string' && u.discordUsername.trim().length > 0;
   const specializationOk = typeof u.specialization === 'string' && u.specialization.trim().length > 0;
   const yearOk = typeof u.yearJoined === 'number' && Number.isFinite(u.yearJoined);
-  return fullNameOk && discordOk && specializationOk && yearOk;
+  return fullNameOk && specializationOk && yearOk;
 };
 
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) {
