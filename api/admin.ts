@@ -44,28 +44,18 @@ const getNumberParam = (value: unknown, fallback: number) => {
 };
 
 const assertAdmin = async (supabaseAdmin: any, uid: string, email?: string) => {
-  console.log('=== assertAdmin called ===');
-  console.log('Auth token UID:', uid);
-  console.log('User email:', email);
-  
-  // First try to find by UID
   let { data: callerRow, error: callerError } = await supabaseAdmin
     .from('users')
     .select('uid, is_admin, email')
     .eq('uid', uid)
     .maybeSingle();
     
-  console.log('DB Query by UID:', { callerRow, callerError });
-  
-  // If not found by UID, try to find by email
   if (!callerRow && email) {
-    console.log('Trying to find by email...');
     ({ data: callerRow, error: callerError } = await supabaseAdmin
       .from('users')
       .select('uid, is_admin, email')
       .eq('email', email)
       .maybeSingle());
-    console.log('DB Query by email:', { callerRow, callerError });
   }
   
   if (callerError) return { ok: false as const, error: 'Failed to validate admin' };

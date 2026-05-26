@@ -54,6 +54,19 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function HomeRoute({ children }: { children: React.ReactNode }) {
+  const { currentUser, authInitialized } = useStore();
+  const { sessionUserId } = useStore();
+
+  if (!authInitialized) return <LoadingOverlay />;
+  if (sessionUserId && currentUser) {
+    if (currentUser?.isAdmin) return <Navigate to="/admin" replace />;
+    return <Navigate to={isProfileComplete(currentUser) ? "/dashboard" : "/register"} replace />;
+  }
+
+  return <>{children}</>;
+}
+
 export default function App() {
   const { setCurrentUser, setAuthInitialized } = useStore();
   const setSessionUserId = useStore((s: any) => s.setSessionUserId);
@@ -63,86 +76,89 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
-    setBootstrapping(true);
-    
-    (async () => {
-      try {
-        console.log('App: Fetching session...');
-        const { data } = await supabase.auth.getSession();
-        const uid = data.session?.user?.id ?? null;
+    let profileLoading = false;
+
+    const initAuth = async () => {
+      const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
         if (cancelled) return;
         
-        console.log('App: Session fetched, uid:', uid);
+        const uid = session?.user?.id ?? null;
         setSessionUserId(uid);
-        setAuthInitialized(true);
-        setBootstrapping(false);
-
+        
         if (!uid) {
           setCurrentUser(null);
+          setAuthInitialized(true);
+          profileLoading = false;
           return;
         }
 
-        console.log('App: Fetching user profile...');
-        const profile = await getUserData(uid).catch(() => null);
-        if (cancelled) return;
-        console.log('App: Profile fetched:', profile?.fullName);
-        if (profile) {
-          setCurrentUser(profile);
+        setAuthInitialized(true);
+        
+        if (profileLoading || useStore.getState().currentUser) {
+          return;
         }
-      } catch (err) {
-        console.error('App: Initialization error:', err);
-        if (!cancelled) {
-          setSessionUserId(null);
-          setCurrentUser(null);
-          setAuthInitialized(true);
-          setBootstrapping(false);
-        }
-      }
-    })();
+        profileLoading = true;
+        
+        setTimeout(async () => {
+          if (cancelled) return;
+          
+          try {
+            const profile = await getUserData(uid);
+            if (!cancelled && profile) {
+              setCurrentUser(profile);
+            }
+          } catch {
+            // Silent fail - profile will load on next navigation
+          }
+          profileLoading = false;
+        }, 100);
+      });
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const uid = session?.user?.id ?? null;
-      setSessionUserId(uid);
-      if (!uid) {
-        setCurrentUser(null);
-      } else {
-        const profile = await getUserData(uid).catch(() => null);
-        if (profile) {
-          setCurrentUser(profile);
-        }
-      }
-    });
-
-    return () => {
-      cancelled = true;
-      sub.subscription.unsubscribe();
+      return () => {
+        cancelled = true;
+        sub.subscription.unsubscribe();
+      };
     };
+
+    initAuth();
+
   }, [setCurrentUser, setAuthInitialized, setSessionUserId]);
 
   useEffect(() => {
     const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
+        const currentSessionUserId = useStore.getState().sessionUserId;
+        const currentAuthInitialized = useStore.getState().authInitialized;
+        
         try {
-          resetSupabaseClient();
           const { data } = await supabase.auth.getSession();
           const uid = data.session?.user?.id ?? null;
+          
           if (uid) {
             setSessionUserId(uid);
-            setAuthInitialized(true);
+            if (!currentAuthInitialized) {
+              setAuthInitialized(true);
+            }
             const profile = await getUserData(uid).catch(() => null);
             if (profile) {
               setCurrentUser(profile);
             }
-          } else {
+          } else if (currentSessionUserId) {
             setSessionUserId(null);
             setCurrentUser(null);
-            setAuthInitialized(true);
+            if (!currentAuthInitialized) {
+              setAuthInitialized(true);
+            }
           }
         } catch (err) {
           console.error('Visibility change auth error:', err);
-          setSessionUserId(null);
-          setCurrentUser(null);
-          setAuthInitialized(true);
+          if (currentSessionUserId) {
+            setSessionUserId(null);
+            setCurrentUser(null);
+            if (!currentAuthInitialized) {
+              setAuthInitialized(true);
+            }
+          }
         }
       }
     };
@@ -196,7 +212,7 @@ export default function App() {
       {!authInitialized && !isEmbed && <LoadingOverlay />}
       <Router>
         <Routes>
-          <Route path="/" element={<Landing />} />
+          <Route path="/" element={<HomeRoute><Landing /></HomeRoute>} />
           <Route path="/login/*" element={<PublicRoute><Login /></PublicRoute>} />
           <Route path="/register/*" element={<Register />} />
           <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />

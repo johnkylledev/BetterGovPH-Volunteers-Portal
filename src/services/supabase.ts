@@ -7,6 +7,30 @@ export function resetSupabaseClient() {
   _supabase = null;
 }
 
+const supabaseStorage = {
+  getItem: (key: string): string | null => {
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+  setItem: (key: string, value: string): void => {
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) {
+      console.error('Failed to save to localStorage:', e);
+    }
+  },
+  removeItem: (key: string): void => {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // Ignore errors
+    }
+  },
+};
+
 function getSupabaseClient(): SupabaseClient {
   if (_supabase) return _supabase;
   
@@ -17,19 +41,42 @@ function getSupabaseClient(): SupabaseClient {
     throw new Error('Supabase credentials not found. Ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set.');
   }
   
-  _supabase = createClient(supabaseUrl, supabaseAnonKey);
+  _supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      storage: supabaseStorage,
+    }
+  });
   return _supabase;
 }
 
-export const supabase = new Proxy({} as SupabaseClient, {
+export const supabase: SupabaseClient = new Proxy({} as SupabaseClient, {
   get(_, prop) {
-    return getSupabaseClient()[prop as keyof SupabaseClient];
+    const client = getSupabaseClient();
+    const value = client[prop as keyof SupabaseClient];
+    if (typeof value === 'function') {
+      return value.bind(client);
+    }
+    return value;
   }
 });
 
+let cachedToken: string | null = null;
+let tokenExpiry: number = 0;
+
 const getAccessToken = async () => {
-  const { data } = await supabase.auth.getSession();
-  return data.session?.access_token || null;
+  const now = Date.now();
+  if (cachedToken && tokenExpiry > now + 5000) {
+    return cachedToken;
+  }
+  const { data, error } = await supabase.auth.getSession();
+  if (error || !data.session) {
+    return null;
+  }
+  cachedToken = data.session.access_token;
+  tokenExpiry = (data.session.expires_at || 0) * 1000;
+  return cachedToken;
 };
 
 const apiRequest = async <T = any>(path: string, init?: RequestInit): Promise<T> => {
