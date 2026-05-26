@@ -6,14 +6,19 @@ let _supabase: SupabaseClient | null = null;
 function getSupabaseClient(): SupabaseClient {
   if (_supabase) return _supabase;
   
+  const getEnv = (key: string): string | undefined => {
+    const val = import.meta.env[key];
+    return val && typeof val === 'string' && val.trim() !== '' ? val : undefined;
+  };
+  
   const supabaseUrl = 
-    import.meta.env.VITE_SUPABASE_URL || 
-    import.meta.env.SUPABASE_URL ||
-    import.meta.env.NEXT_PUBLIC_SUPABASE_URL;
+    getEnv('VITE_SUPABASE_URL') || 
+    getEnv('SUPABASE_URL') ||
+    getEnv('NEXT_PUBLIC_SUPABASE_URL');
   const supabaseAnonKey = 
-    import.meta.env.VITE_SUPABASE_ANON_KEY || 
-    import.meta.env.SUPABASE_ANON_KEY || 
-    import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    getEnv('VITE_SUPABASE_ANON_KEY') || 
+    getEnv('SUPABASE_ANON_KEY') || 
+    getEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY');
   
   console.log('[DEBUG] ENV CHECK:', { 
     VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
