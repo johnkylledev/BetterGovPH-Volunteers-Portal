@@ -1,19 +1,20 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { useEffect, useState } from "react";
-import Login from "./pages/auth/Login";
-import Register from "./pages/auth/Register";
-import UserDashboard from "./pages/dashboard/UserDashboard";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import Verify from "./pages/public/Verify";
-import Landing from "./pages/public/Landing";
-import Privacy from "./pages/public/Privacy";
-import Terms from "./pages/public/Terms";
-import Projects from "./pages/public/Projects";
-import DiscordCallback from "./pages/auth/DiscordCallback";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { useStore } from "./store/useStore";
 import { LoadingOverlay } from "./components/LoadingOverlay";
 import { getUserData } from "./services/supabase";
 import { supabase } from "./services/supabase";
+
+const Login = lazy(() => import("./pages/auth/Login"));
+const Register = lazy(() => import("./pages/auth/Register"));
+const UserDashboard = lazy(() => import("./pages/dashboard/UserDashboard"));
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const Verify = lazy(() => import("./pages/public/Verify"));
+const Landing = lazy(() => import("./pages/public/Landing"));
+const Privacy = lazy(() => import("./pages/public/Privacy"));
+const Terms = lazy(() => import("./pages/public/Terms"));
+const Projects = lazy(() => import("./pages/public/Projects"));
+const DiscordCallback = lazy(() => import("./pages/auth/DiscordCallback"));
 
 const isProfileComplete = (u: any) => {
   if (!u) return false;
@@ -174,19 +175,21 @@ export default function App() {
     <>
       {!authInitialized && !isEmbed && <LoadingOverlay />}
       <Router>
-        <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/login/*" element={<PublicRoute><Login /></PublicRoute>} />
-          <Route path="/register/*" element={<Register />} />
-          <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
-          <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/verify" element={<Verify />} />
-          <Route path="/verify/:id" element={<Verify />} />
-          <Route path="/projects" element={<Projects />} />
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/terms" element={<Terms />} />
-          <Route path="/discord-callback" element={<DiscordCallback />} />
-        </Routes>
+        <Suspense fallback={<LoadingOverlay />}>
+          <Routes>
+            <Route path="/" element={<Landing />} />
+            <Route path="/login/*" element={<PublicRoute><Login /></PublicRoute>} />
+            <Route path="/register/*" element={<Register />} />
+            <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
+            <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/verify" element={<Verify />} />
+            <Route path="/verify/:id" element={<Verify />} />
+            <Route path="/projects" element={<Projects />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/discord-callback" element={<DiscordCallback />} />
+          </Routes>
+        </Suspense>
       </Router>
     </>
   );
