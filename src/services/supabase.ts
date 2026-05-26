@@ -6,8 +6,15 @@ let _supabase: SupabaseClient | null = null;
 function getSupabaseClient(): SupabaseClient {
   if (_supabase) return _supabase;
   
-  const supabaseUrl = import.meta.env.SUPABASE_URL;
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  
+  console.log('[SUPABASE INIT] URL:', supabaseUrl, 'KEY:', supabaseAnonKey ? '***SET***' : '***MISSING***');
+  console.log('[SUPABASE INIT] All env:', JSON.stringify(import.meta.env));
+  
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error(`Missing env vars - URL: ${supabaseUrl}, KEY exists: ${!!supabaseAnonKey}`);
+  }
   
   _supabase = createClient(supabaseUrl, supabaseAnonKey);
   return _supabase;
