@@ -2,8 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "r
 import { useEffect, useState } from "react";
 import { useStore } from "./store/useStore";
 import { LoadingOverlay } from "./components/LoadingOverlay";
-import { getUserData } from "./services/supabase";
-import { supabase } from "./services/supabase";
+import { getUserData, supabase, resetSupabaseClient } from "./services/supabase";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import UserDashboard from "./pages/dashboard/UserDashboard";
@@ -123,22 +122,44 @@ export default function App() {
   useEffect(() => {
     const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
-        const { data } = await supabase.auth.getSession();
-        const uid = data.session?.user?.id ?? null;
-        if (uid) {
-          const profile = await getUserData(uid).catch(() => null);
-          if (profile) {
-            setCurrentUser(profile);
+        try {
+          resetSupabaseClient();
+          const { data } = await supabase.auth.getSession();
+          const uid = data.session?.user?.id ?? null;
+          if (uid) {
+            setSessionUserId(uid);
+            setAuthInitialized(true);
+            const profile = await getUserData(uid).catch(() => null);
+            if (profile) {
+              setCurrentUser(profile);
+            }
+          } else {
+            setSessionUserId(null);
+            setCurrentUser(null);
+            setAuthInitialized(true);
           }
+        } catch (err) {
+          console.error('Visibility change auth error:', err);
+          setSessionUserId(null);
+          setCurrentUser(null);
+          setAuthInitialized(true);
         }
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    const handleFocus = () => {
+      if (document.hasFocus() && document.visibilityState === 'visible') {
+        handleVisibilityChange();
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
     };
-  }, [setCurrentUser]);
+  }, [setCurrentUser, setSessionUserId, setAuthInitialized]);
 
   useEffect(() => {
     if (!sessionUserId) return;

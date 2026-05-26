@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -35,7 +35,7 @@ export default function AdminDashboard() {
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(0);
-  const [pageSize] = useState(20);
+  const [pageSize] = useState(5);
   const [totalCount, setTotalCount] = useState(0);
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [stats, setStats] = useState({ total: 0, pending: 0, approved: 0 });
@@ -180,10 +180,17 @@ export default function AdminDashboard() {
     return null;
   }
 
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login', { replace: true });
-  };
+  const handleLogout = useCallback(async () => {
+    try {
+      console.log('Logout clicked');
+      await logout();
+      console.log('Logout successful, navigating to login');
+      navigate('/login', { replace: true });
+    } catch (err) {
+      console.error('Logout failed:', err);
+      alert('Logout failed. Please try again.');
+    }
+  }, [logout, navigate]);
 
   const handleStatusUpdate = async (userId: string, status: ApplicationStatus) => {
     const user = users.find(u => u.id === userId);

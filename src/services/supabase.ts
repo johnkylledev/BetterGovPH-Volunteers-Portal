@@ -3,6 +3,10 @@ import { Project, ProjectSubmission, User, VolunteerCall } from '../types';
 
 let _supabase: SupabaseClient | null = null;
 
+export function resetSupabaseClient() {
+  _supabase = null;
+}
+
 function getSupabaseClient(): SupabaseClient {
   if (_supabase) return _supabase;
   

@@ -43,12 +43,31 @@ const getNumberParam = (value: unknown, fallback: number) => {
   return Number.isFinite(n) ? n : fallback;
 };
 
-const assertAdmin = async (supabaseAdmin: any, uid: string) => {
-  const { data: callerRow, error: callerError } = await supabaseAdmin
+const assertAdmin = async (supabaseAdmin: any, uid: string, email?: string) => {
+  console.log('=== assertAdmin called ===');
+  console.log('Auth token UID:', uid);
+  console.log('User email:', email);
+  
+  // First try to find by UID
+  let { data: callerRow, error: callerError } = await supabaseAdmin
     .from('users')
-    .select('is_admin')
+    .select('uid, is_admin, email')
     .eq('uid', uid)
     .maybeSingle();
+    
+  console.log('DB Query by UID:', { callerRow, callerError });
+  
+  // If not found by UID, try to find by email
+  if (!callerRow && email) {
+    console.log('Trying to find by email...');
+    ({ data: callerRow, error: callerError } = await supabaseAdmin
+      .from('users')
+      .select('uid, is_admin, email')
+      .eq('email', email)
+      .maybeSingle());
+    console.log('DB Query by email:', { callerRow, callerError });
+  }
+  
   if (callerError) return { ok: false as const, error: 'Failed to validate admin' };
   if (!callerRow?.is_admin) return { ok: false as const, error: 'Admin only' };
   return { ok: true as const };
@@ -181,6 +200,7 @@ export default async function handler(req: any, res: any) {
     });
     const { data: authData, error: authError } = await supabaseAuth.auth.getUser(token);
     const uid = authData?.user?.id ? String(authData.user.id) : '';
+    const email = authData?.user?.email ? String(authData.user.email) : '';
     if (authError || !uid) {
       res.status(401).json({ error: 'Invalid token' });
       return;
@@ -190,7 +210,7 @@ export default async function handler(req: any, res: any) {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    const adminCheck = await assertAdmin(supabaseAdmin, uid);
+    const adminCheck = await assertAdmin(supabaseAdmin, uid, email);
     if (!adminCheck.ok) {
       res.status(403).json({ error: adminCheck.error });
       return;
@@ -198,8 +218,7 @@ export default async function handler(req: any, res: any) {
 
     const { count: total, error: totalError } = await supabaseAdmin
       .from('users')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_admin', false);
+      .select('*', { count: 'exact', head: true });
 
     if (totalError) {
       res.status(500).json({ error: 'Failed to load stats' });
@@ -209,7 +228,6 @@ export default async function handler(req: any, res: any) {
     const { count: pending, error: pendingError } = await supabaseAdmin
       .from('users')
       .select('*', { count: 'exact', head: true })
-      .eq('is_admin', false)
       .eq('status', 'Pending');
 
     if (pendingError) {
@@ -220,7 +238,6 @@ export default async function handler(req: any, res: any) {
     const { count: approved, error: approvedError } = await supabaseAdmin
       .from('users')
       .select('*', { count: 'exact', head: true })
-      .eq('is_admin', false)
       .eq('status', 'Approved');
 
     if (approvedError) {
@@ -254,12 +271,13 @@ export default async function handler(req: any, res: any) {
     });
     const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
     const uid = authData?.user?.id ? String(authData.user.id) : '';
+    const email = authData?.user?.email ? String(authData.user.email) : '';
     if (authError || !uid) {
       res.status(401).json({ error: 'Invalid token' });
       return;
     }
 
-    const adminCheck = await assertAdmin(supabaseAdmin, uid);
+    const adminCheck = await assertAdmin(supabaseAdmin, uid, email);
     if (!adminCheck.ok) {
       res.status(403).json({ error: adminCheck.error });
       return;
@@ -326,6 +344,7 @@ export default async function handler(req: any, res: any) {
     });
     const { data: authData, error: authError } = await supabaseAuth.auth.getUser(token);
     const callerUid = authData?.user?.id ? String(authData.user.id) : '';
+    const callerEmail = authData?.user?.email ? String(authData.user.email) : '';
     if (authError || !callerUid) {
       res.status(401).json({ error: 'Invalid token' });
       return;
@@ -334,7 +353,7 @@ export default async function handler(req: any, res: any) {
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
-    const adminCheck = await assertAdmin(supabaseAdmin, callerUid);
+    const adminCheck = await assertAdmin(supabaseAdmin, callerUid, callerEmail);
     if (!adminCheck.ok) {
       res.status(adminCheck.error === 'Admin only' ? 403 : 401).json({ error: adminCheck.error });
       return;
@@ -410,12 +429,13 @@ export default async function handler(req: any, res: any) {
     });
     const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
     const callerUid = authData?.user?.id ? String(authData.user.id) : '';
+    const callerEmail = authData?.user?.email ? String(authData.user.email) : '';
     if (authError || !callerUid) {
       res.status(401).json({ error: 'Invalid token' });
       return;
     }
 
-    const adminCheck = await assertAdmin(supabaseAdmin, callerUid);
+    const adminCheck = await assertAdmin(supabaseAdmin, callerUid, callerEmail);
     if (!adminCheck.ok) {
       res.status(403).json({ error: adminCheck.error });
       return;
@@ -476,12 +496,13 @@ export default async function handler(req: any, res: any) {
     });
     const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
     const callerUid = authData?.user?.id ? String(authData.user.id) : '';
+    const callerEmail = authData?.user?.email ? String(authData.user.email) : '';
     if (authError || !callerUid) {
       res.status(401).json({ error: 'Invalid token' });
       return;
     }
 
-    const adminCheck = await assertAdmin(supabaseAdmin, callerUid);
+    const adminCheck = await assertAdmin(supabaseAdmin, callerUid, callerEmail);
     if (!adminCheck.ok) {
       res.status(403).json({ error: adminCheck.error });
       return;
