@@ -6,29 +6,11 @@ let _supabase: SupabaseClient | null = null;
 function getSupabaseClient(): SupabaseClient {
   if (_supabase) return _supabase;
   
-  const getEnv = (key: string): string | undefined => {
-    const val = import.meta.env[key];
-    return val && typeof val === 'string' && val.trim() !== '' ? val : undefined;
-  };
-  
-  const supabaseUrl = 
-    getEnv('VITE_SUPABASE_URL') || 
-    getEnv('SUPABASE_URL') ||
-    getEnv('NEXT_PUBLIC_SUPABASE_URL');
-  const supabaseAnonKey = 
-    getEnv('VITE_SUPABASE_ANON_KEY') || 
-    getEnv('SUPABASE_ANON_KEY') || 
-    getEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY');
-  
-  console.log('[DEBUG] ENV CHECK:', { 
-    VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
-    VITE_SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY ? 'SET' : 'MISSING',
-    ALL_ENV_PREFIXED: Object.keys(import.meta.env).filter(k => k.includes('SUPABASE'))
-  });
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
   
   if (!supabaseUrl || !supabaseAnonKey) {
-    const envKeys = Object.keys(import.meta.env).filter(k => k.toLowerCase().includes('supabase'));
-    throw new Error(`SUPABASE ENV MISSING! Checked: VITE_SUPABASE_URL, SUPABASE_URL, NEXT_PUBLIC_SUPABASE_URL. Found keys: ${envKeys.join(', ')}`);
+    throw new Error('Supabase credentials not found. Ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set.');
   }
   
   _supabase = createClient(supabaseUrl, supabaseAnonKey);

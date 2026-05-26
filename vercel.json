@@ -3,9 +3,5 @@
     { "src": "/api/(.*)", "dest": "/api/$1" },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
-  ],
-  "env": {
-    "VITE_SUPABASE_URL": "https://beondokkttczneqvpdpm.supabase.co",
-    "VITE_SUPABASE_ANON_KEY": "sb_publishable_2LarRnvC9YZYGGKfDT6hOQ_oJiLptTe"
-  }
+  ]
 }
