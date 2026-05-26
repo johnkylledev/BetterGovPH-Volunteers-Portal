@@ -153,7 +153,7 @@ function LegacyRegister() {
                 const profile = await getUserData(sessionUserId);
                 if (profile) {
                     setCurrentUser(profile);
-                    const isComplete = profile.fullName && profile.discordUsername && profile.specialization && profile.yearJoined;
+                    const isComplete = profile.fullName && profile.specialization && profile.yearJoined;
                     if (isComplete && localStorage.getItem('onboarding_connections') !== '1') {
                         if (profile.isAdmin) {
                             navigate('/admin', { replace: true });
@@ -350,7 +350,6 @@ function LegacyRegister() {
         if (step === 1) {
             if (!hasSession) return triggerError('Please create an account (or sign in) to continue.');
             if (!formData.fullName.trim()) return triggerError('Please enter your full name.');
-            if (!formData.discordUsername.trim()) return triggerError('Please enter your Discord username.');
         } else if (step === 2) {
             if (!formData.specialization) {
                 return triggerError('Please select your specialization.');
@@ -590,7 +589,6 @@ function LegacyRegister() {
                 fullName: formData.fullName.trim(),
                 specialization: primaryRole,
                 role: rl,
-                discordUsername: formData.discordUsername.trim(),
                 yearJoined: Number(formData.yearJoined),
                 skills: formData.skills,
                 experienceLevel: formData.experienceLevel,
@@ -754,23 +752,6 @@ function LegacyRegister() {
                                                             onChange={handleChange}
                                                             className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-4 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base transition-all"
                                                             placeholder="Juan Dela Cruz"
-                                                        />
-                                                    </div>
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-base font-bold text-slate-800 mb-4 tracking-tight">Discord Username</label>
-                                                    <div className="relative group">
-                                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-900 transition-colors">
-                                                            <MessageSquare size={18} />
-                                                        </div>
-                                                        <input
-                                                            name="discordUsername"
-                                                            type="text"
-                                                            value={formData.discordUsername}
-                                                            onChange={handleChange}
-                                                            className="block w-full appearance-none rounded-lg border border-slate-200 px-4 py-4 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base transition-all"
-                                                            placeholder="juan_dev#1234"
                                                         />
                                                     </div>
                                                 </div>

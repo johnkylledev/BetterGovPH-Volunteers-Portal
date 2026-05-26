@@ -396,38 +396,28 @@ export default function UserDashboard() {
               <div className="space-y-6">
                 <div>
                   <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-4">Core Skills</p>
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex flex-wrap gap-2">
                     {currentUser.skills && currentUser.skills.length > 0 ? (
                       currentUser.skills.map((skill, index) => (
                         <div
                           key={index}
-                          className="flex items-center gap-3 pl-3 pr-4 py-3 bg-white border border-slate-100/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 group"
+                          className="flex items-center gap-1.5 pl-1.5 pr-3 py-1 bg-white border border-slate-100/80 rounded-md shadow-sm group"
                         >
-                          <div className="w-11 h-11 rounded-lg bg-slate-50/80 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-50/80 transition-colors border border-slate-100/60">
+                          <div className="w-6 h-6 rounded bg-slate-50/80 flex items-center justify-center flex-shrink-0 border border-slate-100/60">
                             <img
                               src={`https://cdn.simpleicons.org/${skillToSlug(skill.name)}`}
-                              className="w-5 h-5 object-contain opacity-80 group-hover:opacity-100 transition-opacity"
+                              className="w-3.5 h-3.5 object-contain"
                               alt=""
                               onError={(e) => {
                                 (e.target as HTMLImageElement).style.display = 'none';
-                                const fallback = (e.target as HTMLImageElement).nextElementSibling;
-                                if (fallback) (fallback as HTMLElement).style.display = 'block';
                               }}
                             />
-                            <Code size={16} style={{ display: 'none' }} className="text-slate-400" />
                           </div>
-                          <div className="flex flex-col">
-                            <span className="text-sm font-semibold text-slate-800 leading-tight">{skill.name}</span>
-                            <div className="flex items-center gap-1.5 mt-1">
-                              {skill.level === 'Expert' ? <Zap size={8} className="text-blue-600 fill-blue-600" /> :
-                               skill.level === 'Practitioner' ? <CheckCircle2 size={8} className="text-blue-500" /> :
-                               <Clock size={8} className="text-slate-400" />}
-                              <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-400">
-                                {skill.level === 'Expert' ? 'Expert' :
-                                 skill.level === 'Practitioner' ? 'Practitioner' : 'Learner'}
-                              </span>
-                            </div>
-                          </div>
+                          <span className="text-xs font-semibold text-slate-800">{skill.name}</span>
+                          <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-400">
+                            {skill.level === 'Expert' ? 'Expert' :
+                             skill.level === 'Practitioner' ? 'Practitioner' : 'Learner'}
+                          </span>
                         </div>
                       ))
                     ) : (

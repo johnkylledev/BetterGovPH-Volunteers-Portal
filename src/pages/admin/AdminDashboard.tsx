@@ -1241,29 +1241,20 @@ export default function AdminDashboard() {
 
                       <div className="px-2">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Skills & Expertise</p>
-                        <div className="flex flex-wrap gap-2.5">
+                        <div className="flex flex-wrap gap-2">
                           {Array.isArray(selectedMember.skills) && selectedMember.skills.length > 0 ? (
                             selectedMember.skills.map((skill, i) => (
-                              <div key={i} className="flex items-center gap-3 pl-3 pr-5 py-3 bg-white border border-slate-200 rounded-lg hover:border-blue-100 transition-colors group shadow-sm">
-                                <div className="w-10 h-10 rounded-md bg-slate-50 flex items-center justify-center border border-slate-100">
+                              <div key={i} className="flex items-center gap-1.5 pl-1.5 pr-3 py-1 bg-white border border-slate-200 rounded-md shadow-sm group">
+                                <div className="w-6 h-6 rounded bg-slate-50 flex items-center justify-center border border-slate-100">
                                   <img
                                     src={`https://cdn.simpleicons.org/${skillToSlug(skill.name)}`}
-                                    className="w-5 h-5 object-contain opacity-70 group-hover:opacity-100 transition-opacity"
+                                    className="w-3.5 h-3.5 object-contain"
                                     alt=""
                                     onError={(e) => (e.target as HTMLImageElement).style.display = 'none'}
                                   />
                                 </div>
-                                <div className="flex flex-col">
-                                  <span className="text-sm font-bold text-slate-800 leading-tight">{skill.name}</span>
-                                  <div className="flex items-center gap-1.5 mt-1">
-                                    {skill.level === 'Expert' ? <Zap size={10} className="text-blue-600 fill-blue-600" /> :
-                                      skill.level === 'Practitioner' ? <CheckCircle2 size={10} className="text-blue-500" /> :
-                                        <Clock size={10} className="text-slate-400" />}
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-blue-600">
-                                      {skill.level}
-                                    </span>
-                                  </div>
-                                </div>
+                                <span className="text-xs font-semibold text-slate-800">{skill.name}</span>
+                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{skill.level}</span>
                               </div>
                             ))
                           ) : (
