@@ -6,7 +6,7 @@ let _supabase: SupabaseClient | null = null;
 function getSupabaseClient(): SupabaseClient {
   if (_supabase) return _supabase;
   
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseUrl = import.meta.env.SUPABASE_URL;
   const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
   
   _supabase = createClient(supabaseUrl, supabaseAnonKey);
