@@ -267,7 +267,7 @@ export const getAllUsers = async (page = 0, pageSize = 20, filters?: { status?: 
   if (filters?.role) params.set('role', filters.role);
   if (filters?.search) params.set('search', filters.search);
 
-  const response = await apiRequest<{ users: User[]; totalCount: number }>(`/api/admin/users?${params.toString()}`, {
+  const response = await apiRequest<{ users: User[]; totalCount: number }>(`/api/admin?resource=users&${params.toString()}`, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -280,7 +280,7 @@ export const getAdminStats = async () => {
   try {
     const token = await getAccessToken();
     if (!token) return { total: 0, pending: 0, approved: 0 };
-    const response = await apiRequest<{ total: number; pending: number; approved: number }>('/api/admin/stats', {
+    const response = await apiRequest<{ total: number; pending: number; approved: number }>('/api/admin?resource=stats', {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -295,7 +295,7 @@ export const getAdminStats = async () => {
 export const updateUserStatus = async (uid: string, status: string, adminNotes?: string) => {
   const token = await getAccessToken();
   if (!token) throw new Error('Not authenticated');
-  const response = await apiRequest<{ memberId: string | null }>('/api/admin/update-user-status', {
+  const response = await apiRequest<{ memberId: string | null }>('/api/admin?resource=user-status', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -361,7 +361,7 @@ export const getProjectSubmissions = async (
   if (filters?.status) params.set('status', filters.status);
 
   const response = await apiRequest<{ submissions: ProjectSubmission[]; totalCount: number }>(
-    `/api/admin/project-submissions?${params.toString()}`,
+    `/api/admin?resource=submissions&${params.toString()}`,
     {
       method: 'GET',
       headers: {
