@@ -525,8 +525,8 @@ export const getApprovedProjects = async () => {
 export const connectDiscord = async (): Promise<{ url: string }> => {
   const token = await getAccessToken();
   if (!token) throw new Error('Not authenticated');
-  return apiRequest<{ url: string }>('/api/discord/login', {
-    method: 'GET',
+  return apiRequest<{ url: string }>('/api/discord?action=login', {
+    method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
   });
 };
@@ -534,7 +534,7 @@ export const connectDiscord = async (): Promise<{ url: string }> => {
 export const syncDiscord = async (): Promise<any> => {
   const token = await getAccessToken();
   if (!token) throw new Error('Not authenticated');
-  return apiRequest<any>('/api/discord/sync', {
+  return apiRequest<any>('/api/discord', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -543,7 +543,7 @@ export const syncDiscord = async (): Promise<any> => {
 export const getDiscordStatus = async (): Promise<any> => {
   const token = await getAccessToken();
   if (!token) return { connected: false };
-  return apiRequest<any>('/api/discord/status', {
+  return apiRequest<any>('/api/discord', {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
   });
