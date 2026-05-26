@@ -1,17 +1,23 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Project, ProjectSubmission, User, VolunteerCall } from '../types';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+let _supabase: SupabaseClient | null = null;
 
-const isDev = import.meta.env.DEV;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  if (!isDev) {
-  }
+function getSupabaseClient(): SupabaseClient {
+  if (_supabase) return _supabase;
+  
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  
+  _supabase = createClient(supabaseUrl, supabaseAnonKey);
+  return _supabase;
 }
 
-export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '');
+export const supabase = new Proxy({} as SupabaseClient, {
+  get(_, prop) {
+    return getSupabaseClient()[prop as keyof SupabaseClient];
+  }
+});
 
 const getAccessToken = async () => {
   const { data } = await supabase.auth.getSession();
