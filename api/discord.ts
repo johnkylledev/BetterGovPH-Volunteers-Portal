@@ -11,6 +11,7 @@ const getConfig = () => ({
   bettygoKey: process.env.BETTYGO_API_KEY || '',
   bettygoBaseUrl: (process.env.BETTYGO_BASE_URL || 'https://bg.zel.kim').replace(/\/$/, ''),
   callbackUrl: process.env.DISCORD_CALLBACK_URL || 'http://localhost:3000/discord-callback',
+  discordBotToken: process.env.DISCORD_BOT_TOKEN || '',
 });
 
 const getBearerToken = (authorizationHeader: unknown) => {
@@ -30,11 +31,25 @@ const authenticateUser = async (supabase: any, token: string) => {
   return uid;
 };
 
+const resolveDiscordUsername = async (discordId: string, botToken: string): Promise<string | null> => {
+  if (!botToken || !discordId) return null;
+  try {
+    const res = await fetch(`https://discord.com/api/v10/users/${discordId}`, {
+      headers: { Authorization: `Bot ${botToken}` },
+    });
+    if (!res.ok) return null;
+    const data = await res.json() as { username?: string };
+    return data?.username ?? null;
+  } catch {
+    return null;
+  }
+};
+
 export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
 
-  const { url: supabaseUrl, serviceKey, bettygoKey, bettygoBaseUrl, callbackUrl } = getConfig();
+  const { url: supabaseUrl, serviceKey, bettygoKey, bettygoBaseUrl, callbackUrl, discordBotToken } = getConfig();
 
   if (!supabaseUrl || !serviceKey) {
     res.status(500).json({ error: 'Server not configured' });
@@ -77,6 +92,18 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
+    let resolvedUsername = discordUsername;
+    if (!resolvedUsername) {
+      const fetched = await resolveDiscordUsername(discordId, discordBotToken);
+      if (fetched) {
+        resolvedUsername = fetched;
+        await supabase.from('users').update({
+          discord_username: fetched,
+          updated_at: new Date().toISOString(),
+        }).eq('uid', uid);
+      }
+    }
+
     const bettygoRes = await fetch(`${bettygoBaseUrl}/users/${discordId}/discord`, {
       headers: { 'X-Api-Key': bettygoKey },
     });
@@ -88,7 +115,7 @@ export default async function handler(req: any, res: any) {
     }
 
     const data = await bettygoRes.json();
-    res.status(200).json({ connected: true, discord_id: discordId, discord_username: discordUsername, ...data });
+    res.status(200).json({ connected: true, discord_id: discordId, discord_username: resolvedUsername, ...data });
     return;
   }
 
@@ -162,8 +189,12 @@ export default async function handler(req: any, res: any) {
         return;
       }
 
-      const { verified, username: bettygoUsername } = await bettygoRes.json();
-      const discordUsername = discordUsernameFromBody ?? bettygoUsername ?? null;
+      const { verified } = await bettygoRes.json();
+
+      let discordUsername = discordUsernameFromBody ?? null;
+      if (!discordUsername) {
+        discordUsername = await resolveDiscordUsername(discordId, discordBotToken);
+      }
 
       await supabase.from('users').update({
         discord_id: discordId,
