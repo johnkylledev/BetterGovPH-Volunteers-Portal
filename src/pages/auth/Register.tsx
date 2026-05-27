@@ -62,6 +62,7 @@ function LegacyRegister() {
     const [shouldShake, setShouldShake] = useState(false);
     const [discordConnecting, setDiscordConnecting] = useState(false);
     const [discordConnected, setDiscordConnected] = useState(false);
+    const [discordUsername, setDiscordUsername] = useState('');
     const [userEmail, setUserEmail] = useState<string>('');
     const [checkingProfile, setCheckingProfile] = useState(false);
     const setCurrentUser = useStore((state) => state.setCurrentUser);
@@ -173,7 +174,10 @@ function LegacyRegister() {
         (async () => {
             try {
                 const status = await getDiscordStatus();
-                if (!cancelled && status?.connected) setDiscordConnected(true);
+                if (!cancelled && status?.connected) {
+                    setDiscordConnected(true);
+                    if (status.discord_username) setDiscordUsername(status.discord_username);
+                }
             } catch {
                 // not connected
             }
@@ -1300,7 +1304,11 @@ function LegacyRegister() {
                                                 <div className="flex-1 min-w-0">
                                                     <p className="font-black text-sm text-slate-900 uppercase tracking-wide">Discord</p>
                                                     <p className="text-xs text-slate-500 font-medium mt-0.5">
-                                                        {discordConnected ? 'Your Discord account is connected' : 'Verify your BetterGovPH server membership'}
+                                                        {discordConnected
+                                                            ? discordUsername
+                                                                ? <span className="text-green-600 font-semibold">@{discordUsername}</span>
+                                                                : 'Your Discord account is connected'
+                                                            : 'Verify your BetterGovPH server membership'}
                                                     </p>
                                                 </div>
                                                 {discordConnected ? (
