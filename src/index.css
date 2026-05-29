@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Nunito:wght@300;400;500;600;700;800&family=Quicksand:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
 @import url('https://fonts.cdnfonts.com/css/open-runde');
+@import url('https://fonts.cdnfonts.com/css/open-runde');
 
 @tailwind base;
 @tailwind components;
@@ -73,22 +74,17 @@ body {
 
 @layer components {
   .btn-primary {
-    @apply px-6 py-3 bg-blue-900 hover:bg-blue-800 text-white font-bold rounded-2xl transition-all duration-300 shadow-xl shadow-blue-900/20 hover:shadow-blue-900/30 active:scale-95 flex items-center justify-center gap-2;
+    @apply px-6 py-3 bg-blue-900 hover:bg-blue-800 text-white font-bold rounded-2xl transition-all duration-300 shadow-lg shadow-blue-900/20 hover:shadow-blue-900/30 active:scale-95 flex items-center justify-center gap-2;
   }
 
   .btn-secondary {
-    @apply px-6 py-3 bg-white border-2 border-slate-200 hover:border-blue-900 text-slate-700 hover:text-blue-900 font-bold rounded-2xl transition-all duration-300 hover:bg-slate-50 active:scale-95 flex items-center justify-center gap-2;
-  }
-
-  .glass-card {
-    @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-xl;
+    @apply px-6 py-3 bg-white border-2 border-slate-300 hover:border-blue-900 text-slate-700 hover:text-blue-900 font-bold rounded-2xl transition-all duration-300 hover:bg-slate-50 active:scale-95 flex items-center justify-center gap-2;
   }
 }
 
 .perspective-1000 {
   perspective: 1000px;
 }
-
 
 html,
 body {

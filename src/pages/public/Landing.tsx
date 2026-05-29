@@ -16,7 +16,9 @@ import {
   CheckCircle2,
   HelpCircle,
   Code2,
-  Network
+  Network,
+  Menu,
+  X
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AccessCard } from '../../components/AccessCard';
@@ -37,6 +39,7 @@ const Landing: React.FC = () => {
 
 
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -188,23 +191,23 @@ const Landing: React.FC = () => {
 
 
       {/* Navigation */}
-      <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${isScrolled ? 'bg-white/80 backdrop-blur-md shadow-sm py-2' : 'bg-transparent py-4'}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white shadow-lg shadow-black/5' : 'bg-white'}`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center gap-2">
-              <img src="/logo.svg" alt="BetterGovPH Logo" className="h-8 w-auto" />
+              <img src="/logo.svg" alt="BetterGovPH Logo" className="h-7 w-auto" />
               <div className="flex flex-col leading-none">
-                <span className="font-display font-bold text-lg tracking-tight text-blue-900">BetterGovPH</span>
-                <span className="font-display font-bold text-[10px] uppercase tracking-[0.2em] text-blue-600/70">Developer Community</span>
+                <span className="font-display font-bold text-base tracking-tight text-blue-900">BetterGovPH</span>
+                <span className="font-display font-bold text-[9px] uppercase tracking-[0.2em] text-blue-900/60 leading-tight">Developer Community</span>
               </div>
             </div>
-            <div className="hidden md:flex items-center gap-8">
+            <div className="hidden md:flex items-center gap-6">
               <Link
                 to="/projects"
-                className="text-sm font-semibold text-slate-600 hover:text-blue-600 transition-all hover:scale-105 active:scale-95 relative group"
+                className="text-sm font-semibold text-slate-600 hover:text-blue-900 transition-all hover:scale-105 active:scale-95 relative group"
               >
                 Projects
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-600 transition-all group-hover:w-full" />
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-900 transition-all group-hover:w-full" />
               </Link>
               {[
                 { name: 'Main Website', href: MAIN_WEBSITE, isExternal: true },
@@ -217,27 +220,71 @@ const Landing: React.FC = () => {
                   href={link.href}
                   target={link.isExternal ? "_blank" : undefined}
                   rel={link.isExternal ? "noopener noreferrer" : undefined}
-                  className="text-sm font-semibold text-slate-600 hover:text-blue-600 transition-all hover:scale-105 active:scale-95 relative group"
+                  className="text-sm font-semibold text-slate-600 hover:text-blue-900 transition-all hover:scale-105 active:scale-95 relative group"
                 >
                   {link.name}
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-600 transition-all group-hover:w-full" />
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-900 transition-all group-hover:w-full" />
                 </a>
               ))}
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => navigate('/login')}
-                className="text-sm font-bold px-5 py-2 rounded-xl border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                className="text-sm font-bold px-5 py-2 rounded-full border-2 border-blue-900 text-blue-900 hover:bg-blue-900 hover:text-white transition-all shadow-sm"
               >
                 Sign In
               </motion.button>
             </div>
+            <button
+              onClick={() => setMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden flex items-center justify-center p-2 text-slate-600 hover:text-blue-900 transition-all"
+              aria-label="Toggle menu"
+            >
+              {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+            </button>
           </div>
         </div>
+        {isMobileMenuOpen && (
+          <div className="md:hidden border-t border-slate-200 bg-white">
+            <div className="px-4 py-3 space-y-1">
+              <Link
+                to="/projects"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block text-sm font-semibold text-slate-600 hover:text-blue-900 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-all"
+              >
+                Projects
+              </Link>
+              {[
+                { name: 'Main Website', href: MAIN_WEBSITE, isExternal: true },
+                { name: 'Why Join', href: '#why-join' },
+                { name: 'How it Works', href: '#how-it-works' },
+                { name: 'FAQ', href: '#faq' }
+              ].map((link) => (
+                <a
+                  key={link.name}
+                  href={link.href}
+                  target={link.isExternal ? "_blank" : undefined}
+                  rel={link.isExternal ? "noopener noreferrer" : undefined}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block text-sm font-semibold text-slate-600 hover:text-blue-900 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-all"
+                >
+                  {link.name}
+                </a>
+              ))}
+              <div className="border-t border-slate-100 my-1" />
+              <button
+                onClick={() => { setMobileMenuOpen(false); navigate('/login'); }}
+                className="w-full text-sm font-bold px-5 py-3 rounded-full bg-blue-900 text-white hover:bg-blue-800 transition-all text-center"
+              >
+                Sign In
+              </button>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Hero Section */}
-      <section className="hero-section relative pt-32 pb-20 lg:pt-40 lg:pb-16 lg:min-h-screen lg:flex lg:flex-col lg:justify-center overflow-hidden">
+      <section className="hero-section relative pt-28 pb-20 lg:pt-36 lg:pb-16 lg:min-h-screen lg:flex lg:flex-col lg:justify-center overflow-hidden">
 
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -266,12 +313,10 @@ const Landing: React.FC = () => {
 
             <div className="hero-card flex justify-center items-center">
               <div className="relative">
-                {/* Decorative element around the card */}
-                <div className="absolute -inset-4 bg-gradient-to-tr from-blue-500 to-indigo-500 rounded-2xl opacity-10 blur-2xl -z-10 animate-pulse" />
                 <div className="rotate-3 hover:rotate-0 transition-transform duration-500">
                   <AccessCard user={mockUser} isDemo />
                 </div>
-                <div className="absolute -top-6 -right-6 glass-card p-3 rounded-xl flex items-center gap-2 shadow-2xl border-white">
+                <div className="absolute -top-6 -right-6 bg-white p-3 rounded-xl flex items-center gap-2 shadow-lg border border-slate-200">
                   <div className="bg-green-500 w-2 h-2 rounded-full animate-pulse" />
                   <span className="text-xs font-bold text-slate-700">Official Access</span>
                 </div>
@@ -317,11 +362,11 @@ const Landing: React.FC = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.2 }}
-            className="bg-blue-50/50 backdrop-blur-sm border border-blue-100/50 rounded-2xl p-8 md:p-12 max-w-4xl w-full text-left shadow-xl shadow-blue-900/5"
+            className="bg-blue-50 border border-blue-100 rounded-2xl p-8 md:p-12 max-w-4xl w-full text-left shadow-lg"
           >
             <p className="text-slate-700 text-lg md:text-xl leading-relaxed mb-8">
               BetterGov is a <span className="font-bold text-slate-900">volunteer-led tech initiative</span> committed to creating
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-600 text-white rounded-full text-sm font-bold mx-2 shadow-lg shadow-blue-600/20">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-900 text-white rounded-full text-sm font-bold mx-2 shadow-lg">
                 <Zap size={14} className="fill-white" />
                 #civictech
               </span>
@@ -398,9 +443,9 @@ const Landing: React.FC = () => {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
                 whileHover={{ y: -8 }}
-                className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-lg hover:shadow-blue-900/10 transition-all duration-300 group h-full flex flex-col"
+                className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 hover:shadow-lg transition-all duration-300 group h-full flex flex-col"
               >
-                <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 mb-6 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300 flex-shrink-0">
+                <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-900 mb-6 group-hover:bg-blue-900 group-hover:text-white transition-colors duration-300 flex-shrink-0">
                   {item.icon}
                 </div>
                 <h3 className="text-lg font-bold text-slate-900 mb-2 leading-snug">{item.title}</h3>
@@ -434,10 +479,10 @@ const Landing: React.FC = () => {
             className="grid md:grid-cols-2 lg:grid-cols-2 gap-6 sm:gap-8"
           >
             {[
-              { icon: <ShieldCheck size={32} className="text-blue-600" />, title: "Verified Membership", desc: "Get officially recognized as a contributor to the BetterGovPH ecosystem." },
-              { icon: <IdCard size={32} className="text-blue-600" />, title: "Official Digital Card", desc: "A sleek, professional digital ID with unique QR verification and member ID." },
-              { icon: <Code2 size={32} className="text-blue-600" />, title: "Dev Collaboration", desc: "Work alongside talented engineers and designers on public tech projects." },
-              { icon: <Network size={32} className="text-blue-600" />, title: "Community Recognition", desc: "Build your reputation and showcase your contributions to the public tech space." },
+              { icon: <ShieldCheck size={32} className="text-blue-900" />, title: "Verified Membership", desc: "Get officially recognized as a contributor to the BetterGovPH ecosystem." },
+              { icon: <IdCard size={32} className="text-blue-900" />, title: "Official Digital Card", desc: "A sleek, professional digital ID with unique QR verification and member ID." },
+              { icon: <Code2 size={32} className="text-blue-900" />, title: "Dev Collaboration", desc: "Work alongside talented engineers and designers on public tech projects." },
+              { icon: <Network size={32} className="text-blue-900" />, title: "Community Recognition", desc: "Build your reputation and showcase your contributions to the public tech space." },
             ].map((feature, i) => (
               <motion.div
                 key={i}
@@ -446,7 +491,7 @@ const Landing: React.FC = () => {
                   show: { opacity: 1, y: 0 }
                 }}
                 whileHover={{ y: -8 }}
-                className="p-8 rounded-2xl bg-white border border-slate-200 hover:border-blue-300 hover:shadow-lg hover:shadow-blue-900/5 transition-all duration-300 h-full flex flex-col"
+                className="p-8 rounded-2xl bg-white border border-slate-200 hover:border-blue-200 hover:shadow-lg transition-all duration-300 h-full flex flex-col"
               >
                 <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mb-6 shrink-0">
                   {feature.icon}
@@ -527,9 +572,9 @@ const Landing: React.FC = () => {
                 )}
 
                 <motion.div
-                  className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-lg mb-6 shadow-lg shadow-blue-500/30 relative"
+                  className="w-12 h-12 rounded-full bg-blue-900 text-white flex items-center justify-center font-bold text-lg mb-6 shadow-lg relative"
                 >
-                  <div className="absolute inset-0 rounded-full bg-blue-400 animate-ping opacity-20" />
+                  <div className="absolute inset-0 rounded-full bg-blue-800 animate-ping opacity-20" />
                   <span className="relative z-10">{item.step}</span>
                 </motion.div>
                 <h3 className="font-bold text-slate-900 mb-2 text-base">{item.title}</h3>
@@ -546,7 +591,7 @@ const Landing: React.FC = () => {
               <h4 className="font-bold text-amber-900 mb-1 text-lg">Important Requirement</h4>
               <p className="text-amber-800 text-sm">Users <span className="font-bold uppercase tracking-tight">must</span> be inside the Discord server before they can apply for the card. Applications without a verified Discord presence will be automatically declined.</p>
             </div>
-            <a href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer" className="md:ml-auto btn-primary bg-amber-600 hover:bg-amber-700 shadow-amber-500/20">
+            <a href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer" className="md:ml-auto px-6 py-3 bg-blue-900 hover:bg-blue-800 text-white font-bold rounded-2xl transition-all shadow-lg active:scale-95">
               Join Discord Now
             </a>
           </div>
@@ -593,11 +638,11 @@ const Landing: React.FC = () => {
                   show: { opacity: 1, y: 0 }
                 }}
               >
-                <details className="group p-6 rounded-2xl bg-white border border-slate-100 hover:border-blue-200 transition-all shadow-sm cursor-pointer select-none">
+                <details className="group p-6 rounded-2xl bg-white border border-slate-200 hover:border-blue-200 transition-all shadow-sm cursor-pointer select-none">
                   <summary className="list-none flex justify-between items-center font-bold text-slate-900">
                     <span className="pr-8">{faq.q}</span>
                     <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center shrink-0 group-hover:bg-blue-50 transition-colors">
-                      <ChevronRight size={18} className="group-open:rotate-90 transition-transform text-slate-400 group-hover:text-blue-600" />
+                      <ChevronRight size={18} className="group-open:rotate-90 transition-transform text-slate-400 group-hover:text-blue-900" />
                     </div>
                   </summary>
                   <div className="mt-4 text-slate-600 text-sm leading-relaxed border-t border-slate-50 pt-4 overflow-hidden animate-in fade-in slide-in-from-top-2">
@@ -626,10 +671,10 @@ const Landing: React.FC = () => {
                 Building the future of digital governance in the Philippines through open source, collaboration, and community-driven tech.
               </p>
               <div className="flex gap-4">
-                <a href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-sm">
+                <a href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-blue-900 hover:text-white hover:border-blue-900 transition-all shadow-sm">
                   <MessageSquare size={18} />
                 </a>
-                <a href={MAIN_WEBSITE} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-sm">
+                <a href={MAIN_WEBSITE} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-blue-900 hover:text-white hover:border-blue-900 transition-all shadow-sm">
                   <Globe size={18} />
                 </a>
               </div>
@@ -637,17 +682,17 @@ const Landing: React.FC = () => {
             <div>
               <h4 className="font-bold text-slate-900 mb-6 uppercase text-xs tracking-widest">Community</h4>
               <ul className="space-y-4">
-                <li><a href={DISCORD_INVITE} className="text-slate-500 hover:text-blue-600 text-sm transition-colors">Join Discord</a></li>
-                <li><a href={JOIN_US} target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-blue-600 text-sm transition-colors">Join the Mission</a></li>
-                <li><a href="https://github.com/BetterGovPH\" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-blue-600 text-sm transition-colors">Open Source Repos</a></li>
+                <li><a href={DISCORD_INVITE} className="text-slate-500 hover:text-blue-900 text-sm transition-colors">Join Discord</a></li>
+                <li><a href={JOIN_US} target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-blue-900 text-sm transition-colors">Join the Mission</a></li>
+                <li><a href="https://github.com/BetterGovPH\" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-blue-900 text-sm transition-colors">Open Source Repos</a></li>
               </ul>
             </div>
             <div>
               <h4 className="font-bold text-slate-900 mb-6 uppercase text-xs tracking-widest">Developer Portal</h4>
               <ul className="space-y-4">
-                <li><button onClick={() => navigate('/login')} className="text-slate-500 hover:text-blue-600 text-sm transition-colors">Login</button></li>
-                <li><button onClick={() => navigate('/register')} className="text-slate-500 hover:text-blue-600 text-sm transition-colors">Apply for Card</button></li>
-                <li><Link to="/verify" className="text-slate-500 hover:text-blue-600 text-sm transition-colors">Verify a Card</Link></li>
+                <li><button onClick={() => navigate('/login')} className="text-slate-500 hover:text-blue-900 text-sm transition-colors">Login</button></li>
+                <li><button onClick={() => navigate('/register')} className="text-slate-500 hover:text-blue-900 text-sm transition-colors">Apply for Card</button></li>
+                <li><Link to="/verify" className="text-slate-500 hover:text-blue-900 text-sm transition-colors">Verify a Card</Link></li>
               </ul>
             </div>
           </div>
@@ -656,8 +701,8 @@ const Landing: React.FC = () => {
               &copy; {new Date().getFullYear()} BetterGovPH. All rights reserved.
             </p>
             <div className="flex gap-6">
-              <Link to="/privacy" className="text-slate-400 hover:text-blue-600 text-xs transition-colors">Privacy Policy</Link>
-              <Link to="/terms" className="text-slate-400 hover:text-blue-600 text-xs transition-colors">Terms of Service</Link>
+              <Link to="/privacy" className="text-slate-400 hover:text-blue-900 text-xs transition-colors">Privacy Policy</Link>
+              <Link to="/terms" className="text-slate-400 hover:text-blue-900 text-xs transition-colors">Terms of Service</Link>
             </div>
           </div>
         </div>
