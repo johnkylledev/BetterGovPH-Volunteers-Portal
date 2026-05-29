@@ -71,7 +71,7 @@ export default function Login() {
           >
             <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200/60 p-8 sm:p-10">
               <div className="flex flex-col items-center mb-8">
-                 <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center mb-6 bg-white rounded-2xl shadow-lg shadow-blue-900/10 p-3">
+                 <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center mb-6">
                    <img src="/logo.svg" alt="BetterGovPH Logo" className="w-full h-full object-contain" />
                  </div>
                 <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 text-center">
