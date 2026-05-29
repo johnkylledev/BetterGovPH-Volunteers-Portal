@@ -63,6 +63,8 @@ const mapUserRow = (row: any) => ({
   discordId: row.discord_id ?? undefined,
   discordConnected: row.discord_connected ?? false,
   discordVerified: row.discord_verified ?? false,
+  discordDisplayName: row.discord_display_name ?? undefined,
+  discordAvatar: row.discord_avatar ?? undefined,
 });
 
 export default async function handler(req: any, res: any) {

@@ -599,7 +599,23 @@ export default function AdminDashboard() {
                               <div className="text-xs text-slate-500">{user.email}</div>
                             </td>
                             <td className="p-4">
-                              <div className="font-medium text-slate-700">{user.discordUsername || 'N/A'}</div>
+                              <div className="flex items-center gap-2 mb-1">
+                                {user.discordAvatar && user.discordId ? (
+                                  <img
+                                    src={`https://cdn.discordapp.com/avatars/${user.discordId}/${user.discordAvatar}.png?size=28`}
+                                    alt=""
+                                    className="w-6 h-6 rounded-full flex-shrink-0"
+                                  />
+                                ) : null}
+                                <div>
+                                  <div className="font-medium text-slate-700">
+                                    {user.discordDisplayName || user.discordUsername || 'N/A'}
+                                  </div>
+                                  {user.discordDisplayName && user.discordUsername && (
+                                    <div className="text-xs text-slate-400">@{user.discordUsername}</div>
+                                  )}
+                                </div>
+                              </div>
                               <div className="text-xs text-slate-500">{user.specialization} • {user.role}</div>
                             </td>
                             <td className="p-4">
@@ -989,8 +1005,24 @@ export default function AdminDashboard() {
                       <p className="text-sm font-semibold text-slate-600 break-all">{selectedUser.email}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Discord Username</p>
-                      <p className="text-sm font-bold text-blue-600">{selectedUser.discordUsername || 'N/A'}</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Discord</p>
+                      <div className="flex items-center gap-2">
+                        {selectedUser.discordAvatar && selectedUser.discordId ? (
+                          <img
+                            src={`https://cdn.discordapp.com/avatars/${selectedUser.discordId}/${selectedUser.discordAvatar}.png?size=32`}
+                            alt=""
+                            className="w-6 h-6 rounded-full flex-shrink-0"
+                          />
+                        ) : null}
+                        <div>
+                          <p className="text-sm font-bold text-blue-600">
+                            {selectedUser.discordDisplayName || selectedUser.discordUsername || 'N/A'}
+                          </p>
+                          {selectedUser.discordDisplayName && selectedUser.discordUsername && (
+                            <p className="text-xs text-slate-400">@{selectedUser.discordUsername}</p>
+                          )}
+                        </div>
+                      </div>
                     </div>
                     <div>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Date Applied</p>
@@ -1216,8 +1248,24 @@ export default function AdminDashboard() {
                           <p className="text-sm font-semibold text-slate-600 break-all">{selectedMember.email}</p>
                         </div>
                         <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Discord Handle</p>
-                          <p className="text-sm font-bold text-blue-600">{selectedMember.discordUsername || 'N/A'}</p>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Discord</p>
+                          <div className="flex items-center gap-2">
+                            {selectedMember.discordAvatar && selectedMember.discordId ? (
+                              <img
+                                src={`https://cdn.discordapp.com/avatars/${selectedMember.discordId}/${selectedMember.discordAvatar}.png?size=32`}
+                                alt=""
+                                className="w-6 h-6 rounded-full flex-shrink-0"
+                              />
+                            ) : null}
+                            <div>
+                              <p className="text-sm font-bold text-blue-600">
+                                {selectedMember.discordDisplayName || selectedMember.discordUsername || 'N/A'}
+                              </p>
+                              {selectedMember.discordDisplayName && selectedMember.discordUsername && (
+                                <p className="text-xs text-slate-400">@{selectedMember.discordUsername}</p>
+                              )}
+                            </div>
+                          </div>
                         </div>
                         <div>
                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Primary Role</p>

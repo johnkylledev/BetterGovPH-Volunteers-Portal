@@ -31,15 +31,19 @@ const authenticateUser = async (supabase: any, token: string) => {
   return uid;
 };
 
-const resolveDiscordUsername = async (discordId: string, botToken: string): Promise<string | null> => {
+const resolveDiscordProfile = async (discordId: string, botToken: string): Promise<{ username: string | null; displayName: string | null; avatar: string | null } | null> => {
   if (!botToken || !discordId) return null;
   try {
     const res = await fetch(`https://discord.com/api/v10/users/${discordId}`, {
       headers: { Authorization: `Bot ${botToken}` },
     });
     if (!res.ok) return null;
-    const data = await res.json() as { username?: string };
-    return data?.username ?? null;
+    const data = await res.json() as { username?: string; global_name?: string | null; avatar?: string | null };
+    return {
+      username: data?.username ?? null,
+      displayName: data?.global_name ?? null,
+      avatar: data?.avatar ?? null,
+    };
   } catch {
     return null;
   }
@@ -81,12 +85,14 @@ export default async function handler(req: any, res: any) {
 
     const { data: userData } = await supabase
       .from('users')
-      .select('discord_id, discord_username')
+      .select('discord_id, discord_username, discord_display_name, discord_avatar')
       .eq('uid', uid)
       .single();
 
     const discordId = userData?.discord_id;
     const discordUsername = userData?.discord_username ?? null;
+    let discordDisplayName = userData?.discord_display_name ?? null;
+    let discordAvatar = userData?.discord_avatar ?? null;
     if (!discordId) {
       res.status(200).json({ connected: false });
       return;
@@ -94,11 +100,15 @@ export default async function handler(req: any, res: any) {
 
     let resolvedUsername = discordUsername;
     if (!resolvedUsername) {
-      const fetched = await resolveDiscordUsername(discordId, discordBotToken);
-      if (fetched) {
-        resolvedUsername = fetched;
+      const profile = await resolveDiscordProfile(discordId, discordBotToken);
+      if (profile) {
+        resolvedUsername = profile.username;
+        discordDisplayName = profile.displayName;
+        discordAvatar = profile.avatar;
         await supabase.from('users').update({
-          discord_username: fetched,
+          discord_username: profile.username,
+          discord_display_name: profile.displayName,
+          discord_avatar: profile.avatar,
           updated_at: new Date().toISOString(),
         }).eq('uid', uid);
       }
@@ -115,7 +125,7 @@ export default async function handler(req: any, res: any) {
     }
 
     const data = await bettygoRes.json();
-    res.status(200).json({ connected: true, discord_id: discordId, discord_username: resolvedUsername, ...data });
+    res.status(200).json({ connected: true, discord_id: discordId, discord_username: resolvedUsername, discord_display_name: discordDisplayName, discord_avatar: discordAvatar, ...data });
     return;
   }
 
@@ -167,6 +177,8 @@ export default async function handler(req: any, res: any) {
       const body = req.body ?? {};
       const discordIdFromBody: string | undefined = typeof body.discord_id === 'string' ? body.discord_id : undefined;
       const discordUsernameFromBody: string | undefined = typeof body.discord_username === 'string' ? body.discord_username.trim() : undefined;
+      const discordDisplayNameFromBody: string | undefined = typeof body.discord_display_name === 'string' ? body.discord_display_name.trim() || undefined : undefined;
+      const discordAvatarFromBody: string | undefined = typeof body.discord_avatar === 'string' ? body.discord_avatar.trim() || undefined : undefined;
 
       const { data: userData } = await supabase
         .from('users')
@@ -192,19 +204,28 @@ export default async function handler(req: any, res: any) {
       const { verified } = await bettygoRes.json();
 
       let discordUsername = discordUsernameFromBody ?? null;
+      let discordDisplayName = discordDisplayNameFromBody ?? null;
+      let discordAvatar = discordAvatarFromBody ?? null;
       if (!discordUsername) {
-        discordUsername = await resolveDiscordUsername(discordId, discordBotToken);
+        const profile = await resolveDiscordProfile(discordId, discordBotToken);
+        if (profile) {
+          discordUsername = profile.username;
+          discordDisplayName = profile.displayName;
+          discordAvatar = profile.avatar;
+        }
       }
 
       await supabase.from('users').update({
         discord_id: discordId,
         discord_username: discordUsername,
+        discord_display_name: discordDisplayName,
+        discord_avatar: discordAvatar,
         discord_connected: true,
         discord_verified: verified ?? false,
         updated_at: new Date().toISOString(),
       }).eq('uid', uid);
 
-      res.status(200).json({ connected: true, discord_id: discordId, discord_username: discordUsername, verified });
+      res.status(200).json({ connected: true, discord_id: discordId, discord_username: discordUsername, discord_display_name: discordDisplayName, discord_avatar: discordAvatar, verified });
       return;
     }
 

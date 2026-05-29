@@ -74,4 +74,6 @@ export interface User {
   discordId?: string;
   discordConnected?: boolean;
   discordVerified?: boolean;
+  discordDisplayName?: string;
+  discordAvatar?: string;
 }

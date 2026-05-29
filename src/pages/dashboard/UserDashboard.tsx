@@ -362,7 +362,23 @@ export default function UserDashboard() {
                 </div>
                 <div>
                   <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Discord</p>
-                  <p className="text-sm font-medium text-slate-900 truncate">{currentUser.discordUsername}</p>
+                  <div className="flex items-center gap-2">
+                    {currentUser.discordAvatar && currentUser.discordId ? (
+                      <img
+                        src={`https://cdn.discordapp.com/avatars/${currentUser.discordId}/${currentUser.discordAvatar}.png?size=32`}
+                        alt=""
+                        className="w-6 h-6 rounded-full flex-shrink-0"
+                      />
+                    ) : null}
+                    <div>
+                      <p className="text-sm font-medium text-slate-900 truncate">
+                        {currentUser.discordDisplayName || currentUser.discordUsername || '—'}
+                      </p>
+                      {currentUser.discordDisplayName && currentUser.discordUsername && (
+                        <p className="text-xs text-slate-400">@{currentUser.discordUsername}</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Primary Role</p>

@@ -27,11 +27,13 @@ export default function DiscordCallback() {
 
     const discordId = params.get('discord_id') ?? undefined;
     const discordUsername = params.get('discord_username') ?? undefined;
+    const discordDisplayName = params.get('discord_display_name') ?? undefined;
+    const discordAvatar = params.get('discord_avatar') ?? undefined;
 
     let cancelled = false;
     (async () => {
       try {
-        await syncDiscord(discordId, discordUsername);
+        await syncDiscord(discordId, discordUsername, discordDisplayName, discordAvatar);
       } catch {
         // ignore sync errors — still return to step 4
       }

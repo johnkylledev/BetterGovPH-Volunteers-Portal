@@ -157,6 +157,11 @@ const mapToAppUser = (dbUser: any): User | null => {
     experienceLevel: dbUser.experience_level,
     createdAt: dbUser.created_at,
     updatedAt: dbUser.updated_at,
+    discordId: dbUser.discord_id ?? undefined,
+    discordConnected: dbUser.discord_connected ?? false,
+    discordVerified: dbUser.discord_verified ?? false,
+    discordDisplayName: dbUser.discord_display_name ?? undefined,
+    discordAvatar: dbUser.discord_avatar ?? undefined,
   };
 };
 
@@ -616,13 +621,13 @@ export const connectDiscord = async (): Promise<{ url: string }> => {
   });
 };
 
-export const syncDiscord = async (discordId?: string, discordUsername?: string): Promise<any> => {
+export const syncDiscord = async (discordId?: string, discordUsername?: string, discordDisplayName?: string, discordAvatar?: string): Promise<any> => {
   const token = await getAccessToken();
   if (!token) throw new Error('Not authenticated');
   return apiRequest<any>('/api/discord', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ discord_id: discordId, discord_username: discordUsername }),
+    body: JSON.stringify({ discord_id: discordId, discord_username: discordUsername, discord_display_name: discordDisplayName, discord_avatar: discordAvatar }),
   });
 };
 
