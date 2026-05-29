@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { ensureUserHasMemberId, generateUniqueMemberId } from './_lib/memberId';
+import { ensureUserHasMemberId } from './_lib/memberId';
 
 const getSupabaseConfig = () => {
   const url =
