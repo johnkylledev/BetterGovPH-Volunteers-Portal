@@ -237,7 +237,7 @@ const Landing: React.FC = () => {
       </nav>
 
       {/* Hero Section */}
-      <section className="hero-section relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
+      <section className="hero-section relative pt-32 pb-20 lg:pt-40 lg:pb-16 lg:min-h-screen lg:flex lg:flex-col lg:justify-center overflow-hidden">
 
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -250,9 +250,7 @@ const Landing: React.FC = () => {
               <h1 className="text-5xl lg:text-7xl font-display font-extrabold text-slate-900 leading-[1.1] mb-6">
                 Join the <span className="text-blue-600">BetterGovPH</span> Developer Community
               </h1>
-              <p className="text-xl text-slate-600 mb-8 max-w-lg leading-relaxed">
-                Connect with developers, contributors, innovators, and public tech builders shaping BetterGovPH. Get your official Developer Community Access Card today.
-              </p>
+              <p className="text-[15px] sm:text-xl text-slate-600 mb-8 max-w-lg leading-relaxed">Connect with developers, contributors, innovators, and public tech builders shaping BetterGovPH. Get your official Developer Community Access Card today.</p>
               <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
                 <a href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer" className="btn-primary group inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/30 active:scale-[0.98]">
                   <MessageSquare size={20} />

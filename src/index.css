@@ -6,13 +6,13 @@
 @tailwind utilities;
 
 :root {
-  --font-jakarta: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
   --font-display: 'Plus Jakarta Sans', sans-serif;
   --font-round: 'Open Runde', sans-serif;
 
-  font-family: var(--font-jakarta);
+  font-family: var(--font-body);
   line-height: 1.6;
-  font-weight: 500; /* Adjusted default weight for better readability */
+  font-weight: 400;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -23,11 +23,11 @@
 html,
 body,
 #root {
-  font-family: var(--font-jakarta);
+  font-family: var(--font-body);
   @apply antialiased text-slate-900;
 }
 
-/* Force Jakarta Sans on all common elements */
+/* Force body font on all common UI elements */
 p,
 span,
 a,
@@ -36,7 +36,7 @@ input,
 textarea,
 select,
 div {
-  font-family: var(--font-jakarta);
+  font-family: var(--font-body);
 }
 
 /* Refined Heading Weights */
@@ -47,8 +47,12 @@ h4,
 h5,
 h6 {
   font-family: var(--font-display);
-  font-weight: 800; /* ExtraBold for headers */
+  font-weight: 700;
   letter-spacing: -0.02em;
+}
+
+.font-display {
+  font-family: var(--font-display);
 }
 
 /* PROTECT ACCESS CARD FONT */
