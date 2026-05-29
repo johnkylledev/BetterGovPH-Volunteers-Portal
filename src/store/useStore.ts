@@ -56,9 +56,8 @@ export const useStore = create<AuthState>()((set, get) => ({
 
           set({ users: [...users, newUser], currentUser: newUser });
           return { success: true, message: 'Registration successful.' };
-        } catch (error: any) {
-          console.error('Registration error:', error);
-          return { success: false, message: error.message || 'Registration failed.' };
+        } catch (err: any) {
+          return { success: false, message: err.message || 'Registration failed.' };
         }
       },
 
@@ -70,9 +69,8 @@ export const useStore = create<AuthState>()((set, get) => ({
             return { success: true, message: 'Login successful.' };
           }
           return { success: false, message: 'Invalid credentials.' };
-        } catch (error: any) {
-          console.error('Login error:', error);
-          return { success: false, message: error.message || 'Invalid credentials.' };
+        } catch (err: any) {
+          return { success: false, message: err.message || 'Invalid credentials.' };
         }
       },
 
@@ -81,8 +79,7 @@ export const useStore = create<AuthState>()((set, get) => ({
           await supabaseService.signOut();
           set({ currentUser: null, users: [], sessionUserId: null, authInitialized: false });
           window.location.href = '/login';
-        } catch (error) {
-          console.error('Logout error:', error);
+        } catch {
           set({ currentUser: null, sessionUserId: null, authInitialized: false });
           window.location.href = '/login';
         }
@@ -99,7 +96,6 @@ export const useStore = create<AuthState>()((set, get) => ({
 
           // Retry logic if user data is not found (prevents race condition during registration)
           if (!supabaseUserData) {
-            console.log('User data not found, retrying in 1s...');
             await new Promise(resolve => setTimeout(resolve, 1000));
             supabaseUserData = await supabaseService.getUserData(uid);
           }
@@ -126,14 +122,8 @@ export const useStore = create<AuthState>()((set, get) => ({
 
             set({ currentUser: user });
           } else {
-            console.warn('User data not found in Supabase for UID:', uid);
-            // Fallback: If we have a session but no DB record, don't logout yet.
-            // Just keep the currentUser as null or a partial user.
-            // This prevents the ProtectedRoute from immediately redirecting to /login
-            // if the database record creation is just slow.
           }
-        } catch (error) {
-          console.error('Security Check Error:', error);
+        } catch {
         }
       },
 
@@ -176,7 +166,6 @@ export const useStore = create<AuthState>()((set, get) => ({
           });
           return { success: true };
         } catch (err: any) {
-          console.error('Error updating user status:', err);
           return { success: false, message: err.message };
         }
       },

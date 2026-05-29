@@ -149,8 +149,7 @@ export default function App() {
               setAuthInitialized(true);
             }
           }
-        } catch (err) {
-          console.error('Visibility change auth error:', err);
+        } catch {
           if (currentSessionUserId) {
             setSessionUserId(null);
             setCurrentUser(null);

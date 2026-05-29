@@ -1,12 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
+import { ensureUserHasMemberId } from './_lib/memberId';
 
 const getConfig = () => ({
-  url: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  url: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
   serviceKey:
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
     process.env.SUPABASE_SERVICE_ROLE ||
-    process.env.VITE_SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.VITE_SUPABASE_SERVICE_ROLE ||
     '',
   bettygoKey: process.env.BETTYGO_API_KEY || '',
   bettygoBaseUrl: (process.env.BETTYGO_BASE_URL || 'https://bg.zel.kim').replace(/\/$/, ''),
@@ -125,6 +124,25 @@ export default async function handler(req: any, res: any) {
     }
 
     const data = await bettygoRes.json();
+    const verified = data?.verified ?? false;
+
+    if (verified) {
+      const { data: currentUser } = await supabase
+        .from('users')
+        .select('status')
+        .eq('uid', uid)
+        .single();
+      if (currentUser && currentUser.status !== 'Approved') {
+        const updateFields: any = { status: 'Approved', updated_at: new Date().toISOString() };
+        await supabase.from('users').update(updateFields).eq('uid', uid);
+        try {
+          await ensureUserHasMemberId(supabase, uid);
+        } catch {
+          // Member ID generation failed — ignore
+        }
+      }
+    }
+
     res.status(200).json({ connected: true, discord_id: discordId, discord_username: resolvedUsername, discord_display_name: discordDisplayName, discord_avatar: discordAvatar, ...data });
     return;
   }
@@ -215,7 +233,7 @@ export default async function handler(req: any, res: any) {
         }
       }
 
-      await supabase.from('users').update({
+      const updateFields: any = {
         discord_id: discordId,
         discord_username: discordUsername,
         discord_display_name: discordDisplayName,
@@ -223,9 +241,24 @@ export default async function handler(req: any, res: any) {
         discord_connected: true,
         discord_verified: verified ?? false,
         updated_at: new Date().toISOString(),
-      }).eq('uid', uid);
+      };
 
-      res.status(200).json({ connected: true, discord_id: discordId, discord_username: discordUsername, discord_display_name: discordDisplayName, discord_avatar: discordAvatar, verified });
+      if (verified) {
+        updateFields.status = 'Approved';
+      }
+
+      await supabase.from('users').update(updateFields).eq('uid', uid);
+
+      let memberId: string | null = null;
+      if (verified) {
+        try {
+          memberId = await ensureUserHasMemberId(supabase, uid);
+        } catch {
+          // Member ID generation failed — still return success for Discord sync
+        }
+      }
+
+      res.status(200).json({ connected: true, discord_id: discordId, discord_username: discordUsername, discord_display_name: discordDisplayName, discord_avatar: discordAvatar, verified, memberId });
       return;
     }
 

@@ -4,20 +4,14 @@ const getSupabaseConfig = () => {
   const url =
     process.env.SUPABASE_URL ||
     process.env.VITE_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL ||
     '';
   const anonKey =
     process.env.SUPABASE_ANON_KEY ||
     process.env.VITE_SUPABASE_ANON_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     '';
   const serviceKey =
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
     process.env.SUPABASE_SERVICE_ROLE ||
-    process.env.VITE_SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.VITE_SUPABASE_SERVICE_ROLE ||
-    process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE ||
     '';
   return { url, anonKey, serviceKey };
 };
@@ -188,13 +182,13 @@ export default async function handler(req: any, res: any) {
   };
 
   if (email) updates.email = email;
-  if (typeof body.fullName === 'string') updates.full_name = body.fullName.trim();
-  if (typeof body.specialization === 'string') updates.specialization = body.specialization.trim();
-  if (typeof body.role === 'string') updates.role = body.role.trim();
-  if (typeof body.discordUsername === 'string') updates.discord_username = body.discordUsername.trim();
-  if (typeof body.yearJoined === 'number') updates.year_joined = body.yearJoined;
-  if (Array.isArray(body.skills)) updates.skills = body.skills;
-  if (typeof body.experienceLevel === 'string') updates.experience_level = body.experienceLevel;
+  if (typeof body.fullName === 'string') updates.full_name = body.fullName.trim().slice(0, 200);
+  if (typeof body.specialization === 'string') updates.specialization = body.specialization.trim().slice(0, 100);
+  if (typeof body.role === 'string') updates.role = body.role.trim().slice(0, 50);
+  if (typeof body.discordUsername === 'string') updates.discord_username = body.discordUsername.trim().slice(0, 64);
+  if (typeof body.yearJoined === 'number' && body.yearJoined >= 2020 && body.yearJoined <= 2100) updates.year_joined = body.yearJoined;
+  if (Array.isArray(body.skills) && body.skills.length <= 100) updates.skills = body.skills;
+  if (typeof body.experienceLevel === 'string') updates.experience_level = body.experienceLevel.trim().slice(0, 50);
   updates.auth_provider = 'google';
 
   const { data: existingUser } = await supabase

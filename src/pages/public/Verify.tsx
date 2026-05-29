@@ -49,8 +49,7 @@ export default function Verify() {
       try {
         const remoteUser = await getUserByMemberIdOrId(id);
         setUserData(remoteUser);
-      } catch (error) {
-        console.error('Error loading verify user:', error);
+      } catch {
         setUserData(null);
       } finally {
         setLoading(false);
@@ -96,8 +95,7 @@ export default function Verify() {
       await navigator.clipboard.writeText(publicUrl);
       setCopyStatus('copied');
       setTimeout(() => setCopyStatus('idle'), 2000);
-    } catch (error) {
-      console.error('Copy failed:', error);
+    } catch {
     }
   };
 
@@ -108,8 +106,7 @@ export default function Verify() {
       await navigator.clipboard.writeText(embedCode);
       setCopyStatus('embed-copied');
       setTimeout(() => setCopyStatus('idle'), 2000);
-    } catch (error) {
-      console.error('Copy failed:', error);
+    } catch {
     }
   };
 

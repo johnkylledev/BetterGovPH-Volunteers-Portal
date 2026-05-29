@@ -72,8 +72,7 @@ export default function AdminDashboard() {
       const { users: fetchedUsers, totalCount: fetchedTotal } = await getAllUsers(page, pageSize, filters);
       setUsers(fetchedUsers);
       setTotalCount(fetchedTotal);
-    } catch (error) {
-      console.error('Error loading admin users:', error);
+    } catch {
     } finally {
       setIsDataLoading(false);
     }
@@ -142,7 +141,6 @@ export default function AdminDashboard() {
           table: 'users',
         },
         () => {
-          console.log('Real-time: Users table changed');
           if (activeTab !== 'projects') {
             loadUsers(currentPage);
           }
@@ -226,7 +224,6 @@ export default function AdminDashboard() {
         alert(`Failed to update database: ${(res as any)?.message || 'Unknown error'}. Please check if the user exists in Supabase.`);
       }
     } catch (error: any) {
-      console.error('Error updating user status:', error);
       alert(`Error: ${error.message || 'Failed to update user status'}`);
     }
   };
@@ -273,8 +270,7 @@ export default function AdminDashboard() {
       });
       setEditingSubmission(null);
       await loadProjectSubmissions();
-    } catch (error) {
-      console.error('Error editing project submission:', error);
+    } catch {
       alert('Failed to update project submission.');
     } finally {
       setEditSaving(false);
@@ -292,8 +288,7 @@ export default function AdminDashboard() {
       await deleteProjectSubmission(submissionId, { deleteUser: !!options?.deleteUser });
       await loadProjectSubmissions();
       await loadStats();
-    } catch (error) {
-      console.error('Error deleting project submission:', error);
+    } catch {
       alert('Failed to delete project submission.');
     } finally {
       setProjectActionLoadingId(null);

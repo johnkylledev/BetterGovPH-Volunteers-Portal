@@ -70,11 +70,7 @@ function LegacyRegister() {
     const authInitialized = useStore((state) => state.authInitialized);
     const sessionUserId = useStore((state) => state.sessionUserId);
 
-    const [devBypass, setDevBypass] = useState(false);
-    const isDevMode = typeof process !== 'undefined'
-        ? process.env.NODE_ENV === 'development'
-        : import.meta.env?.DEV;
-    const hasSession = sessionUserId || devBypass;
+    const hasSession = !!sessionUserId;
 
     const dragContainerRef = React.useRef<HTMLDivElement>(null);
     const dragContentRef = React.useRef<HTMLDivElement>(null);
@@ -289,20 +285,6 @@ function LegacyRegister() {
                                     </>
                                 )}
                             </button>
-
-                            {isDevMode && (
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setDevBypass(true);
-                                        setUserEmail('dev_bypass@local.test');
-                                    }}
-                                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-amber-100 border-2 border-amber-200 px-6 py-3 text-sm font-bold text-amber-900 shadow-sm hover:bg-amber-200 transition-all"
-                                >
-                                    <Wrench size={16} />
-                                    Skip Login (Dev Mode)
-                                </button>
-                            )}
 
                             <div className="relative">
                                 <div className="absolute inset-0 flex items-center">
@@ -738,7 +720,7 @@ function LegacyRegister() {
                                                     <div className="flex items-center justify-between gap-4">
                                                         <div className="min-w-0">
                                                             <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Account</p>
-                                                            <p className="mt-2 text-sm font-bold text-slate-900 truncate">{devBypass ? 'dev_bypass@local.test' : (userEmail || 'Loading...')}</p>
+                                                            <p className="mt-2 text-sm font-bold text-slate-900 truncate">{userEmail || 'Loading...'}</p>
                                                         </div>
                                                     </div>
                                                 </div>

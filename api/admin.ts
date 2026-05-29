@@ -1,23 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
+import { ensureUserHasMemberId, generateUniqueMemberId } from './_lib/memberId';
 
 const getSupabaseConfig = () => {
   const url =
     process.env.SUPABASE_URL ||
     process.env.VITE_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL ||
     '';
   const anonKey =
     process.env.SUPABASE_ANON_KEY ||
     process.env.VITE_SUPABASE_ANON_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     '';
   const serviceKey =
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
     process.env.SUPABASE_SERVICE_ROLE ||
-    process.env.VITE_SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.VITE_SUPABASE_SERVICE_ROLE ||
-    process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE ||
     '';
   return { url, anonKey, serviceKey };
 };
@@ -94,65 +89,6 @@ const mapSubmissionRow = (row: any, submittedBy?: { fullName: string; email: str
   createdAt: row.created_at,
   submittedBy,
 });
-
-const generateUniqueMemberId = async (supabaseAdmin: any, selectedYear: number) => {
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const { data, error } = await supabaseAdmin
-      .from('users')
-      .select('member_id')
-      .ilike('member_id', `BGPH-${selectedYear}-%`)
-      .order('member_id', { ascending: false })
-      .limit(100);
-
-    if (error) throw error;
-
-    let maxSequence = 0;
-    for (const u of data ?? []) {
-      const memberId = u.member_id;
-      if (typeof memberId !== 'string') continue;
-      const match = memberId.match(/^BGPH-(\d{4})-(\d{3})$/);
-      if (match && parseInt(match[1]) === selectedYear) {
-        const seq = parseInt(match[2], 10);
-        if (!isNaN(seq) && seq > maxSequence) maxSequence = seq;
-      }
-    }
-
-    const nextSequence = maxSequence + 1;
-    const newMemberId = `BGPH-${selectedYear}-${String(nextSequence).padStart(3, '0')}`;
-    
-    const { data: checkDuplicate } = await supabaseAdmin
-      .from('users')
-      .select('member_id')
-      .eq('member_id', newMemberId)
-      .maybeSingle();
-    
-    if (!checkDuplicate) {
-      return newMemberId;
-    }
-  }
-  
-  throw new Error('Failed to generate unique member ID after 5 attempts');
-};
-
-const ensureUserHasMemberId = async (supabaseAdmin: any, uid: string) => {
-  const { data, error } = await supabaseAdmin
-    .from('users')
-    .select('member_id, year_joined')
-    .eq('uid', uid)
-    .maybeSingle();
-
-  if (error) throw error;
-  if (data?.member_id) return data.member_id as string;
-
-  const yearJoined = data?.year_joined || new Date().getFullYear();
-  const memberId = await generateUniqueMemberId(supabaseAdmin, yearJoined);
-  await supabaseAdmin
-    .from('users')
-    .update({ member_id: memberId, updated_at: new Date().toISOString() })
-    .eq('uid', uid);
-
-  return memberId;
-};
 
 const getBody = (req: any) => {
   const body = req.body ?? {};
@@ -370,7 +306,13 @@ export default async function handler(req: any, res: any) {
     const updates: any = { updated_at: new Date().toISOString() };
     if (status) updates.status = status;
     if (adminNotes !== undefined) updates.admin_notes = adminNotes;
-    if (isAdmin !== undefined) updates.is_admin = isAdmin;
+    if (isAdmin !== undefined) {
+      if (uid === callerUid) {
+        res.status(403).json({ error: 'Cannot modify your own admin status' });
+        return;
+      }
+      updates.is_admin = isAdmin;
+    }
 
     let memberId: string | undefined;
     if (status === 'Approved' || isAdmin === true) {
@@ -533,8 +475,7 @@ export default async function handler(req: any, res: any) {
         .eq('id', id);
 
       if (approveError) {
-        console.error('Approve submission error:', approveError);
-        res.status(500).json({ error: 'Failed to approve submission', details: approveError.message });
+        res.status(500).json({ error: 'Failed to approve submission' });
         return;
       }
 
@@ -549,8 +490,7 @@ export default async function handler(req: any, res: any) {
         .eq('id', id);
 
       if (rejectError) {
-        console.error('Reject submission error:', rejectError);
-        res.status(500).json({ error: 'Failed to reject submission', details: rejectError.message });
+        res.status(500).json({ error: 'Failed to reject submission' });
         return;
       }
 
@@ -600,6 +540,11 @@ export default async function handler(req: any, res: any) {
           await supabaseAdmin.from('project_submissions').delete().eq('user_id', userId);
           await supabaseAdmin.from('volunteer_calls').delete().eq('user_id', userId);
           await supabaseAdmin.from('users').delete().eq('uid', userId);
+          try {
+            await supabaseAdmin.auth.admin.deleteUser(userId);
+          } catch {
+            // Auth user may not exist — ignore
+          }
         }
       }
 

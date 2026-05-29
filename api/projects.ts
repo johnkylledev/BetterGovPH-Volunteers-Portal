@@ -65,16 +65,6 @@ export default async function handler(req: any, res: any) {
   const { url: supabaseUrl, anonKey: supabaseAnonKey, serviceKey: serviceRoleKey, sources } = getSupabaseConfig();
   const primaryKey = supabaseAnonKey || serviceRoleKey;
   const fallbackKey = supabaseAnonKey && serviceRoleKey && supabaseAnonKey !== serviceRoleKey ? serviceRoleKey : '';
-  const debug = String(req?.query?.debug ?? '') === '1';
-  const canDebug = debug && String(process.env.NODE_ENV || '').toLowerCase() !== 'production';
-  const supabaseHost = (() => {
-    try {
-      return new URL(supabaseUrl).host;
-    } catch {
-      return '';
-    }
-  })();
-  const keyTail = (v: string) => (typeof v === 'string' && v.length >= 6 ? v.slice(-6) : '');
 
   if (!supabaseUrl || !primaryKey) {
     const missing: string[] = [];
@@ -162,49 +152,5 @@ export default async function handler(req: any, res: any) {
 
   const projects = (result.data ?? []).map(mapProjectRow);
 
-  if (!canDebug) {
-    res.status(200).json({ projects });
-    return;
-  }
-
-  const safeError = (e: any) => (typeof e?.message === 'string' ? e.message : typeof e === 'string' ? e : '');
-  const totalCountRes = await supabase
-    .from('project_submissions')
-    .select('id', { count: 'exact', head: true });
-  const approvedCountRes = await supabase
-    .from('project_submissions')
-    .select('id', { count: 'exact', head: true })
-    .in('status', ['approved', 'Approved', 'APPROVED']);
-  const anyRowsRes = await supabase
-    .from('project_submissions')
-    .select('id, project_name, status, created_at')
-    .order('created_at', { ascending: false })
-    .limit(3);
-  const adminProbe = await (async () => {
-    try {
-      await (supabase as any).auth.admin.listUsers({ page: 1, perPage: 1 });
-      return { ok: true as const };
-    } catch (e: any) {
-      return { ok: false as const, error: safeError(e) };
-    }
-  })();
-
-  res.status(200).json({
-    projects,
-    debug: {
-      supabaseHost,
-      usingServiceRole: true,
-      envSources: sources,
-      anonKeyTail: keyTail(supabaseAnonKey),
-      serviceRoleKeyTail: keyTail(serviceRoleKey),
-      serviceRoleAdminOk: adminProbe.ok,
-      serviceRoleAdminError: adminProbe.ok ? '' : adminProbe.error,
-      totalCount: totalCountRes.count ?? null,
-      approvedCount: approvedCountRes.count ?? null,
-      totalCountError: safeError(totalCountRes.error),
-      approvedCountError: safeError(approvedCountRes.error),
-      anyRowsError: safeError(anyRowsRes.error),
-      anyRows: Array.isArray(anyRowsRes.data) ? anyRowsRes.data : [],
-    },
-  });
+  res.status(200).json({ projects });
 }

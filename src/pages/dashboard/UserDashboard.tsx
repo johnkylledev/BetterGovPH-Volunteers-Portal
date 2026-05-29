@@ -159,7 +159,6 @@ export default function UserDashboard() {
           table: 'volunteer_calls',
         },
         () => {
-          console.log('Real-time: Volunteer calls changed');
           loadVolunteerCalls();
         }
       )

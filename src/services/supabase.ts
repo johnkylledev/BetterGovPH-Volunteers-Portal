@@ -187,6 +187,8 @@ const mapToDbUser = (user: any) => {
 
 // Auth Providers
 export const signOut = async () => {
+  cachedToken = null;
+  tokenExpiry = 0;
   await supabase.auth.signOut();
 };
 

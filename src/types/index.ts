@@ -56,7 +56,6 @@ export interface User {
   uid?: string;
   fullName: string;
   email: string;
-  password?: string;
   photoURL?: string;
   specialization?: string;
   role: string;

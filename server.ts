@@ -111,10 +111,10 @@ async function handler(req: http.IncomingMessage, res: http.ServerResponse) {
 
     await handlerFn(extendedReq, extendedRes);
   } catch (err: any) {
-    console.error(`API Error: ${pathname}`, err);
+    console.error(`API Error: ${pathname}`);
     res.statusCode = 500;
     res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({ error: 'Internal server error', details: err.message }));
+    res.end(JSON.stringify({ error: 'Internal server error' }));
   }
 }
 

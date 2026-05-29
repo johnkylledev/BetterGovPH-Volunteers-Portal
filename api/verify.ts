@@ -4,20 +4,14 @@ const getSupabaseConfig = () => {
   const url =
     process.env.SUPABASE_URL ||
     process.env.VITE_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL ||
     '';
   const anonKey =
     process.env.SUPABASE_ANON_KEY ||
     process.env.VITE_SUPABASE_ANON_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     '';
   const serviceKey =
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
     process.env.SUPABASE_SERVICE_ROLE ||
-    process.env.VITE_SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.VITE_SUPABASE_SERVICE_ROLE ||
-    process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE ||
     '';
   return { url, anonKey, serviceKey };
 };
@@ -113,10 +107,16 @@ export default async function handler(req: any, res: any) {
   const cleanId = upperId.startsWith('BGPH-') ? upperId.replace('BGPH-', '') : upperId;
   const prefixedId = upperId.startsWith('BGPH-') ? upperId : `BGPH-${upperId}`;
 
+  const safeMemberId = (v: string) => /^[A-Z0-9-]{1,60}$/i.test(v) ? v : null;
+  const orParts = [safeMemberId(upperId), safeMemberId(cleanId), safeMemberId(prefixedId)]
+    .filter(Boolean)
+    .map((v) => `member_id.ilike.${v}`)
+    .join(',');
+
   let { data: byMember, error: byMemberError } = await supabase
     .from('users')
     .select('uid, full_name, specialization, role, status, member_id, year_joined, discord_username, is_admin')
-    .or(`member_id.ilike.${upperId},member_id.ilike.${cleanId},member_id.ilike.${prefixedId}`)
+    .or(orParts)
     .maybeSingle();
 
   if (
