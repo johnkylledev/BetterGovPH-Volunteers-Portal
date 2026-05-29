@@ -422,27 +422,27 @@ function LegacyRegister() {
                 layout
                 key={skill}
                 className={clsx(
-                    "group relative flex flex-col p-2 sm:p-2.5 rounded-lg border-2 transition-all duration-300",
+                    "group relative flex flex-col p-1.5 sm:p-2 rounded-lg border transition-all duration-300",
                     isSelected
                         ? "bg-white border-blue-900 shadow-sm"
-                        : "bg-white border-slate-100 hover:border-blue-200 hover:bg-slate-50/50"
+                        : "bg-white border-slate-100 hover:border-blue-300 hover:shadow-sm hover:bg-blue-50/30"
                 )}
             >
-                <div className="flex items-center gap-2.5 sm:gap-3 w-full">
+                <div className="flex items-center gap-2 w-full">
                     <div className={clsx(
-                        "w-9 h-9 sm:w-10 rounded-md flex items-center justify-center transition-all duration-300 shrink-0 border border-slate-100",
+                        "w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center transition-all duration-300 shrink-0",
                         isSelected
-                            ? "bg-blue-900 text-white"
-                            : "bg-slate-50 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-900"
+                            ? "bg-blue-900 text-white shadow-sm"
+                            : "bg-blue-50 text-blue-600 group-hover:bg-blue-100 group-hover:text-blue-700"
                     )}>
-                        <div className="relative w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center">
+                        <div className="relative w-3.5 h-3.5 sm:w-4 sm:h-4 flex items-center justify-center">
                             {skillSlug ? (
                                 <img
                                     key={`activeLevel-${sectionContext}-${skill}`}
                                     src={`https://cdn.simpleicons.org/${skillSlug}`}
                                     className={clsx(
-                                        "w-full h-full object-contain transition-opacity duration-300",
-                                        isSelected ? "brightness-0 invert" : "opacity-80 group-hover:opacity-100"
+                                        "w-full h-full object-contain transition-all duration-300",
+                                        isSelected ? "brightness-0 invert" : ""
                                     )}
                                     alt=""
                                     onError={(e) => {
@@ -463,7 +463,7 @@ function LegacyRegister() {
                             {skill}
                         </span>
                         {isSelected && (
-                            <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-blue-600 mt-0.5 block">
+                            <span className="text-[8px] font-black uppercase tracking-wider text-blue-600 mt-0.5 block">
                                 {selectedSkill.level}
                             </span>
                         )}
@@ -485,23 +485,23 @@ function LegacyRegister() {
                             }
                         }}
                         className={clsx(
-                            "w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-md flex items-center justify-center transition-all duration-300 shadow-sm shrink-0",
+                            "w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center transition-all duration-300 shrink-0",
                             isSelected
-                                ? "bg-blue-900 text-white hover:bg-blue-800"
-                                : "bg-white border border-slate-100 text-slate-300 hover:border-blue-200 hover:text-blue-600 hover:bg-blue-50/50"
+                                ? "bg-blue-900 text-white hover:bg-blue-800 shadow-sm"
+                                : "bg-slate-50 text-slate-400 border border-slate-100 hover:border-blue-200 hover:text-blue-600 hover:bg-blue-50"
                         )}
                     >
-                        {isSelected ? <Check className="w-4 h-4 sm:w-5 sm:h-5" strokeWidth={4} /> : <Plus className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={3} />}
+                        {isSelected ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" strokeWidth={4} /> : <Plus className="w-4 h-4 sm:w-5 sm:h-5" strokeWidth={3} />}
                     </button>
                 </div>
 
                 {isSelected && (
                     <motion.div
                         initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                        animate={{ opacity: 1, height: 'auto', marginTop: 12 }}
+                        animate={{ opacity: 1, height: 'auto', marginTop: 10 }}
                         className="overflow-hidden w-full"
                     >
-                        <div className="grid grid-cols-3 p-1 bg-slate-50 rounded-lg border border-slate-100">
+                        <div className="grid grid-cols-3 gap-0.5 p-0.5 bg-slate-100 rounded-lg">
                             {SKILL_LEVELS.map((level) => {
                                 const isActive = selectedSkill?.level === level;
 
@@ -518,16 +518,16 @@ function LegacyRegister() {
                                             }
                                         }}
                                         className={clsx(
-                                            "relative flex items-center justify-center rounded-md text-[8px] sm:text-[10px] md:text-xs font-black uppercase tracking-tight sm:tracking-normal md:tracking-wider transition-all duration-300 py-2 sm:py-2.5 px-0.5",
+                                            "relative flex items-center justify-center rounded-md text-[8px] sm:text-[10px] font-black uppercase tracking-wider transition-all duration-300 py-1.5 sm:py-2 px-1",
                                             isActive
                                                 ? "text-white"
-                                                : "text-slate-400 hover:text-slate-600"
+                                                : "text-slate-400 hover:text-slate-700"
                                         )}
                                     >
                                         {isActive && (
                                             <motion.div
                                                 layoutId={`activeLevel-${sectionContext}-${skill}`}
-                                                className="absolute inset-0 bg-blue-900 rounded-md"
+                                                className="absolute inset-0 bg-blue-900 rounded-md shadow-sm"
                                                 initial={false}
                                                 transition={{ type: "spring", bounce: 0.1, duration: 0.5 }}
                                             />
@@ -951,57 +951,77 @@ function LegacyRegister() {
                                     >
                                         {/* Role Compatibility Score & Suggestions */}
                                         {formData.specialization && Object.keys(roleScores).length > 0 && (
-                                            <div className="space-y-4">
-                                                <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
-                                                    <div className="flex items-center justify-between mb-3">
-                                                        <span className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Role Compatibility Score</span>
-                                                        <span className={clsx(
-                                                            "text-sm font-black",
-                                                            (roleScores[formData.specialization] || 0) >= 70 ? "text-green-600" :
-                                                                (roleScores[formData.specialization] || 0) >= 40 ? "text-blue-600" : "text-amber-600"
-                                                        )}>
-                                                            {roleScores[formData.specialization] || 0}% Match
-                                                        </span>
-                                                    </div>
-                                                    <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
-                                                        <motion.div
-                                                            initial={{ width: 0 }}
-                                                            animate={{ width: `${roleScores[formData.specialization] || 0}%` }}
-                                                            className={clsx(
-                                                                "h-full transition-all duration-500",
-                                                                (roleScores[formData.specialization] || 0) >= 70 ? "bg-green-500" :
-                                                                    (roleScores[formData.specialization] || 0) >= 40 ? "bg-blue-600" : "bg-amber-500"
-                                                            )}
-                                                        />
-                                                    </div>
-                                                </div>
+                                            <div className="space-y-2">
+                                                {(() => {
+                                                    const spec = SPECIALIZATIONS.find(s => s.label === formData.specialization);
+                                                    const SpecIcon = spec?.icon || Target;
+                                                    const score = roleScores[formData.specialization] || 0;
+                                                    return (
+                                                        <div className="flex items-center gap-2 p-1.5 sm:p-2 rounded-lg border border-slate-200 bg-slate-50 transition-all duration-300 hover:border-slate-300 hover:shadow-sm">
+                                                            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                                                                <SpecIcon size={16} />
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center justify-between gap-2">
+                                                                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-500 leading-tight">
+                                                                        Role Compatibility
+                                                                    </p>
+                                                                    <span className={clsx(
+                                                                        "text-[10px] font-black shrink-0",
+                                                                        score >= 70 ? "text-green-600" :
+                                                                            score >= 40 ? "text-blue-600" : "text-amber-600"
+                                                                    )}>
+                                                                        {score}% Match
+                                                                    </span>
+                                                                </div>
+                                                                <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden mt-1.5">
+                                                                    <motion.div
+                                                                        initial={{ width: 0 }}
+                                                                        animate={{ width: `${score}%` }}
+                                                                        className={clsx(
+                                                                            "h-full rounded-full transition-all duration-500",
+                                                                            score >= 70 ? "bg-green-500" :
+                                                                                score >= 40 ? "bg-blue-600" : "bg-amber-500"
+                                                                        )}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
 
                                                 <AnimatePresence>
-                                                    {betterRoleSuggestion && (
-                                                        <motion.div
-                                                            initial={{ opacity: 0, y: -10 }}
-                                                            animate={{ opacity: 1, y: 0 }}
-                                                            exit={{ opacity: 0, y: -10 }}
-                                                            className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex gap-4"
-                                                        >
-                                                            <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
-                                                                <BadgeCheck size={24} />
-                                                            </div>
-                                                            <div className="flex-1 text-left">
-                                                                <p className="text-xs font-bold text-amber-900 mb-1">Suggest Better Role</p>
-                                                                <p className="text-[11px] text-amber-700 leading-relaxed mb-4">
-                                                                    We noticed your skills align more with <span className="font-black text-amber-900">{betterRoleSuggestion}</span>.
-                                                                </p>
+                                                    {betterRoleSuggestion && (() => {
+                                                        const suggestedSpec = SPECIALIZATIONS.find(s => s.label === betterRoleSuggestion);
+                                                        const SuggestedIcon = suggestedSpec?.icon || BadgeCheck;
+                                                        return (
+                                                            <motion.div
+                                                                initial={{ opacity: 0, y: -8 }}
+                                                                animate={{ opacity: 1, y: 0 }}
+                                                                exit={{ opacity: 0, y: -8 }}
+                                                                className="group flex items-center gap-2 p-1.5 sm:p-2 rounded-lg border border-amber-200 bg-amber-50 transition-all duration-300 hover:border-amber-300 hover:shadow-sm"
+                                                            >
+                                                                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                                                                    <SuggestedIcon size={16} />
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-amber-900 leading-tight">
+                                                                        Suggest Better Role
+                                                                    </p>
+                                                                    <p className="text-[11px] text-amber-700 font-medium leading-tight mt-0.5">
+                                                                        Aligns more with <span className="font-black text-amber-900">{betterRoleSuggestion}</span>
+                                                                    </p>
+                                                                </div>
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => setFormData({ ...formData, specialization: betterRoleSuggestion })}
-                                                                    className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-900 bg-amber-200/50 hover:bg-amber-200 px-4 py-2 rounded-xl transition-colors"
+                                                                    className="shrink-0 flex items-center gap-1 px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] text-amber-900 bg-amber-200/60 hover:bg-amber-200 transition-all active:scale-95"
                                                                 >
-                                                                    Switch to {betterRoleSuggestion}
+                                                                    Switch
                                                                 </button>
-                                                            </div>
-                                                        </motion.div>
-                                                    )}
+                                                            </motion.div>
+                                                        );
+                                                    })()}
                                                 </AnimatePresence>
                                             </div>
                                         )}
@@ -1010,9 +1030,6 @@ function LegacyRegister() {
                                         {formData.specialization && (
                                             <div className="bg-slate-50/50 rounded-xl p-4 sm:p-5 border border-slate-100 shadow-sm">
                                                 <div className="flex items-center gap-3 mb-4">
-                                                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-sm">
-                                                        <Target size={20} />
-                                                    </div>
                                                     <div>
                                                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-900">Recommended for You</p>
                                                         <p className="text-[11px] text-blue-400 font-bold mt-0.5 leading-tight">Verified skills for {formData.specialization}</p>
@@ -1204,31 +1221,33 @@ function LegacyRegister() {
                                                                 initial={{ opacity: 0, scale: 0.8 }}
                                                                 animate={{ opacity: 1, scale: 1 }}
                                                                 exit={{ opacity: 0, scale: 0.8 }}
-                                                                className="flex items-center gap-2 pl-3 pr-1.5 py-2 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-blue-300 transition-all group"
+                                                                className="flex items-center gap-1.5 pl-2 pr-1 py-1.5 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-blue-300 hover:shadow-md transition-all group"
                                                             >
-                                                                <div className="w-5 h-5 flex items-center justify-center shrink-0 relative">
-                                                                    {skillToSlug(skill.name) ? (
-                                                                        <img
-                                                                            src={`https://cdn.simpleicons.org/${skillToSlug(skill.name)}`}
-                                                                            className="w-full h-full object-contain"
-                                                                            alt=""
-                                                                            onError={(e) => {
-                                                                                (e.target as HTMLImageElement).style.display = 'none';
-                                                                                const fallback = (e.target as HTMLImageElement).nextElementSibling;
-                                                                                if (fallback) (fallback as HTMLElement).style.display = 'flex';
-                                                                            }}
-                                                                        />
-                                                                    ) : null}
-                                                                    <div style={{ display: skillToSlug(skill.name) ? 'none' : 'flex' }} className="absolute inset-0 items-center justify-center">
-                                                                        {getSkillFallbackIcon(skill.name)}
+                                                                <div className="w-5 h-5 rounded-md bg-blue-50 flex items-center justify-center shrink-0">
+                                                                    <div className="relative w-3 h-3 flex items-center justify-center">
+                                                                        {skillToSlug(skill.name) ? (
+                                                                            <img
+                                                                                src={`https://cdn.simpleicons.org/${skillToSlug(skill.name)}`}
+                                                                                className="w-full h-full object-contain"
+                                                                                alt=""
+                                                                                onError={(e) => {
+                                                                                    (e.target as HTMLImageElement).style.display = 'none';
+                                                                                    const fallback = (e.target as HTMLImageElement).nextElementSibling;
+                                                                                    if (fallback) (fallback as HTMLElement).style.display = 'flex';
+                                                                                }}
+                                                                            />
+                                                                        ) : null}
+                                                                        <div style={{ display: skillToSlug(skill.name) ? 'none' : 'flex' }} className="absolute inset-0 items-center justify-center">
+                                                                            {getSkillFallbackIcon(skill.name)}
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                                 <span className="text-xs font-bold text-slate-700">{skill.name}</span>
                                                                 <div className={clsx(
-                                                                    "px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider",
+                                                                    "px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider",
                                                                     skill.level === 'Expert' ? "bg-blue-900 text-white" :
                                                                         skill.level === 'Practitioner' ? "bg-blue-100 text-blue-900" :
-                                                                            "bg-slate-100 text-slate-600"
+                                                                            "bg-slate-100 text-slate-500"
                                                                 )}>
                                                                     {skill.level}
                                                                 </div>
@@ -1240,9 +1259,9 @@ function LegacyRegister() {
                                                                             skills: formData.skills.filter(s => s.name !== skill.name)
                                                                         });
                                                                     }}
-                                                                    className="ml-0.5 p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                                                    className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                                                                 >
-                                                                    <X size={12} strokeWidth={3} />
+                                                                    <X size={11} strokeWidth={3} />
                                                                 </button>
                                                             </motion.div>
                                                         ))}
