@@ -1265,7 +1265,7 @@ function LegacyRegister() {
                                         <div>
                                             <h2 className="text-lg font-black text-slate-900 uppercase tracking-[0.15em]">Connect Accounts</h2>
                                             <p className="mt-1 text-xs text-slate-500 font-medium">
-                                                Link your accounts to verify your identity and contributions. You can also do this later from your dashboard.
+                                                Link your Discord account to verify your identity and server membership. This is required to complete your application.
                                             </p>
                                         </div>
 
@@ -1386,15 +1386,29 @@ function LegacyRegister() {
                                             )}
                                         </button>
                                     ) : (
-                                        <button
-                                            key="complete-step"
-                                            type="button"
-                                            onClick={handleComplete}
-                                            className="flex-[2] relative flex justify-center items-center gap-2 rounded-lg bg-blue-900 px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-white shadow-md hover:bg-blue-800 transition-all duration-300 active:scale-[0.98]"
-                                        >
-                                            <span>Complete Application</span>
-                                            <Check size={16} strokeWidth={3} />
-                                        </button>
+                                        <>
+                                            {!discordConnected && (
+                                                <p className="w-full text-center text-[11px] font-semibold text-amber-600 mt-1">
+                                                    <AlertCircle size={12} className="inline-block mr-1 -mt-0.5" />
+                                                    Connect your Discord account to complete your application
+                                                </p>
+                                            )}
+                                            <button
+                                                key="complete-step"
+                                                type="button"
+                                                onClick={handleComplete}
+                                                disabled={!discordConnected}
+                                                className={clsx(
+                                                    "flex-[2] relative flex justify-center items-center gap-2 rounded-lg px-4 py-4 text-xs font-black uppercase tracking-[0.2em] shadow-md transition-all duration-300 active:scale-[0.98]",
+                                                    discordConnected
+                                                        ? "bg-blue-900 text-white hover:bg-blue-800"
+                                                        : "bg-slate-300 text-slate-500 cursor-not-allowed"
+                                                )}
+                                            >
+                                                <span>Complete Application</span>
+                                                <Check size={16} strokeWidth={3} />
+                                            </button>
+                                        </>
                                     )}
                                 </div>
                             )}
