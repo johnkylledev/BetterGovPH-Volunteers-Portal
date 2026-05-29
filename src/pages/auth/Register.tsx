@@ -1344,73 +1344,77 @@ function LegacyRegister() {
                             </AnimatePresence>
 
                             {!(currentStep === 1 && !hasSession) && (
-                                <div className="pt-8 flex gap-3">
-                                    {currentStep > 1 && currentStep < 4 && (
-                                        <button
-                                            type="button"
-                                            onClick={prevStep}
-                                            className="flex-1 flex justify-center items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-slate-500 hover:bg-slate-50 hover:border-slate-300 transition-all duration-300"
-                                        >
-                                            <ArrowLeft size={16} strokeWidth={3} />
-                                            <span>Back</span>
-                                        </button>
+                                <>
+                                    {currentStep === 4 && !discordConnected && (
+                                        <div className="pt-6">
+                                            <p className="text-center text-[11px] font-semibold text-amber-600">
+                                                <AlertCircle size={12} className="inline-block mr-1 -mt-0.5" />
+                                                Connect your Discord account to complete your application
+                                            </p>
+                                        </div>
                                     )}
-
-                                    {currentStep < 3 ? (
-                                        <button
-                                            key="continue-step"
-                                            type="button"
-                                            onClick={nextStep}
-                                            className="flex-[2] relative flex justify-center items-center gap-2 rounded-lg bg-blue-900 px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-white shadow-md hover:bg-blue-800 transition-all duration-300 active:scale-[0.98]"
-                                        >
-                                            Continue
-                                            <ArrowRight size={16} strokeWidth={3} className="ml-1" />
-                                        </button>
-                                    ) : currentStep === 3 ? (
-                                        <button
-                                            key="submit-step"
-                                            type="submit"
-                                            disabled={loading}
-                                            className="flex-[2] relative flex justify-center items-center gap-2 rounded-lg bg-blue-900 px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-white shadow-md hover:bg-blue-800 transition-all duration-300 active:scale-[0.98] disabled:opacity-50"
-                                        >
-                                            {loading ? (
-                                                <>
-                                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                                    <span>Saving...</span>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <span>Continue</span>
-                                                    <ArrowRight size={16} strokeWidth={3} className="ml-1" />
-                                                </>
-                                            )}
-                                        </button>
-                                    ) : (
-                                        <>
-                                            {!discordConnected && (
-                                                <p className="w-full text-center text-[11px] font-semibold text-amber-600 mt-1">
-                                                    <AlertCircle size={12} className="inline-block mr-1 -mt-0.5" />
-                                                    Connect your Discord account to complete your application
-                                                </p>
-                                            )}
+                                    <div className="pt-8 flex gap-3">
+                                        {currentStep > 1 && (
                                             <button
-                                                key="complete-step"
                                                 type="button"
-                                                onClick={handleComplete}
-                                                disabled={!discordConnected}
-                                                className={clsx(
-                                                    "flex-[2] relative flex justify-center items-center gap-2 rounded-lg px-4 py-4 text-xs font-black uppercase tracking-[0.2em] shadow-md transition-all duration-300 active:scale-[0.98]",
-                                                    discordConnected
-                                                        ? "bg-blue-900 text-white hover:bg-blue-800"
-                                                        : "bg-slate-300 text-slate-500 cursor-not-allowed"
-                                                )}
+                                                onClick={prevStep}
+                                                className="flex-1 flex justify-center items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-slate-500 hover:bg-slate-50 hover:border-slate-300 transition-all duration-300"
                                             >
-                                                <span>Complete Application</span>
-                                                <Check size={16} strokeWidth={3} />
+                                                <ArrowLeft size={16} strokeWidth={3} />
+                                                <span>Back</span>
                                             </button>
-                                        </>
-                                    )}
-                                </div>
+                                        )}
+
+                                        {currentStep < 3 ? (
+                                            <button
+                                                key="continue-step"
+                                                type="button"
+                                                onClick={nextStep}
+                                                className="flex-[2] relative flex justify-center items-center gap-2 rounded-lg bg-blue-900 px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-white shadow-md hover:bg-blue-800 transition-all duration-300 active:scale-[0.98]"
+                                            >
+                                                Continue
+                                                <ArrowRight size={16} strokeWidth={3} className="ml-1" />
+                                            </button>
+                                        ) : currentStep === 3 ? (
+                                            <button
+                                                key="submit-step"
+                                                type="submit"
+                                                disabled={loading}
+                                                className="flex-[2] relative flex justify-center items-center gap-2 rounded-lg bg-blue-900 px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-white shadow-md hover:bg-blue-800 transition-all duration-300 active:scale-[0.98] disabled:opacity-50"
+                                            >
+                                                {loading ? (
+                                                    <>
+                                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                                        <span>Saving...</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <span>Continue</span>
+                                                        <ArrowRight size={16} strokeWidth={3} className="ml-1" />
+                                                    </>
+                                                )}
+                                            </button>
+                                        ) : (
+                                            <>
+                                                <button
+                                                    key="complete-step"
+                                                    type="button"
+                                                    onClick={handleComplete}
+                                                    disabled={!discordConnected}
+                                                    className={clsx(
+                                                        "flex-[2] flex justify-center items-center gap-2 rounded-lg px-4 py-4 text-xs font-black uppercase tracking-[0.2em] shadow-md transition-all duration-300 active:scale-[0.98]",
+                                                        discordConnected
+                                                            ? "bg-blue-900 text-white hover:bg-blue-800"
+                                                            : "bg-slate-300 text-slate-500 cursor-not-allowed"
+                                                    )}
+                                                >
+                                                    <span>Complete Application</span>
+                                                    <Check size={16} strokeWidth={3} />
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                </>
                             )}
 
                             <div className="mt-8 pt-6 border-t border-slate-100 text-center">
