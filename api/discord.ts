@@ -202,7 +202,7 @@ export default async function handler(req: any, res: any) {
         .from('users')
         .select('discord_id')
         .eq('uid', uid)
-        .single();
+        .maybeSingle();
 
       const discordId = discordIdFromBody ?? userData?.discord_id;
       if (!discordId) {
