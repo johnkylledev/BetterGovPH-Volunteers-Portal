@@ -86,7 +86,7 @@ export default async function handler(req: any, res: any) {
       .from('users')
       .select('discord_id, discord_username, discord_display_name, discord_avatar')
       .eq('uid', uid)
-      .single();
+      .maybeSingle();
 
     const discordId = userData?.discord_id;
     const discordUsername = userData?.discord_username ?? null;
@@ -131,7 +131,7 @@ export default async function handler(req: any, res: any) {
         .from('users')
         .select('status')
         .eq('uid', uid)
-        .single();
+        .maybeSingle();
       if (currentUser && currentUser.status !== 'Approved') {
         const updateFields: any = { status: 'Approved', updated_at: new Date().toISOString() };
         await supabase.from('users').update(updateFields).eq('uid', uid);
