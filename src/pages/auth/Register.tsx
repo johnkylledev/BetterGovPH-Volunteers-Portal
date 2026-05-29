@@ -150,6 +150,16 @@ function LegacyRegister() {
                 const profile = await getUserData(sessionUserId);
                 if (profile) {
                     setCurrentUser(profile);
+                    setFormData(prev => ({
+                        ...prev,
+                        fullName: profile.fullName || prev.fullName,
+                        specialization: profile.specialization || prev.specialization,
+                        role: profile.role || prev.role,
+                        yearJoined: profile.yearJoined || prev.yearJoined,
+                        skills: profile.skills || prev.skills,
+                        experienceLevel: profile.experienceLevel || prev.experienceLevel,
+                        customRole: profile.role && !ROLES.includes(profile.role) ? profile.role : prev.customRole,
+                    }));
                     const isComplete = profile.fullName && profile.specialization && profile.yearJoined;
                     if (isComplete && localStorage.getItem('onboarding_connections') !== '1') {
                         if (profile.isAdmin) {
@@ -571,7 +581,7 @@ function LegacyRegister() {
             }
 
             const saved = await createOrUpdateUserRecord({
-                uid: hasSession,
+                uid: sessionUserId,
                 fullName: formData.fullName.trim(),
                 specialization: primaryRole,
                 role: rl,
