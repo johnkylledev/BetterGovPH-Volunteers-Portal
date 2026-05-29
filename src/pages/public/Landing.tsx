@@ -40,6 +40,7 @@ const Landing: React.FC = () => {
 
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -290,10 +291,6 @@ const Landing: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="hero-content">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 text-xs font-bold tracking-wider uppercase mb-6">
-                <Zap size={14} className="fill-blue-600" />
-                Empowering Public Tech Builders
-              </div>
               <h1 className="text-5xl lg:text-7xl font-display font-extrabold text-slate-900 leading-[1.1] mb-6">
                 Join the <span className="text-blue-600">BetterGovPH</span> Developer Community
               </h1>
@@ -630,27 +627,35 @@ const Landing: React.FC = () => {
               { q: "Who can apply?", a: "We welcome developers, UI/UX designers, data scientists, tech volunteers, and anyone passionate about building better technology for the government." },
               { q: "How long does approval take?", a: "The process typically takes 1-3 business days, depending on admin verification and community activity levels." },
               { q: "Can I use this as an official ID?", a: "This is a digital community access card designed for identification within the BetterGovPH developer network. While it represents verified community status, it is not a government-issued primary ID (like a Passport or UMID)." }
-            ].map((faq, i) => (
-              <motion.div
-                key={i}
-                variants={{
-                  hidden: { opacity: 0, y: 20 },
-                  show: { opacity: 1, y: 0 }
-                }}
-              >
-                <details className="group p-6 rounded-2xl bg-white border border-slate-200 hover:border-blue-200 transition-all shadow-sm cursor-pointer select-none">
-                  <summary className="list-none flex justify-between items-center font-bold text-slate-900">
-                    <span className="pr-8">{faq.q}</span>
-                    <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center shrink-0 group-hover:bg-blue-50 transition-colors">
-                      <ChevronRight size={18} className="group-open:rotate-90 transition-transform text-slate-400 group-hover:text-blue-900" />
+            ].map((faq, i) => {
+              const isOpen = openFaqIndex === i;
+              return (
+                <motion.div
+                  key={i}
+                  variants={{
+                    hidden: { opacity: 0, y: 20 },
+                    show: { opacity: 1, y: 0 }
+                  }}
+                >
+                  <div
+                    onClick={() => setOpenFaqIndex(isOpen ? null : i)}
+                    className="group p-6 rounded-2xl bg-white border border-slate-200 hover:border-blue-200 transition-all shadow-sm cursor-pointer select-none"
+                  >
+                    <div className="flex justify-between items-center font-bold text-slate-900">
+                      <span className="pr-8">{faq.q}</span>
+                      <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center shrink-0 group-hover:bg-blue-50 transition-colors">
+                        <ChevronRight size={18} className={`${isOpen ? 'rotate-90' : ''} transition-transform text-slate-400 group-hover:text-blue-900`} />
+                      </div>
                     </div>
-                  </summary>
-                  <div className="mt-4 text-slate-600 text-sm leading-relaxed border-t border-slate-50 pt-4 overflow-hidden animate-in fade-in slide-in-from-top-2">
-                    {faq.a}
+                    {isOpen && (
+                      <div className="mt-4 text-slate-600 text-sm leading-relaxed border-t border-slate-50 pt-4 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                        {faq.a}
+                      </div>
+                    )}
                   </div>
-                </details>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </motion.div>
         </div>
       </section>
