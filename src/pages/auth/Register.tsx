@@ -305,7 +305,7 @@ function LegacyRegister() {
                                             setLoading(false);
                                         }
                                     }}
-                                    className="group relative flex w-full items-center justify-center gap-3 rounded-xl bg-blue-900 px-6 py-4 text-base font-semibold text-white shadow-lg hover:bg-blue-800 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-blue-900/20 transition-all duration-200 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed overflow-hidden"
+                                    className="group relative flex w-full items-center justify-center gap-3 rounded-xl bg-blue-900 px-6 py-4 text-base font-semibold text-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-900/20 transition-all duration-200 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed overflow-hidden"
                                 >
                                     <svg className="w-5 h-5 relative z-10" viewBox="0 0 24 24" fill="currentColor">
                                         <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -856,7 +856,7 @@ function LegacyRegister() {
                                                                 className={clsx(
                                                                     "group relative flex flex-col items-center gap-2.5 p-3 rounded-lg border-2 transition-all duration-300",
                                                                     isSelected
-                                                                        ? "bg-blue-900 border-blue-900 text-white shadow-md z-10"
+                                                                        ? "bg-blue-900 border-blue-900 text-white shadow-sm z-10"
                                                                         : "bg-white border-slate-100 text-slate-500 hover:border-blue-200 hover:bg-slate-50"
                                                                 )}
                                                             >
@@ -944,7 +944,7 @@ function LegacyRegister() {
                                                                 className={clsx(
                                                                     "py-2.5 rounded-md text-[10px] sm:text-[11px] font-black uppercase tracking-wider transition-all duration-300 px-1",
                                                                     isSelected
-                                                                        ? "bg-white text-blue-900 shadow-sm border border-slate-200/50"
+                                                                        ? "bg-white text-blue-900 border border-slate-200/50"
                                                                         : "text-slate-500 hover:text-slate-800 hover:bg-white/30"
                                                                 )}
                                                             >
