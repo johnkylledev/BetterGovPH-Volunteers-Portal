@@ -7,7 +7,7 @@ import {
   isUuid,
   respondError,
   respond,
-} from './_lib/supabase';
+} from './lib/supabase';
 
 const normalizeLookupId = (raw: string) => raw.trim().toUpperCase();
 

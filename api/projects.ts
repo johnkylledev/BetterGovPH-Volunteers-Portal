@@ -5,7 +5,7 @@ import {
   createServiceClient,
   respondError,
   respond,
-} from './_lib/supabase';
+} from './lib/supabase';
 
 const normalizeUrl = (value: unknown) => {
   if (typeof value !== 'string') return '';

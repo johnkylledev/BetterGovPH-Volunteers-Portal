@@ -6,7 +6,7 @@ import {
   createServiceClient,
   respondError,
   respond,
-} from './_lib/supabase';
+} from './lib/supabase';
 
 const mapUserRow = (row: any) => ({
   id: row.uid,

@@ -7,7 +7,7 @@ import {
   createServiceClient,
   respondError,
   respond,
-} from './_lib/supabase';
+} from './lib/supabase';
 
 const mapCallRow = (row: any, postedBy?: { fullName: string; email: string }) => ({
   id: row.id,

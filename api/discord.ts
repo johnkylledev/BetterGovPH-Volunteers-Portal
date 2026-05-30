@@ -5,7 +5,7 @@ import {
   createServiceClient,
   respondError,
   respond,
-} from './_lib/supabase';
+} from './lib/supabase';
 
 const ensureUserHasMemberId = async (client: any, uid: string) => {
   const { data, error } = await client

@@ -8,7 +8,7 @@ import {
   createServiceClient,
   respondError,
   respond,
-} from './_lib/supabase';
+} from './lib/supabase';
 
 const generateUniqueMemberId = async (client: any, selectedYear: number) => {
   const { data, error } = await client
