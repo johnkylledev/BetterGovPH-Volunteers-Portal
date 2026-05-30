@@ -1,47 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
-
-const getSupabaseConfig = () => {
-  const url =
-    process.env.SUPABASE_URL ||
-    process.env.VITE_SUPABASE_URL ||
-    '';
-  const anonKey =
-    process.env.SUPABASE_ANON_KEY ||
-    process.env.VITE_SUPABASE_ANON_KEY ||
-    '';
-  const serviceKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_SERVICE_ROLE ||
-    '';
-  return { url, anonKey, serviceKey };
-};
-
-const getBearerToken = (authorizationHeader: unknown) => {
-  if (typeof authorizationHeader !== 'string') return null;
-  const trimmed = authorizationHeader.trim();
-  if (!trimmed.toLowerCase().startsWith('bearer ')) return null;
-  const token = trimmed.slice('bearer '.length).trim();
-  return token.length > 0 ? token : null;
-};
-
-const getBody = (req: any) => {
-  const body = req.body ?? {};
-  if (typeof body === 'string') {
-    try {
-      return JSON.parse(body);
-    } catch {
-      return {};
-    }
-  }
-  return body;
-};
+import {
+  getSupabaseConfig,
+  getBearerToken,
+  getBody,
+  respondError,
+  respond,
+} from './_lib/supabase';
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
 
   if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
+    respondError(res, 405, 'Method not allowed');
     return;
   }
 
@@ -50,13 +21,13 @@ export default async function handler(req: any, res: any) {
     const missing: string[] = [];
     if (!supabaseUrl) missing.push('SUPABASE_URL');
     if (!serviceRoleKey) missing.push('SUPABASE_SERVICE_ROLE_KEY');
-    res.status(500).json({ error: 'Server not configured', missing });
+    respondError(res, 500, `Server not configured: ${missing.join(', ')}`);
     return;
   }
 
   const token = getBearerToken(req.headers?.authorization);
   if (!token) {
-    res.status(401).json({ error: 'Missing Authorization bearer token' });
+    respondError(res, 401, 'Missing Authorization bearer token');
     return;
   }
 
@@ -66,7 +37,7 @@ export default async function handler(req: any, res: any) {
   const { data: authData, error: authError } = await supabaseAuth.auth.getUser(token);
   const uid = authData?.user?.id ? String(authData.user.id) : '';
   if (authError || !uid) {
-    res.status(401).json({ error: 'Invalid token' });
+    respondError(res, 401, 'Invalid token');
     return;
   }
 
@@ -88,7 +59,7 @@ export default async function handler(req: any, res: any) {
   const projType = projTypeRaw.trim();
 
   if (!projectName || !projectUrl || !description) {
-    res.status(400).json({ error: 'project_name, project_url, and description are required' });
+    respondError(res, 400, 'project_name, project_url, and description are required');
     return;
   }
 
@@ -139,10 +110,9 @@ export default async function handler(req: any, res: any) {
   }
 
   if (error || !data?.id) {
-    const message = typeof (error as any)?.message === 'string' ? String((error as any).message) : '';
-    res.status(500).json({ error: 'Failed to submit project', details: message || undefined });
+    respondError(res, 500, 'Failed to submit project');
     return;
   }
 
-  res.status(200).json({ message: 'Submitted successfully!', submissionId: data.id });
+  respond(res, 200, { message: 'Submitted successfully!', submissionId: data.id });
 }

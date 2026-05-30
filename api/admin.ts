@@ -1,42 +1,50 @@
 import { createClient } from '@supabase/supabase-js';
+import {
+  getSupabaseConfig,
+  getBearerToken,
+  getStringParam,
+  getNumberParam,
+  getBody,
+  createServiceClient,
+  respondError,
+  respond,
+} from './_lib/supabase';
 
 const generateUniqueMemberId = async (client: any, selectedYear: number) => {
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const { data, error } = await client
-      .from('users')
-      .select('member_id')
-      .ilike('member_id', `BGPH-${selectedYear}-%`)
-      .order('member_id', { ascending: false })
-      .limit(100);
+  const { data, error } = await client
+    .from('users')
+    .select('member_id')
+    .ilike('member_id', `BGPH-${selectedYear}-%`)
+    .order('member_id', { ascending: false })
+    .limit(100);
 
-    if (error) throw error;
+  if (error) throw error;
 
-    let maxSequence = 0;
-    for (const u of data ?? []) {
-      const memberId = u.member_id;
-      if (typeof memberId !== 'string') continue;
-      const match = memberId.match(/^BGPH-(\d{4})-(\d{3})$/);
-      if (match && parseInt(match[1]) === selectedYear) {
-        const seq = parseInt(match[2], 10);
-        if (!isNaN(seq) && seq > maxSequence) maxSequence = seq;
-      }
-    }
-
-    const nextSequence = maxSequence + 1;
-    const newMemberId = `BGPH-${selectedYear}-${String(nextSequence).padStart(3, '0')}`;
-
-    const { data: checkDuplicate } = await client
-      .from('users')
-      .select('member_id')
-      .eq('member_id', newMemberId)
-      .maybeSingle();
-
-    if (!checkDuplicate) {
-      return newMemberId;
+  let maxSequence = 0;
+  for (const u of data ?? []) {
+    const memberId = u.member_id;
+    if (typeof memberId !== 'string') continue;
+    const match = memberId.match(/^BGPH-(\d{4})-(\d{3})$/);
+    if (match && parseInt(match[1]) === selectedYear) {
+      const seq = parseInt(match[2], 10);
+      if (!isNaN(seq) && seq > maxSequence) maxSequence = seq;
     }
   }
 
-  throw new Error('Failed to generate unique member ID after 5 attempts');
+  const nextSequence = maxSequence + 1;
+  const newMemberId = `BGPH-${selectedYear}-${String(nextSequence).padStart(3, '0')}`;
+
+  const { data: checkDuplicate } = await client
+    .from('users')
+    .select('member_id')
+    .eq('member_id', newMemberId)
+    .maybeSingle();
+
+  if (!checkDuplicate) {
+    return newMemberId;
+  }
+
+  throw new Error('Failed to generate unique member ID');
 };
 
 const ensureUserHasMemberId = async (client: any, uid: string) => {
@@ -59,50 +67,13 @@ const ensureUserHasMemberId = async (client: any, uid: string) => {
   return memberId;
 };
 
-const getSupabaseConfig = () => {
-  const url =
-    process.env.SUPABASE_URL ||
-    process.env.VITE_SUPABASE_URL ||
-    '';
-  const anonKey =
-    process.env.SUPABASE_ANON_KEY ||
-    process.env.VITE_SUPABASE_ANON_KEY ||
-    '';
-  const serviceKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_SERVICE_ROLE ||
-    '';
-  return { url, anonKey, serviceKey };
-};
-
-const getBearerToken = (authorizationHeader: unknown) => {
-  if (typeof authorizationHeader !== 'string') return null;
-  const trimmed = authorizationHeader.trim();
-  if (!trimmed.toLowerCase().startsWith('bearer ')) return null;
-  const token = trimmed.slice('bearer '.length).trim();
-  return token.length > 0 ? token : null;
-};
-
-const getStringParam = (value: unknown) => {
-  if (typeof value === 'string') return value;
-  if (Array.isArray(value)) return typeof value[0] === 'string' ? value[0] : null;
-  return null;
-};
-
-const getNumberParam = (value: unknown, fallback: number) => {
-  const s = getStringParam(value);
-  if (!s) return fallback;
-  const n = Number(s);
-  return Number.isFinite(n) ? n : fallback;
-};
-
 const assertAdmin = async (supabaseAdmin: any, uid: string, email?: string) => {
   let { data: callerRow, error: callerError } = await supabaseAdmin
     .from('users')
     .select('uid, is_admin, email')
     .eq('uid', uid)
     .maybeSingle();
-    
+
   if (!callerRow && email) {
     ({ data: callerRow, error: callerError } = await supabaseAdmin
       .from('users')
@@ -110,7 +81,7 @@ const assertAdmin = async (supabaseAdmin: any, uid: string, email?: string) => {
       .eq('email', email)
       .maybeSingle());
   }
-  
+
   if (callerError) return { ok: false as const, error: 'Failed to validate admin' };
   if (!callerRow?.is_admin) return { ok: false as const, error: 'Admin only' };
   return { ok: true as const };
@@ -148,18 +119,6 @@ const mapSubmissionRow = (row: any, submittedBy?: { fullName: string; email: str
   submittedBy,
 });
 
-const getBody = (req: any) => {
-  const body = req.body ?? {};
-  if (typeof body === 'string') {
-    try {
-      return JSON.parse(body);
-    } catch {
-      return {};
-    }
-  }
-  return body;
-};
-
 export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
@@ -169,13 +128,13 @@ export default async function handler(req: any, res: any) {
   if (req.method === 'GET' && resource === 'stats') {
     const { url: supabaseUrl, anonKey: supabaseAnonKey, serviceKey: serviceRoleKey } = getSupabaseConfig();
     if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey) {
-      res.status(500).json({ error: 'Server not configured' });
+      respondError(res, 500, 'Server not configured');
       return;
     }
 
     const token = getBearerToken(req.headers?.authorization);
     if (!token) {
-      res.status(401).json({ error: 'Missing Authorization bearer token' });
+      respondError(res, 401, 'Missing Authorization bearer token');
       return;
     }
 
@@ -186,51 +145,34 @@ export default async function handler(req: any, res: any) {
     const uid = authData?.user?.id ? String(authData.user.id) : '';
     const email = authData?.user?.email ? String(authData.user.email) : '';
     if (authError || !uid) {
-      res.status(401).json({ error: 'Invalid token' });
+      respondError(res, 401, 'Invalid token');
       return;
     }
 
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
+    const supabaseAdmin = createServiceClient(supabaseUrl, serviceRoleKey);
 
     const adminCheck = await assertAdmin(supabaseAdmin, uid, email);
     if (!adminCheck.ok) {
-      res.status(403).json({ error: adminCheck.error });
+      respondError(res, 403, adminCheck.error);
       return;
     }
 
-    const { count: total, error: totalError } = await supabaseAdmin
+    const { count: total } = await supabaseAdmin
       .from('users')
       .select('*', { count: 'exact', head: true });
 
-    if (totalError) {
-      res.status(500).json({ error: 'Failed to load stats' });
-      return;
-    }
-
-    const { count: pending, error: pendingError } = await supabaseAdmin
+    const { count: pending } = await supabaseAdmin
       .from('users')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'Pending')
       .not('full_name', 'eq', '');
 
-    if (pendingError) {
-      res.status(500).json({ error: 'Failed to load stats' });
-      return;
-    }
-
-    const { count: approved, error: approvedError } = await supabaseAdmin
+    const { count: approved } = await supabaseAdmin
       .from('users')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'Approved');
 
-    if (approvedError) {
-      res.status(500).json({ error: 'Failed to load stats' });
-      return;
-    }
-
-    res.status(200).json({
+    respond(res, 200, {
       total: total ?? 0,
       pending: pending ?? 0,
       approved: approved ?? 0,
@@ -241,30 +183,28 @@ export default async function handler(req: any, res: any) {
   if (req.method === 'GET' && resource === 'users') {
     const { url: supabaseUrl, serviceKey: serviceRoleKey } = getSupabaseConfig();
     if (!supabaseUrl || !serviceRoleKey) {
-      res.status(500).json({ error: 'Server not configured' });
+      respondError(res, 500, 'Server not configured');
       return;
     }
 
     const token = getBearerToken(req.headers?.authorization);
     if (!token) {
-      res.status(401).json({ error: 'Missing Authorization bearer token' });
+      respondError(res, 401, 'Missing Authorization bearer token');
       return;
     }
 
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
+    const supabaseAdmin = createServiceClient(supabaseUrl, serviceRoleKey);
     const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
     const uid = authData?.user?.id ? String(authData.user.id) : '';
     const email = authData?.user?.email ? String(authData.user.email) : '';
     if (authError || !uid) {
-      res.status(401).json({ error: 'Invalid token' });
+      respondError(res, 401, 'Invalid token');
       return;
     }
 
     const adminCheck = await assertAdmin(supabaseAdmin, uid, email);
     if (!adminCheck.ok) {
-      res.status(403).json({ error: adminCheck.error });
+      respondError(res, 403, adminCheck.error);
       return;
     }
 
@@ -289,7 +229,7 @@ export default async function handler(req: any, res: any) {
     }
 
     if (searchRaw && searchRaw.trim()) {
-      const safe = searchRaw.trim().replace(/[,()]/g, ' ').slice(0, 64);
+      const safe = searchRaw.trim().replace(/[%_]/g, '').slice(0, 64);
       const search = `%${safe}%`;
       query = query.or(
         `full_name.ilike.${search},email.ilike.${search},discord_username.ilike.${search},member_id.ilike.${search}`
@@ -301,11 +241,11 @@ export default async function handler(req: any, res: any) {
       .range(page * pageSize, page * pageSize + pageSize - 1);
 
     if (error) {
-      res.status(500).json({ error: 'Failed to load users' });
+      respondError(res, 500, 'Failed to load users');
       return;
     }
 
-    res.status(200).json({
+    respond(res, 200, {
       users: (data ?? []).map(mapUserRow),
       totalCount: count ?? 0,
     });
@@ -315,13 +255,13 @@ export default async function handler(req: any, res: any) {
   if (req.method === 'POST' && resource === 'user-status') {
     const { url: supabaseUrl, anonKey: supabaseAnonKey, serviceKey: serviceRoleKey } = getSupabaseConfig();
     if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey) {
-      res.status(500).json({ error: 'Server not configured' });
+      respondError(res, 500, 'Server not configured');
       return;
     }
 
     const token = getBearerToken(req.headers?.authorization);
     if (!token) {
-      res.status(401).json({ error: 'Missing Authorization bearer token' });
+      respondError(res, 401, 'Missing Authorization bearer token');
       return;
     }
 
@@ -332,16 +272,14 @@ export default async function handler(req: any, res: any) {
     const callerUid = authData?.user?.id ? String(authData.user.id) : '';
     const callerEmail = authData?.user?.email ? String(authData.user.email) : '';
     if (authError || !callerUid) {
-      res.status(401).json({ error: 'Invalid token' });
+      respondError(res, 401, 'Invalid token');
       return;
     }
 
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
+    const supabaseAdmin = createServiceClient(supabaseUrl, serviceRoleKey);
     const adminCheck = await assertAdmin(supabaseAdmin, callerUid, callerEmail);
     if (!adminCheck.ok) {
-      res.status(adminCheck.error === 'Admin only' ? 403 : 401).json({ error: adminCheck.error });
+      respondError(res, adminCheck.error === 'Admin only' ? 403 : 401, adminCheck.error);
       return;
     }
 
@@ -352,12 +290,12 @@ export default async function handler(req: any, res: any) {
     const isAdmin = typeof body.isAdmin === 'boolean' ? body.isAdmin : undefined;
 
     if (!uid) {
-      res.status(400).json({ error: 'Missing uid' });
+      respondError(res, 400, 'Missing uid');
       return;
     }
 
     if (!status && isAdmin === undefined) {
-      res.status(400).json({ error: 'Must provide status or isAdmin' });
+      respondError(res, 400, 'Must provide status or isAdmin');
       return;
     }
 
@@ -366,7 +304,7 @@ export default async function handler(req: any, res: any) {
     if (adminNotes !== undefined) updates.admin_notes = adminNotes;
     if (isAdmin !== undefined) {
       if (uid === callerUid) {
-        res.status(403).json({ error: 'Cannot modify your own admin status' });
+        respondError(res, 403, 'Cannot modify your own admin status');
         return;
       }
       updates.is_admin = isAdmin;
@@ -377,8 +315,8 @@ export default async function handler(req: any, res: any) {
       try {
         memberId = await ensureUserHasMemberId(supabaseAdmin, uid);
         updates.member_id = memberId;
-      } catch (err) {
-        res.status(500).json({ error: 'Failed to generate memberId' });
+      } catch {
+        respondError(res, 500, 'Failed to generate memberId');
         return;
       }
     }
@@ -390,46 +328,44 @@ export default async function handler(req: any, res: any) {
       .select('*');
 
     if (error) {
-      res.status(500).json({ error: 'Failed to update user' });
+      respondError(res, 500, 'Failed to update user');
       return;
     }
 
     if (!data || data.length === 0) {
-      res.status(404).json({ error: 'User not found' });
+      respondError(res, 404, 'User not found');
       return;
     }
 
-    res.status(200).json({ memberId: memberId ?? data[0]?.member_id ?? null });
+    respond(res, 200, { memberId: memberId ?? data[0]?.member_id ?? null });
     return;
   }
 
   if (req.method === 'GET' && resource === 'submissions') {
     const { url: supabaseUrl, serviceKey: serviceRoleKey } = getSupabaseConfig();
     if (!supabaseUrl || !serviceRoleKey) {
-      res.status(500).json({ error: 'Server not configured' });
+      respondError(res, 500, 'Server not configured');
       return;
     }
 
     const token = getBearerToken(req.headers?.authorization);
     if (!token) {
-      res.status(401).json({ error: 'Missing Authorization bearer token' });
+      respondError(res, 401, 'Missing Authorization bearer token');
       return;
     }
 
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
+    const supabaseAdmin = createServiceClient(supabaseUrl, serviceRoleKey);
     const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
     const callerUid = authData?.user?.id ? String(authData.user.id) : '';
     const callerEmail = authData?.user?.email ? String(authData.user.email) : '';
     if (authError || !callerUid) {
-      res.status(401).json({ error: 'Invalid token' });
+      respondError(res, 401, 'Invalid token');
       return;
     }
 
     const adminCheck = await assertAdmin(supabaseAdmin, callerUid, callerEmail);
     if (!adminCheck.ok) {
-      res.status(403).json({ error: adminCheck.error });
+      respondError(res, 403, adminCheck.error);
       return;
     }
 
@@ -445,7 +381,7 @@ export default async function handler(req: any, res: any) {
       .range(page * pageSize, page * pageSize + pageSize - 1);
 
     if (error) {
-      res.status(500).json({ error: 'Failed to load project submissions' });
+      respondError(res, 500, 'Failed to load project submissions');
       return;
     }
 
@@ -463,7 +399,7 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    res.status(200).json({
+    respond(res, 200, {
       submissions: rows.map((r: any) => mapSubmissionRow(r, userMap.get(r.user_id))),
       totalCount: count ?? 0,
     });
@@ -473,30 +409,28 @@ export default async function handler(req: any, res: any) {
   if (req.method === 'POST' && resource === 'submissions') {
     const { url: supabaseUrl, serviceKey: serviceRoleKey } = getSupabaseConfig();
     if (!supabaseUrl || !serviceRoleKey) {
-      res.status(500).json({ error: 'Server not configured' });
+      respondError(res, 500, 'Server not configured');
       return;
     }
 
     const token = getBearerToken(req.headers?.authorization);
     if (!token) {
-      res.status(401).json({ error: 'Missing Authorization bearer token' });
+      respondError(res, 401, 'Missing Authorization bearer token');
       return;
     }
 
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
+    const supabaseAdmin = createServiceClient(supabaseUrl, serviceRoleKey);
     const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
     const callerUid = authData?.user?.id ? String(authData.user.id) : '';
     const callerEmail = authData?.user?.email ? String(authData.user.email) : '';
     if (authError || !callerUid) {
-      res.status(401).json({ error: 'Invalid token' });
+      respondError(res, 401, 'Invalid token');
       return;
     }
 
     const adminCheck = await assertAdmin(supabaseAdmin, callerUid, callerEmail);
     if (!adminCheck.ok) {
-      res.status(403).json({ error: adminCheck.error });
+      respondError(res, 403, adminCheck.error);
       return;
     }
 
@@ -506,7 +440,7 @@ export default async function handler(req: any, res: any) {
     const deleteUser = typeof body.deleteUser === 'boolean' ? body.deleteUser : false;
 
     if (!id || (action !== 'approve' && action !== 'reject' && action !== 'delete' && action !== 'update')) {
-      res.status(400).json({ error: 'id and action (approve|reject|delete|update) are required' });
+      respondError(res, 400, 'id and action (approve|reject|delete|update) are required');
       return;
     }
 
@@ -517,12 +451,12 @@ export default async function handler(req: any, res: any) {
       .maybeSingle();
 
     if (submissionError) {
-      res.status(500).json({ error: 'Failed to load submission' });
+      respondError(res, 500, 'Failed to load submission');
       return;
     }
 
     if (!submission) {
-      res.status(404).json({ error: 'Submission not found' });
+      respondError(res, 404, 'Submission not found');
       return;
     }
 
@@ -533,11 +467,11 @@ export default async function handler(req: any, res: any) {
         .eq('id', id);
 
       if (approveError) {
-        res.status(500).json({ error: 'Failed to approve submission' });
+        respondError(res, 500, 'Failed to approve submission');
         return;
       }
 
-      res.status(200).json({ message: 'Approved submission' });
+      respond(res, 200, { message: 'Approved submission' });
       return;
     }
 
@@ -548,11 +482,11 @@ export default async function handler(req: any, res: any) {
         .eq('id', id);
 
       if (rejectError) {
-        res.status(500).json({ error: 'Failed to reject submission' });
+        respondError(res, 500, 'Failed to reject submission');
         return;
       }
 
-      res.status(200).json({ message: 'Rejected submission' });
+      respond(res, 200, { message: 'Rejected submission' });
       return;
     }
 
@@ -567,7 +501,7 @@ export default async function handler(req: any, res: any) {
       }
 
       if (Object.keys(updateFields).length === 0) {
-        res.status(400).json({ error: 'No fields to update' });
+        respondError(res, 400, 'No fields to update');
         return;
       }
 
@@ -577,18 +511,18 @@ export default async function handler(req: any, res: any) {
         .eq('id', id);
 
       if (updateError) {
-        res.status(500).json({ error: 'Failed to update submission' });
+        respondError(res, 500, 'Failed to update submission');
         return;
       }
 
-      res.status(200).json({ message: 'Updated submission' });
+      respond(res, 200, { message: 'Updated submission' });
       return;
     }
 
     if (action === 'delete') {
       const { error: deleteError } = await supabaseAdmin.from('project_submissions').delete().eq('id', id);
       if (deleteError) {
-        res.status(500).json({ error: 'Failed to delete submission' });
+        respondError(res, 500, 'Failed to delete submission');
         return;
       }
 
@@ -601,18 +535,18 @@ export default async function handler(req: any, res: any) {
           try {
             await supabaseAdmin.auth.admin.deleteUser(userId);
           } catch {
-            // Auth user may not exist — ignore
+            // Auth user may not exist
           }
         }
       }
 
-      res.status(200).json({ message: deleteUser ? 'Deleted submission and user' : 'Deleted submission' });
+      respond(res, 200, { message: deleteUser ? 'Deleted submission and user' : 'Deleted submission' });
       return;
     }
 
-    res.status(400).json({ error: 'Unknown action' });
+    respondError(res, 400, 'Unknown action');
     return;
   }
 
-  res.status(400).json({ error: 'Unknown resource or method' });
+  respondError(res, 400, 'Unknown resource or method');
 }

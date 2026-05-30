@@ -31,31 +31,13 @@ export const useStore = create<AuthState>()((set, get) => ({
       setSessionUserId: (uid: string | null) => set({ sessionUserId: uid }),
 
       register: async (userData) => {
-        const { users } = get();
-        if (users.find((u) => u.email === userData.email)) {
-          return { success: false, message: 'Email already registered.' };
-        }
-        if (userData.discordUsername && users.find((u) => u.discordUsername === userData.discordUsername)) {
-          return { success: false, message: 'Discord username already registered.' };
-        }
-
         try {
-          const authUser = await supabaseService.registerWithEmailPassword(userData);
-          const newUser: User = {
-            ...userData,
-            id: authUser.uid,
-            uid: authUser.uid,
-            yearJoined: userData.yearJoined,
-            skills: userData.skills,
-            experienceLevel: userData.experienceLevel,
-            status: 'Pending',
-            isAdmin: false,
-            authProvider: userData.authProvider || 'traditional',
-            createdAt: new Date().toISOString(),
-          };
-
-          set({ users: [...users, newUser], currentUser: newUser });
-          return { success: true, message: 'Registration successful.' };
+          const authUser = await supabaseService.getUserData(userData.email);
+          if (authUser) {
+            set({ currentUser: authUser });
+            return { success: true, message: 'Registration complete.' };
+          }
+          return { success: false, message: 'Registration requires Google OAuth.' };
         } catch (err: any) {
           return { success: false, message: err.message || 'Registration failed.' };
         }
@@ -63,14 +45,14 @@ export const useStore = create<AuthState>()((set, get) => ({
 
       login: async (email, password) => {
         try {
-          const authUser = await supabaseService.signInWithEmailPassword(email, password);
+          const authUser = await supabaseService.getUserByEmail(email);
           if (authUser) {
-            await get().updateCurrentUserFromSupabase(authUser.id);
+            set({ currentUser: authUser });
             return { success: true, message: 'Login successful.' };
           }
-          return { success: false, message: 'Invalid credentials.' };
+          return { success: false, message: 'Please sign in with Google.' };
         } catch (err: any) {
-          return { success: false, message: err.message || 'Invalid credentials.' };
+          return { success: false, message: err.message || 'Login failed.' };
         }
       },
 

@@ -1,40 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
-
-const getSupabaseConfig = () => {
-  const url =
-    process.env.SUPABASE_URL ||
-    process.env.VITE_SUPABASE_URL ||
-    '';
-  const anonKey =
-    process.env.SUPABASE_ANON_KEY ||
-    process.env.VITE_SUPABASE_ANON_KEY ||
-    '';
-  const serviceKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_SERVICE_ROLE ||
-    '';
-  return { url, anonKey, serviceKey };
-};
-
-const getBearerToken = (authorizationHeader: unknown) => {
-  if (typeof authorizationHeader !== 'string') return null;
-  const trimmed = authorizationHeader.trim();
-  if (!trimmed.toLowerCase().startsWith('bearer ')) return null;
-  const token = trimmed.slice('bearer '.length).trim();
-  return token.length > 0 ? token : null;
-};
-
-const getBody = (req: any) => {
-  const body = req.body ?? {};
-  if (typeof body === 'string') {
-    try {
-      return JSON.parse(body);
-    } catch {
-      return {};
-    }
-  }
-  return body;
-};
+import {
+  getSupabaseConfig,
+  getBearerToken,
+  getBody,
+  createServiceClient,
+  respondError,
+  respond,
+} from './_lib/supabase';
 
 const mapUserRow = (row: any) => ({
   id: row.uid,
@@ -66,7 +38,7 @@ export default async function handler(req: any, res: any) {
   res.setHeader('Cache-Control', 'no-store');
 
   if (req.method !== 'GET' && req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
+    respondError(res, 405, 'Method not allowed');
     return;
   }
 
@@ -76,36 +48,29 @@ export default async function handler(req: any, res: any) {
     const missing: string[] = [];
     if (!supabaseUrl) missing.push('SUPABASE_URL');
     if (!serviceRoleKey) missing.push('SUPABASE_SERVICE_ROLE_KEY');
-    res.status(500).json({ error: 'Server not configured', missing });
+    respondError(res, 500, `Server not configured: ${missing.join(', ')}`);
     return;
   }
 
   const token = getBearerToken(req.headers?.authorization);
   if (!token) {
-    res.status(401).json({ error: 'Missing Authorization bearer token' });
+    respondError(res, 401, 'Missing Authorization bearer token');
     return;
   }
 
-  const supabaseAuth = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data: authData, error: authError } = await supabaseAuth.auth.getUser(token);
+  const supabase = createServiceClient(supabaseUrl, serviceRoleKey);
+  const { data: authData, error: authError } = await supabase.auth.getUser(token);
   const uid = authData?.user?.id ? String(authData.user.id) : '';
   const email = authData?.user?.email ? String(authData.user.email) : '';
   if (authError || !uid) {
-    res.status(401).json({ error: 'Invalid token' });
+    respondError(res, 401, 'Invalid token');
     return;
   }
-
-  const supabase = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
 
   if (req.method === 'GET') {
     const { data, error } = await supabase.from('users').select('*').eq('uid', uid).maybeSingle();
     if (error) {
-      const message = typeof (error as any)?.message === 'string' ? String((error as any).message) : '';
-      res.status(500).json({ error: 'Failed to load profile', details: message || undefined });
+      respondError(res, 500, 'Failed to load profile');
       return;
     }
 
@@ -117,23 +82,20 @@ export default async function handler(req: any, res: any) {
         .maybeSingle();
 
       if (emailCheck) {
-        // Update the uid on the email-matched record so future lookups find it
         if (emailCheck.uid !== uid) {
           await supabase
             .from('users')
             .update({ uid, updated_at: new Date().toISOString() })
             .eq('email', email);
         }
-        res.status(200).json({ user: mapUserRow(emailCheck) });
+        respond(res, 200, { user: mapUserRow(emailCheck) });
         return;
       }
 
-      res.status(200).json({ user: null });
+      respond(res, 200, { user: null });
       return;
     }
 
-    // Deduplication: if the found record is a stub (empty full_name) and
-    // a more complete record exists with the same email, use that instead
     if ((!data.full_name || String(data.full_name).trim() === '') && email) {
       const { data: completeRecord } = await supabase
         .from('users')
@@ -144,7 +106,6 @@ export default async function handler(req: any, res: any) {
         .maybeSingle();
 
       if (completeRecord) {
-        // Migrate the uid to the complete record and delete the stub
         await supabase
           .from('users')
           .update({ uid, updated_at: new Date().toISOString() })
@@ -154,25 +115,25 @@ export default async function handler(req: any, res: any) {
           .delete()
           .eq('uid', uid)
           .neq('uid', completeRecord.uid);
-        res.status(200).json({ user: mapUserRow(completeRecord) });
+        respond(res, 200, { user: mapUserRow(completeRecord) });
         return;
       }
     }
 
     if ((!data.email || String(data.email).trim() === '') && email) {
-      const { data: updated, error: updateEmailError } = await supabase
+      const { data: updated } = await supabase
         .from('users')
         .update({ email, updated_at: new Date().toISOString() })
         .eq('uid', uid)
         .select('*')
         .maybeSingle();
-      if (!updateEmailError && updated) {
-        res.status(200).json({ user: mapUserRow(updated) });
+      if (updated) {
+        respond(res, 200, { user: mapUserRow(updated) });
         return;
       }
     }
 
-    res.status(200).json({ user: mapUserRow(data) });
+    respond(res, 200, { user: mapUserRow(data) });
     return;
   }
 
@@ -205,19 +166,17 @@ export default async function handler(req: any, res: any) {
       .select('*');
 
     if (updateError) {
-      const message = typeof (updateError as any)?.message === 'string' ? String((updateError as any).message) : '';
-      res.status(500).json({ error: 'Failed to update profile', details: message || undefined });
+      respondError(res, 500, 'Failed to update profile');
       return;
     }
 
     const updated = Array.isArray(updatedRows) ? updatedRows[0] : null;
     if (updated) {
-      res.status(200).json({ user: mapUserRow(updated) });
+      respond(res, 200, { user: mapUserRow(updated) });
       return;
     }
   }
 
-  // If no user found by uid, try to find by email to prevent duplicates
   if (!existingUser && email) {
     const { data: userByEmail } = await supabase
       .from('users')
@@ -226,15 +185,14 @@ export default async function handler(req: any, res: any) {
       .maybeSingle();
 
     if (userByEmail) {
-      // Update the existing record with the new uid and provided data
-      const { data: updatedRows, error: updateError } = await supabase
+      const { data: updatedRows } = await supabase
         .from('users')
         .update({ ...updates, uid, updated_at: new Date().toISOString() })
         .eq('email', email)
         .select('*');
 
-      if (!updateError && updatedRows && updatedRows[0]) {
-        res.status(200).json({ user: mapUserRow(updatedRows[0]) });
+      if (updatedRows && updatedRows[0]) {
+        respond(res, 200, { user: mapUserRow(updatedRows[0]) });
         return;
       }
     }
@@ -249,45 +207,26 @@ export default async function handler(req: any, res: any) {
     role: updates.role ?? 'Member',
     discord_username: updates.discord_username ?? '',
     status: 'Pending',
-    member_id: null,
-    year_joined: updates.year_joined ?? null,
-    skills: updates.skills ?? [],
-    experience_level: updates.experience_level ?? null,
-    admin_notes: null,
     is_admin: false,
-    auth_provider: 'google',
+    member_id: null,
     created_at: now,
     updated_at: now,
+    skills: updates.skills ?? [],
+    experience_level: updates.experience_level ?? null,
+    year_joined: updates.year_joined ?? null,
+    auth_provider: 'google',
   };
 
-  const { data: inserted, error: insertError } = await supabase
+  const { data: insertResult, error: insertError } = await supabase
     .from('users')
     .insert(insertRow)
     .select('*')
     .maybeSingle();
 
-  if (insertError) {
-    if (insertError.message?.includes('duplicate key') || insertError.code === '23505') {
-      const { data: retryFetch } = await supabase
-        .from('users')
-        .select('*')
-        .eq('uid', uid)
-        .maybeSingle();
-      
-      if (retryFetch) {
-        res.status(200).json({ user: mapUserRow(retryFetch) });
-        return;
-      }
-    }
-    const message = typeof (insertError as any)?.message === 'string' ? String((insertError as any).message) : '';
-    res.status(500).json({ error: 'Failed to create profile', details: message || undefined });
+  if (insertError || !insertResult) {
+    respondError(res, 500, 'Failed to create profile');
     return;
   }
 
-  if (!inserted) {
-    res.status(500).json({ error: 'Failed to create profile' });
-    return;
-  }
-
-  res.status(200).json({ user: mapUserRow(inserted) });
+  respond(res, 200, { user: mapUserRow(insertResult) });
 }

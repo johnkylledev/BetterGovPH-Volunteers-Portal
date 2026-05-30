@@ -1,43 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
-
-const generateUniqueMemberId = async (client: any, selectedYear: number) => {
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const { data, error } = await client
-      .from('users')
-      .select('member_id')
-      .ilike('member_id', `BGPH-${selectedYear}-%`)
-      .order('member_id', { ascending: false })
-      .limit(100);
-
-    if (error) throw error;
-
-    let maxSequence = 0;
-    for (const u of data ?? []) {
-      const memberId = u.member_id;
-      if (typeof memberId !== 'string') continue;
-      const match = memberId.match(/^BGPH-(\d{4})-(\d{3})$/);
-      if (match && parseInt(match[1]) === selectedYear) {
-        const seq = parseInt(match[2], 10);
-        if (!isNaN(seq) && seq > maxSequence) maxSequence = seq;
-      }
-    }
-
-    const nextSequence = maxSequence + 1;
-    const newMemberId = `BGPH-${selectedYear}-${String(nextSequence).padStart(3, '0')}`;
-
-    const { data: checkDuplicate } = await client
-      .from('users')
-      .select('member_id')
-      .eq('member_id', newMemberId)
-      .maybeSingle();
-
-    if (!checkDuplicate) {
-      return newMemberId;
-    }
-  }
-
-  throw new Error('Failed to generate unique member ID after 5 attempts');
-};
+import {
+  getSupabaseConfig,
+  getBearerToken,
+  createServiceClient,
+  respondError,
+  respond,
+} from './_lib/supabase';
 
 const ensureUserHasMemberId = async (client: any, uid: string) => {
   const { data, error } = await client
@@ -50,49 +18,56 @@ const ensureUserHasMemberId = async (client: any, uid: string) => {
   if (data?.member_id) return data.member_id as string;
 
   const yearJoined = data?.year_joined || new Date().getFullYear();
-  const memberId = await generateUniqueMemberId(client, yearJoined);
+  const { data: memberData } = await client
+    .from('users')
+    .select('member_id')
+    .ilike('member_id', `BGPH-${yearJoined}-%`)
+    .order('member_id', { ascending: false })
+    .limit(100);
+
+  let maxSequence = 0;
+  for (const u of memberData ?? []) {
+    const mid = u.member_id;
+    if (typeof mid !== 'string') continue;
+    const match = mid.match(/^BGPH-(\d{4})-(\d{3})$/);
+    if (match && parseInt(match[1]) === yearJoined) {
+      const seq = parseInt(match[2], 10);
+      if (!isNaN(seq) && seq > maxSequence) maxSequence = seq;
+    }
+  }
+
+  const newMemberId = `BGPH-${yearJoined}-${String(maxSequence + 1).padStart(3, '0')}`;
   await client
     .from('users')
-    .update({ member_id: memberId, updated_at: new Date().toISOString() })
+    .update({ member_id: newMemberId, updated_at: new Date().toISOString() })
     .eq('uid', uid);
 
-  return memberId;
+  return newMemberId;
 };
 
-const getConfig = () => ({
-  url: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
-  serviceKey:
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_SERVICE_ROLE ||
-    '',
-  bettygoKey: process.env.BETTYGO_API_KEY || '',
-  bettygoBaseUrl: (process.env.BETTYGO_BASE_URL || 'https://bg.zel.kim').replace(/\/$/, ''),
-  callbackUrl: process.env.DISCORD_CALLBACK_URL || 'http://localhost:3000/discord-callback',
-  discordBotToken: process.env.DISCORD_BOT_TOKEN || '',
-});
-
-const getBearerToken = (authorizationHeader: unknown) => {
-  if (typeof authorizationHeader !== 'string') return null;
-  const trimmed = authorizationHeader.trim();
-  if (!trimmed.toLowerCase().startsWith('bearer ')) return null;
-  const token = trimmed.slice('bearer '.length).trim();
-  return token.length > 0 ? token : null;
+const getConfig = () => {
+  const { url, serviceKey } = getSupabaseConfig();
+  return {
+    url,
+    serviceKey,
+    bettygoKey: process.env.BETTYGO_API_KEY || '',
+    bettygoBaseUrl: (process.env.BETTYGO_BASE_URL || '').replace(/\/$/, ''),
+    callbackUrl: process.env.DISCORD_CALLBACK_URL || 'http://localhost:3000/discord-callback',
+    discordBotToken: process.env.DISCORD_BOT_TOKEN || '',
+  };
 };
 
 const authenticateUser = async (supabase: any, token: string) => {
   try {
-    const { data: authData, error: authError } = await supabase.auth.getUser(token);
+    const { data: authData } = await supabase.auth.getUser(token);
     const uid = authData?.user?.id ? String(authData.user.id) : '';
-    if (authError || !uid) {
-      return null;
-    }
-    return uid;
+    return uid || null;
   } catch {
     return null;
   }
 };
 
-const resolveDiscordProfile = async (discordId: string, botToken: string): Promise<{ username: string | null; displayName: string | null; avatar: string | null } | null> => {
+const resolveDiscordProfile = async (discordId: string, botToken: string) => {
   if (!botToken || !discordId) return null;
   try {
     const res = await fetch(`https://discord.com/api/v10/users/${discordId}`, {
@@ -118,17 +93,20 @@ export default async function handler(req: any, res: any) {
     const { url: supabaseUrl, serviceKey, bettygoKey, bettygoBaseUrl, callbackUrl, discordBotToken } = getConfig();
 
     if (!supabaseUrl || !serviceKey) {
-      res.status(500).json({ error: 'Server not configured' });
+      respondError(res, 500, 'Server not configured');
       return;
     }
 
-    const supabase = createClient(supabaseUrl, serviceKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
+    if (!bettygoBaseUrl) {
+      respondError(res, 500, 'BETTYGO_BASE_URL is not configured');
+      return;
+    }
+
+    const supabase = createServiceClient(supabaseUrl, serviceKey);
 
     const token = getBearerToken(req.headers?.authorization);
     if (!token && req.method !== 'GET') {
-      res.status(401).json({ error: 'Missing Authorization bearer token' });
+      respondError(res, 401, 'Missing Authorization bearer token');
       return;
     }
 
@@ -136,12 +114,12 @@ export default async function handler(req: any, res: any) {
 
     if (req.method === 'GET') {
       if (!bettygoKey) {
-        res.status(200).json({ connected: false });
+        respond(res, 200, { connected: false });
         return;
       }
 
       if (!uid) {
-        res.status(401).json({ error: 'Missing Authorization bearer token' });
+        respondError(res, 401, 'Missing Authorization bearer token');
         return;
       }
 
@@ -155,8 +133,9 @@ export default async function handler(req: any, res: any) {
       const discordUsername = userData?.discord_username ?? null;
       let discordDisplayName = userData?.discord_display_name ?? null;
       let discordAvatar = userData?.discord_avatar ?? null;
+
       if (!discordId) {
-        res.status(200).json({ connected: false });
+        respond(res, 200, { connected: false });
         return;
       }
 
@@ -181,8 +160,7 @@ export default async function handler(req: any, res: any) {
       });
 
       if (!bettygoRes.ok) {
-        const text = await bettygoRes.text().catch(() => '');
-        res.status(502).json({ error: 'Failed to check Discord status', details: text });
+        respond(res, 502, { connected: true, discord_id: discordId, error: 'Failed to check Discord status' });
         return;
       }
 
@@ -196,17 +174,16 @@ export default async function handler(req: any, res: any) {
           .eq('uid', uid)
           .maybeSingle();
         if (currentUser && currentUser.status !== 'Approved') {
-          const updateFields: any = { status: 'Approved', updated_at: new Date().toISOString() };
-          await supabase.from('users').update(updateFields).eq('uid', uid);
+          await supabase.from('users').update({ status: 'Approved', updated_at: new Date().toISOString() }).eq('uid', uid);
           try {
             await ensureUserHasMemberId(supabase, uid);
           } catch {
-            // Member ID generation failed — ignore
+            // Member ID generation failed
           }
         }
       }
 
-      res.status(200).json({ connected: true, discord_id: discordId, discord_username: resolvedUsername, discord_display_name: discordDisplayName, discord_avatar: discordAvatar, ...data });
+      respond(res, 200, { connected: true, discord_id: discordId, discord_username: resolvedUsername, discord_display_name: discordDisplayName, discord_avatar: discordAvatar, ...data });
       return;
     }
 
@@ -215,12 +192,12 @@ export default async function handler(req: any, res: any) {
 
       if (action === 'login') {
         if (!bettygoKey) {
-          res.status(500).json({ error: 'Discord integration not configured' });
+          respondError(res, 500, 'Discord integration not configured');
           return;
         }
 
         if (!uid) {
-          res.status(401).json({ error: 'Invalid token' });
+          respondError(res, 401, 'Invalid token');
           return;
         }
 
@@ -234,24 +211,23 @@ export default async function handler(req: any, res: any) {
         });
 
         if (!bettygoRes.ok) {
-          const text = await bettygoRes.text().catch(() => '');
-          res.status(502).json({ error: 'Failed to initiate Discord OAuth', details: text });
+          respond(res, 502, { error: 'Failed to initiate Discord OAuth' });
           return;
         }
 
         const data = await bettygoRes.json();
-        res.status(200).json({ url: data.url });
+        respond(res, 200, { url: data.url });
         return;
       }
 
       if (action === 'sync') {
         if (!bettygoKey) {
-          res.status(500).json({ error: 'Discord integration not configured' });
+          respondError(res, 500, 'Discord integration not configured');
           return;
         }
 
         if (!uid) {
-          res.status(401).json({ error: 'Invalid token' });
+          respondError(res, 401, 'Invalid token');
           return;
         }
 
@@ -269,7 +245,7 @@ export default async function handler(req: any, res: any) {
 
         const discordId = discordIdFromBody ?? userData?.discord_id;
         if (!discordId) {
-          res.status(200).json({ connected: false });
+          respond(res, 200, { connected: false });
           return;
         }
 
@@ -278,7 +254,7 @@ export default async function handler(req: any, res: any) {
         });
 
         if (!bettygoRes.ok) {
-          res.status(200).json({ connected: false });
+          respond(res, 200, { connected: false });
           return;
         }
 
@@ -317,21 +293,21 @@ export default async function handler(req: any, res: any) {
           try {
             memberId = await ensureUserHasMemberId(supabase, uid);
           } catch {
-            // Member ID generation failed — still return success for Discord sync
+            // Member ID generation failed
           }
         }
 
-        res.status(200).json({ connected: true, discord_id: discordId, discord_username: discordUsername, discord_display_name: discordDisplayName, discord_avatar: discordAvatar, verified, memberId });
+        respond(res, 200, { connected: true, discord_id: discordId, discord_username: discordUsername, discord_display_name: discordDisplayName, discord_avatar: discordAvatar, verified, memberId });
         return;
       }
 
-      res.status(400).json({ error: 'Unknown action' });
+      respondError(res, 400, 'Unknown action');
       return;
     }
 
-    res.status(405).json({ error: 'Method not allowed' });
+    respondError(res, 405, 'Method not allowed');
   } catch (err: any) {
     console.error('Discord API error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    respondError(res, 500, 'Internal server error');
   }
 }

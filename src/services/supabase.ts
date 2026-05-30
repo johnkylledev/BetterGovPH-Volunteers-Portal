@@ -261,42 +261,7 @@ export const updateUserData = async (uid: string, data: any) => {
   await createOrUpdateUserRecord({ uid, ...data });
 };
 
-export const registerWithEmailPassword = async (userData: any) => {
-  const { data, error } = await supabase.auth.signUp({
-    email: userData.email,
-    password: userData.password,
-    options: {
-      data: {
-        full_name: userData.fullName,
-      }
-    }
-  });
-
-  if (error) throw error;
-  if (data.user) {
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (!sessionData.session) {
-      await supabase.auth.signInWithPassword({ email: userData.email, password: userData.password });
-    }
-    await createOrUpdateUserRecord({
-      uid: data.user.id,
-      ...userData,
-      authProvider: 'traditional',
-    });
-  }
-  return { uid: data.user?.id };
-};
-
-export const signInWithEmailPassword = async (email: string, password: string) => {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-  if (error) throw error;
-  return data.user;
-};
-
-export const getUserByEmailAndPassword = async (email: string, _password?: string) => {
+export const getUserByEmail = async (email: string) => {
   const token = await getAccessToken();
   if (!token) return null;
   const response = await apiRequest<{ user: User | null }>('/api/me', {

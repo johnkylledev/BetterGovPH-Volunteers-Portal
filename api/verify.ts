@@ -1,78 +1,56 @@
 import { createClient } from '@supabase/supabase-js';
-
-const getSupabaseConfig = () => {
-  const url =
-    process.env.SUPABASE_URL ||
-    process.env.VITE_SUPABASE_URL ||
-    '';
-  const anonKey =
-    process.env.SUPABASE_ANON_KEY ||
-    process.env.VITE_SUPABASE_ANON_KEY ||
-    '';
-  const serviceKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_SERVICE_ROLE ||
-    '';
-  return { url, anonKey, serviceKey };
-};
-
-const getBearerToken = (authorizationHeader: unknown) => {
-  if (typeof authorizationHeader !== 'string') return null;
-  const trimmed = authorizationHeader.trim();
-  if (!trimmed.toLowerCase().startsWith('bearer ')) return null;
-  const token = trimmed.slice('bearer '.length).trim();
-  return token.length > 0 ? token : null;
-};
-
-const getStringParam = (value: unknown) => {
-  if (typeof value === 'string') return value;
-  if (Array.isArray(value)) return typeof value[0] === 'string' ? value[0] : null;
-  return null;
-};
+import {
+  getSupabaseConfig,
+  getBearerToken,
+  getStringParam,
+  createServiceClient,
+  isUuid,
+  respondError,
+  respond,
+} from './_lib/supabase';
 
 const normalizeLookupId = (raw: string) => raw.trim().toUpperCase();
 
-const isUuid = (value: string) =>
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
-
-const isSafeLookup = (value: string) => /^[A-Z0-9-]{3,60}$/.test(value);
+const isSafeMemberId = (value: string) => /^BGPH-\d{4}-\d{3}$/i.test(value);
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
 
   if (req.method !== 'GET' && req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
+    respondError(res, 405, 'Method not allowed');
     return;
   }
 
   const { url: supabaseUrl, anonKey: supabaseAnonKey, serviceKey: serviceRoleKey } = getSupabaseConfig();
-  if (!supabaseUrl || (!serviceRoleKey && !supabaseAnonKey)) {
-    const missing: string[] = [];
-    if (!supabaseUrl) missing.push('SUPABASE_URL');
-    if (!serviceRoleKey && !supabaseAnonKey) missing.push('SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY');
-    res.status(500).json({ error: 'Server not configured', missing });
+  if (!supabaseUrl || !supabaseAnonKey) {
+    respondError(res, 500, 'Server not configured');
     return;
   }
 
-  const makeClient = (key: string) =>
-    createClient(supabaseUrl, key, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
+  const queryId = getStringParam(req.query?.id ?? req.query?.memberId);
+  const bodyId = getStringParam(req.body?.id ?? req.body?.memberId);
+  const lookupRaw = queryId ?? bodyId;
 
-  const primaryKey = (serviceRoleKey || supabaseAnonKey) as string;
-  const fallbackKey = (serviceRoleKey && supabaseAnonKey && serviceRoleKey !== supabaseAnonKey ? supabaseAnonKey : '') as
-    | string
-    | '';
-  let supabase = makeClient(primaryKey);
+  if (!lookupRaw) {
+    respondError(res, 400, 'Missing id (memberId)');
+    return;
+  }
+
+  const lookup = normalizeLookupId(lookupRaw);
+
+  if (!isSafeMemberId(lookup) && !isUuid(lookupRaw.trim())) {
+    respondError(res, 400, 'Invalid id format');
+    return;
+  }
 
   const token = getBearerToken(req.headers?.authorization);
   let isAdminCaller = false;
   if (token && serviceRoleKey) {
     try {
-      const adminSupabase = makeClient(serviceRoleKey);
-      const { data: authData, error: authError } = await adminSupabase.auth.getUser(token);
-      if (!authError && authData?.user) {
+      const adminSupabase = createServiceClient(supabaseUrl, serviceRoleKey);
+      const { data: authData } = await adminSupabase.auth.getUser(token);
+      if (authData?.user) {
         const callerUid = authData.user.id;
         const { data: callerRow } = await adminSupabase
           .from('users')
@@ -86,93 +64,58 @@ export default async function handler(req: any, res: any) {
     }
   }
 
-  const queryId = getStringParam(req.query?.id ?? req.query?.memberId);
-  const bodyId = getStringParam(req.body?.id ?? req.body?.memberId);
-  const lookupRaw = queryId ?? bodyId;
-
-  if (!lookupRaw) {
-    res.status(400).json({ error: 'Missing id (memberId)' });
-    return;
-  }
-
-  const lookup = normalizeLookupId(lookupRaw);
-  if (!isSafeLookup(lookup) && !isUuid(lookupRaw.trim())) {
-    res.status(400).json({ error: 'Invalid id format' });
-    return;
-  }
+  const anonSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 
   let row: any | null = null;
 
-  const upperId = lookup;
-  const cleanId = upperId.startsWith('BGPH-') ? upperId.replace('BGPH-', '') : upperId;
-  const prefixedId = upperId.startsWith('BGPH-') ? upperId : `BGPH-${upperId}`;
+  const exactMemberId = lookup.startsWith('BGPH-') ? lookup : `BGPH-${lookup}`;
 
-  const safeMemberId = (v: string) => /^[A-Z0-9-]{1,60}$/i.test(v) ? v : null;
-  const orParts = [safeMemberId(upperId), safeMemberId(cleanId), safeMemberId(prefixedId)]
-    .filter(Boolean)
-    .map((v) => `member_id.ilike.${v}`)
-    .join(',');
-
-  let { data: byMember, error: byMemberError } = await supabase
-    .from('users')
-    .select('uid, full_name, specialization, role, status, member_id, year_joined, discord_username, is_admin')
-    .or(orParts)
-    .maybeSingle();
-
-  if (
-    byMemberError &&
-    fallbackKey &&
-    typeof (byMemberError as any)?.message === 'string' &&
-    String((byMemberError as any).message).toLowerCase().includes('invalid api key')
-  ) {
-    supabase = makeClient(fallbackKey);
-    const retry = await supabase
+  if (isSafeMemberId(exactMemberId)) {
+    const { data, error } = await anonSupabase
       .from('users')
       .select('uid, full_name, specialization, role, status, member_id, year_joined, discord_username, is_admin')
-      .or(`member_id.ilike.${upperId},member_id.ilike.${cleanId},member_id.ilike.${prefixedId}`)
+      .eq('member_id', exactMemberId)
       .maybeSingle();
-    byMember = retry.data;
-    byMemberError = retry.error;
+
+    if (error) {
+      respondError(res, 500, 'Lookup failed');
+      return;
+    }
+
+    row = data ?? null;
   }
 
-  if (byMemberError) {
-    const message = typeof (byMemberError as any)?.message === 'string' ? String((byMemberError as any).message) : '';
-    res.status(500).json({ error: 'Lookup failed', details: message || undefined });
-    return;
-  }
-
-  if (byMember) {
-    row = byMember;
-  } else if (isAdminCaller && isUuid(lookupRaw.trim())) {
-    const { data: byUid, error: byUidError } = await supabase
+  if (!row && isAdminCaller && isUuid(lookupRaw.trim())) {
+    const { data, error } = await anonSupabase
       .from('users')
       .select('uid, full_name, specialization, role, status, member_id, year_joined, discord_username, is_admin')
       .eq('uid', lookupRaw.trim())
       .maybeSingle();
 
-    if (byUidError) {
-      const message = typeof (byUidError as any)?.message === 'string' ? String((byUidError as any).message) : '';
-      res.status(500).json({ error: 'Lookup failed', details: message || undefined });
+    if (error) {
+      respondError(res, 500, 'Lookup failed');
       return;
     }
 
-    row = byUid ?? null;
+    row = data ?? null;
   }
 
   if (!row) {
-    res.status(404).json({ error: 'Not found' });
+    respondError(res, 404, 'Not found');
     return;
   }
 
   if (!isAdminCaller) {
     const isApproved = row.status === 'Approved' || !!row.is_admin;
     if (!isApproved) {
-      res.status(404).json({ error: 'Not found' });
+      respondError(res, 404, 'Not found');
       return;
     }
   }
 
-  res.status(200).json({
+  respond(res, 200, {
     uid: row.uid,
     fullName: row.full_name ?? '',
     specialization: row.specialization ?? '',

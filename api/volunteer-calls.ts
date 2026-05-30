@@ -1,46 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
-
-const getSupabaseConfig = () => {
-  const url =
-    process.env.SUPABASE_URL ||
-    process.env.VITE_SUPABASE_URL ||
-    '';
-  const anonKey =
-    process.env.SUPABASE_ANON_KEY ||
-    process.env.VITE_SUPABASE_ANON_KEY ||
-    '';
-  const serviceKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_SERVICE_ROLE ||
-    '';
-  return { url, anonKey, serviceKey };
-};
-
-const getBearerToken = (authorizationHeader: unknown) => {
-  if (typeof authorizationHeader !== 'string') return null;
-  const trimmed = authorizationHeader.trim();
-  if (!trimmed.toLowerCase().startsWith('bearer ')) return null;
-  const token = trimmed.slice('bearer '.length).trim();
-  return token.length > 0 ? token : null;
-};
-
-const getStringParam = (value: unknown) => {
-  if (typeof value === 'string') return value;
-  if (Array.isArray(value)) return typeof value[0] === 'string' ? value[0] : null;
-  return null;
-};
-
-const getBody = (req: any) => {
-  const body = req.body ?? {};
-  if (typeof body === 'string') {
-    try {
-      return JSON.parse(body);
-    } catch {
-      return {};
-    }
-  }
-  return body;
-};
+import {
+  getSupabaseConfig,
+  getBearerToken,
+  getStringParam,
+  getBody,
+  createServiceClient,
+  respondError,
+  respond,
+} from './_lib/supabase';
 
 const mapCallRow = (row: any, postedBy?: { fullName: string; email: string }) => ({
   id: row.id,
@@ -60,39 +27,31 @@ export default async function handler(req: any, res: any) {
   res.setHeader('Cache-Control', 'no-store');
 
   if (req.method !== 'GET' && req.method !== 'POST' && req.method !== 'DELETE') {
-    res.status(405).json({ error: 'Method not allowed' });
+    respondError(res, 405, 'Method not allowed');
     return;
   }
 
   const { url: supabaseUrl, serviceKey: serviceRoleKey } = getSupabaseConfig();
   if (!supabaseUrl || !serviceRoleKey) {
-    const missing: string[] = [];
-    if (!supabaseUrl) missing.push('SUPABASE_URL');
-    if (!serviceRoleKey) missing.push('SUPABASE_SERVICE_ROLE_KEY');
-    res.status(500).json({ error: 'Server not configured', missing });
+    respondError(res, 500, 'Server not configured');
     return;
   }
 
   const token = getBearerToken(req.headers?.authorization);
   if (!token) {
-    res.status(401).json({ error: 'Missing Authorization bearer token' });
+    respondError(res, 401, 'Missing Authorization bearer token');
     return;
   }
 
-  const supabaseAuth = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data: authData, error: authError } = await supabaseAuth.auth.getUser(token);
+  const supabase = createServiceClient(supabaseUrl, serviceRoleKey);
+  const { data: authData, error: authError } = await supabase.auth.getUser(token);
   const uid = authData?.user?.id ? String(authData.user.id) : '';
   if (authError || !uid) {
-    res.status(401).json({ error: 'Invalid token' });
+    respondError(res, 401, 'Invalid token');
     return;
   }
 
-  const supabaseDb = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data: callerRow } = await supabaseDb.from('users').select('is_admin').eq('uid', uid).maybeSingle();
+  const { data: callerRow } = await supabase.from('users').select('is_admin').eq('uid', uid).maybeSingle();
   const isAdmin = !!callerRow?.is_admin;
 
   if (req.method === 'GET') {
@@ -102,19 +61,18 @@ export default async function handler(req: any, res: any) {
     const statusFilter = getStringParam(req.query?.status);
 
     if (wantsAdmin && !isAdmin) {
-      res.status(403).json({ error: 'Admin only' });
+      respondError(res, 403, 'Admin only');
       return;
     }
 
-    let query = supabaseDb.from('volunteer_calls').select('*', { count: 'exact' }).order('created_at', { ascending: false });
+    let query = supabase.from('volunteer_calls').select('*', { count: 'exact' }).order('created_at', { ascending: false });
     if (mine === '1' || mine === 'true') query = query.eq('user_id', uid);
     if (!wantsAdmin && mine !== '1' && mine !== 'true') query = query.eq('status', 'open');
     if (wantsAdmin && statusFilter && statusFilter !== 'All') query = query.eq('status', statusFilter);
 
     const { data, error, count } = await query.limit(50);
     if (error) {
-      const message = typeof (error as any)?.message === 'string' ? String((error as any).message) : '';
-      res.status(500).json({ error: 'Failed to load volunteer calls', details: message || undefined });
+      respondError(res, 500, 'Failed to load volunteer calls');
       return;
     }
 
@@ -122,15 +80,15 @@ export default async function handler(req: any, res: any) {
     const userIds = Array.from(new Set(rows.map((r: any) => r.user_id).filter(Boolean)));
     const userMap = new Map<string, { fullName: string; email: string }>();
     if (userIds.length > 0) {
-      const { data: usersData, error: usersError } = await supabaseDb.from('users').select('uid, full_name, email').in('uid', userIds);
-      if (!usersError) {
-        for (const u of usersData ?? []) {
+      const { data: usersData } = await supabase.from('users').select('uid, full_name, email').in('uid', userIds);
+      if (usersData) {
+        for (const u of usersData) {
           userMap.set(u.uid, { fullName: u.full_name ?? '', email: u.email ?? '' });
         }
       }
     }
 
-    res.status(200).json({
+    respond(res, 200, {
       calls: rows.map((r: any) => mapCallRow(r, userMap.get(r.user_id))),
       totalCount: count ?? 0,
     });
@@ -142,51 +100,51 @@ export default async function handler(req: any, res: any) {
     const id = typeof body.id === 'string' ? body.id : getStringParam(req.query?.id) || '';
     const deleteUser = typeof body.deleteUser === 'boolean' ? body.deleteUser : false;
     if (!id) {
-      res.status(400).json({ error: 'id is required' });
+      respondError(res, 400, 'id is required');
       return;
     }
 
     if (!isAdmin) {
-      res.status(403).json({ error: 'Admin only' });
+      respondError(res, 403, 'Admin only');
       return;
     }
 
-    const { data: call, error: callError } = await supabaseDb
+    const { data: call, error: callError } = await supabase
       .from('volunteer_calls')
       .select('id, user_id')
       .eq('id', id)
       .maybeSingle();
 
     if (callError) {
-      res.status(500).json({ error: 'Failed to load volunteer call' });
+      respondError(res, 500, 'Failed to load volunteer call');
       return;
     }
     if (!call) {
-      res.status(404).json({ error: 'Volunteer call not found' });
+      respondError(res, 404, 'Volunteer call not found');
       return;
     }
 
-    const { error: deleteError } = await supabaseDb.from('volunteer_calls').delete().eq('id', id);
+    const { error: deleteError } = await supabase.from('volunteer_calls').delete().eq('id', id);
     if (deleteError) {
-      res.status(500).json({ error: 'Failed to delete volunteer call' });
+      respondError(res, 500, 'Failed to delete volunteer call');
       return;
     }
 
     if (deleteUser) {
       const userId = typeof (call as any).user_id === 'string' ? String((call as any).user_id) : '';
       if (userId) {
-        await supabaseDb.from('project_submissions').delete().eq('user_id', userId);
-        await supabaseDb.from('volunteer_calls').delete().eq('user_id', userId);
-        await supabaseDb.from('users').delete().eq('uid', userId);
+        await supabase.from('project_submissions').delete().eq('user_id', userId);
+        await supabase.from('volunteer_calls').delete().eq('user_id', userId);
+        await supabase.from('users').delete().eq('uid', userId);
         try {
-          await supabaseDb.auth.admin.deleteUser(userId);
+          await supabase.auth.admin.deleteUser(userId);
         } catch {
-          // Auth user may not exist — ignore
+          // Auth user may not exist
         }
       }
     }
 
-    res.status(200).json({ message: deleteUser ? 'Deleted volunteer call and user' : 'Deleted volunteer call' });
+    respond(res, 200, { message: deleteUser ? 'Deleted volunteer call and user' : 'Deleted volunteer call' });
     return;
   }
 
@@ -198,11 +156,11 @@ export default async function handler(req: any, res: any) {
   const contact = typeof body.contact === 'string' ? body.contact.trim() : '';
 
   if (!title || !projectUrl || !description) {
-    res.status(400).json({ error: 'title, project_url, and description are required' });
+    respondError(res, 400, 'title, project_url, and description are required');
     return;
   }
 
-  const { data, error } = await supabaseDb
+  const { data, error } = await supabase
     .from('volunteer_calls')
     .insert([
       {
@@ -219,10 +177,9 @@ export default async function handler(req: any, res: any) {
     .maybeSingle();
 
   if (error || !data?.id) {
-    const message = typeof (error as any)?.message === 'string' ? String((error as any).message) : '';
-    res.status(500).json({ error: 'Failed to create volunteer call', details: message || undefined });
+    respondError(res, 500, 'Failed to create volunteer call');
     return;
   }
 
-  res.status(200).json({ message: 'Posted successfully!', id: data.id });
+  respond(res, 200, { message: 'Posted successfully!', id: data.id });
 }
