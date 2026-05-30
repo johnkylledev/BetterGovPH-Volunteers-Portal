@@ -142,6 +142,15 @@ function LegacyRegister() {
 
     useEffect(() => {
         if (hasSession) {
+            if (currentUser && currentUser.fullName && currentUser.specialization && currentUser.yearJoined) {
+                if (currentUser.isAdmin) {
+                    navigate('/admin', { replace: true });
+                } else {
+                    navigate('/dashboard', { replace: true });
+                }
+                return;
+            }
+
             setCheckingProfile(true);
             (async () => {
                 const { data } = await supabase.auth.getSession();
@@ -161,7 +170,7 @@ function LegacyRegister() {
                         customRole: profile.role && !ROLES.includes(profile.role) ? profile.role : prev.customRole,
                     }));
                     const isComplete = profile.fullName && profile.specialization && profile.yearJoined;
-                    if (isComplete && localStorage.getItem('onboarding_connections') !== '1') {
+                    if (isComplete) {
                         if (profile.isAdmin) {
                             navigate('/admin', { replace: true });
                         } else {

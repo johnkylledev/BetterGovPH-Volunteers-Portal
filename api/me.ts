@@ -1,37 +1,12 @@
-import { createClient } from '@supabase/supabase-js';
-import {
+import { 
   getSupabaseConfig,
-  getBearerToken,
-  getBody,
-  createServiceClient,
-  respondError,
-  respond,
+  createServiceClient, 
+  getBearerToken, 
+  getBody, 
+  respond, 
+  respondError, 
+  mapUserRow 
 } from './lib/supabase';
-
-const mapUserRow = (row: any) => ({
-  id: row.uid,
-  uid: row.uid,
-  fullName: row.full_name ?? '',
-  email: row.email ?? '',
-  specialization: row.specialization ?? '',
-  role: row.role ?? 'Member',
-  discordUsername: row.discord_username ?? '',
-  status: row.status ?? 'Pending',
-  memberId: row.member_id ?? undefined,
-  yearJoined: row.year_joined ?? undefined,
-  skills: row.skills ?? [],
-  experienceLevel: row.experience_level ?? undefined,
-  adminNotes: row.admin_notes ?? undefined,
-  isAdmin: !!row.is_admin,
-  authProvider: row.auth_provider ?? 'traditional',
-  createdAt: row.created_at,
-  updatedAt: row.updated_at,
-  discordId: row.discord_id ?? undefined,
-  discordConnected: row.discord_connected ?? false,
-  discordVerified: row.discord_verified ?? false,
-  discordDisplayName: row.discord_display_name ?? undefined,
-  discordAvatar: row.discord_avatar ?? undefined,
-});
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');

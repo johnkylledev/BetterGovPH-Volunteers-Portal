@@ -66,6 +66,22 @@ function HomeRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function RegisterRoute({ children }: { children: React.ReactNode }) {
+  const { currentUser, authInitialized } = useStore();
+  const { sessionUserId } = useStore();
+
+  if (!authInitialized) return <LoadingOverlay />;
+  if (sessionUserId && !currentUser) {
+    return <>{children}</>;
+  }
+  if (sessionUserId && currentUser) {
+    if (currentUser?.isAdmin) return <Navigate to="/admin" replace />;
+    if (isProfileComplete(currentUser)) return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+}
+
 export default function App() {
   const { setCurrentUser, setAuthInitialized } = useStore();
   const setSessionUserId = useStore((s: any) => s.setSessionUserId);
@@ -212,7 +228,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<HomeRoute><Landing /></HomeRoute>} />
           <Route path="/login/*" element={<PublicRoute><Login /></PublicRoute>} />
-          <Route path="/register/*" element={<Register />} />
+          <Route path="/register/*" element={<RegisterRoute><Register /></RegisterRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
           <Route path="/verify" element={<Verify />} />

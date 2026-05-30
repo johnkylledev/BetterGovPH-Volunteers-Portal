@@ -1,11 +1,34 @@
 import { createClient } from '@supabase/supabase-js';
-import {
-  getSupabaseConfig,
-  getBearerToken,
-  createServiceClient,
-  respondError,
-  respond,
-} from './lib/supabase';
+
+const getSupabaseConfig = () => {
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+  const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE || '';
+  return { url, anonKey, serviceKey };
+};
+
+const getBearerToken = (authorizationHeader: unknown) => {
+  if (typeof authorizationHeader !== 'string') return null;
+  const trimmed = authorizationHeader.trim();
+  if (!trimmed.toLowerCase().startsWith('bearer ')) return null;
+  const token = trimmed.slice('bearer '.length).trim();
+  return token.length > 0 ? token : null;
+};
+
+const createServiceClient = (url: string, serviceKey: string) =>
+  createClient(url, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+const respond = (res: any, statusCode: number, data: Record<string, unknown>) => {
+  res.statusCode = statusCode;
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.end(JSON.stringify(data));
+};
+
+const respondError = (res: any, statusCode: number, message: string) => {
+  respond(res, statusCode, { error: message });
+};
 
 const normalizeUrl = (value: unknown) => {
   if (typeof value !== 'string') return '';

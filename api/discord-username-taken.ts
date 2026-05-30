@@ -1,10 +1,27 @@
 import { createClient } from '@supabase/supabase-js';
-import {
-  getSupabaseConfig,
-  getStringParam,
-  respondError,
-  respond,
-} from './lib/supabase';
+
+const getSupabaseConfig = () => {
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+  const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+  return { url, anonKey };
+};
+
+const getStringParam = (value: unknown) => {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) return typeof value[0] === 'string' ? value[0] : null;
+  return null;
+};
+
+const respond = (res: any, statusCode: number, data: Record<string, unknown>) => {
+  res.statusCode = statusCode;
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  res.end(JSON.stringify(data));
+};
+
+const respondError = (res: any, statusCode: number, message: string) => {
+  respond(res, statusCode, { error: message });
+};
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
