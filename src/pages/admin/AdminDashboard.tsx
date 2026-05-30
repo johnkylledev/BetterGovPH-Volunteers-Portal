@@ -9,7 +9,7 @@ import { LoadingOverlay } from '../../components/LoadingOverlay';
 import clsx from 'clsx';
 import { User, ApplicationStatus, ProjectSubmission } from '../../types';
 import { deleteProjectSubmission, editProjectSubmission, getAllUsers, getAdminStats, getProjectSubmissions, updateProjectSubmission, supabase } from '../../services/supabase';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import { skillToSlug } from '../../utils/skillUtils';
 import { SPECIALIZATIONS } from '../../constants/specializations';
 
