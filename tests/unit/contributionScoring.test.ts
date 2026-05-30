@@ -8,7 +8,7 @@ import {
   type ExternalProject,
   type GithubRepo,
   type ContributorStats,
-} from '../../api/_lib/contributionScoring';
+} from '../../api/lib/contributionScoring';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
