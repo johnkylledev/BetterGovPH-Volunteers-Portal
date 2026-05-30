@@ -1,12 +1,72 @@
-import { 
-  getSupabaseConfig,
-  createServiceClient, 
-  getBearerToken, 
-  getBody, 
-  respond, 
-  respondError, 
-  mapUserRow 
-} from './lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+
+const getSupabaseConfig = () => {
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+  const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE || '';
+  return { url, anonKey, serviceKey };
+};
+
+const getBearerToken = (authorizationHeader: unknown) => {
+  if (typeof authorizationHeader !== 'string') return null;
+  const trimmed = authorizationHeader.trim();
+  if (!trimmed.toLowerCase().startsWith('bearer ')) return null;
+  const token = trimmed.slice('bearer '.length).trim();
+  return token.length > 0 ? token : null;
+};
+
+const getBody = (req: any) => {
+  const body = req.body ?? {};
+  if (typeof body === 'string') {
+    try {
+      return JSON.parse(body);
+    } catch {
+      return {};
+    }
+  }
+  return body;
+};
+
+const createServiceClient = (url: string, serviceKey: string) =>
+  createClient(url, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+const respond = (res: any, statusCode: number, data: Record<string, unknown>) => {
+  res.statusCode = statusCode;
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  res.end(JSON.stringify(data));
+};
+
+const respondError = (res: any, statusCode: number, message: string) => {
+  respond(res, statusCode, { error: message });
+};
+
+const mapUserRow = (row: any) => ({
+  id: row.uid,
+  uid: row.uid,
+  fullName: row.full_name ?? '',
+  email: row.email ?? '',
+  specialization: row.specialization ?? '',
+  role: row.role ?? 'Member',
+  discordUsername: row.discord_username ?? '',
+  status: row.status ?? 'Pending',
+  memberId: row.member_id ?? undefined,
+  yearJoined: row.year_joined ?? undefined,
+  skills: row.skills ?? [],
+  experienceLevel: row.experience_level ?? undefined,
+  adminNotes: row.admin_notes ?? undefined,
+  isAdmin: !!row.is_admin,
+  authProvider: row.auth_provider ?? 'traditional',
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+  discordId: row.discord_id ?? undefined,
+  discordConnected: row.discord_connected ?? false,
+  discordVerified: row.discord_verified ?? false,
+  discordDisplayName: row.discord_display_name ?? undefined,
+  discordAvatar: row.discord_avatar ?? undefined,
+});
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
