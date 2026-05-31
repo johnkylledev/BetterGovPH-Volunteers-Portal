@@ -37,9 +37,7 @@ const ROLES = ['Member', 'Fellow', 'Contributor', 'Other'];
 type Step = 1 | 2 | 3 | 4;
 
 function LegacyRegister() {
-    const [currentStep, setCurrentStep] = useState<Step>(() =>
-        localStorage.getItem('onboarding_connections') === '1' ? 4 : 1
-    );
+    const [currentStep, setCurrentStep] = useState<Step>(1);
     const [formData, setFormData] = useState({
         fullName: '',
         discordUsername: '',
@@ -214,7 +212,6 @@ function LegacyRegister() {
     };
 
     const handleComplete = () => {
-        localStorage.removeItem('onboarding_connections');
         navigate('/dashboard');
     };
 
