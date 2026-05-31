@@ -72,6 +72,7 @@ export default async function handler(req: any, res: any) {
       .in('status', ['approved', 'Approved', 'APPROVED'])
       .order('created_at', { ascending: false })
       .limit(100);
+    console.log('Query result:', { error: result.error, count: result.data?.length });
     if (
       result.error &&
       typeof (result.error as any)?.message === 'string' &&
@@ -83,12 +84,13 @@ export default async function handler(req: any, res: any) {
         .in('status', ['approved', 'Approved', 'APPROVED'])
         .order('id', { ascending: false })
         .limit(100);
+      console.log('Retry query result:', { error: result.error, count: result.data?.length });
     }
     return result;
   };
 
-  let primaryKey = supabaseAnonKey || serviceRoleKey;
-  let fallbackKey = (supabaseAnonKey && serviceRoleKey && supabaseAnonKey !== serviceRoleKey) ? serviceRoleKey : '';
+  let primaryKey = serviceRoleKey || supabaseAnonKey;
+  let fallbackKey = (supabaseAnonKey && serviceRoleKey && supabaseAnonKey !== serviceRoleKey) ? supabaseAnonKey : '';
 
   if (!primaryKey) {
     respondError(res, 500, 'Server not configured');
@@ -98,7 +100,8 @@ export default async function handler(req: any, res: any) {
   let supabase = makeClient(primaryKey);
   let result = await runQuery(supabase);
 
-  if (result.error && fallbackKey) {
+  if ((result.error || (result.data && result.data.length === 0)) && fallbackKey) {
+    console.log('Trying fallback key due to error or empty results');
     supabase = makeClient(fallbackKey);
     result = await runQuery(supabase);
   }

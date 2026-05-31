@@ -540,9 +540,11 @@ export const getApprovedProjects = async () => {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
     if (response && typeof response === 'object' && Array.isArray((response as any).projects)) {
-      return ((response as any).projects as any[]).map(mapProjectRow);
+      const projects = ((response as any).projects as any[]).map(mapProjectRow);
+      return projects;
     }
-  } catch {
+  } catch (err) {
+    console.error('Error fetching from /api/projects:', err);
   }
 
   const runQuery = async () => {
