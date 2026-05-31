@@ -475,8 +475,8 @@ const Landing: React.FC = () => {
                 <div className="w-12 h-12 rounded-2xl bg-white shadow-sm border border-slate-200 flex items-center justify-center text-blue-900 mx-auto mb-4">
                   {value.icon}
                 </div>
-                <h3 className="text-sm font-bold text-slate-900 mb-1">{value.title}</h3>
-                <p className="text-xs text-slate-500 leading-relaxed">{value.desc}</p>
+                <h3 className="text-lg font-bold text-slate-900 mb-1">{value.title}</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">{value.desc}</p>
               </motion.div>
             ))}
           </motion.div>

@@ -142,7 +142,7 @@ function LegacyRegister() {
 
     useEffect(() => {
         if (hasSession) {
-            if (currentUser && currentUser.fullName && currentUser.specialization && currentUser.yearJoined) {
+            if (currentUser && currentUser.fullName && currentUser.specialization && currentUser.yearJoined && currentUser.discordConnected === true) {
                 if (currentUser.isAdmin) {
                     navigate('/admin', { replace: true });
                 } else {
@@ -169,7 +169,7 @@ function LegacyRegister() {
                         experienceLevel: profile.experienceLevel || prev.experienceLevel,
                         customRole: profile.role && !ROLES.includes(profile.role) ? profile.role : prev.customRole,
                     }));
-                    const isComplete = profile.fullName && profile.specialization && profile.yearJoined;
+                    const isComplete = profile.fullName && profile.specialization && profile.yearJoined && profile.discordConnected === true;
                     if (isComplete) {
                         if (profile.isAdmin) {
                             navigate('/admin', { replace: true });
@@ -608,7 +608,6 @@ function LegacyRegister() {
                 authProvider: 'google',
             });
             if (saved) setCurrentUser(saved as any);
-            localStorage.setItem('onboarding_connections', '1');
             setCurrentStep(4);
         } catch (err: any) {
             setError(err.message || 'Registration failed');
