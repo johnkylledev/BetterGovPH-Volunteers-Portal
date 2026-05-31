@@ -18,6 +18,7 @@ import {
   BarChart3,
   Building2,
   ShieldCheck,
+  Scale,
   Lightbulb,
   Lock,
   Sun,
@@ -214,7 +215,7 @@ const Landing: React.FC = () => {
       {/* ── 1. Hero ───────────────────────────────────────────────── */}
       <section className="relative min-h-screen flex items-center overflow-hidden bg-gradient-to-br from-blue-50 via-white to-slate-50">
         <motion.div className="absolute inset-0 bg-gradient-to-br from-blue-50/80 via-white to-slate-50/80 pointer-events-none" style={{ y: heroBgY }} />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative pt-24 pb-16 sm:pt-32 sm:pb-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative pt-36 pb-16 sm:pt-40 sm:pb-24">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             <motion.div
               initial={{ opacity: 0, x: -40 }}
@@ -225,7 +226,7 @@ const Landing: React.FC = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.2 }}
-                className="text-4xl lg:text-6xl font-display font-extrabold text-slate-900 leading-[1.1] mb-6"
+                className="text-4xl lg:text-6xl font-display font-extrabold text-slate-900 leading-[1.1] mb-4"
               >
                 Join the Philippines'
                 <span className="text-blue-600 block">Civic Tech Community</span>
@@ -234,22 +235,14 @@ const Landing: React.FC = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.3 }}
-                className="text-lg text-slate-600 mb-3 leading-relaxed max-w-xl"
+                className="text-lg text-slate-600 mb-8 leading-relaxed max-w-xl"
               >
-                Connect with contributors building open-source solutions for transparency, public participation, and government accountability.
-              </motion.p>
-              <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-                className="text-base text-slate-500 mb-8 leading-relaxed max-w-xl"
-              >
-                Get your verified contributor badge, collaborate on projects, and help turn public data into public impact.
+                Build open-source tools for transparency and accountability. Collaborate with fellow Filipinos. Turn public data into public impact.
               </motion.p>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.5 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
                 className="flex flex-col sm:flex-row gap-4 items-start sm:items-center"
               >
                 <button
@@ -572,53 +565,70 @@ const Landing: React.FC = () => {
       </section>
 
       {/* ── 9. Partners ────────────────────────────────────────────── */}
-      <section className="py-16 lg:py-20 bg-slate-50 border-y border-slate-100">
+      <section className="py-20 lg:py-28 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-10"
+            className="text-center mb-14"
           >
-            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Our Partners</h3>
-            <p className="text-slate-600 text-sm mt-2 max-w-xl mx-auto">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 text-white text-sm font-bold mb-4">
+              <Building2 size={14} />
+              Trusted By
+            </div>
+            <h2 className="text-3xl lg:text-5xl font-display font-bold text-slate-900 mb-4">
+              Our Partners & Allies
+            </h2>
+            <p className="text-slate-600 max-w-2xl mx-auto text-base leading-relaxed">
               We don't work alone. These organizations have opened doors, shared expertise, and trusted us with real responsibility.
             </p>
           </motion.div>
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="relative overflow-hidden"
-          >
-            <motion.div
-              className="flex gap-10 items-center"
-              animate={{ x: ["0%", "-50%"] }}
-              transition={{ duration: 50, repeat: Infinity, ease: "linear" }}
-            >
-              {[...Array(2)].flatMap(() => [
-                "People's Budget Coalition",
-                "DICT",
-                "Department of Budget and Management",
-                "Local Government Units",
-                "Philippine Center for Investigative Journalism",
-                "Countless civic groups and organizations"
-              ]).map((name, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 10 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.04 }}
-                  className="flex items-center gap-3 px-5 py-2.5 rounded-full bg-white border border-slate-200 shadow-sm whitespace-nowrap"
-                >
-                  <span className="text-sm font-semibold text-slate-700">{name}</span>
-                </motion.div>
-              ))}
-            </motion.div>
-          </motion.div>
         </div>
+        <motion.div
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          className="relative overflow-hidden w-full"
+        >
+          <motion.div
+            className="flex gap-16 items-center"
+            animate={{ x: ["0%", "-50%"] }}
+            transition={{ duration: 80, repeat: Infinity, ease: "linear" }}
+          >
+            {[...Array(2)].flatMap(() => [
+              { name: "BetterGovPH", logo: "https://assets.bettergov.ph/logos/webp/icon-primary.webp" },
+              { name: "DICT", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/Department_of_Information_and_Communications_Technology_%28DICT%29.svg/960px-Department_of_Information_and_Communications_Technology_%28DICT%29.svg.png" },
+              { name: "Department of Budget and Management", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Department_of_Budget_and_Management_%28DBM%29.svg/250px-Department_of_Budget_and_Management_%28DBM%29.svg.png" },
+              { name: "PCIJ", logo: "https://i0.wp.com/pcij.org/wp-content/uploads/2024/04/logo-pcij-web.png?w=619&quality=80&ssl=1" },
+              { name: "People's Budget Coalition", icon: <Scale size={28} /> },
+              { name: "Local Government Units", icon: <Building2 size={28} /> }
+            ]).map((partner, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.03 }}
+                className="flex items-center gap-4 px-6 py-4 whitespace-nowrap"
+              >
+                {'logo' in partner ? (
+                  <img
+                    src={partner.logo}
+                    alt={partner.name}
+                    className="h-12 w-auto object-contain"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-900">
+                    {partner.icon}
+                  </div>
+                )}
+                <span className="text-sm font-semibold text-slate-700">{partner.name}</span>
+              </motion.div>
+            ))}
+          </motion.div>
+        </motion.div>
       </section>
 
       {/* ── 10. How It Works ───────────────────────────────────────── */}
@@ -706,7 +716,7 @@ const Landing: React.FC = () => {
 
 
       {/* ── 12. CTA / Final Battle Cry ─────────────────────────────── */}
-      <section className="relative py-24 lg:py-32 bg-gradient-to-br from-blue-900 via-blue-800 to-slate-900 text-white overflow-hidden">
+      <section className="relative py-32 lg:py-44 bg-gradient-to-br from-blue-900 via-blue-800 to-slate-900 text-white overflow-hidden">
         <motion.div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" style={{ y: battleCryBgY }} />
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
           <motion.div
@@ -721,7 +731,7 @@ const Landing: React.FC = () => {
             <h2 className="text-3xl lg:text-5xl font-display font-bold mb-3">
               Hindi Tayo Tumitingin.
             </h2>
-            <p className="text-5xl lg:text-7xl font-display font-extrabold mb-4">
+            <p className="text-5xl lg:text-7xl font-display font-extrabold mb-6 text-yellow-400">
               Tayo Ang Gumagawa.
             </p>
             <p className="text-xl text-blue-100 mb-3">We don't just watch. We build.</p>
