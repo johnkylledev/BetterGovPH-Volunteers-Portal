@@ -12,6 +12,7 @@ import Landing from "./pages/public/Landing";
 import Privacy from "./pages/public/Privacy";
 import Terms from "./pages/public/Terms";
 import Projects from "./pages/public/Projects";
+import Contribute from "./pages/public/Contribute";
 import DiscordCallback from "./pages/auth/DiscordCallback";
 
 const isProfileComplete = (u: any) => {
@@ -234,6 +235,7 @@ export default function App() {
           <Route path="/verify" element={<Verify />} />
           <Route path="/verify/:id" element={<Verify />} />
           <Route path="/projects" element={<Projects />} />
+          <Route path="/contribute" element={<Contribute />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/discord-callback" element={<DiscordCallback />} />
