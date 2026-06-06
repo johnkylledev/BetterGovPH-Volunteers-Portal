@@ -11,13 +11,13 @@ import {
   Heart,
   Zap,
   Users,
-  Menu,
-  X,
   MessageSquare,
-  Globe
+  Globe,
+  ExternalLink
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { Navbar } from '../../components/Navbar';
 
 const DISCORD_INVITE = "https://discord.com/invite/mHtThpN8bT";
 const MAIN_WEBSITE = "https://bettergov.ph/";
@@ -25,16 +25,6 @@ const GITHUB_ORG = "https://github.com/BetterGovPH";
 
 const Contribute: React.FC = () => {
   const navigate = useNavigate();
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
   const roles = [
     {
@@ -118,95 +108,7 @@ const Contribute: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-900">
       
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white shadow-lg shadow-black/5' : 'bg-white'}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex justify-between h-16 items-center">
-            <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
-              <img src="/logo.svg" alt="BetterGovPH Logo" className="h-7 w-auto" />
-              <div className="flex flex-col leading-none">
-                <span className="font-display font-bold text-base tracking-tight text-blue-900">BetterGovPH</span>
-                <span className="font-display font-bold text-[9px] uppercase tracking-[0.2em] text-blue-900/60 leading-tight">Developer Community</span>
-              </div>
-            </div>
-            <div className="hidden md:flex items-center gap-6">
-              <Link
-                to="/"
-                className="text-sm font-semibold text-slate-600 hover:text-blue-900 transition-all hover:scale-105 active:scale-95 relative group"
-              >
-                Home
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-900 transition-all group-hover:w-full" />
-              </Link>
-              <Link
-                to="/projects"
-                className="text-sm font-semibold text-slate-600 hover:text-blue-900 transition-all hover:scale-105 active:scale-95 relative group"
-              >
-                Projects
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-900 transition-all group-hover:w-full" />
-              </Link>
-              <a
-                href={MAIN_WEBSITE}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm font-semibold text-slate-600 hover:text-blue-900 transition-all hover:scale-105 active:scale-95 relative group"
-              >
-                Main Website
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-900 transition-all group-hover:w-full" />
-              </a>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => navigate('/login')}
-                className="text-sm font-bold px-5 py-2 rounded-full border-2 border-blue-900 text-blue-900 hover:bg-blue-900 hover:text-white transition-all shadow-sm"
-              >
-                Sign In
-              </motion.button>
-            </div>
-            <button
-              onClick={() => setMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden flex items-center justify-center p-2 text-slate-600 hover:text-blue-900 transition-all"
-              aria-label="Toggle menu"
-            >
-              {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
-            </button>
-          </div>
-        </div>
-        {isMobileMenuOpen && (
-          <div className="md:hidden border-t border-slate-200 bg-white">
-            <div className="px-4 py-3 space-y-1">
-              <Link
-                to="/"
-                onClick={() => setMobileMenuOpen(false)}
-                className="block text-sm font-semibold text-slate-600 hover:text-blue-900 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-all"
-              >
-                Home
-              </Link>
-              <Link
-                to="/projects"
-                onClick={() => setMobileMenuOpen(false)}
-                className="block text-sm font-semibold text-slate-600 hover:text-blue-900 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-all"
-              >
-                Projects
-              </Link>
-              <a
-                href={MAIN_WEBSITE}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setMobileMenuOpen(false)}
-                className="block text-sm font-semibold text-slate-600 hover:text-blue-900 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-all"
-              >
-                Main Website
-              </a>
-              <div className="border-t border-slate-100 my-1" />
-              <button
-                onClick={() => { setMobileMenuOpen(false); navigate('/login'); }}
-                className="w-full text-sm font-bold px-5 py-3 rounded-full bg-blue-900 text-white hover:bg-blue-800 transition-all text-center"
-              >
-                Sign In
-              </button>
-            </div>
-          </div>
-        )}
-      </nav>
+      <Navbar />
 
       <section className="relative pt-28 pb-16 lg:pt-36 lg:pb-24 bg-gradient-to-br from-blue-50 via-white to-slate-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

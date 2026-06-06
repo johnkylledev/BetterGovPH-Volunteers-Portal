@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { ExternalLink, Menu, X } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getApprovedProjects } from '../../services/supabase';
 import { Project } from '../../types';
 import clsx from 'clsx';
+import { Navbar } from '../../components/Navbar';
 
 export default function Projects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
-  const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -36,62 +36,7 @@ export default function Projects() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white shadow-lg shadow-black/5">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex justify-between h-16 items-center">
-            <Link to="/" className="flex items-center gap-2">
-              <img src="/logo.svg" alt="BetterGovPH Logo" className="h-7 w-auto" />
-              <div className="flex flex-col leading-none">
-                <span className="font-display font-bold text-base tracking-tight text-blue-900">BetterGovPH</span>
-                <span className="font-display font-bold text-[9px] uppercase tracking-[0.2em] text-blue-900/60 leading-tight">Developer Community</span>
-              </div>
-            </Link>
-            <div className="hidden md:flex items-center gap-6">
-              <Link
-                to="/"
-                className="text-sm font-semibold text-slate-600 hover:text-blue-900 transition-all hover:scale-105 active:scale-95"
-              >
-                Home
-              </Link>
-              <Link
-                to="/register"
-                className="text-sm font-bold px-5 py-2 rounded-full bg-blue-900 text-white hover:bg-blue-800 transition-all shadow-sm"
-              >
-                Join
-              </Link>
-            </div>
-            <button
-              onClick={() => setMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden flex items-center justify-center p-2 text-slate-600 hover:text-blue-900 transition-all"
-              aria-label="Toggle menu"
-            >
-              {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
-            </button>
-          </div>
-        </div>
-        {isMobileMenuOpen && (
-          <div className="md:hidden border-t border-slate-200 bg-white">
-            <div className="px-4 py-3 space-y-1">
-              <Link
-                to="/"
-                onClick={() => setMobileMenuOpen(false)}
-                className="block text-sm font-semibold text-slate-600 hover:text-blue-900 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-all"
-              >
-                Home
-              </Link>
-              <div className="border-t border-slate-100 my-1" />
-              <Link
-                to="/register"
-                onClick={() => setMobileMenuOpen(false)}
-                className="block w-full text-sm font-bold px-5 py-3 rounded-full bg-blue-900 text-white hover:bg-blue-800 transition-all text-center"
-              >
-                Join
-              </Link>
-            </div>
-          </div>
-        )}
-      </nav>
+      <Navbar />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-8 sm:pb-12">
         <div className="flex items-end justify-between gap-6 flex-wrap">

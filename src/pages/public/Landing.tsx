@@ -23,12 +23,14 @@ import {
   Lock,
   Sun,
   Target,
-  Flag
+  Flag,
+  ExternalLink
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AccessCard } from '../../components/AccessCard';
 import { User } from '../../types';
 import { motion, useScroll, useTransform } from 'framer-motion';
+import { Navbar } from '../../components/Navbar';
 
 const DISCORD_INVITE = "https://discord.com/invite/mHtThpN8bT";
 const MAIN_WEBSITE = "https://bettergov.ph/";
@@ -37,9 +39,6 @@ const GITHUB_ORG = "https://github.com/BetterGovPH";
 const Landing: React.FC = () => {
   const navigate = useNavigate();
 
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
-
   const { scrollYProgress } = useScroll();
   const heroBgY = useTransform(scrollYProgress, [0, 0.2], [0, -80]);
   const battleCryBgY = useTransform(scrollYProgress, [0.85, 0.95], [0, -120]);
@@ -47,12 +46,20 @@ const Landing: React.FC = () => {
   const rolesY = useTransform(scrollYProgress, [0.25, 0.38], [60, -20]);
   const valuesY = useTransform(scrollYProgress, [0.16, 0.26], [40, -20]);
 
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    if (window.location.hash === '#open-roles') {
+      const timer = setTimeout(() => {
+        scrollToSection('open-roles');
+      }, 300);
+      return () => clearTimeout(timer);
+    }
   }, []);
 
   const mockUser: User = {
@@ -70,13 +77,6 @@ const Landing: React.FC = () => {
 
   const handleApplyClick = () => {
     navigate('/register');
-  };
-
-  const scrollToSection = (sectionId: string) => {
-    const element = document.getElementById(sectionId);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
   };
 
   const roles = [
@@ -140,77 +140,7 @@ const Landing: React.FC = () => {
   return (
     <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-900">
 
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/95 backdrop-blur-md shadow-lg shadow-black/5' : 'bg-white'}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex justify-between h-16 items-center">
-            <Link to="/" className="flex items-center gap-2 group">
-              <img src="/logo.svg" alt="BetterGovPH" className="h-7 w-auto" />
-              <div className="flex flex-col leading-none">
-                <span className="font-display font-bold text-base tracking-tight text-blue-900">BetterGovPH</span>
-                <span className="font-display font-bold text-[9px] uppercase tracking-[0.2em] text-blue-900/60 leading-tight">Developer Community</span>
-              </div>
-            </Link>
-            <div className="hidden md:flex items-center gap-6">
-              <button onClick={() => scrollToSection('open-roles')} className="text-sm font-semibold text-slate-600 hover:text-blue-900 transition-all relative group">
-                Open Roles
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-900 transition-all group-hover:w-full" />
-              </button>
-              <Link to="/projects" className="text-sm font-semibold text-slate-600 hover:text-blue-900 transition-all relative group">
-                Projects
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-900 transition-all group-hover:w-full" />
-              </Link>
-              <Link to="/contribute" className="text-sm font-semibold text-slate-600 hover:text-blue-900 transition-all relative group">
-                Contribute
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-900 transition-all group-hover:w-full" />
-              </Link>
-              <a href={MAIN_WEBSITE} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-slate-600 hover:text-blue-900 transition-all relative group">
-                About
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-900 transition-all group-hover:w-full" />
-              </a>
-              <motion.button
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => navigate('/login')}
-                className="text-sm font-bold px-5 py-2 rounded-full border-2 border-blue-900 text-blue-900 hover:bg-blue-900 hover:text-white transition-all shadow-sm"
-              >
-                Sign In
-              </motion.button>
-            </div>
-            <button
-              onClick={() => setMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden flex items-center justify-center p-2 text-slate-600 hover:text-blue-900 transition-all"
-              aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
-            >
-              {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
-            </button>
-          </div>
-        </div>
-        {isMobileMenuOpen && (
-          <div className="md:hidden border-t border-slate-200 bg-white/95 backdrop-blur-md">
-            <div className="px-4 py-3 space-y-1">
-              <button onClick={() => { scrollToSection('open-roles'); setMobileMenuOpen(false); }} className="block w-full text-left text-sm font-semibold text-slate-600 hover:text-blue-900 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-all">
-                Open Roles
-              </button>
-              <Link to="/projects" onClick={() => setMobileMenuOpen(false)} className="block w-full text-left text-sm font-semibold text-slate-600 hover:text-blue-900 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-all">
-                Projects
-              </Link>
-              <Link to="/contribute" onClick={() => setMobileMenuOpen(false)} className="block text-sm font-semibold text-slate-600 hover:text-blue-900 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-all">
-                Contribute
-              </Link>
-              <a href={MAIN_WEBSITE} target="_blank" rel="noopener noreferrer" onClick={() => setMobileMenuOpen(false)} className="block text-sm font-semibold text-slate-600 hover:text-blue-900 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-all">
-                About
-              </a>
-              <div className="border-t border-slate-100 my-1" />
-              <button onClick={() => { setMobileMenuOpen(false); navigate('/login'); }} className="w-full text-sm font-bold px-5 py-3 rounded-full bg-blue-900 text-white hover:bg-blue-800 transition-all text-center">
-                Sign In
-              </button>
-              <button onClick={() => { setMobileMenuOpen(false); navigate('/register'); }} className="w-full text-sm font-bold px-5 py-3 rounded-full border-2 border-blue-900 text-blue-900 hover:bg-blue-50 transition-all text-center">
-                Start Contributing
-              </button>
-            </div>
-          </div>
-        )}
-      </nav>
+      <Navbar />
 
       {/* ── 1. Hero ───────────────────────────────────────────────── */}
       <section className="relative min-h-screen flex items-center overflow-hidden bg-gradient-to-br from-blue-50 via-white to-slate-50">
