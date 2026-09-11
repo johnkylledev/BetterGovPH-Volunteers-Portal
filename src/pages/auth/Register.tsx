@@ -912,21 +912,25 @@ function LegacyRegister() {
                                 {currentStep === 2 && (
                                     <motion.div
                                         key="step2"
-                                        initial={{ opacity: 0, x: 20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        exit={{ opacity: 0, x: -20 }}
-                                        transition={{ duration: 0.3 }}
+                                        initial={{ opacity: 0, transform: "translate3d(20px,0,0)" }}
+                                        animate={{ opacity: 1, transform: "translate3d(0px,0,0)" }}
+                                        exit={{ opacity: 0, transform: "translate3d(-20px,0,0)" }}
+                                        transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
                                         className="space-y-6"
                                     >
-                                        <div className="space-y-6">
+                                        <div className="space-y-7">
                                             <div>
-                                                <div className="flex items-center justify-between mb-4">
-                                                    <label className="block text-base font-bold text-slate-800 tracking-tight">Primary Role (Required)</label>
+                                                <div className="flex flex-col gap-1 mb-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <label className="block text-base font-bold text-slate-900 tracking-tight">Primary Role <span className="text-blue-900">(Required)</span></label>
+                                                    </div>
+                                                    <p className="text-[11px] sm:text-xs text-slate-500 leading-relaxed">Pick the closest match. You'll validate this with your skills on the next step.</p>
                                                 </div>
-                                                <div className="grid grid-cols-2 gap-3">
+                                                <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
                                                     {SPECIALIZATIONS.map((spec) => {
                                                         const Icon = spec.icon;
                                                         const isSelected = formData.specialization === spec.label;
+                                                        const hints = spec.suggestedSkills.slice(0, 3);
 
                                                         return (
                                                             <button
@@ -934,58 +938,90 @@ function LegacyRegister() {
                                                                 type="button"
                                                                 onClick={() => setFormData({ ...formData, specialization: spec.label })}
                                                                 className={clsx(
-                                                                    "group relative flex flex-col items-center gap-2.5 p-3 rounded-[6px] border-2 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out",
+                                                                    "group relative flex flex-col items-start gap-2 p-2.5 sm:p-3 rounded-[6px] border text-left transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.98]",
                                                                     isSelected
-                                                                        ? "bg-blue-900 border-blue-900 text-white shadow-sm z-10"
-                                                                        : "bg-white border-slate-100 text-slate-500 hover:border-blue-200 hover:bg-slate-50"
+                                                                        ? "bg-white border-blue-900 text-slate-900 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-10px_rgba(30,58,138,0.18)] z-10"
+                                                                        : "bg-white border-slate-200 text-slate-500 hover:border-slate-400 hover:bg-slate-50"
                                                                 )}
                                                             >
-                                                                <div className={clsx(
-                                                                    "w-10 h-10 rounded-[6px] flex items-center justify-center transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out",
-                                                                    isSelected
-                                                                        ? "bg-white/10"
-                                                                        : "bg-slate-50 text-blue-900 group-hover:scale-105"
-                                                                )}>
-                                                                    <Icon size={20} />
+                                                                <div className="flex items-center justify-between w-full gap-2">
+                                                                    <div className={clsx(
+                                                                        "w-8 h-8 sm:w-9 sm:h-9 rounded-[6px] flex items-center justify-center shrink-0 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out",
+                                                                        isSelected
+                                                                            ? "bg-blue-900 text-white"
+                                                                            : "bg-slate-50 text-blue-900 group-hover:bg-blue-50"
+                                                                    )}>
+                                                                        <Icon size={16} className="sm:hidden" />
+                                                                        <Icon size={18} className="hidden sm:inline-block" />
+                                                                    </div>
+                                                                    {isSelected && (
+                                                                        <motion.div
+                                                                            layoutId="spec-check"
+                                                                            initial={false}
+                                                                            transition={{ type: "spring", bounce: 0.1, duration: 0.42 }}
+                                                                            className="w-5 h-5 sm:w-6 sm:h-6 bg-blue-900 text-white rounded-[5px] flex items-center justify-center shadow-sm border border-blue-900"
+                                                                        >
+                                                                            <Check size={11} strokeWidth={3.5} className="sm:hidden" />
+                                                                            <Check size={13} strokeWidth={3.2} className="hidden sm:inline-block" />
+                                                                        </motion.div>
+                                                                    )}
                                                                 </div>
-                                                                <span className={clsx(
-                                                                    "text-xs font-black uppercase tracking-[0.2em] text-center px-1",
-                                                                    isSelected ? "text-white" : "text-slate-700"
-                                                                )}>
-                                                                    {spec.label}
-                                                                </span>
-                                                                {isSelected && (
-                                                                    <motion.div
-                                                                        layoutId="spec-check"
-                                                                        className="absolute -top-1.5 -right-1.5 w-6 h-6 bg-white text-blue-900 rounded-full flex items-center justify-center shadow-lg ring-4 ring-blue-900"
-                                                                    >
-                                                                        <Check size={14} strokeWidth={4} />
-                                                                    </motion.div>
-                                                                )}
+                                                                <div className="min-w-0 w-full">
+                                                                    <span className={clsx(
+                                                                        "text-[10.5px] sm:text-[11px] font-bold uppercase tracking-[0.13em] leading-tight block mb-1",
+                                                                        isSelected ? "text-slate-900" : "text-slate-800"
+                                                                    )}>
+                                                                        {spec.label}
+                                                                    </span>
+                                                                    <div className={clsx(
+                                                                        "flex flex-wrap gap-1",
+                                                                        isSelected ? "" : "opacity-90"
+                                                                    )}>
+                                                                        {hints.map((h, i) => (
+                                                                            <span key={i} className={clsx(
+                                                                                "text-[9px] sm:text-[10px] font-semibold px-1.5 py-0.5 rounded-[4px] whitespace-nowrap",
+                                                                                isSelected
+                                                                                    ? "bg-blue-50 text-blue-800 border border-blue-100"
+                                                                                    : "bg-slate-50 text-slate-500 border border-slate-100"
+                                                                            )}>
+                                                                                {h}
+                                                                            </span>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
                                                             </button>
                                                         );
                                                     })}
                                                 </div>
                                             </div>
 
-                                            <div>
-                                                <label className="block text-base font-bold text-slate-800 mb-4 tracking-tight">Community Role</label>
-                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                            <div className="pt-1 border-t border-slate-100">
+                                                <div className="flex flex-col gap-1 mb-4">
+                                                    <label className="block text-base font-bold text-slate-900 tracking-tight">Community Role</label>
+                                                    <p className="text-[11px] sm:text-xs text-slate-500 leading-relaxed">Most new members start as Member. Fellow and Contributor are earned tracks.</p>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-2">
                                                     {ROLES.map((role) => {
                                                         const isSelected = formData.role === role;
+                                                        const locked = role === 'Fellow' || role === 'Contributor';
                                                         return (
                                                             <button
                                                                 key={role}
                                                                 type="button"
                                                                 onClick={() => setFormData({ ...formData, role: role })}
                                                                 className={clsx(
-                                                                    "py-3 rounded-[6px] text-xs font-black uppercase tracking-wider transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out border-2",
+                                                                    "relative px-3 py-2.5 rounded-[6px] text-xs font-bold uppercase tracking-wider transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out border-2 active:scale-[0.975]",
                                                                     isSelected
-                                                                        ? "bg-blue-900 border-blue-900 text-white shadow-lg shadow-blue-900/10"
-                                                                        : "bg-white border-slate-100 text-slate-500 hover:border-blue-200 hover:text-slate-700"
+                                                                        ? "bg-blue-900 border-blue-900 text-white shadow-sm"
+                                                                        : locked
+                                                                            ? "bg-white border-slate-100 text-slate-400 hover:border-slate-200 hover:text-slate-500"
+                                                                            : "bg-white border-slate-200 text-slate-600 hover:border-blue-300 hover:text-slate-800 hover:bg-blue-50/30"
                                                                 )}
                                                             >
-                                                                {role}
+                                                                <span className="flex items-center justify-center gap-1.5">
+                                                                    {role}
+                                                                    {locked && <BadgeCheck size={13} className="opacity-60" />}
+                                                                </span>
                                                             </button>
                                                         );
                                                     })}
@@ -997,6 +1033,7 @@ function LegacyRegister() {
                                                             initial={{ opacity: 0, height: 0 }}
                                                             animate={{ opacity: 1, height: 'auto' }}
                                                             exit={{ opacity: 0, height: 0 }}
+                                                            transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
                                                             className="mt-3"
                                                         >
                                                             <input
@@ -1011,24 +1048,37 @@ function LegacyRegister() {
                                                 </AnimatePresence>
                                             </div>
 
-                                            <div>
-                                                <label className="block text-base font-bold text-slate-800 mb-4 tracking-tight">Professional Level</label>
-                                                <div className="bg-slate-100 p-1.5 rounded-[6px] grid grid-cols-2 sm:grid-cols-4 gap-1.5 border border-slate-200/50">
-                                                    {EXPERIENCE_LEVELS.map((level) => {
+                                            <div className="pt-1 border-t border-slate-100">
+                                                <div className="flex flex-col gap-1 mb-4">
+                                                    <label className="block text-base font-bold text-slate-900 tracking-tight">Professional Level</label>
+                                                    <p className="text-[11px] sm:text-xs text-slate-500 leading-relaxed">How much hands-on experience do you have in your field?</p>
+                                                </div>
+                                                <div className="bg-slate-100 p-1.5 rounded-[6px] grid grid-cols-2 sm:grid-cols-4 gap-1.5 border border-slate-200/60">
+                                                    {EXPERIENCE_LEVELS.map((level, li) => {
                                                         const isSelected = formData.experienceLevel === level;
+                                                        const descs = [
+                                                            '< 1 year',
+                                                            '1–3 years',
+                                                            '3–6 years',
+                                                            '6+ years'
+                                                        ];
                                                         return (
                                                             <button
                                                                 key={level}
                                                                 type="button"
                                                                 onClick={() => setFormData({ ...formData, experienceLevel: level })}
                                                                 className={clsx(
-                                                                    "py-2.5 rounded-[6px] text-[10px] sm:text-[11px] font-black uppercase tracking-wider transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out px-1",
+                                                                    "py-2 rounded-[6px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out px-1.5 flex flex-col items-center gap-0.5 active:scale-[0.975]",
                                                                     isSelected
-                                                                        ? "bg-white text-blue-900 border border-slate-200/50"
-                                                                        : "text-slate-500 hover:text-slate-800 hover:bg-white/30"
+                                                                        ? "bg-white text-blue-900 border border-slate-200/80 shadow-sm"
+                                                                        : "text-slate-500 hover:text-slate-800 hover:bg-white/40"
                                                                 )}
                                                             >
-                                                                {level}
+                                                                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider leading-none">{level}</span>
+                                                                <span className={clsx(
+                                                                    "text-[9px] font-semibold leading-none",
+                                                                    isSelected ? "text-blue-700" : "text-slate-400"
+                                                                )}>{descs[li] || ''}</span>
                                                             </button>
                                                         );
                                                     })}
@@ -1041,13 +1091,12 @@ function LegacyRegister() {
                                 {currentStep === 3 && (
                                     <motion.div
                                         key="step3"
-                                        initial={{ opacity: 0, x: 20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        exit={{ opacity: 0, x: -20 }}
-                                        transition={{ duration: 0.3 }}
+                                        initial={{ opacity: 0, transform: "translate3d(20px,0,0)" }}
+                                        animate={{ opacity: 1, transform: "translate3d(0px,0,0)" }}
+                                        exit={{ opacity: 0, transform: "translate3d(-20px,0,0)" }}
+                                        transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
                                         className="space-y-6"
                                     >
-                                        {/* Role Compatibility Score & Suggestions */}
                                         {formData.specialization && Object.keys(roleScores).length > 0 && (
                                             <div className="space-y-2">
                                                 {(() => {
@@ -1056,20 +1105,20 @@ function LegacyRegister() {
                                                     const score = roleScores[formData.specialization] || 0;
                                                     return (
                                                         <div className="flex items-center gap-2 p-1.5 sm:p-2 rounded-[6px] border border-slate-200 bg-slate-50 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out hover:border-slate-300 hover:shadow-sm">
-                                                            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-[6px] bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                                                            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-[6px] bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
                                                                 <SpecIcon size={16} />
                                                             </div>
                                                             <div className="flex-1 min-w-0">
                                                                 <div className="flex items-center justify-between gap-2">
-                                                                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-500 leading-tight">
-                                                                        Role Compatibility
+                                                                    <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500 leading-tight">
+                                                                        Role Match
                                                                     </p>
                                                                     <span className={clsx(
-                                                                        "text-[10px] font-black shrink-0",
-                                                                        score >= 70 ? "text-green-600" :
-                                                                            score >= 40 ? "text-blue-600" : "text-amber-600"
+                                                                        "text-[10px] font-bold shrink-0",
+                                                                        score >= 70 ? "text-emerald-600" :
+                                                                            score >= 40 ? "text-blue-700" : "text-amber-600"
                                                                     )}>
-                                                                        {score}% Match
+                                                                        {score}%
                                                                     </span>
                                                                 </div>
                                                                 <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden mt-1.5">
@@ -1077,9 +1126,9 @@ function LegacyRegister() {
                                                                         initial={{ width: 0 }}
                                                                         animate={{ width: `${score}%` }}
                                                                         className={clsx(
-                                                                            "h-full rounded-full transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out",
-                                                                            score >= 70 ? "bg-green-500" :
-                                                                                score >= 40 ? "bg-blue-600" : "bg-amber-500"
+                                                                            "h-full rounded-full",
+                                                                            score >= 70 ? "bg-emerald-500" :
+                                                                                score >= 40 ? "bg-blue-700" : "bg-amber-500"
                                                                         )}
                                                                     />
                                                                 </div>
@@ -1094,26 +1143,27 @@ function LegacyRegister() {
                                                         const SuggestedIcon = suggestedSpec?.icon || BadgeCheck;
                                                         return (
                                                             <motion.div
-                                                                initial={{ opacity: 0, y: -8 }}
-                                                                animate={{ opacity: 1, y: 0 }}
-                                                                exit={{ opacity: 0, y: -8 }}
+                                                                initial={{ opacity: 0, transform: "translate3d(0px,-8px,0)" }}
+                                                                animate={{ opacity: 1, transform: "translate3d(0px,0px,0)" }}
+                                                                exit={{ opacity: 0, transform: "translate3d(0px,-8px,0)" }}
+                                                                transition={{ duration: 0.28, ease: [0.23, 1, 0.32, 1] }}
                                                                 className="group flex items-center gap-2 p-1.5 sm:p-2 rounded-[6px] border border-amber-200 bg-amber-50 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out hover:border-amber-300 hover:shadow-sm"
                                                             >
-                                                                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-[6px] bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                                                                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-[6px] bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
                                                                     <SuggestedIcon size={16} />
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
-                                                                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-amber-900 leading-tight">
-                                                                        Suggest Better Role
+                                                                    <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-amber-900 leading-tight">
+                                                                        Try {betterRoleSuggestion}
                                                                     </p>
-                                                                    <p className="text-[11px] text-amber-700 font-medium leading-tight mt-0.5">
-                                                                        Aligns more with <span className="font-black text-amber-900">{betterRoleSuggestion}</span>
+                                                                    <p className="text-[11px] text-amber-700 font-medium leading-tight mt-0.5 truncate">
+                                                                        Better match for your skills
                                                                     </p>
                                                                 </div>
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => setFormData({ ...formData, specialization: betterRoleSuggestion })}
-                                                                    className="shrink-0 flex items-center gap-1 px-3 py-2 rounded-[6px] text-[9px] font-black uppercase tracking-[0.2em] text-amber-900 bg-amber-200/60 hover:bg-amber-200 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-95"
+                                                                    className="shrink-0 flex items-center px-3 py-1.5 rounded-[6px] text-[10px] font-bold uppercase tracking-wider text-amber-900 bg-amber-200/60 hover:bg-amber-200 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.96]"
                                                                 >
                                                                     Switch
                                                                 </button>
@@ -1124,17 +1174,14 @@ function LegacyRegister() {
                                             </div>
                                         )}
 
-                                        {/* Recommended Skills Section */}
                                         {formData.specialization && (
-                                            <div className="bg-slate-50/50 rounded-[6px] p-4 sm:p-5 border border-slate-100 shadow-sm">
-                                                <div className="flex items-center gap-3 mb-4">
-                                                    <div>
-                                                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-900">Recommended for You</p>
-                                                        <p className="text-[11px] text-blue-400 font-bold mt-0.5 leading-tight">Verified skills for {formData.specialization}</p>
-                                                    </div>
+                                            <div className="bg-white rounded-[6px] p-4 sm:p-5 border border-slate-200">
+                                                <div className="flex flex-col gap-1 mb-4">
+                                                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-blue-900">Recommended</p>
+                                                    <p className="text-[11px] text-slate-500 leading-tight">Tap to validate these skills</p>
                                                 </div>
 
-                                                <div className="grid grid-cols-1 gap-3">
+                                                <div className="grid grid-cols-1 gap-2.5">
                                                     {SPECIALIZATIONS.find(s => s.label === formData.specialization)?.suggestedSkills.map(skill => (
                                                         renderSkillItem(skill, 'recommended')
                                                     ))}
@@ -1142,25 +1189,25 @@ function LegacyRegister() {
                                             </div>
                                         )}
 
-                                        <div className="flex flex-col gap-6">
+                                        <div className="flex flex-col gap-5">
                                             <div className="flex items-center justify-between">
-                                                <label className="block text-base font-bold text-slate-800 tracking-tight">Explore More Skills</label>
-                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Optional</span>
+                                                <label className="text-sm font-bold text-slate-900 tracking-tight">Add Skills</label>
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Optional</span>
                                             </div>
                                             <div className="flex flex-col gap-4">
                                                 <div className="relative group">
-                                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 transition-colors group-focus-within:text-blue-500" />
+                                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 transition-colors group-focus-within:text-blue-700" />
                                                     <input
                                                         type="text"
                                                         placeholder="Search skills..."
                                                         value={skillSearch}
                                                         onChange={(e) => setSkillSearch(e.target.value)}
-                                                        className="w-full pl-11 pr-4 py-3 rounded-[6px] border-2 border-slate-100 text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out bg-white" />
+                                                        className="w-full pl-11 pr-4 py-3 rounded-[6px] border-2 border-slate-200 text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-200 ease-out bg-white" />
                                                 </div>
 
                                                 <div
                                                     ref={dragContainerRef}
-                                                    className="overflow-hidden bg-slate-100/50 p-1 rounded-[6px] border border-slate-200/50 cursor-grab active:cursor-grabbing relative"
+                                                    className="overflow-hidden bg-slate-50 p-1 rounded-[6px] border border-slate-200/80 cursor-grab active:cursor-grabbing relative"
                                                 >
                                                     <motion.div
                                                         ref={dragContentRef}
@@ -1168,6 +1215,7 @@ function LegacyRegister() {
                                                         dragConstraints={dragConstraints}
                                                         dragElastic={0.1}
                                                         className="flex gap-1"
+                                                        style={{ touchAction: "pan-y", willChange: "transform" }}
                                                     >
                                                         {Object.keys(SKILL_CATEGORIES).map((category) => {
                                                             const isActive = activeSkillCategory === category;
@@ -1177,15 +1225,15 @@ function LegacyRegister() {
                                                                     type="button"
                                                                     onClick={() => setActiveSkillCategory(category as SkillCategory)}
                                                                     className={clsx(
-                                                                        "relative px-4 py-2 rounded-[6px] text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] whitespace-nowrap transition-colors duration-300 flex-shrink-0 z-10",
+                                                                        "relative px-4 py-2 rounded-[6px] text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.15em] whitespace-nowrap transition-colors duration-200 ease-out flex-shrink-0 z-10",
                                                                         isActive ? "text-blue-900" : "text-slate-500 hover:text-slate-800"
                                                                     )}
                                                                 >
                                                                     {isActive && (
                                                                         <motion.div
                                                                             layoutId="activeCategory"
-                                                                            className="absolute inset-0 bg-white rounded-[6px] shadow-sm border border-slate-200/50 -z-10"
-                                                                            transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                                                                            className="absolute inset-0 bg-white rounded-[6px] shadow-sm border border-slate-200/80 -z-10"
+                                                                            transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
                                                                         />
                                                                     )}
                                                                     {categoryLabels[category] || category}
@@ -1196,15 +1244,15 @@ function LegacyRegister() {
                                                 </div>
                                             </div>
 
-                                            <div className="min-h-[400px]">
+                                            <div className="min-h-[380px]">
                                                 <AnimatePresence mode="wait">
                                                     <motion.div
                                                         key={activeSkillCategory + skillSearch}
-                                                        initial={{ opacity: 0, x: 10 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        exit={{ opacity: 0, x: -10 }}
-                                                        transition={{ duration: 0.2 }}
-                                                        className="grid grid-cols-1 gap-3.5"
+                                                        initial={{ opacity: 0, transform: "translate3d(10px,0,0)" }}
+                                                        animate={{ opacity: 1, transform: "translate3d(0px,0,0)" }}
+                                                        exit={{ opacity: 0, transform: "translate3d(-10px,0,0)" }}
+                                                        transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
+                                                        className="grid grid-cols-1 gap-2.5"
                                                     >
                                                         {SKILL_CATEGORIES[activeSkillCategory as keyof typeof SKILL_CATEGORIES]
                                                             .filter(skill => skill.toLowerCase().includes(skillSearch.toLowerCase()))
@@ -1214,22 +1262,22 @@ function LegacyRegister() {
                                             </div>
                                         </div>
 
-                                        {/* "Other" Skill Option */}
-                                        <div className="pt-6 border-t border-slate-100">
+                                        <div className="pt-5 border-t border-slate-100">
                                             {!showOtherInput ? (
                                                 <button
                                                     type="button"
                                                     onClick={() => setShowOtherInput(true)}
-                                                    className="flex items-center justify-center gap-2 py-4 rounded-[6px] border-2 border-dashed border-slate-100 text-slate-400 text-xs font-black uppercase tracking-[0.2em] hover:border-blue-200 hover:text-blue-600 hover:bg-blue-50/30 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out w-full group"
+                                                    className="flex items-center justify-center gap-2 py-3.5 rounded-[6px] border-2 border-dashed border-slate-200 text-slate-500 text-[11px] font-bold uppercase tracking-wider hover:border-blue-300 hover:text-blue-700 hover:bg-blue-50/30 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out w-full group active:scale-[0.99]"
                                                 >
                                                     <Plus size={14} strokeWidth={3} className="group-hover:scale-110 transition-transform" />
                                                     <span>Add custom skill</span>
                                                 </button>
                                             ) : (
                                                 <motion.div
-                                                    initial={{ opacity: 0, scale: 0.95 }}
-                                                    animate={{ opacity: 1, scale: 1 }}
-                                                    className="flex gap-2 p-1 bg-blue-50/50 rounded-[6px] border-2 border-blue-100"
+                                                    initial={{ opacity: 0, transform: "scale(0.98)" }}
+                                                    animate={{ opacity: 1, transform: "scale(1)" }}
+                                                    transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
+                                                    className="flex gap-2 p-1 bg-blue-50/60 rounded-[6px] border-2 border-blue-100"
                                                 >
                                                     <input
                                                         type="text"
@@ -1237,7 +1285,7 @@ function LegacyRegister() {
                                                         autoFocus
                                                         value={otherSkill}
                                                         onChange={(e) => setOtherSkill(e.target.value)}
-                                                        className="flex-1 px-4 py-2 bg-white rounded-[6px] text-sm font-bold text-slate-700 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out placeholder:text-slate-300"
+                                                        className="flex-1 px-4 py-2.5 bg-white rounded-[6px] text-sm font-bold text-slate-700 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-200 ease-out placeholder:text-slate-300"
                                                         onKeyDown={(e) => {
                                                             if (e.key === 'Enter') {
                                                                 e.preventDefault();
@@ -1270,14 +1318,14 @@ function LegacyRegister() {
                                                                     }
                                                                 }
                                                             }}
-                                                            className="p-2 bg-blue-600 text-white rounded-[6px] hover:bg-blue-700 transition-colors"
+                                                            className="p-2 bg-blue-700 text-white rounded-[6px] hover:bg-blue-800 transition-colors active:scale-[0.96]"
                                                         >
                                                             <Check size={18} strokeWidth={3} />
                                                         </button>
                                                         <button
                                                             type="button"
                                                             onClick={() => setShowOtherInput(false)}
-                                                            className="p-2.5 bg-white text-slate-500 border border-slate-200 rounded-[6px] hover:text-red-600 hover:border-red-100 hover:bg-red-50 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                                                            className="p-2.5 bg-white text-slate-500 border border-slate-200 rounded-[6px] hover:text-red-600 hover:border-red-100 hover:bg-red-50 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.96]"
                                                         >
                                                             <X size={18} strokeWidth={3} />
                                                         </button>
@@ -1286,11 +1334,11 @@ function LegacyRegister() {
                                             )}
                                         </div>
 
-                                        <div className="pt-6 border-t border-slate-100">
+                                        <div className="pt-5 border-t border-slate-100">
                                             <div className="flex items-center justify-between mb-3">
                                                 <div className="flex items-center gap-2">
-                                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Selected Stack</p>
-                                                    <span className="px-1.5 py-0.5 bg-blue-900 text-white text-[9px] font-black rounded-full">
+                                                    <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">Selected Stack</p>
+                                                    <span className="px-1.5 py-0.5 bg-blue-900 text-white text-[9px] font-bold rounded-[4px]">
                                                         {formData.skills.length}
                                                     </span>
                                                 </div>
@@ -1298,7 +1346,7 @@ function LegacyRegister() {
                                                     <button
                                                         type="button"
                                                         onClick={() => setFormData({ ...formData, skills: [] })}
-                                                        className="text-[10px] font-black uppercase tracking-[0.2em] text-red-500 hover:text-red-600 transition-colors"
+                                                        className="text-[10px] font-bold uppercase tracking-wider text-red-500 hover:text-red-600 transition-colors"
                                                     >
                                                         Clear All
                                                     </button>
@@ -1306,9 +1354,9 @@ function LegacyRegister() {
                                             </div>
                                             <div className="flex flex-wrap gap-1.5">
                                                 {formData.skills.length === 0 ? (
-                                                    <div className="w-full py-4 rounded-[6px] bg-slate-50 border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-1.5 opacity-60">
-                                                        <Code size={16} className="text-slate-400" />
-                                                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em]">No skills selected</p>
+                                                    <div className="w-full py-4 rounded-[6px] bg-slate-50 border border-dashed border-slate-200 flex items-center justify-center gap-2 opacity-70">
+                                                        <Code size={15} className="text-slate-400" />
+                                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">No skills yet</p>
                                                     </div>
                                                 ) : (
                                                     <AnimatePresence mode="popLayout">
@@ -1316,10 +1364,11 @@ function LegacyRegister() {
                                                             <motion.div
                                                                 key={skill.name}
                                                                 layout
-                                                                initial={{ opacity: 0, scale: 0.8 }}
-                                                                animate={{ opacity: 1, scale: 1 }}
-                                                                exit={{ opacity: 0, scale: 0.8 }}
-                                                                className="flex items-center gap-1.5 pl-2 pr-1 py-1.5 bg-white border border-slate-200 rounded-[6px] shadow-sm hover:border-blue-300 hover:shadow-md transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out group"
+                                                                initial={{ opacity: 0, transform: "scale(0.85)" }}
+                                                                animate={{ opacity: 1, transform: "scale(1)" }}
+                                                                exit={{ opacity: 0, transform: "scale(0.85)" }}
+                                                                transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
+                                                                className="flex items-center gap-1.5 pl-2 pr-1 py-1.5 bg-white border border-slate-200 rounded-[6px] shadow-sm hover:border-blue-300 hover:shadow transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out group"
                                                             >
                                                                 <div className="w-5 h-5 rounded-[6px] bg-blue-50 flex items-center justify-center shrink-0">
                                                                     <div className="w-3 h-3 flex items-center justify-center">
@@ -1328,9 +1377,9 @@ function LegacyRegister() {
                                                                 </div>
                                                                 <span className="text-xs font-bold text-slate-700">{skill.name}</span>
                                                                 <div className={clsx(
-                                                                    "px-1.5 py-0.5 rounded-[6px] text-[8px] font-black uppercase tracking-wider",
+                                                                    "px-1.5 py-0.5 rounded-[4px] text-[9px] font-bold uppercase tracking-wider",
                                                                     skill.level === 'Expert' ? "bg-blue-900 text-white" :
-                                                                        skill.level === 'Practitioner' ? "bg-blue-100 text-blue-900" :
+                                                                        skill.level === 'Practitioner' ? "bg-blue-100 text-blue-800" :
                                                                             "bg-slate-100 text-slate-500"
                                                                 )}>
                                                                     {skill.level}
@@ -1343,7 +1392,7 @@ function LegacyRegister() {
                                                                             skills: formData.skills.filter(s => s.name !== skill.name)
                                                                         });
                                                                     }}
-                                                                    className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-[6px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                                                                    className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-[6px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.96]"
                                                                 >
                                                                     <X size={11} strokeWidth={3} />
                                                                 </button>
@@ -1359,57 +1408,57 @@ function LegacyRegister() {
                                 {currentStep === 4 && (
                                     <motion.div
                                         key="step4"
-                                        initial={{ opacity: 0, x: 20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        exit={{ opacity: 0, x: -20 }}
-                                        transition={{ duration: 0.3 }}
-                                        className="space-y-6"
+                                        initial={{ opacity: 0, transform: "translate3d(20px,0,0)" }}
+                                        animate={{ opacity: 1, transform: "translate3d(0px,0,0)" }}
+                                        exit={{ opacity: 0, transform: "translate3d(-20px,0,0)" }}
+                                        transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
+                                        className="space-y-5"
                                     >
-                                        <div>
-                                            <h2 className="text-lg font-black text-slate-900 uppercase tracking-[0.15em]">Connect Accounts</h2>
-                                            <p className="mt-1 text-xs text-slate-500 font-medium">
-                                                Link your Discord account to verify your identity and server membership. This is required to complete your application.
-                                            </p>
+                                        <div className="flex flex-col gap-1">
+                                            <h2 className="text-base font-bold text-slate-900 tracking-tight">Connect Discord</h2>
+                                            <p className="text-[11px] sm:text-xs text-slate-500 leading-relaxed">Required to verify server membership. One click — no permissions.</p>
                                         </div>
 
-                                        {/* Discord */}
                                         <div className={clsx(
-                                            "rounded-[6px] border-2 p-5 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out",
-                                            discordConnected ? "border-green-200 bg-green-50" : "border-slate-200 bg-slate-50"
+                                            "rounded-[6px] border-2 p-3.5 sm:p-4 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out",
+                                            discordConnected ? "border-emerald-200 bg-emerald-50/60" : "border-slate-200 bg-white"
                                         )}>
-                                            <div className="flex items-center gap-4">
+                                            <div className="flex items-center gap-3 sm:gap-4">
                                                 <div className={clsx(
-                                                    "w-12 h-12 rounded-[6px] flex items-center justify-center shrink-0",
-                                                    discordConnected ? "bg-green-100 text-green-600" : "bg-[#5865F2]/10 text-[#5865F2]"
+                                                    "w-10 h-10 sm:w-11 sm:h-11 rounded-[6px] flex items-center justify-center shrink-0",
+                                                    discordConnected ? "bg-emerald-100 text-emerald-600" : "bg-[#5865F2]/10 text-[#5865F2]"
                                                 )}>
-                                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                                                         <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
                                                     </svg>
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="font-black text-sm text-slate-900 uppercase tracking-wide">Discord</p>
-                                                    <p className="text-xs text-slate-500 font-medium mt-0.5">
+                                                    <p className={clsx(
+                                                        "text-sm font-bold tracking-tight",
+                                                        discordConnected ? "text-emerald-900" : "text-slate-900"
+                                                    )}>
+                                                        Discord
+                                                    </p>
+                                                    <p className="text-[11px] sm:text-xs mt-0.5 truncate">
                                                         {discordConnected
-                                                            ? discordUsername
-                                                                ? <span className="text-green-600 font-semibold">@{discordUsername}</span>
-                                                                : 'Your Discord account is connected'
-                                                            : 'Verify your BetterGovPH server membership'}
+                                                            ? discordUsername && discordUsername.length > 0
+                                                                ? <span className="text-emerald-600 font-semibold">@{discordUsername}</span>
+                                                                : <span className="text-emerald-700 font-semibold">Connected</span>
+                                                            : <span className="text-slate-500">Verify your membership</span>
+                                                        }
                                                     </p>
                                                 </div>
                                                 {discordConnected ? (
-                                                    <div className="shrink-0 flex items-center gap-1.5 text-green-600 font-black text-xs uppercase tracking-wide">
-                                                        <Check size={14} strokeWidth={3} />
-                                                        <span>Connected</span>
-                                                    </div>
+                                                    <Check size={18} strokeWidth={2.8} className="shrink-0 text-emerald-600 sm:hidden" />
                                                 ) : (
                                                     <button
                                                         type="button"
                                                         onClick={handleConnectDiscord}
                                                         disabled={discordConnecting}
-                                                        className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-[#5865F2] text-white rounded-[6px] text-xs font-black uppercase tracking-wide hover:bg-[#4752C4] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-95 disabled:opacity-60"
+                                                        className="shrink-0 inline-flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2.5 bg-[#5865F2] text-white rounded-[6px] text-xs font-bold tracking-tight hover:bg-[#4752C4] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.96] disabled:opacity-60"
                                                     >
                                                         {discordConnecting ? (
-                                                            <><Loader2 size={13} className="animate-spin" /><span>Opening...</span></>
+                                                            <><Loader2 size={13} className="animate-spin" /><span>Connecting</span></>
                                                         ) : (
                                                             <span>Connect</span>
                                                         )}
@@ -1418,29 +1467,27 @@ function LegacyRegister() {
                                             </div>
                                         </div>
 
-                                        {/* GitHub - disabled */}
-                                        <div className="rounded-[6px] border-2 border-slate-100 bg-slate-50/60 p-5 opacity-50 select-none">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 rounded-[6px] bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">
-                                                    <Github size={22} />
+                                        <div className="rounded-[6px] border border-dashed border-slate-200 px-3.5 sm:px-4 py-3 flex items-center justify-between gap-3">
+                                            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                                                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-[6px] bg-slate-50 text-slate-400 flex items-center justify-center shrink-0">
+                                                    <Github size={20} />
                                                 </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-2 flex-wrap">
-                                                        <p className="font-black text-sm text-slate-900 uppercase tracking-wide">GitHub</p>
-                                                        <span className="text-[9px] font-black uppercase tracking-widest bg-slate-200 text-slate-500 px-2 py-0.5 rounded-full">
-                                                            Under Development
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-bold text-slate-700 tracking-tight flex items-center gap-2">
+                                                        GitHub
+                                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-[4px] bg-slate-100 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                                                            Soon
                                                         </span>
-                                                    </div>
-                                                    <p className="text-xs text-slate-400 font-medium mt-0.5">Coming soon</p>
+                                                    </p>
                                                 </div>
-                                                <button
-                                                    type="button"
-                                                    disabled
-                                                    className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-slate-200 text-slate-400 rounded-[6px] text-xs font-black uppercase tracking-wide cursor-not-allowed"
-                                                >
-                                                    Connect
-                                                </button>
                                             </div>
+                                            <button
+                                                type="button"
+                                                disabled
+                                                className="shrink-0 inline-flex items-center justify-center px-3.5 sm:px-4 py-2.5 bg-slate-50 text-slate-400 rounded-[6px] text-xs font-bold tracking-tight cursor-not-allowed border border-slate-200"
+                                            >
+                                                Connect
+                                            </button>
                                         </div>
                                     </motion.div>
                                 )}
@@ -1449,21 +1496,21 @@ function LegacyRegister() {
                             {!(currentStep === 1 && !hasSession) && (
                                 <>
                                     {currentStep === 4 && !discordConnected && (
-                                        <div className="pt-6">
+                                        <div className="pt-5">
                                             <p className="text-center text-[11px] font-semibold text-amber-600">
-                                                <AlertCircle size={12} className="inline-block mr-1 -mt-0.5" />
-                                                Connect your Discord account to complete your application
+                                                <AlertCircle size={11} className="inline-block mr-1 -mt-0.5" />
+                                                Connect Discord to submit
                                             </p>
                                         </div>
                                     )}
-                                    <div className="pt-8 flex gap-3">
+                                    <div className="pt-6 flex gap-2.5">
                                         {currentStep > 1 && (
                                             <button
                                                 type="button"
                                                 onClick={prevStep}
-                                                className="flex-1 flex justify-center items-center gap-2 rounded-[6px] border border-slate-200 bg-white px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-slate-500 hover:bg-slate-50 hover:border-slate-300 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                                                className="flex-1 flex justify-center items-center gap-1.5 rounded-[6px] border border-slate-200 bg-white px-3 py-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.98]"
                                             >
-                                                <ArrowLeft size={16} strokeWidth={3} />
+                                                <ArrowLeft size={14} strokeWidth={2.6} />
                                                 <span>Back</span>
                                             </button>
                                         )}
@@ -1473,48 +1520,46 @@ function LegacyRegister() {
                                                 key="continue-step"
                                                 type="button"
                                                 onClick={nextStep}
-                                                className="flex-[2] relative flex justify-center items-center gap-2 rounded-[6px] bg-blue-900 px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-white shadow-md hover:bg-blue-800 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.98]"
+                                                className="flex-[2] relative flex justify-center items-center gap-1.5 rounded-[6px] bg-blue-900 px-3 py-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-white shadow-sm hover:bg-blue-800 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.98]"
                                             >
                                                 Continue
-                                                <ArrowRight size={16} strokeWidth={3} className="ml-1" />
+                                                <ArrowRight size={14} strokeWidth={2.6} />
                                             </button>
                                         ) : currentStep === 3 ? (
                                             <button
                                                 key="submit-step"
                                                 type="submit"
                                                 disabled={loading}
-                                                className="flex-[2] relative flex justify-center items-center gap-2 rounded-[6px] bg-blue-900 px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-white shadow-md hover:bg-blue-800 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.98] disabled:opacity-50"
+                                                className="flex-[2] relative flex justify-center items-center gap-1.5 rounded-[6px] bg-blue-900 px-3 py-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-white shadow-sm hover:bg-blue-800 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.98] disabled:opacity-55"
                                             >
                                                 {loading ? (
                                                     <>
-                                                        <Loader2 className="w-5 h-5 animate-spin" />
-                                                        <span>Saving...</span>
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                        <span>Saving</span>
                                                     </>
                                                 ) : (
                                                     <>
                                                         <span>Continue</span>
-                                                        <ArrowRight size={16} strokeWidth={3} className="ml-1" />
+                                                        <ArrowRight size={14} strokeWidth={2.6} />
                                                     </>
                                                 )}
                                             </button>
                                         ) : (
-                                            <>
-                                                <button
-                                                    key="complete-step"
-                                                    type="button"
-                                                    onClick={handleComplete}
-                                                    disabled={!discordConnected}
-                                                    className={clsx(
-                                                        "flex-[2] flex justify-center items-center gap-2 rounded-[6px] px-4 py-4 text-xs font-black uppercase tracking-[0.2em] shadow-md transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.98]",
-                                                        discordConnected
-                                                            ? "bg-blue-900 text-white hover:bg-blue-800"
-                                                            : "bg-slate-300 text-slate-500 cursor-not-allowed"
-                                                    )}
-                                                >
-                                                    <span>Complete Application</span>
-                                                    <Check size={16} strokeWidth={3} />
-                                                </button>
-                                            </>
+                                            <button
+                                                key="complete-step"
+                                                type="button"
+                                                onClick={handleComplete}
+                                                disabled={!discordConnected}
+                                                className={clsx(
+                                                    "flex-[2] flex justify-center items-center gap-1.5 rounded-[6px] px-3 py-2.5 text-[11px] font-bold uppercase tracking-[0.12em] shadow-sm transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.98]",
+                                                    discordConnected
+                                                        ? "bg-blue-900 text-white hover:bg-blue-800"
+                                                        : "bg-slate-200 text-slate-500 cursor-not-allowed"
+                                                )}
+                                            >
+                                                <span>Submit Application</span>
+                                                <Check size={14} strokeWidth={2.8} />
+                                            </button>
                                         )}
                                     </div>
                                 </>

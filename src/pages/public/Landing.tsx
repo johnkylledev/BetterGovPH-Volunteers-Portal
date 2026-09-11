@@ -16,9 +16,7 @@ import {
   Search,
   Github,
   BarChart3,
-  Building2,
   ShieldCheck,
-  Scale,
   Lightbulb,
   Lock,
   Sun,
@@ -31,22 +29,29 @@ import {
 import { useNavigate, Link } from 'react-router-dom';
 import { AccessCard } from '../../components/AccessCard';
 import { User } from '../../types';
-import { motion, useScroll } from 'framer-motion';
+import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion';
 import { Navbar } from '../../components/Navbar';
 
 const DISCORD_INVITE = "https://discord.com/invite/mHtThpN8bT";
 const MAIN_WEBSITE = "https://bettergov.ph/";
 const GITHUB_ORG = "https://github.com/BetterGovPH";
 
+const EASE_OUT = [0.23, 1, 0.32, 1] as const;
+const VIEWPORT = { once: true, margin: "-10% 0px -10% 0px" } as const;
+
 const Landing: React.FC = () => {
   const navigate = useNavigate();
-
+  const reduce = useReducedMotion();
   const { scrollYProgress } = useScroll();
+
+  const barScaleX = useTransform(scrollYProgress, [0, 0.95], [0, 1]);
+  const cardParallax = useTransform(scrollYProgress, [0, 0.25], [0, reduce ? 0 : -14]);
+  const glowOpacity = useTransform(scrollYProgress, [0, 0.2], [0.8, 0.2]);
 
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
+      element.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth' });
     }
   };
 
@@ -134,8 +139,26 @@ const Landing: React.FC = () => {
     }
   ];
 
+  const heroFade = { duration: 0.48, ease: EASE_OUT };
+  const t = (delay = 0, dur = 0.42) => ({ duration: dur, delay, ease: EASE_OUT });
+  const vpCard = (from: "left" | "right" | "bottom" = "bottom", amount = 18) => {
+    if (reduce) return { opacity: 0 };
+    const tx = from === "left" ? -amount : from === "right" ? amount : 0;
+    const ty = from === "bottom" ? amount : 0;
+    return {
+      opacity: 0,
+      transform: `translate3d(${tx}px, ${ty}px, 0) scale(0.985)`,
+    };
+  };
+  const vpTo = reduce ? { opacity: 1 } : { opacity: 1, transform: "translate3d(0px, 0px, 0) scale(1)" };
+
   return (
     <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-900">
+      <motion.div
+        aria-hidden
+        className="fixed top-0 left-0 right-0 h-[2px] z-[60] origin-left bg-gradient-to-r from-blue-700 via-blue-900 to-blue-700"
+        style={{ scaleX: barScaleX, opacity: reduce ? 0 : 0.9 }}
+      />
 
       <Navbar />
 
@@ -144,31 +167,31 @@ const Landing: React.FC = () => {
         <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-6 relative pt-28 pb-20 sm:pt-32 sm:pb-28">
           <div className="grid lg:grid-cols-[1.05fr_1fr] gap-10 lg:gap-16 items-center">
             <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: "easeOut" }}
+              initial={reduce ? { opacity: 0 } : { opacity: 0, transform: "translate3d(0px, 16px, 0)" }}
+              animate={{ opacity: 1, transform: "translate3d(0px, 0px, 0)" }}
+              transition={heroFade}
             >
               <motion.h1
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.05 }}
+                initial={reduce ? { opacity: 0 } : { opacity: 0, transform: "translate3d(0px, 12px, 0)" }}
+                animate={{ opacity: 1, transform: "translate3d(0px, 0px, 0)" }}
+                transition={t(0.05)}
                 className="text-3xl sm:text-5xl lg:text-6xl font-display font-bold text-slate-900 leading-[1.05] tracking-tight"
               >
                 Build civic tech
                 <span className="block text-blue-900">for the Philippines.</span>
               </motion.h1>
               <motion.p
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15 }}
+                initial={reduce ? { opacity: 0 } : { opacity: 0, transform: "translate3d(0px, 12px, 0)" }}
+                animate={{ opacity: 1, transform: "translate3d(0px, 0px, 0)" }}
+                transition={t(0.15)}
                 className="mt-4 sm:mt-5 text-sm sm:text-lg text-slate-600 leading-relaxed max-w-lg"
               >
                 Join a community of developers, designers, researchers, and advocates building open-source tools for government transparency and accountability.
               </motion.p>
               <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.25 }}
+                initial={reduce ? { opacity: 0 } : { opacity: 0, transform: "translate3d(0px, 12px, 0)" }}
+                animate={{ opacity: 1, transform: "translate3d(0px, 0px, 0)" }}
+                transition={t(0.25)}
                 className="mt-6 sm:mt-8 flex flex-col gap-2.5"
               >
                 <button
@@ -192,19 +215,24 @@ const Landing: React.FC = () => {
             </motion.div>
             <div className="flex justify-center lg:justify-end mt-4 sm:mt-0 relative">
               <motion.div
-                initial={{ opacity: 0, scale: 0.96, y: 10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.18, ease: "easeOut" }}
+                style={{ y: cardParallax }}
+                initial={reduce ? { opacity: 0 } : { opacity: 0, transform: "translate3d(0px, 10px, 0) scale(0.96)" }}
+                animate={{ opacity: 1, transform: "translate3d(0px, 0px, 0) scale(1)" }}
+                transition={{ duration: 0.62, delay: 0.18, ease: EASE_OUT }}
                 className="relative"
               >
-                <div className="absolute -inset-6 bg-gradient-to-br from-blue-900/10 to-slate-900/5 rounded-[16px] blur-2xl" />
+                <motion.div
+                  aria-hidden
+                  style={{ opacity: glowOpacity }}
+                  className="absolute -inset-6 bg-gradient-to-br from-blue-900/10 to-slate-900/5 rounded-[16px] blur-2xl"
+                />
                 <div className="relative w-full max-w-[360px] sm:max-w-none">
                   <AccessCard user={mockUser} isDemo />
                 </div>
                 <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.75 }}
+                  initial={reduce ? { opacity: 0 } : { opacity: 0, transform: "translate3d(0px, 8px, 0)" }}
+                  animate={{ opacity: 1, transform: "translate3d(0px, 0px, 0)" }}
+                  transition={t(0.75)}
                   className="absolute -top-2.5 left-2 sm:-top-3 sm:-left-2 lg:-left-4 bg-white px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-[6px] flex items-center gap-1.5 sm:gap-2 shadow-md border border-slate-200"
                 >
                   <div className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
@@ -212,9 +240,9 @@ const Landing: React.FC = () => {
                 </motion.div>
               </motion.div>
               <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.9 }}
+                initial={reduce ? { opacity: 0 } : { opacity: 0, transform: "translate3d(0px, 8px, 0)" }}
+                animate={{ opacity: 1, transform: "translate3d(0px, 0px, 0)" }}
+                transition={t(0.9)}
                 className="absolute -bottom-2.5 right-2 sm:-bottom-3 sm:-right-2 lg:-right-4 bg-white px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-[6px] flex items-center gap-1.5 sm:gap-2 shadow-md border border-slate-200"
               >
                 <Users size={12} className="text-blue-900 flex-shrink-0 sm:hidden" />
@@ -229,9 +257,10 @@ const Landing: React.FC = () => {
       <section className="py-12 sm:py-18 lg:py-20 bg-white">
         <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-6">
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            initial={vpCard("bottom", 14)}
+            whileInView={vpTo}
+            viewport={VIEWPORT}
+            transition={t(0)}
             className="max-w-2xl mb-8 sm:mb-10"
           >
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-[6px] bg-blue-50 text-blue-900 text-xs font-semibold mb-4">
@@ -246,9 +275,10 @@ const Landing: React.FC = () => {
 
           <div className="grid md:grid-cols-2 gap-4 sm:gap-5 items-stretch">
             <motion.div
-              initial={{ opacity: 0, x: -12 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
+              initial={vpCard("left")}
+              whileInView={vpTo}
+              viewport={VIEWPORT}
+              transition={t(0)}
               className="bg-white rounded-[6px] border border-slate-200 p-5 sm:p-7 flex flex-col"
             >
               <div className="flex items-center gap-3 mb-4 sm:mb-5">
@@ -276,10 +306,10 @@ const Landing: React.FC = () => {
             </motion.div>
 
             <motion.div
-              initial={{ opacity: 0, x: 12 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.08 }}
+              initial={vpCard("right")}
+              whileInView={vpTo}
+              viewport={VIEWPORT}
+              transition={t(0.08)}
               className="bg-white rounded-[6px] border border-blue-200 p-5 sm:p-7 flex flex-col shadow-[0_0_0_1px_rgba(30,58,138,0.04),0_2px_10px_-4px_rgba(30,58,138,0.08)]"
             >
               <div className="flex items-center gap-3 mb-4 sm:mb-5">
@@ -313,9 +343,10 @@ const Landing: React.FC = () => {
       <section className="py-12 sm:py-18 lg:py-20 bg-slate-50 border-y border-slate-100">
         <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-6">
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            initial={vpCard("bottom", 14)}
+            whileInView={vpTo}
+            viewport={VIEWPORT}
+            transition={t(0)}
             className="max-w-2xl mb-8 sm:mb-10"
           >
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-[6px] bg-white border border-slate-200 text-slate-700 text-xs font-semibold mb-4">
@@ -338,11 +369,11 @@ const Landing: React.FC = () => {
             ].map((value, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, y: 12 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.05 }}
-                className="bg-white rounded-[6px] border border-slate-200 p-4 sm:p-5"
+                initial={vpCard("bottom", 12)}
+                whileInView={vpTo}
+                viewport={VIEWPORT}
+                transition={t(i * 0.05)}
+                className="bg-white rounded-[6px] border border-slate-200 p-4 sm:p-5 hover:border-slate-300 hover:shadow-sm transition-[border-color,box-shadow,transform] duration-200 ease-out"
               >
                 <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-[6px] bg-blue-50 flex items-center justify-center text-blue-900 mb-2.5 sm:mb-3">
                   {value.icon}
@@ -358,9 +389,10 @@ const Landing: React.FC = () => {
       <section id="open-roles" className="py-12 sm:py-18 lg:py-20 bg-white">
         <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-6">
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            initial={vpCard("bottom", 14)}
+            whileInView={vpTo}
+            viewport={VIEWPORT}
+            transition={t(0)}
             className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 sm:gap-4 mb-8 sm:mb-10"
           >
             <div className="max-w-2xl">
@@ -384,11 +416,11 @@ const Landing: React.FC = () => {
                 href={role.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.06 }}
-                className="bg-white rounded-[6px] border border-slate-200 hover:border-blue-300 hover:shadow-md transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out group p-5 flex flex-col cursor-pointer"
+                initial={vpCard("bottom", 16)}
+                whileInView={vpTo}
+                viewport={VIEWPORT}
+                transition={t(index * 0.06)}
+                className="bg-white rounded-[6px] border border-slate-200 hover:border-blue-300 hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_10px_28px_-10px_rgba(15,23,42,0.12)] hover:-translate-y-0.5 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out group p-5 flex flex-col cursor-pointer"
               >
                 <div className="flex items-start justify-between mb-3 sm:mb-4">
                   <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-[6px] bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-700 group-hover:bg-blue-900 group-hover:border-blue-900 group-hover:text-white transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out">
@@ -433,9 +465,10 @@ const Landing: React.FC = () => {
           </div>
 
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            initial={vpCard("bottom", 10)}
+            whileInView={vpTo}
+            viewport={VIEWPORT}
+            transition={t(0.1)}
             className="mt-8 sm:mt-10 p-4 sm:p-5 rounded-[6px] bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
           >
             <p className="text-xs sm:text-sm text-slate-600">
@@ -457,9 +490,10 @@ const Landing: React.FC = () => {
       <section className="py-10 sm:py-14 bg-slate-50 border-y border-slate-100 overflow-hidden">
         <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-6">
           <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            initial={vpCard("bottom", 8)}
+            whileInView={vpTo}
+            viewport={VIEWPORT}
+            transition={t(0)}
             className="mb-6 sm:mb-8"
           >
             <p className="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">
@@ -468,35 +502,31 @@ const Landing: React.FC = () => {
           </motion.div>
         </div>
         <div className="relative overflow-hidden w-full">
+          <div className="pointer-events-none absolute inset-y-0 left-0 w-20 sm:w-28 z-10 bg-gradient-to-r from-slate-50 to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-20 sm:w-28 z-10 bg-gradient-to-l from-slate-50 to-transparent" />
           <motion.div
             className="flex flex-nowrap shrink-0 gap-8 sm:gap-14 md:gap-18 items-center"
-            animate={{ x: ["0%", "-50%"] }}
+            animate={reduce ? {} : { transform: ["translateX(0%)", "translateX(-50%)"] }}
             transition={{ duration: 70, repeat: Infinity, ease: "linear" }}
           >
             {[...Array(4)].flatMap((_, rep) => [
               { name: "BetterGovPH", logo: "https://assets.bettergov.ph/logos/webp/icon-primary.webp" },
+              { name: "LGUs", logo: "https://1000logos.net/wp-content/uploads/2019/03/DILG-Logo.png" },
               { name: "DICT", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/Department_of_Information_and_Communications_Technology_%28DICT%29.svg/960px-Department_of_Information_and_Communications_Technology_%28DICT%29.svg.png" },
               { name: "DBM", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Department_of_Budget_and_Management_%28DBM%29.svg/250px-Department_of_Budget_and_Management_%28DBM%29.svg.png" },
               { name: "PCIJ", logo: "https://i0.wp.com/pcij.org/wp-content/uploads/2024/04/logo-pcij-web.png?w=619&quality=80&ssl=1" },
-              { name: "People's Budget Coalition", icon: <Scale size={18} /> },
-              { name: "LGUs", icon: <Building2 size={18} /> },
+              { name: "People's Budget Coalition", logo: "https://scontent.fcgy3-1.fna.fbcdn.net/v/t39.30808-6/548110875_776052315174098_5153326625957758646_n.jpg?stp=dst-jpg_tt6&cstp=mx2048x2048&ctp=s2048x2048&_nc_cat=109&ccb=1-7&_nc_sid=6ee11a&_nc_eui2=AeEOD3igHmF9EzWhdB5NZDNeOv7GMgwrn7g6_sYyDCufuESIJMMWySfIOMiynvmfYFFEcRdgXvuzxHzXUct0iTEp&_nc_ohc=TW7tKlxm50YQ7kNvwFklvnl&_nc_oc=AdoVGU-KQ7sKvsC61F0bMrw8PEzWHSE4W13AWfpHoesySrxk63-dOEkdaVte7zvcH0s&_nc_zt=23&_nc_ht=scontent.fcgy3-1.fna&_nc_gid=IdOhIwxDEs65ha4visb6MA&_nc_ss=7f2a8&oh=00_AQI_4YJjyiGBhhG6wfMK1MV6ADmj8iGLe7FUAHtZLYhl4w&oe=6AA9C7A4" },
             ]).map((partner, i) => (
               <div
                 key={i}
                 className="shrink-0 flex items-center gap-2 sm:gap-3 px-4 sm:px-5 py-2.5 sm:py-3.5 whitespace-nowrap opacity-80 hover:opacity-100 transition-opacity"
               >
-                {'logo' in partner ? (
-                  <img
-                    src={partner.logo}
-                    alt={partner.name}
-                    className="h-8 sm:h-10 md:h-11 w-auto object-contain grayscale hover:grayscale-0 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out shrink-0"
-                    loading="lazy"
-                  />
-                ) : (
-                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-[6px] bg-white border border-slate-200 flex items-center justify-center text-slate-600 shrink-0">
-                    {partner.icon}
-                  </div>
-                )}
+                <img
+                  src={partner.logo}
+                  alt={partner.name}
+                  className="h-8 sm:h-10 md:h-11 w-auto object-contain grayscale hover:grayscale-0 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out shrink-0"
+                  loading="lazy"
+                />
                 <span className="text-[11px] sm:text-xs md:text-sm font-semibold text-slate-600">{partner.name}</span>
               </div>
             ))}
@@ -507,9 +537,10 @@ const Landing: React.FC = () => {
       <section id="how-it-works" className="py-12 sm:py-18 lg:py-20 bg-slate-50">
         <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-6">
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            initial={vpCard("bottom", 14)}
+            whileInView={vpTo}
+            viewport={VIEWPORT}
+            transition={t(0)}
             className="max-w-2xl mb-8 sm:mb-10"
           >
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-[6px] bg-white border border-slate-200 text-slate-700 text-xs font-semibold mb-4">
@@ -552,11 +583,11 @@ const Landing: React.FC = () => {
               return (
                 <motion.div
                   key={i}
-                  initial={{ opacity: 0, y: 12 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.08 }}
-                  className="bg-white rounded-[6px] border border-slate-200 p-5 sm:p-6 flex flex-col relative group hover:border-slate-300 hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-8px_rgba(15,23,42,0.08)] transition-[border-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5"
+                  initial={vpCard("bottom", 14)}
+                  whileInView={vpTo}
+                  viewport={VIEWPORT}
+                  transition={t(i * 0.08)}
+                  className="bg-white rounded-[6px] border border-slate-200 p-5 sm:p-6 flex flex-col relative group hover:border-slate-300 hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-8px_rgba(15,23,42,0.08)] hover:-translate-y-0.5 transition-[border-color,box-shadow,transform] duration-200 ease-out"
                 >
                   {i < 2 && (
                     <div className="hidden md:flex absolute top-1/2 -right-2 -translate-y-1/2 w-4 h-4 rounded-full bg-slate-50 border border-slate-200 items-center justify-center z-10 group-hover:bg-blue-900 group-hover:border-blue-900 group-hover:text-white text-slate-400 transition-[background-color,border-color,color] duration-200 ease-out">
@@ -585,15 +616,14 @@ const Landing: React.FC = () => {
         </div>
       </section>
 
-
-
       <section className="relative py-16 sm:py-20 lg:py-24 bg-slate-900 text-white overflow-hidden">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:56px_56px] [mask-image:radial-gradient(ellipse_80%_60%_at_50%_50%,#000_40%,transparent_100%)]" />
         <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-6 relative z-10">
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            initial={vpCard("bottom", 18)}
+            whileInView={vpTo}
+            viewport={VIEWPORT}
+            transition={t(0, 0.5)}
             className="max-w-3xl"
           >
             <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-4 sm:mb-5">Join us</p>
