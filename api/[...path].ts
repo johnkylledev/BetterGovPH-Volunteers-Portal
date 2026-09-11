@@ -2,6 +2,26 @@ const API_VERSION = '1.0.0';
 
 let bootFailure: string | null = null;
 
+try {
+  if (typeof process !== 'undefined' && typeof (process as any).on === 'function') {
+    try {
+      (process as any).on('unhandledRejection', (reason: unknown) => {
+        console.error('[API][unhandled-rejection]', reason);
+      });
+      (process as any).on('uncaughtException', (err: unknown) => {
+        console.error('[API][uncaught-exception]', err);
+      });
+    } catch {
+      // no-op
+    }
+  }
+} catch (err) {
+  bootFailure =
+    err && typeof err === 'object' && 'message' in err && typeof (err as any).message === 'string'
+      ? String((err as any).message)
+      : 'Boot hook init failed';
+}
+
 const sendJson = (res: any, statusCode: number, body: Record<string, unknown>) => {
   try {
     if (!res) return;
@@ -54,105 +74,82 @@ const handlers: Record<string, Handler | null> = {
   '/contribution-scores': null,
 };
 
-// CJS require() executes INLINE — NOT hoisted — so these are fully catchable.
-// Vercel's bundler still sees the literal require() strings and bundles the files.
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const m = require('./_handlers/me');
-  handlers['/me'] = m.default || m.handler;
-} catch (err) {
-  console.error('[API][boot] /me load failed', err);
-  if (!bootFailure) bootFailure = '/me: ' + errorToString(err);
-}
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const m = require('./_handlers/admin');
-  handlers['/admin'] = m.default || m.handler;
-} catch (err) {
-  console.error('[API][boot] /admin load failed', err);
-  if (!bootFailure) bootFailure = '/admin: ' + errorToString(err);
-}
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const m = require('./_handlers/projects');
-  handlers['/projects'] = m.default || m.handler;
-} catch (err) {
-  console.error('[API][boot] /projects load failed', err);
-  if (!bootFailure) bootFailure = '/projects: ' + errorToString(err);
-}
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const m = require('./_handlers/submit-project');
-  handlers['/submit-project'] = m.default || m.handler;
-} catch (err) {
-  console.error('[API][boot] /submit-project load failed', err);
-  if (!bootFailure) bootFailure = '/submit-project: ' + errorToString(err);
-}
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const m = require('./_handlers/my-project-submissions');
-  handlers['/my-project-submissions'] = m.default || m.handler;
-} catch (err) {
-  console.error('[API][boot] /my-project-submissions load failed', err);
-  if (!bootFailure) bootFailure = '/my-project-submissions: ' + errorToString(err);
-}
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const m = require('./_handlers/volunteer-calls');
-  handlers['/volunteer-calls'] = m.default || m.handler;
-} catch (err) {
-  console.error('[API][boot] /volunteer-calls load failed', err);
-  if (!bootFailure) bootFailure = '/volunteer-calls: ' + errorToString(err);
-}
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const m = require('./_handlers/verify');
-  handlers['/verify'] = m.default || m.handler;
-} catch (err) {
-  console.error('[API][boot] /verify load failed', err);
-  if (!bootFailure) bootFailure = '/verify: ' + errorToString(err);
-}
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const m = require('./_handlers/discord');
-  handlers['/discord'] = m.default || m.handler;
-} catch (err) {
-  console.error('[API][boot] /discord load failed', err);
-  if (!bootFailure) bootFailure = '/discord: ' + errorToString(err);
-}
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const m = require('./_handlers/discord-username-taken');
-  handlers['/discord-username-taken'] = m.default || m.handler;
-} catch (err) {
-  console.error('[API][boot] /discord-username-taken load failed', err);
-  if (!bootFailure) bootFailure = '/discord-username-taken: ' + errorToString(err);
-}
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const m = require('./_handlers/contribution-scores');
-  handlers['/contribution-scores'] = m.default || m.handler;
-} catch (err) {
-  console.error('[API][boot] /contribution-scores load failed', err);
-  if (!bootFailure) bootFailure = '/contribution-scores: ' + errorToString(err);
-}
+type HandlerKey = keyof typeof handlers;
 
-try {
-  if (typeof process !== 'undefined' && typeof (process as any).on === 'function') {
-    try {
-      (process as any).on('unhandledRejection', (reason: unknown) => {
-        console.error('[API][unhandled-rejection]', reason);
-      });
-      (process as any).on('uncaughtException', (err: unknown) => {
-        console.error('[API][uncaught-exception]', err);
-      });
-    } catch {
-      // no-op
+// --- Handler loader: uses LITERAL-STRING dynamic import() calls. ---
+// Vercel's esbuild statically traces literal-string `import('./foo')` expressions
+// and INCLUDES those targets in the Lambda bundle (variable-path dynamic imports
+// are NOT included). Using per-key literal case arms ensures every file is bundled.
+// Also: no module-level load executes at module instantiation → no FUNCTION_INVOCATION_FAILED
+// crashes from a top-level import chain error. First request lazily loads everything.
+const loadAllHandlers = async (): Promise<void> => {
+  let all: HandlerKey[] | null = null as unknown as HandlerKey[] | null;
+  for (const k of Object.keys(handlers) as HandlerKey[]) {
+    if (handlers[k] === null) {
+      all = all || (Object.keys(handlers) as HandlerKey[]);
+      break;
     }
   }
-} catch (err) {
-  if (!bootFailure) bootFailure = errorToString(err);
-}
+  if (!all) return;
+  const failures: string[] = [];
+  await Promise.all(
+    all.map(async (key) => {
+      try {
+        let mod: any;
+        switch (key) {
+          case '/me':
+            mod = await import('./_handlers/me');
+            break;
+          case '/admin':
+            mod = await import('./_handlers/admin');
+            break;
+          case '/projects':
+            mod = await import('./_handlers/projects');
+            break;
+          case '/submit-project':
+            mod = await import('./_handlers/submit-project');
+            break;
+          case '/my-project-submissions':
+            mod = await import('./_handlers/my-project-submissions');
+            break;
+          case '/volunteer-calls':
+            mod = await import('./_handlers/volunteer-calls');
+            break;
+          case '/verify':
+            mod = await import('./_handlers/verify');
+            break;
+          case '/discord':
+            mod = await import('./_handlers/discord');
+            break;
+          case '/discord-username-taken':
+            mod = await import('./_handlers/discord-username-taken');
+            break;
+          case '/contribution-scores':
+            mod = await import('./_handlers/contribution-scores');
+            break;
+          default:
+            break;
+        }
+        if (!mod) throw new Error('Import arm missing for ' + key);
+        const fn: Handler = typeof mod.default === 'function' ? mod.default : mod.handler;
+        if (!fn) throw new Error('Handler ' + key + ' has no default export');
+        handlers[key] = fn;
+      } catch (err) {
+        console.error('[API][import] ' + key + ' load failed', err);
+        failures.push(key + ': ' + errorToString(err));
+      }
+    })
+  );
+  if (failures.length > 0 && !bootFailure) {
+    bootFailure = failures.join(' | ');
+  }
+};
+
+let handlersLoading: Promise<void> | null = null;
+const ensureHandlers = (): Promise<void> => {
+  if (!handlersLoading) handlersLoading = loadAllHandlers();
+  return handlersLoading;
+};
 
 const normalizePath = (req: any): string => {
   try {
@@ -184,16 +181,22 @@ const normalizePath = (req: any): string => {
   }
 };
 
-const callHandler = async (name: string, req: any, res: any) => {
-  const fn = handlers[name];
+const callHandler = async (key: HandlerKey, req: any, res: any) => {
+  try {
+    await ensureHandlers();
+  } catch (err) {
+    console.error('[API][ensure-handlers-failed]', err);
+    if (!bootFailure) bootFailure = errorToString(err);
+  }
+  const fn = handlers[key];
   if (!fn) {
-    sendError(res, 500, `Handler ${name} failed to load${bootFailure ? ' — ' + bootFailure : ''}`);
+    sendError(res, 500, `Handler ${key} failed to load${bootFailure ? ' — ' + bootFailure : ''}`);
     return;
   }
   try {
     await fn(req, res);
   } catch (err) {
-    console.error('[API][handler-error]', { name, error: err });
+    console.error('[API][handler-error]', { key, error: err });
     sendError(res, 500, errorToString(err));
   }
 };
