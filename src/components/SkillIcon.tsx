@@ -6,6 +6,7 @@ interface SkillIconProps {
   size?: number;
   invert?: boolean;
   className?: string;
+  forceFallback?: boolean;
 }
 
 export const SkillIcon: React.FC<SkillIconProps> = ({
@@ -13,49 +14,70 @@ export const SkillIcon: React.FC<SkillIconProps> = ({
   size = 14,
   invert = false,
   className = '',
+  forceFallback = false,
 }) => {
   const slug = skillToSlug(skillName);
-  const [showFallback, setShowFallback] = useState(true);
-  const [timedOut, setTimedOut] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
 
   useEffect(() => {
-    if (!slug) return;
-    setShowFallback(true);
-    setTimedOut(false);
-    const timer = setTimeout(() => setTimedOut(true), 1200);
-    return () => clearTimeout(timer);
+    setImgLoaded(false);
+    setImgFailed(false);
   }, [slug, skillName]);
 
-  if (!slug || timedOut) {
-    return (
-      <div className={`flex items-center justify-center ${className}`}>
-        {getSkillFallbackIcon(skillName, size)}
-      </div>
-    );
-  }
+  const showFallback = !slug || imgFailed || forceFallback;
+  const cdnUrl = slug ? `https://cdn.simpleicons.org/${slug}` : undefined;
+
+  const fallbackEl = React.cloneElement(getSkillFallbackIcon(skillName, size), {
+    style: { maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto' },
+  });
+
+  const dimensionStyle: React.CSSProperties = {
+    width: `${size}px`,
+    height: `${size}px`,
+    minWidth: `${size}px`,
+    minHeight: `${size}px`,
+    maxWidth: `${size}px`,
+    maxHeight: `${size}px`,
+  };
 
   return (
-    <div className={`relative w-full h-full flex items-center justify-center ${className}`}>
-      {showFallback && (
-        <div className="absolute inset-0 flex items-center justify-center opacity-100">
-          {getSkillFallbackIcon(skillName, size)}
-        </div>
+    <div
+      className={`relative inline-flex items-center justify-center shrink-0 ${className}`}
+      style={dimensionStyle}
+      title={skillName}
+    >
+      {showFallback ? (
+        fallbackEl
+      ) : (
+        <>
+          <div
+            className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 ease-out ${
+              imgLoaded ? 'opacity-0 pointer-events-none' : 'opacity-100'
+            }`}
+            aria-hidden="true"
+          >
+            {fallbackEl}
+          </div>
+          {cdnUrl && (
+            <img
+              key={cdnUrl}
+              src={cdnUrl}
+              alt={skillName}
+              loading="eager"
+              decoding="async"
+              fetchPriority="auto"
+              className={`w-full h-full object-contain transition-opacity duration-200 ease-out ${
+                imgLoaded ? 'opacity-100' : 'opacity-0'
+              } ${invert ? 'brightness-0 invert' : ''}`}
+              onLoad={() => setImgLoaded(true)}
+              onError={() => setImgFailed(true)}
+            />
+          )}
+        </>
       )}
-      <img
-        src={`https://cdn.simpleicons.org/${slug}`}
-        alt=""
-        loading="lazy"
-        decoding="async"
-        fetchPriority="low"
-        className={`w-full h-full object-contain transition-opacity duration-200 ${
-          showFallback ? 'opacity-0' : 'opacity-100'
-        } ${invert ? 'brightness-0 invert' : ''}`}
-        onLoad={(e) => {
-          (e.target as HTMLImageElement).style.opacity = '1';
-          setShowFallback(false);
-        }}
-        onError={() => setTimedOut(true)}
-      />
     </div>
   );
 };
+
+

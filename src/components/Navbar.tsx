@@ -31,7 +31,6 @@ export const Navbar: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Smooth scroll logic
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
     if (element) {
@@ -43,8 +42,6 @@ export const Navbar: React.FC = () => {
     if (location.pathname === '/') {
       e.preventDefault();
       scrollToSection('open-roles');
-    } else {
-      // Allow default link navigation to /#open-roles
     }
   };
 
@@ -76,11 +73,11 @@ export const Navbar: React.FC = () => {
   ];
 
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/95 backdrop-blur-md shadow-lg shadow-black/5' : 'bg-white'}`}>
+    <nav className={`fixed top-0 left-0 right-0 z-50 transition-[backdrop-filter,box-shadow,background-color] duration-200 ease-out ${isScrolled ? 'bg-white/95 backdrop-blur-md shadow-lg shadow-black/5' : 'bg-white'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex justify-between h-16 items-center">
           <Link to="/" className="flex items-center gap-2 group">
-            <img src="/logo.svg" alt="BetterGovPH" className="h-7 w-auto" />
+            <img src="/logo.svg" onError={(e)=>{const t=e.currentTarget;t.onerror=null;t.src='https://assets.bettergov.ph/logos/webp/icon-primary.webp';}} alt="BetterGovPH" className="h-7 w-auto" />
             <div className="flex flex-col leading-none">
               <span className="font-display font-bold text-base tracking-tight text-blue-900">BetterGovPH</span>
               <span className="font-display font-bold text-[9px] uppercase tracking-[0.2em] text-blue-900/60 leading-tight">Volunteers Community</span>
@@ -98,11 +95,11 @@ export const Navbar: React.FC = () => {
                     href={link.path}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm font-semibold text-slate-600 hover:text-blue-900 transition-all relative group flex items-center gap-1"
+                    className="text-sm font-semibold text-slate-600 hover:text-blue-900 transition-[color,opacity] duration-200 ease-out relative group flex items-center gap-1"
                   >
                     {link.label}
-                    <ExternalLink size={14} className="opacity-60 group-hover:opacity-100 transition-opacity" />
-                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-900 transition-all group-hover:w-full" />
+                    <ExternalLink size={14} className="opacity-60 group-hover:opacity-100 transition-opacity duration-200 ease-out" />
+                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-900 transition-[width] duration-200 ease-out group-hover:w-full" />
                   </a>
                 );
               }
@@ -111,19 +108,19 @@ export const Navbar: React.FC = () => {
                   key={link.label}
                   to={link.path}
                   onClick={link.onClick}
-                  className={`text-sm font-semibold transition-all relative group ${isActive ? 'text-blue-900' : 'text-slate-600 hover:text-blue-900'}`}
+                  className={`text-sm font-semibold transition-[color] duration-200 ease-out relative group ${isActive ? 'text-blue-900' : 'text-slate-600 hover:text-blue-900'}`}
                 >
                   {link.label}
-                  <span className={`absolute -bottom-1 left-0 h-0.5 bg-blue-900 transition-all ${isActive ? 'w-full' : 'w-0 group-hover:w-full'}`} />
+                  <span className={`absolute -bottom-1 left-0 h-0.5 bg-blue-900 transition-[width] duration-200 ease-out ${isActive ? 'w-full' : 'w-0 group-hover:w-full'}`} />
                 </Link>
               );
             })}
             
             <motion.button
-              whileHover={{ scale: 1.03 }}
+              whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.97 }}
               onClick={handleCtaClick}
-              className="text-sm font-bold px-5 py-2 rounded-full border-2 border-blue-900 text-blue-900 hover:bg-blue-900 hover:text-white transition-all shadow-sm"
+              className="text-sm font-bold px-5 py-2 rounded-[6px] border-2 border-blue-900 text-blue-900 hover:bg-blue-900 hover:text-white transition-[color,transform,box-shadow,background-color,border-color] duration-200 ease-out shadow-sm"
             >
               {getCtaLabel()}
             </motion.button>
@@ -132,7 +129,7 @@ export const Navbar: React.FC = () => {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setMobileMenuOpen(!isMobileMenuOpen)}
-            className="md:hidden flex items-center justify-center p-2 text-slate-600 hover:text-blue-900 transition-all"
+            className="md:hidden flex items-center justify-center p-2 text-slate-600 hover:text-blue-900 transition-[color] duration-200 ease-out active:scale-[0.97] active:transition-none"
             aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
           >
             {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
@@ -153,7 +150,7 @@ export const Navbar: React.FC = () => {
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center justify-between text-sm font-semibold text-slate-600 hover:text-blue-900 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-all"
+                    className="flex items-center justify-between text-sm font-semibold text-slate-600 hover:text-blue-900 px-3 py-2.5 rounded-[6px] hover:bg-slate-50 transition-[color,background-color] duration-200 ease-out active:scale-[0.99] active:transition-none"
                   >
                     <span>{link.label}</span>
                     <ExternalLink size={14} className="opacity-60" />
@@ -168,7 +165,7 @@ export const Navbar: React.FC = () => {
                     setMobileMenuOpen(false);
                     if (link.onClick) link.onClick(e);
                   }}
-                  className="block text-sm font-semibold text-slate-600 hover:text-blue-900 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-all"
+                  className="block text-sm font-semibold text-slate-600 hover:text-blue-900 px-3 py-2.5 rounded-[6px] hover:bg-slate-50 transition-[color,background-color] duration-200 ease-out active:scale-[0.99] active:transition-none"
                 >
                   {link.label}
                 </Link>
@@ -181,7 +178,7 @@ export const Navbar: React.FC = () => {
                 setMobileMenuOpen(false);
                 handleCtaClick();
               }}
-              className="w-full text-sm font-bold px-5 py-3 rounded-full bg-blue-900 text-white hover:bg-blue-800 transition-all text-center"
+              className="w-full text-sm font-bold px-5 py-3 rounded-[6px] bg-blue-900 text-white hover:bg-blue-800 transition-[color,background-color] duration-200 ease-out text-center active:scale-[0.98] active:transition-none"
             >
               {getCtaLabel()}
             </button>
@@ -191,7 +188,7 @@ export const Navbar: React.FC = () => {
                   setMobileMenuOpen(false);
                   navigate('/register');
                 }}
-                className="w-full text-sm font-bold px-5 py-3 rounded-full border-2 border-blue-900 text-blue-900 hover:bg-blue-50 transition-all text-center mt-2"
+                className="w-full text-sm font-bold px-5 py-3 rounded-[6px] border-2 border-blue-900 text-blue-900 hover:bg-blue-50 transition-[color,background-color,border-color] duration-200 ease-out text-center mt-2 active:scale-[0.98] active:transition-none"
               >
                 Start Contributing
               </button>

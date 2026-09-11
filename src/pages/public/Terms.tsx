@@ -113,7 +113,7 @@ const Terms: React.FC = () => {
               <div className="flex flex-col sm:flex-row gap-2.5 w-full sm:w-auto">
                 <button
                   onClick={() => navigate('/')}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-[6px] border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 text-xs font-semibold transition-all w-full sm:w-auto"
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-[6px] border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 text-xs font-semibold transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out w-full sm:w-auto"
                 >
                   <Home size={14} />
                   Home
@@ -122,7 +122,7 @@ const Terms: React.FC = () => {
                   href={DISCORD_INVITE}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-[6px] bg-slate-900 text-white hover:bg-slate-800 text-xs font-semibold transition-all w-full sm:w-auto"
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-[6px] bg-slate-900 text-white hover:bg-slate-800 text-xs font-semibold transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out w-full sm:w-auto"
                 >
                   <MessageSquare size={14} />
                   Join Discord

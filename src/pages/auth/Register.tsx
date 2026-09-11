@@ -258,7 +258,7 @@ function LegacyRegister() {
                             >
                                 <div className="lg:hidden flex flex-col items-center gap-4 mb-6 sm:mb-8">
                                     <img
-                                        src="https://assets.bettergov.ph/logos/webp/icon-primary.webp"
+                                        src="/logo.svg" onError={(e)=>{const t=e.currentTarget;t.onerror=null;t.src='https://assets.bettergov.ph/logos/webp/icon-primary.webp';}}
                                         alt="BetterGovPH"
                                         className="w-12 h-12 sm:w-14 sm:h-14 object-contain drop-shadow-[0_6px_18px_rgba(30,58,138,0.12)]"
                                     />
@@ -266,7 +266,7 @@ function LegacyRegister() {
                                         <h1 className="text-2xl sm:text-3xl font-display font-bold text-slate-900 leading-[1.1] tracking-tight">
                                             Join the community.
                                         </h1>
-                                        <p className="mt-2 text-xs sm:text-sm text-slate-500">Apply for access in under 5 minutes</p>
+                                        <p className="mt-2 text-xs sm:text-sm text-slate-500">Join the movement in under 5 minutes</p>
                                     </div>
                                 </div>
 
@@ -274,7 +274,7 @@ function LegacyRegister() {
                                     <div className="hidden lg:flex flex-col items-center mb-7 sm:mb-8">
                                         <div className="w-14 h-14 sm:w-16 sm:h-16 mb-5 sm:mb-6">
                                             <img
-                                                src="https://assets.bettergov.ph/logos/webp/icon-primary.webp"
+                                                src="/logo.svg" onError={(e)=>{const t=e.currentTarget;t.onerror=null;t.src='https://assets.bettergov.ph/logos/webp/icon-primary.webp';}}
                                                 alt="BetterGovPH Logo"
                                                 className="w-full h-full object-contain drop-shadow-[0_6px_18px_rgba(30,58,138,0.12)]"
                                             />
@@ -313,7 +313,7 @@ function LegacyRegister() {
                                                 setLoading(false);
                                             }
                                         }}
-                                        className="group relative flex w-full items-center justify-center gap-2.5 sm:gap-3 rounded-[6px] bg-slate-900 px-4 sm:px-6 py-3 sm:py-3.5 text-sm font-bold text-white shadow-[0_10px_24px_-14px_rgba(15,23,42,0.5)] [@media(hover:hover){&:hover}]:bg-slate-800 [@media(hover:hover){&:hover}]:shadow-[0_14px_30px_-14px_rgba(15,23,42,0.55)] focus:outline-none focus:ring-4 focus:ring-slate-900/15 transition-[transform,box-shadow,background-color] duration-200 ease-out active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+                                        className="group relative flex w-full items-center justify-center gap-2.5 sm:gap-3 rounded-[6px] bg-slate-900 px-4 sm:px-6 py-3 sm:py-3.5 text-sm font-bold text-white shadow-[0_10px_24px_-14px_rgba(15,23,42,0.5)] [@media(hover:hover){&:hover}]:bg-slate-800 [@media(hover:hover){&:hover}]:shadow-[0_14px_30px_-14px_rgba(15,23,42,0.55)] focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-slate-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
                                     >
                                         <svg className="w-[18px] h-[18px] sm:w-5 sm:h-5 relative z-10 shrink-0" viewBox="0 0 24 24">
                                             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -357,7 +357,7 @@ function LegacyRegister() {
                             >
                                 <div className="flex items-center gap-3">
                                     <img
-                                        src="https://assets.bettergov.ph/logos/webp/icon-primary.webp"
+                                        src="/logo.svg" onError={(e)=>{const t=e.currentTarget;t.onerror=null;t.src='https://assets.bettergov.ph/logos/webp/icon-primary.webp';}}
                                         alt="BetterGovPH"
                                         className="w-11 h-11 object-contain drop-shadow-[0_6px_18px_rgba(30,58,138,0.12)]"
                                     />
@@ -378,7 +378,7 @@ function LegacyRegister() {
                                 </div>
 
                                 <div className="space-y-3 sm:space-y-4 max-w-lg">
-                                    <div className="flex items-start gap-3 sm:gap-4 p-4 sm:p-5 rounded-[6px] bg-white border border-slate-200 transition-[transform,box-shadow,border-color] duration-300 ease-out [@media(hover:hover){&:hover}]:border-blue-200 [@media(hover:hover){&:hover}]:shadow-[0_10px_28px_-16px_rgba(30,58,138,0.25)] [@media(hover:hover){&:hover}]:-translate-y-0.5">
+                                    <div className="flex items-start gap-3 sm:gap-4 p-4 sm:p-5 rounded-[6px] bg-white border border-slate-200 transition-[transform,box-shadow,border-color] duration-200 ease-out [@media(hover:hover){&:hover}]:border-blue-200 [@media(hover:hover){&:hover}]:shadow-[0_10px_28px_-16px_rgba(30,58,138,0.25)] [@media(hover:hover){&:hover}]:-translate-y-0.5 active:scale-[0.99] active:translate-y-0">
                                         <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-[6px] bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0 text-blue-900">
                                             <Users size={16} className="sm:hidden" />
                                             <Users size={18} className="hidden sm:inline-flex" />
@@ -389,7 +389,7 @@ function LegacyRegister() {
                                         </div>
                                     </div>
 
-                                    <div className="flex items-start gap-3 sm:gap-4 p-4 sm:p-5 rounded-[6px] bg-white border border-slate-200 transition-[transform,box-shadow,border-color] duration-300 ease-out [@media(hover:hover){&:hover}]:border-blue-200 [@media(hover:hover){&:hover}]:shadow-[0_10px_28px_-16px_rgba(30,58,138,0.25)] [@media(hover:hover){&:hover}]:-translate-y-0.5">
+                                    <div className="flex items-start gap-3 sm:gap-4 p-4 sm:p-5 rounded-[6px] bg-white border border-slate-200 transition-[transform,box-shadow,border-color] duration-200 ease-out [@media(hover:hover){&:hover}]:border-blue-200 [@media(hover:hover){&:hover}]:shadow-[0_10px_28px_-16px_rgba(30,58,138,0.25)] [@media(hover:hover){&:hover}]:-translate-y-0.5 active:scale-[0.99] active:translate-y-0">
                                         <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-[6px] bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0 text-blue-900">
                                             <ShieldCheck size={16} className="sm:hidden" />
                                             <ShieldCheck size={18} className="hidden sm:inline-flex" />
@@ -400,7 +400,7 @@ function LegacyRegister() {
                                         </div>
                                     </div>
 
-                                    <div className="flex items-start gap-3 sm:gap-4 p-4 sm:p-5 rounded-[6px] bg-white border border-slate-200 transition-[transform,box-shadow,border-color] duration-300 ease-out [@media(hover:hover){&:hover}]:border-blue-200 [@media(hover:hover){&:hover}]:shadow-[0_10px_28px_-16px_rgba(30,58,138,0.25)] [@media(hover:hover){&:hover}]:-translate-y-0.5">
+                                    <div className="flex items-start gap-3 sm:gap-4 p-4 sm:p-5 rounded-[6px] bg-white border border-slate-200 transition-[transform,box-shadow,border-color] duration-200 ease-out [@media(hover:hover){&:hover}]:border-blue-200 [@media(hover:hover){&:hover}]:shadow-[0_10px_28px_-16px_rgba(30,58,138,0.25)] [@media(hover:hover){&:hover}]:-translate-y-0.5 active:scale-[0.99] active:translate-y-0">
                                         <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-[6px] bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0 text-blue-900">
                                             <Code size={16} className="sm:hidden" />
                                             <Code size={18} className="hidden sm:inline-flex" />
@@ -521,7 +521,7 @@ function LegacyRegister() {
                 layout
                 key={skill}
                 className={clsx(
-                    "group relative flex flex-col p-1.5 sm:p-2 rounded-[6px] border transition-all duration-300",
+                    "group relative flex flex-col p-1.5 sm:p-2 rounded-[6px] border transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out",
                     isSelected
                         ? "bg-white border-blue-900 shadow-sm"
                         : "bg-white border-slate-100 hover:border-blue-300 hover:shadow-sm hover:bg-blue-50/30"
@@ -529,7 +529,7 @@ function LegacyRegister() {
             >
                 <div className="flex items-center gap-2 w-full">
                     <div className={clsx(
-                        "w-8 h-8 sm:w-9 sm:h-9 rounded-[6px] flex items-center justify-center transition-all duration-300 shrink-0",
+                        "w-8 h-8 sm:w-9 sm:h-9 rounded-[6px] flex items-center justify-center transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out shrink-0",
                         isSelected
                             ? "bg-blue-900 text-white shadow-sm"
                             : "bg-blue-50 text-blue-600 group-hover:bg-blue-100 group-hover:text-blue-700"
@@ -566,7 +566,7 @@ function LegacyRegister() {
                             }
                         }}
                         className={clsx(
-                            "w-8 h-8 sm:w-9 sm:h-9 rounded-[6px] flex items-center justify-center transition-all duration-300 shrink-0",
+                            "w-8 h-8 sm:w-9 sm:h-9 rounded-[6px] flex items-center justify-center transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out shrink-0",
                             isSelected
                                 ? "bg-blue-900 text-white hover:bg-blue-800 shadow-sm"
                                 : "bg-slate-50 text-slate-400 border border-slate-100 hover:border-blue-200 hover:text-blue-600 hover:bg-blue-50"
@@ -599,7 +599,7 @@ function LegacyRegister() {
                                             }
                                         }}
                                         className={clsx(
-                                            "relative flex items-center justify-center rounded-md text-[8px] sm:text-[10px] font-black uppercase tracking-wider transition-all duration-300 py-1.5 sm:py-2 px-1",
+                                            "relative flex items-center justify-center rounded-[6px] text-[8px] sm:text-[10px] font-black uppercase tracking-wider transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out py-1.5 sm:py-2 px-1",
                                             isActive
                                                 ? "text-white"
                                                 : "text-slate-400 hover:text-slate-700"
@@ -608,7 +608,7 @@ function LegacyRegister() {
                                         {isActive && (
                                             <motion.div
                                                 layoutId={`activeLevel-${sectionContext}-${skill}`}
-                                                className="absolute inset-0 bg-blue-900 rounded-md shadow-sm"
+                                                className="absolute inset-0 bg-blue-900 rounded-[6px] shadow-sm"
                                                 initial={false}
                                                 transition={{ type: "spring", bounce: 0.1, duration: 0.5 }}
                                             />
@@ -714,7 +714,7 @@ function LegacyRegister() {
                 >
                     <div className="flex items-center gap-3 mb-4 sm:mb-5">
                         <img
-                            src="https://assets.bettergov.ph/logos/webp/icon-primary.webp"
+                            src="/logo.svg" onError={(e)=>{const t=e.currentTarget;t.onerror=null;t.src='https://assets.bettergov.ph/logos/webp/icon-primary.webp';}}
                             alt="BetterGovPH"
                             className="w-10 h-10 sm:w-11 sm:h-11 object-contain drop-shadow-[0_6px_18px_rgba(30,58,138,0.12)]"
                         />
@@ -724,7 +724,7 @@ function LegacyRegister() {
                         </div>
                     </div>
                     <h2 className="text-center text-2xl sm:text-3xl lg:text-4xl font-display font-bold tracking-tight text-slate-900 leading-[1.05]">
-                        Apply for access.
+                        Join the community.
                     </h2>
                     <p className="mt-2 text-center text-xs sm:text-sm text-slate-500 leading-relaxed max-w-md">
                         {['Tell us who you are', 'Pick your role', 'Share your stack', 'Connect your accounts'][currentStep - 1] || 'Four quick steps to a verified profile.'}
@@ -753,7 +753,7 @@ function LegacyRegister() {
                                     }}
                                     transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
                                     className={clsx(
-                                        "w-9 h-9 sm:w-10 sm:h-10 rounded-[6px] border-2 flex items-center justify-center font-bold transition-all duration-300",
+                                        "w-9 h-9 sm:w-10 sm:h-10 rounded-[6px] border-2 flex items-center justify-center font-bold transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out",
                                         currentStep === step.id && "ring-2 ring-blue-900/15 shadow-[0_6px_16px_-8px_rgba(30,58,138,0.4)]"
                                     )}
                                 >
@@ -834,7 +834,7 @@ function LegacyRegister() {
                                                             type="text"
                                                             value={formData.fullName}
                                                             onChange={handleChange}
-                                                            className="block w-full appearance-none rounded-[6px] border border-slate-200 px-4 py-4 pl-11 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-base transition-all"
+                                                            className="block w-full appearance-none rounded-[6px] border border-slate-200 px-4 py-4 pl-11 placeholder-slate-400 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 text-base transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
                                                             placeholder="Juan Dela Cruz"
                                                         />
                                                     </div>
@@ -847,7 +847,7 @@ function LegacyRegister() {
                                                             type="button"
                                                             onClick={() => setIsYearOpen(!isYearOpen)}
                                                             className={clsx(
-                                                                "relative w-full flex items-center justify-between rounded-[6px] border px-4 py-3 text-left transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-500/10",
+                                                                "relative w-full flex items-center justify-between rounded-[6px] border px-4 py-3 text-left transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30",
                                                                 isYearOpen ? "border-blue-500 ring-4 ring-blue-500/10 bg-white shadow-sm" : "border-slate-200 bg-white hover:border-slate-300"
                                                             )}
                                                         >
@@ -934,14 +934,14 @@ function LegacyRegister() {
                                                                 type="button"
                                                                 onClick={() => setFormData({ ...formData, specialization: spec.label })}
                                                                 className={clsx(
-                                                                    "group relative flex flex-col items-center gap-2.5 p-3 rounded-[6px] border-2 transition-all duration-300",
+                                                                    "group relative flex flex-col items-center gap-2.5 p-3 rounded-[6px] border-2 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out",
                                                                     isSelected
                                                                         ? "bg-blue-900 border-blue-900 text-white shadow-sm z-10"
                                                                         : "bg-white border-slate-100 text-slate-500 hover:border-blue-200 hover:bg-slate-50"
                                                                 )}
                                                             >
                                                                 <div className={clsx(
-                                                                    "w-10 h-10 rounded-[6px] flex items-center justify-center transition-all duration-300",
+                                                                    "w-10 h-10 rounded-[6px] flex items-center justify-center transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out",
                                                                     isSelected
                                                                         ? "bg-white/10"
                                                                         : "bg-slate-50 text-blue-900 group-hover:scale-105"
@@ -979,7 +979,7 @@ function LegacyRegister() {
                                                                 type="button"
                                                                 onClick={() => setFormData({ ...formData, role: role })}
                                                                 className={clsx(
-                                                                    "py-3 rounded-[6px] text-xs font-black uppercase tracking-wider transition-all duration-300 border-2",
+                                                                    "py-3 rounded-[6px] text-xs font-black uppercase tracking-wider transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out border-2",
                                                                     isSelected
                                                                         ? "bg-blue-900 border-blue-900 text-white shadow-lg shadow-blue-900/10"
                                                                         : "bg-white border-slate-100 text-slate-500 hover:border-blue-200 hover:text-slate-700"
@@ -1004,7 +1004,7 @@ function LegacyRegister() {
                                                                 placeholder="Specify your role..."
                                                                 value={formData.customRole}
                                                                 onChange={(e) => setFormData({ ...formData, customRole: e.target.value })}
-                                                                className="w-full px-4 py-3 rounded-[6px] border-2 border-blue-100 bg-blue-50/30 text-base font-bold focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all"
+                                                                className="w-full px-4 py-3 rounded-[6px] border-2 border-blue-100 bg-blue-50/30 text-base font-bold focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
                                                             />
                                                         </motion.div>
                                                     )}
@@ -1022,7 +1022,7 @@ function LegacyRegister() {
                                                                 type="button"
                                                                 onClick={() => setFormData({ ...formData, experienceLevel: level })}
                                                                 className={clsx(
-                                                                    "py-2.5 rounded-md text-[10px] sm:text-[11px] font-black uppercase tracking-wider transition-all duration-300 px-1",
+                                                                    "py-2.5 rounded-[6px] text-[10px] sm:text-[11px] font-black uppercase tracking-wider transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out px-1",
                                                                     isSelected
                                                                         ? "bg-white text-blue-900 border border-slate-200/50"
                                                                         : "text-slate-500 hover:text-slate-800 hover:bg-white/30"
@@ -1055,7 +1055,7 @@ function LegacyRegister() {
                                                     const SpecIcon = spec?.icon || Target;
                                                     const score = roleScores[formData.specialization] || 0;
                                                     return (
-                                                        <div className="flex items-center gap-2 p-1.5 sm:p-2 rounded-[6px] border border-slate-200 bg-slate-50 transition-all duration-300 hover:border-slate-300 hover:shadow-sm">
+                                                        <div className="flex items-center gap-2 p-1.5 sm:p-2 rounded-[6px] border border-slate-200 bg-slate-50 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out hover:border-slate-300 hover:shadow-sm">
                                                             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-[6px] bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
                                                                 <SpecIcon size={16} />
                                                             </div>
@@ -1077,7 +1077,7 @@ function LegacyRegister() {
                                                                         initial={{ width: 0 }}
                                                                         animate={{ width: `${score}%` }}
                                                                         className={clsx(
-                                                                            "h-full rounded-full transition-all duration-500",
+                                                                            "h-full rounded-full transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out",
                                                                             score >= 70 ? "bg-green-500" :
                                                                                 score >= 40 ? "bg-blue-600" : "bg-amber-500"
                                                                         )}
@@ -1097,7 +1097,7 @@ function LegacyRegister() {
                                                                 initial={{ opacity: 0, y: -8 }}
                                                                 animate={{ opacity: 1, y: 0 }}
                                                                 exit={{ opacity: 0, y: -8 }}
-                                                                className="group flex items-center gap-2 p-1.5 sm:p-2 rounded-[6px] border border-amber-200 bg-amber-50 transition-all duration-300 hover:border-amber-300 hover:shadow-sm"
+                                                                className="group flex items-center gap-2 p-1.5 sm:p-2 rounded-[6px] border border-amber-200 bg-amber-50 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out hover:border-amber-300 hover:shadow-sm"
                                                             >
                                                                 <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-[6px] bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
                                                                     <SuggestedIcon size={16} />
@@ -1113,7 +1113,7 @@ function LegacyRegister() {
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => setFormData({ ...formData, specialization: betterRoleSuggestion })}
-                                                                    className="shrink-0 flex items-center gap-1 px-3 py-2 rounded-[6px] text-[9px] font-black uppercase tracking-[0.2em] text-amber-900 bg-amber-200/60 hover:bg-amber-200 transition-all active:scale-95"
+                                                                    className="shrink-0 flex items-center gap-1 px-3 py-2 rounded-[6px] text-[9px] font-black uppercase tracking-[0.2em] text-amber-900 bg-amber-200/60 hover:bg-amber-200 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-95"
                                                                 >
                                                                     Switch
                                                                 </button>
@@ -1155,7 +1155,7 @@ function LegacyRegister() {
                                                         placeholder="Search skills..."
                                                         value={skillSearch}
                                                         onChange={(e) => setSkillSearch(e.target.value)}
-                                                        className="w-full pl-11 pr-4 py-3 rounded-[6px] border-2 border-slate-100 text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all bg-white" />
+                                                        className="w-full pl-11 pr-4 py-3 rounded-[6px] border-2 border-slate-100 text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out bg-white" />
                                                 </div>
 
                                                 <div
@@ -1220,7 +1220,7 @@ function LegacyRegister() {
                                                 <button
                                                     type="button"
                                                     onClick={() => setShowOtherInput(true)}
-                                                    className="flex items-center justify-center gap-2 py-4 rounded-[6px] border-2 border-dashed border-slate-100 text-slate-400 text-xs font-black uppercase tracking-[0.2em] hover:border-blue-200 hover:text-blue-600 hover:bg-blue-50/30 transition-all w-full group"
+                                                    className="flex items-center justify-center gap-2 py-4 rounded-[6px] border-2 border-dashed border-slate-100 text-slate-400 text-xs font-black uppercase tracking-[0.2em] hover:border-blue-200 hover:text-blue-600 hover:bg-blue-50/30 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out w-full group"
                                                 >
                                                     <Plus size={14} strokeWidth={3} className="group-hover:scale-110 transition-transform" />
                                                     <span>Add custom skill</span>
@@ -1237,7 +1237,7 @@ function LegacyRegister() {
                                                         autoFocus
                                                         value={otherSkill}
                                                         onChange={(e) => setOtherSkill(e.target.value)}
-                                                        className="flex-1 px-4 py-2 bg-white rounded-[6px] text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition-all placeholder:text-slate-300"
+                                                        className="flex-1 px-4 py-2 bg-white rounded-[6px] text-sm font-bold text-slate-700 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out placeholder:text-slate-300"
                                                         onKeyDown={(e) => {
                                                             if (e.key === 'Enter') {
                                                                 e.preventDefault();
@@ -1277,7 +1277,7 @@ function LegacyRegister() {
                                                         <button
                                                             type="button"
                                                             onClick={() => setShowOtherInput(false)}
-                                                            className="p-2.5 bg-white text-slate-500 border border-slate-200 rounded-[6px] hover:text-red-600 hover:border-red-100 hover:bg-red-50 transition-all"
+                                                            className="p-2.5 bg-white text-slate-500 border border-slate-200 rounded-[6px] hover:text-red-600 hover:border-red-100 hover:bg-red-50 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
                                                         >
                                                             <X size={18} strokeWidth={3} />
                                                         </button>
@@ -1319,16 +1319,16 @@ function LegacyRegister() {
                                                                 initial={{ opacity: 0, scale: 0.8 }}
                                                                 animate={{ opacity: 1, scale: 1 }}
                                                                 exit={{ opacity: 0, scale: 0.8 }}
-                                                                className="flex items-center gap-1.5 pl-2 pr-1 py-1.5 bg-white border border-slate-200 rounded-[6px] shadow-sm hover:border-blue-300 hover:shadow-md transition-all group"
+                                                                className="flex items-center gap-1.5 pl-2 pr-1 py-1.5 bg-white border border-slate-200 rounded-[6px] shadow-sm hover:border-blue-300 hover:shadow-md transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out group"
                                                             >
-                                                                <div className="w-5 h-5 rounded-md bg-blue-50 flex items-center justify-center shrink-0">
+                                                                <div className="w-5 h-5 rounded-[6px] bg-blue-50 flex items-center justify-center shrink-0">
                                                                     <div className="w-3 h-3 flex items-center justify-center">
                                                                         <SkillIcon skillName={skill.name} size={12} />
                                                                     </div>
                                                                 </div>
                                                                 <span className="text-xs font-bold text-slate-700">{skill.name}</span>
                                                                 <div className={clsx(
-                                                                    "px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider",
+                                                                    "px-1.5 py-0.5 rounded-[6px] text-[8px] font-black uppercase tracking-wider",
                                                                     skill.level === 'Expert' ? "bg-blue-900 text-white" :
                                                                         skill.level === 'Practitioner' ? "bg-blue-100 text-blue-900" :
                                                                             "bg-slate-100 text-slate-500"
@@ -1343,7 +1343,7 @@ function LegacyRegister() {
                                                                             skills: formData.skills.filter(s => s.name !== skill.name)
                                                                         });
                                                                     }}
-                                                                    className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-[6px] transition-all"
+                                                                    className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-[6px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
                                                                 >
                                                                     <X size={11} strokeWidth={3} />
                                                                 </button>
@@ -1374,7 +1374,7 @@ function LegacyRegister() {
 
                                         {/* Discord */}
                                         <div className={clsx(
-                                            "rounded-[6px] border-2 p-5 transition-all",
+                                            "rounded-[6px] border-2 p-5 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out",
                                             discordConnected ? "border-green-200 bg-green-50" : "border-slate-200 bg-slate-50"
                                         )}>
                                             <div className="flex items-center gap-4">
@@ -1406,7 +1406,7 @@ function LegacyRegister() {
                                                         type="button"
                                                         onClick={handleConnectDiscord}
                                                         disabled={discordConnecting}
-                                                        className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-[#5865F2] text-white rounded-[6px] text-xs font-black uppercase tracking-wide hover:bg-[#4752C4] transition-all active:scale-95 disabled:opacity-60"
+                                                        className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-[#5865F2] text-white rounded-[6px] text-xs font-black uppercase tracking-wide hover:bg-[#4752C4] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-95 disabled:opacity-60"
                                                     >
                                                         {discordConnecting ? (
                                                             <><Loader2 size={13} className="animate-spin" /><span>Opening...</span></>
@@ -1461,7 +1461,7 @@ function LegacyRegister() {
                                             <button
                                                 type="button"
                                                 onClick={prevStep}
-                                                className="flex-1 flex justify-center items-center gap-2 rounded-[6px] border border-slate-200 bg-white px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-slate-500 hover:bg-slate-50 hover:border-slate-300 transition-all duration-300"
+                                                className="flex-1 flex justify-center items-center gap-2 rounded-[6px] border border-slate-200 bg-white px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-slate-500 hover:bg-slate-50 hover:border-slate-300 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
                                             >
                                                 <ArrowLeft size={16} strokeWidth={3} />
                                                 <span>Back</span>
@@ -1473,7 +1473,7 @@ function LegacyRegister() {
                                                 key="continue-step"
                                                 type="button"
                                                 onClick={nextStep}
-                                                className="flex-[2] relative flex justify-center items-center gap-2 rounded-[6px] bg-blue-900 px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-white shadow-md hover:bg-blue-800 transition-all duration-300 active:scale-[0.98]"
+                                                className="flex-[2] relative flex justify-center items-center gap-2 rounded-[6px] bg-blue-900 px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-white shadow-md hover:bg-blue-800 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.98]"
                                             >
                                                 Continue
                                                 <ArrowRight size={16} strokeWidth={3} className="ml-1" />
@@ -1483,7 +1483,7 @@ function LegacyRegister() {
                                                 key="submit-step"
                                                 type="submit"
                                                 disabled={loading}
-                                                className="flex-[2] relative flex justify-center items-center gap-2 rounded-[6px] bg-blue-900 px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-white shadow-md hover:bg-blue-800 transition-all duration-300 active:scale-[0.98] disabled:opacity-50"
+                                                className="flex-[2] relative flex justify-center items-center gap-2 rounded-[6px] bg-blue-900 px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-white shadow-md hover:bg-blue-800 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.98] disabled:opacity-50"
                                             >
                                                 {loading ? (
                                                     <>
@@ -1505,7 +1505,7 @@ function LegacyRegister() {
                                                     onClick={handleComplete}
                                                     disabled={!discordConnected}
                                                     className={clsx(
-                                                        "flex-[2] flex justify-center items-center gap-2 rounded-[6px] px-4 py-4 text-xs font-black uppercase tracking-[0.2em] shadow-md transition-all duration-300 active:scale-[0.98]",
+                                                        "flex-[2] flex justify-center items-center gap-2 rounded-[6px] px-4 py-4 text-xs font-black uppercase tracking-[0.2em] shadow-md transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.98]",
                                                         discordConnected
                                                             ? "bg-blue-900 text-white hover:bg-blue-800"
                                                             : "bg-slate-300 text-slate-500 cursor-not-allowed"
@@ -1571,7 +1571,7 @@ function LegacyRegister() {
 
                                     <button
                                         onClick={() => navigate('/dashboard')}
-                                        className="w-full py-4 bg-blue-900 text-white rounded-[6px] text-xs font-black uppercase tracking-[0.2em] shadow-lg shadow-blue-900/20 hover:bg-blue-800 transition-all active:scale-[0.98]"
+                                        className="w-full py-4 bg-blue-900 text-white rounded-[6px] text-xs font-black uppercase tracking-[0.2em] shadow-lg shadow-blue-900/20 hover:bg-blue-800 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.98]"
                                     >
                                         Go to Portal
                                     </button>

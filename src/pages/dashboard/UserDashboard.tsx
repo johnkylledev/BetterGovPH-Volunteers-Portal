@@ -350,7 +350,7 @@ export default function UserDashboard() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16 sm:h-20">
               <div className="flex items-center space-x-2 sm:space-x-3">
-                <img src="/logo.svg" alt="BetterGovPH Logo" className="w-7 h-7 sm:w-8 sm:h-8 object-contain brightness-0" />
+                <img src="/logo.svg" onError={(e)=>{const t=e.currentTarget;t.onerror=null;t.src='https://assets.bettergov.ph/logos/webp/icon-primary.webp';}} alt="BetterGovPH Logo" className="w-7 h-7 sm:w-8 sm:h-8 object-contain brightness-0" />
                 <span className="text-lg sm:text-xl font-display font-bold text-slate-900 truncate">BetterGovPH Volunteers</span>
               </div>
               <div className="flex items-center space-x-2 sm:space-x-4">
@@ -363,7 +363,7 @@ export default function UserDashboard() {
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-[6px] transition-all duration-200"
+                  className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-[6px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
                   title="Logout"
                 >
                   <LogOut className="w-5 h-5" />
@@ -379,7 +379,7 @@ export default function UserDashboard() {
               <button
                 onClick={() => setActiveTab('dashboard')}
                 className={clsx(
-                  "py-4 text-sm font-bold border-b-2 transition-all px-1",
+                  "py-4 text-sm font-bold border-b-2 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out px-1",
                   activeTab === 'dashboard'
                     ? "border-blue-900 text-blue-900"
                     : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
@@ -390,7 +390,7 @@ export default function UserDashboard() {
               <button
                 onClick={() => setActiveTab('submit-project')}
                 className={clsx(
-                  "py-4 text-sm font-bold border-b-2 transition-all px-1",
+                  "py-4 text-sm font-bold border-b-2 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out px-1",
                   activeTab === 'submit-project'
                     ? "border-blue-900 text-blue-900"
                     : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
@@ -401,7 +401,7 @@ export default function UserDashboard() {
               <button
                 onClick={() => setActiveTab('volunteer')}
                 className={clsx(
-                  "py-4 text-sm font-bold border-b-2 transition-all px-1",
+                  "py-4 text-sm font-bold border-b-2 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out px-1",
                   activeTab === 'volunteer'
                     ? "border-blue-900 text-blue-900"
                     : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
@@ -575,7 +575,7 @@ export default function UserDashboard() {
                   </div>
 
                   <div className={clsx(
-                    "relative group transition-all duration-500 max-w-full flex justify-center",
+                    "relative group transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out max-w-full flex justify-center",
                     currentUser.status !== 'Approved' && "opacity-50 grayscale pointer-events-none blur-[2px]"
                   )}>
                     <AccessCard user={currentUser} />
@@ -600,7 +600,7 @@ export default function UserDashboard() {
                       <div className="flex flex-col gap-3">
                         <button
                           onClick={handleCopyLink}
-                          className="flex items-center justify-center gap-2 w-full py-4 bg-slate-900 text-white rounded-[6px] font-semibold text-sm hover:bg-slate-800 transition-all duration-200 shadow-lg active:scale-[0.98]"
+                          className="flex items-center justify-center gap-2 w-full py-4 bg-slate-900 text-white rounded-[6px] font-semibold text-sm hover:bg-slate-800 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out shadow-lg active:scale-[0.98]"
                         >
                           {copyStatus === 'copied' ? (
                             <>
@@ -616,7 +616,7 @@ export default function UserDashboard() {
                         </button>
                         <button
                           onClick={handleCopyEmbed}
-                          className="flex items-center justify-center gap-2 w-full py-4 bg-white border border-slate-200/80 text-slate-700 rounded-[6px] font-semibold text-sm hover:bg-slate-50 transition-all duration-200 shadow-sm active:scale-[0.98]"
+                          className="flex items-center justify-center gap-2 w-full py-4 bg-white border border-slate-200/80 text-slate-700 rounded-[6px] font-semibold text-sm hover:bg-slate-50 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out shadow-sm active:scale-[0.98]"
                         >
                           {copyStatus === 'embed-copied' ? (
                             <>
@@ -660,7 +660,7 @@ export default function UserDashboard() {
                         type="text"
                         value={projectName}
                         onChange={(e) => setProjectName(e.target.value)}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out"
                         placeholder="e.g., BetterGovPH Tracker"
                         disabled={projectSubmitStatus === 'loading'}
                       />
@@ -674,7 +674,7 @@ export default function UserDashboard() {
                         type="text"
                         value={projectUrl}
                         onChange={(e) => setProjectUrl(e.target.value)}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out"
                         placeholder="https://github.com/..."
                         disabled={projectSubmitStatus === 'loading'}
                       />
@@ -687,7 +687,7 @@ export default function UserDashboard() {
                       <textarea
                         value={projectDescription}
                         onChange={(e) => setProjectDescription(e.target.value)}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all min-h-[140px] resize-none"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out min-h-[140px] resize-none"
                         placeholder="What is this project about?"
                         disabled={projectSubmitStatus === 'loading'}
                       />
@@ -700,7 +700,7 @@ export default function UserDashboard() {
                       <select
                         value={projectProjType}
                         onChange={(e) => setProjectProjType(e.target.value)}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out appearance-none cursor-pointer"
                         disabled={projectSubmitStatus === 'loading'}
                       >
                         <option value="">Select type</option>
@@ -718,7 +718,7 @@ export default function UserDashboard() {
                       type="submit"
                       disabled={projectSubmitStatus === 'loading'}
                       className={clsx(
-                        'relative w-full py-4 rounded-[6px] font-semibold text-sm transition-all duration-200 shadow-sm active:scale-[0.98] overflow-hidden',
+                        'relative w-full py-4 rounded-[6px] font-semibold text-sm transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out shadow-sm active:scale-[0.98] overflow-hidden',
                         projectSubmitStatus === 'loading'
                           ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
                           : 'bg-blue-900 text-white hover:bg-blue-800'
@@ -739,7 +739,7 @@ export default function UserDashboard() {
                     <button
                       onClick={() => loadMySubmissions(true)}
                       disabled={mySubmissionsLoading}
-                      className="px-3 py-2 rounded-[6px] bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition-all flex items-center gap-1.5"
+                      className="px-3 py-2 rounded-[6px] bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out flex items-center gap-1.5"
                     >
                       <RefreshCw className={clsx('w-3.5 h-3.5', mySubmissionsLoading && 'animate-spin')} />
                       Refresh
@@ -766,7 +766,7 @@ export default function UserDashboard() {
                     ) : (
                       <div className="space-y-3">
                         {mySubmissions.map((s) => (
-                          <div key={s.id} className="bg-white border border-slate-200/70 rounded-[6px] p-4 hover:shadow-md hover:border-slate-300 transition-all duration-200">
+                          <div key={s.id} className="bg-white border border-slate-200/70 rounded-[6px] p-4 hover:shadow-md hover:border-slate-300 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out">
                             {s.projType && (
                               <div className="mb-2">
                                 <span className="inline-block px-2 py-1 rounded-[6px] bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider">
@@ -844,7 +844,7 @@ export default function UserDashboard() {
                         type="text"
                         value={volunteerTitle}
                         onChange={(e) => setVolunteerTitle(e.target.value)}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out"
                         placeholder="e.g., Need Frontend Dev for Civic App"
                         disabled={volunteerSubmitStatus === 'loading'}
                       />
@@ -858,7 +858,7 @@ export default function UserDashboard() {
                         type="text"
                         value={volunteerProjectUrl}
                         onChange={(e) => setVolunteerProjectUrl(e.target.value)}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out"
                         placeholder="https://github.com/..."
                         disabled={volunteerSubmitStatus === 'loading'}
                       />
@@ -871,7 +871,7 @@ export default function UserDashboard() {
                       <textarea
                         value={volunteerDescription}
                         onChange={(e) => setVolunteerDescription(e.target.value)}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all min-h-[140px] resize-none"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out min-h-[140px] resize-none"
                         placeholder="What help do you need? Scope, timeline, requirements..."
                         disabled={volunteerSubmitStatus === 'loading'}
                       />
@@ -885,7 +885,7 @@ export default function UserDashboard() {
                         type="text"
                         value={volunteerRolesNeeded}
                         onChange={(e) => setVolunteerRolesNeeded(e.target.value)}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out"
                         placeholder="Frontend, Backend, UI/UX..."
                         disabled={volunteerSubmitStatus === 'loading'}
                       />
@@ -899,7 +899,7 @@ export default function UserDashboard() {
                         type="text"
                         value={volunteerContact}
                         onChange={(e) => setVolunteerContact(e.target.value)}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out"
                         placeholder="Discord / Email / Link"
                         disabled={volunteerSubmitStatus === 'loading'}
                       />
@@ -909,7 +909,7 @@ export default function UserDashboard() {
                       type="submit"
                       disabled={volunteerSubmitStatus === 'loading'}
                       className={clsx(
-                        'relative w-full py-4 rounded-[6px] font-semibold text-sm transition-all duration-200 shadow-sm active:scale-[0.98] overflow-hidden',
+                        'relative w-full py-4 rounded-[6px] font-semibold text-sm transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out shadow-sm active:scale-[0.98] overflow-hidden',
                         volunteerSubmitStatus === 'loading'
                           ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
                           : 'bg-blue-900 text-white hover:bg-blue-800'
@@ -931,7 +931,7 @@ export default function UserDashboard() {
                       <button
                         onClick={() => loadVolunteerCalls(true)}
                         disabled={volunteerCallsLoading}
-                        className="px-3 py-2 rounded-[6px] bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition-all flex items-center gap-1.5"
+                        className="px-3 py-2 rounded-[6px] bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out flex items-center gap-1.5"
                       >
                         <RefreshCw className={clsx('w-3.5 h-3.5', volunteerCallsLoading && 'animate-spin')} />
                         Refresh
@@ -942,7 +942,7 @@ export default function UserDashboard() {
                       <button
                         onClick={() => setVolunteerFilter('all')}
                         className={clsx(
-                          'px-4 py-2 text-xs font-semibold rounded-full transition-all duration-200',
+                          'px-4 py-2 text-xs font-semibold rounded-full transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out',
                           volunteerFilter === 'all'
                             ? 'bg-blue-900 text-white shadow-sm'
                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -953,7 +953,7 @@ export default function UserDashboard() {
                       <button
                         onClick={() => setVolunteerFilter('mine')}
                         className={clsx(
-                          'px-4 py-2 text-xs font-semibold rounded-full transition-all duration-200',
+                          'px-4 py-2 text-xs font-semibold rounded-full transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out',
                           volunteerFilter === 'mine'
                             ? 'bg-blue-900 text-white shadow-sm'
                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -993,7 +993,7 @@ export default function UserDashboard() {
                           const isOwner = c.userId === currentUser.id || c.userId === currentUser.uid || !!currentUser.isAdmin;
                           const isClosed = c.status === 'closed';
                           return (
-                            <div key={c.id} className="bg-white border border-slate-200/70 rounded-[6px] p-4 relative group hover:shadow-md hover:border-slate-300 transition-all duration-200">
+                            <div key={c.id} className="bg-white border border-slate-200/70 rounded-[6px] p-4 relative group hover:shadow-md hover:border-slate-300 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out">
                               {c.postedBy?.fullName && (
                                 <div className="mb-2">
                                   <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-[6px] bg-blue-50 text-blue-700 text-[10px] font-bold uppercase tracking-wider">
@@ -1020,7 +1020,7 @@ export default function UserDashboard() {
                                     onClick={() => isOwner && handleToggleCallStatus(c)}
                                     disabled={!isOwner}
                                     className={clsx(
-                                      'px-2.5 py-1 rounded-[6px] text-[10px] font-black uppercase tracking-widest border flex-shrink-0 flex items-center gap-1.5 transition-all',
+                                      'px-2.5 py-1 rounded-[6px] text-[10px] font-black uppercase tracking-widest border flex-shrink-0 flex items-center gap-1.5 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out',
                                       isClosed
                                         ? 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200'
                                         : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100',
@@ -1084,7 +1084,7 @@ export default function UserDashboard() {
                 </div>
                 <button
                   onClick={closeManageModal}
-                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-[6px] transition-all"
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-[6px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1099,7 +1099,7 @@ export default function UserDashboard() {
                     type="text"
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out"
                     required
                   />
                 </div>
@@ -1112,7 +1112,7 @@ export default function UserDashboard() {
                     type="text"
                     value={editProjectUrl}
                     onChange={(e) => setEditProjectUrl(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out"
                     required
                   />
                 </div>
@@ -1124,7 +1124,7 @@ export default function UserDashboard() {
                   <textarea
                     value={editDescription}
                     onChange={(e) => setEditDescription(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all min-h-[100px] resize-none"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out min-h-[100px] resize-none"
                     required
                   />
                 </div>
@@ -1137,7 +1137,7 @@ export default function UserDashboard() {
                     type="text"
                     value={editRolesNeeded}
                     onChange={(e) => setEditRolesNeeded(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out"
                     placeholder="Frontend, Backend, UI/UX..."
                   />
                 </div>
@@ -1150,7 +1150,7 @@ export default function UserDashboard() {
                     type="text"
                     value={editContact}
                     onChange={(e) => setEditContact(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out"
                     placeholder="Discord / Email / Link"
                   />
                 </div>
@@ -1164,7 +1164,7 @@ export default function UserDashboard() {
                       type="button"
                       onClick={() => setEditStatus('open')}
                       className={clsx(
-                        'py-2.5 px-4 rounded-[6px] text-xs font-bold border transition-all flex items-center justify-center gap-2',
+                        'py-2.5 px-4 rounded-[6px] text-xs font-bold border transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out flex items-center justify-center gap-2',
                         editStatus === 'open'
                           ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-sm'
                           : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
@@ -1177,7 +1177,7 @@ export default function UserDashboard() {
                       type="button"
                       onClick={() => setEditStatus('closed')}
                       className={clsx(
-                        'py-2.5 px-4 rounded-[6px] text-xs font-bold border transition-all flex items-center justify-center gap-2',
+                        'py-2.5 px-4 rounded-[6px] text-xs font-bold border transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out flex items-center justify-center gap-2',
                         editStatus === 'closed'
                           ? 'bg-slate-200 border-slate-400 text-slate-900 shadow-sm'
                           : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
@@ -1193,7 +1193,7 @@ export default function UserDashboard() {
                   <button
                     type="button"
                     onClick={() => setConfirmDeleteCallId(selectedCallForModal.id)}
-                    className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-[6px] text-xs font-bold transition-all flex items-center gap-1.5"
+                    className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-[6px] text-xs font-bold transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out flex items-center gap-1.5"
                   >
                     <Trash2 className="w-4 h-4" />
                     Delete Call
@@ -1203,7 +1203,7 @@ export default function UserDashboard() {
                     <button
                       type="button"
                       onClick={closeManageModal}
-                      className="px-4 py-2.5 border border-slate-200 text-slate-700 rounded-[6px] text-xs font-bold hover:bg-slate-50 transition-all"
+                      className="px-4 py-2.5 border border-slate-200 text-slate-700 rounded-[6px] text-xs font-bold hover:bg-slate-50 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
                     >
                       Cancel
                     </button>
@@ -1211,7 +1211,7 @@ export default function UserDashboard() {
                       type="submit"
                       disabled={modalActionStatus === 'loading'}
                       className={clsx(
-                        'relative px-5 py-2.5 bg-blue-900 text-white rounded-[6px] text-xs font-bold hover:bg-blue-800 transition-all disabled:opacity-50 overflow-hidden'
+                        'relative px-5 py-2.5 bg-blue-900 text-white rounded-[6px] text-xs font-bold hover:bg-blue-800 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out disabled:opacity-50 overflow-hidden'
                       )}
                     >
                       {modalActionStatus === 'loading' ? 'Saving...' : 'Save Changes'}
@@ -1253,7 +1253,7 @@ export default function UserDashboard() {
                     type="button"
                     onClick={() => setConfirmDeleteCallId(null)}
                     disabled={modalActionStatus === 'loading'}
-                    className="px-4 py-2 border border-slate-200 text-slate-700 rounded-[6px] text-xs font-bold hover:bg-slate-50 transition-all disabled:opacity-50"
+                    className="px-4 py-2 border border-slate-200 text-slate-700 rounded-[6px] text-xs font-bold hover:bg-slate-50 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out disabled:opacity-50"
                   >
                     Cancel
                   </button>
@@ -1262,7 +1262,7 @@ export default function UserDashboard() {
                     onClick={() => handleDeleteCall(confirmDeleteCallId)}
                     disabled={modalActionStatus === 'loading'}
                     className={clsx(
-                      'relative px-4 py-2 rounded-[6px] text-xs font-bold transition-all overflow-hidden disabled:opacity-50',
+                      'relative px-4 py-2 rounded-[6px] text-xs font-bold transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out overflow-hidden disabled:opacity-50',
                       modalActionStatus === 'loading'
                         ? 'bg-red-400 text-white cursor-not-allowed'
                         : 'bg-red-600 text-white hover:bg-red-700 active:scale-[0.98] shadow-sm'

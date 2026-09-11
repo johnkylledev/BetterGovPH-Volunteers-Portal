@@ -1,51 +1,70 @@
 import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion, type Target, type Transition } from 'framer-motion';
 import { Shield } from 'lucide-react';
 
 export const LoadingOverlay = () => {
   const [logoFailed, setLogoFailed] = useState(false);
+  const reduce = useReducedMotion();
 
   useEffect(() => {
     const t = setTimeout(() => setLogoFailed(true), 800);
     return () => clearTimeout(t);
   }, []);
 
+  const dotAnim: Target | undefined = reduce
+    ? { opacity: 0.55 }
+    : undefined;
+  const dotKeyframes = reduce
+    ? undefined
+    : { opacity: [0.28, 1, 0.28], y: [0, -5, 0] };
+  const dotTransition: Transition | undefined = reduce
+    ? undefined
+    : { duration: 1.05, ease: [0.23, 1, 0.32, 1] as [number, number, number, number], repeat: Infinity };
+
   return (
     <div className="fixed inset-0 bg-slate-50 z-[9999] flex items-center justify-center">
       <motion.div
         initial={{ opacity: 0, y: 4 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
+        transition={{ duration: 0.32, ease: [0.23, 1, 0.32, 1] }}
         className="flex flex-col items-center"
       >
         {logoFailed ? (
-          <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 flex items-center justify-center mb-6 sm:mb-7">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 flex items-center justify-center mb-7 sm:mb-8">
             <Shield className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 text-blue-900" strokeWidth={1.5} />
           </div>
         ) : (
           <img
-            src="https://assets.bettergov.ph/logos/webp/icon-primary.webp"
+            src="/favicon.svg"
             alt="BetterGovPH"
             loading="eager"
             decoding="async"
-            className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 object-contain mb-6 sm:mb-7 drop-shadow-[0_6px_18px_rgba(30,58,138,0.12)]"
-            onError={() => setLogoFailed(true)}
+            className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 object-contain mb-7 sm:mb-8 drop-shadow-[0_6px_18px_rgba(30,58,138,0.12)]"
+            onError={(e) => {
+              const el = e.currentTarget;
+              if (el.src.includes('/favicon.svg')) {
+                el.onerror = null;
+                el.src = 'https://assets.bettergov.ph/logos/webp/icon-primary.webp';
+              } else {
+                setLogoFailed(true);
+              }
+            }}
           />
         )}
 
-        <div className="w-56 sm:w-64 h-[2px] rounded-full bg-slate-200 overflow-hidden mb-3 sm:mb-4">
-          <motion.div
-            className="h-full w-full bg-blue-900 rounded-full origin-left"
-            initial={{ scaleX: 0.1 }}
-            animate={{ scaleX: 1 }}
-            transition={{ duration: 2.4, ease: [0.77, 0, 0.175, 1], repeat: Infinity }}
-          />
+        <div className="flex items-center gap-1.5">
+          {[0, 1, 2].map((i) => (
+            <motion.span
+              key={i}
+              animate={reduce ? dotAnim : dotKeyframes}
+              transition={reduce ? undefined : { ...dotTransition, delay: i * 0.14 }}
+              className="block w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-blue-900"
+              style={{ willChange: reduce ? 'opacity' : 'opacity, transform' }}
+            />
+          ))}
         </div>
-
-        <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-[0.18em]">
-          Loading
-        </p>
       </motion.div>
     </div>
   );
 };
+

@@ -38,8 +38,8 @@ export default function Login() {
           >
             <span>New here?</span>
             <span className="text-blue-900 font-bold group-hover:translate-x-0.5 transition-transform">
-              <span className="sm:hidden">Apply</span>
-              <span className="hidden sm:inline">Apply now →</span>
+              <span className="sm:hidden">Join</span>
+              <span className="hidden sm:inline">Join now →</span>
             </span>
           </Link>
         </div>
@@ -54,7 +54,7 @@ export default function Login() {
             >
               <div className="flex items-center gap-3">
                 <img
-                  src="https://assets.bettergov.ph/logos/webp/icon-primary.webp"
+                  src="/logo.svg" onError={(e)=>{const t=e.currentTarget;t.onerror=null;t.src='https://assets.bettergov.ph/logos/webp/icon-primary.webp';}}
                   alt="BetterGovPH"
                   className="w-11 h-11 object-contain drop-shadow-[0_6px_18px_rgba(30,58,138,0.12)]"
                 />
@@ -75,7 +75,7 @@ export default function Login() {
               </div>
 
               <div className="space-y-3 sm:space-y-4 max-w-lg">
-                <div className="flex items-start gap-3 sm:gap-4 p-4 sm:p-5 rounded-[6px] bg-white border border-slate-200 transition-[transform,box-shadow,border-color] duration-300 ease-out [@media(hover:hover){&:hover}]:border-blue-200 [@media(hover:hover){&:hover}]:shadow-[0_10px_28px_-16px_rgba(30,58,138,0.25)] [@media(hover:hover){&:hover}]:-translate-y-0.5">
+                <div className="flex items-start gap-3 sm:gap-4 p-4 sm:p-5 rounded-[6px] bg-white border border-slate-200 transition-[transform,box-shadow,border-color] duration-200 ease-out [@media(hover:hover){&:hover}]:border-blue-200 [@media(hover:hover){&:hover}]:shadow-[0_10px_28px_-16px_rgba(30,58,138,0.25)] [@media(hover:hover){&:hover}]:-translate-y-0.5 active:scale-[0.99] active:translate-y-0">
                   <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-[6px] bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0 text-blue-900">
                     <Users size={16} className="sm:hidden" />
                     <Users size={18} className="hidden sm:inline-flex" />
@@ -86,7 +86,7 @@ export default function Login() {
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 sm:gap-4 p-4 sm:p-5 rounded-[6px] bg-white border border-slate-200 transition-[transform,box-shadow,border-color] duration-300 ease-out [@media(hover:hover){&:hover}]:border-blue-200 [@media(hover:hover){&:hover}]:shadow-[0_10px_28px_-16px_rgba(30,58,138,0.25)] [@media(hover:hover){&:hover}]:-translate-y-0.5">
+                <div className="flex items-start gap-3 sm:gap-4 p-4 sm:p-5 rounded-[6px] bg-white border border-slate-200 transition-[transform,box-shadow,border-color] duration-200 ease-out [@media(hover:hover){&:hover}]:border-blue-200 [@media(hover:hover){&:hover}]:shadow-[0_10px_28px_-16px_rgba(30,58,138,0.25)] [@media(hover:hover){&:hover}]:-translate-y-0.5 active:scale-[0.99] active:translate-y-0">
                   <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-[6px] bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0 text-blue-900">
                     <Code size={16} className="sm:hidden" />
                     <Code size={18} className="hidden sm:inline-flex" />
@@ -97,7 +97,7 @@ export default function Login() {
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 sm:gap-4 p-4 sm:p-5 rounded-[6px] bg-white border border-slate-200 transition-[transform,box-shadow,border-color] duration-300 ease-out [@media(hover:hover){&:hover}]:border-blue-200 [@media(hover:hover){&:hover}]:shadow-[0_10px_28px_-16px_rgba(30,58,138,0.25)] [@media(hover:hover){&:hover}]:-translate-y-0.5">
+                <div className="flex items-start gap-3 sm:gap-4 p-4 sm:p-5 rounded-[6px] bg-white border border-slate-200 transition-[transform,box-shadow,border-color] duration-200 ease-out [@media(hover:hover){&:hover}]:border-blue-200 [@media(hover:hover){&:hover}]:shadow-[0_10px_28px_-16px_rgba(30,58,138,0.25)] [@media(hover:hover){&:hover}]:-translate-y-0.5 active:scale-[0.99] active:translate-y-0">
                   <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-[6px] bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0 text-blue-900">
                     <Shield size={16} className="sm:hidden" />
                     <Shield size={18} className="hidden sm:inline-flex" />
@@ -119,7 +119,7 @@ export default function Login() {
             >
               <div className="lg:hidden flex flex-col items-center gap-4 mb-6 sm:mb-8">
                 <img
-                  src="https://assets.bettergov.ph/logos/webp/icon-primary.webp"
+                  src="/logo.svg" onError={(e)=>{const t=e.currentTarget;t.onerror=null;t.src='https://assets.bettergov.ph/logos/webp/icon-primary.webp';}}
                   alt="BetterGovPH"
                   className="w-12 h-12 sm:w-14 sm:h-14 object-contain drop-shadow-[0_6px_18px_rgba(30,58,138,0.12)]"
                 />
@@ -135,7 +135,7 @@ export default function Login() {
                 <div className="hidden lg:flex flex flex-col items-center mb-7 sm:mb-8">
                   <div className="w-14 h-14 sm:w-16 sm:h-16 mb-5 sm:mb-6">
                     <img
-                      src="https://assets.bettergov.ph/logos/webp/icon-primary.webp"
+                      src="/logo.svg" onError={(e)=>{const t=e.currentTarget;t.onerror=null;t.src='https://assets.bettergov.ph/logos/webp/icon-primary.webp';}}
                       alt="BetterGovPH Logo"
                       className="w-full h-full object-contain drop-shadow-[0_6px_18px_rgba(30,58,138,0.12)]"
                     />
@@ -174,7 +174,7 @@ export default function Login() {
                       setLoading(false);
                     }
                   }}
-                  className="group relative flex w-full items-center justify-center gap-2.5 sm:gap-3 rounded-[6px] bg-slate-900 px-4 sm:px-6 py-3 sm:py-3.5 text-sm font-bold text-white shadow-[0_10px_24px_-14px_rgba(15,23,42,0.5)] [@media(hover:hover){&:hover}]:bg-slate-800 [@media(hover:hover){&:hover}]:shadow-[0_14px_30px_-14px_rgba(15,23,42,0.55)] focus:outline-none focus:ring-4 focus:ring-slate-900/15 transition-[transform,box-shadow,background-color] duration-200 ease-out active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="group relative flex w-full items-center justify-center gap-2.5 sm:gap-3 rounded-[6px] bg-slate-900 px-4 sm:px-6 py-3 sm:py-3.5 text-sm font-bold text-white shadow-[0_10px_24px_-14px_rgba(15,23,42,0.5)] [@media(hover:hover){&:hover}]:bg-slate-800 [@media(hover:hover){&:hover}]:shadow-[0_14px_30px_-14px_rgba(15,23,42,0.55)] focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-slate-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5 relative z-10 shrink-0" viewBox="0 0 24 24" width="20" height="20">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>

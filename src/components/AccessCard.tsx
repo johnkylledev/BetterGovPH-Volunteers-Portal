@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useNavigate } from 'react-router-dom';
-import { motion, useMotionTemplate, useMotionValue, useSpring } from 'framer-motion';
+import { motion, useMotionTemplate, useMotionValue, useSpring, useReducedMotion } from 'framer-motion';
 import { User } from '../types';
 import clsx from 'clsx';
 
@@ -13,25 +13,24 @@ interface AccessCardProps {
 export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
   const navigate = useNavigate();
   const boundingRef = useRef<HTMLDivElement>(null);
-  const mouseX = useSpring(useMotionValue(0), { stiffness: 300, damping: 40 });
-  const mouseY = useSpring(useMotionValue(0), { stiffness: 300, damping: 40 });
-
-
+  const reduceMotion = useReducedMotion();
+  const rawMouseX = useMotionValue(0);
+  const rawMouseY = useMotionValue(0);
+  const mouseX = useSpring(rawMouseX, { stiffness: 300, damping: 40 });
+  const mouseY = useSpring(rawMouseY, { stiffness: 300, damping: 40 });
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!boundingRef.current) return;
+    if (reduceMotion || !boundingRef.current) return;
     const { left, top, width, height } = boundingRef.current.getBoundingClientRect();
-
-    // Rotation values
     const x = (e.clientX - left - width / 2) / 35;
     const y = (e.clientY - top - height / 2) / 35;
-    mouseX.set(x);
-    mouseY.set(-y);
+    rawMouseX.set(x);
+    rawMouseY.set(-y);
   };
 
   const handleMouseLeave = () => {
-    mouseX.set(0);
-    mouseY.set(0);
+    rawMouseX.set(0);
+    rawMouseY.set(0);
   };
 
   const transform = useMotionTemplate`rotateX(${mouseY}deg) rotateY(${mouseX}deg)`;
@@ -47,20 +46,20 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
         ref={boundingRef}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        initial={{ opacity: 0, y: 20 }}
+        initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+        transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
         style={{
-          transform,
-          transformStyle: 'preserve-3d',
+          transform: reduceMotion ? undefined : transform,
+          transformStyle: reduceMotion ? 'flat' : 'preserve-3d',
           backgroundColor: '#0A3D91',
           fontFamily: '"Open Runde", sans-serif'
         }}
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
+        whileHover={reduceMotion ? { filter: 'brightness(1.03)' } : { scale: 1.02 }}
+        whileTap={reduceMotion ? { scale: 0.99 } : { scale: 0.98 }}
         onClick={() => !isDemo && navigate(`/verify/${user.memberId || user.id}`)}
         className={clsx(
-          "relative w-[300px] aspect-[1/1.5] rounded-lg p-5 flex flex-col items-center overflow-hidden shadow-2xl shadow-blue-900/40 border border-blue-400/20",
+          "relative w-[300px] aspect-[1/1.5] rounded-[6px] p-5 flex flex-col items-center overflow-hidden shadow-2xl shadow-blue-900/40 border border-blue-400/20 transition-[filter,box-shadow] duration-200 ease-out",
           !isDemo ? "cursor-pointer" : "cursor-default"
         )}
       >
@@ -68,14 +67,6 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
         <div className="absolute inset-0 opacity-[0.04] mix-blend-overlay pointer-events-none"
           style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")' }}>
         </div>
-
-
-
-
-
-
-
-
 
         {/* Advanced Security Pattern (High-Density Banknote Guilloche) */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.35]" xmlns="http://www.w3.org/2000/svg">
@@ -125,11 +116,11 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
           <rect width="100%" height="100%" fill="url(#wavyGuilloche)" />
 
           {/* Wavy Inner Frame */}
-          <rect x="10" y="10" width="280" height="430" rx="10" fill="none" stroke="url(#guillocheGradient)" strokeWidth="0.5" strokeDasharray="2,2" opacity="0.2" />
+          <rect x="10" y="10" width="280" height="430" rx="6" fill="none" stroke="url(#guillocheGradient)" strokeWidth="0.5" strokeDasharray="2,2" opacity="0.2" />
           {Array.from({ length: 3 }).map((_, i) => (
             <rect
               key={`frame-${i}`}
-              x={12 + i * 1.5} y={12 + i * 1.5} width={276 - i * 3} height={426 - i * 3} rx={8}
+              x={12 + i * 1.5} y={12 + i * 1.5} width={276 - i * 3} height={426 - i * 3} rx={6}
               fill="none" stroke="url(#guillocheGradient)" strokeWidth="0.1" opacity={0.3 - i * 0.05}
             />
           ))}
@@ -197,24 +188,22 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
           </text>
         </svg>
 
-
-
-
-
         {/* Hologram Effect - Bottom Right */}
         <div className="absolute bottom-6 right-6 w-12 h-12 rounded-full overflow-hidden pointer-events-none z-30 shadow-[0_0_10px_rgba(255,255,255,0.05)] border border-white/20"
-          style={{ transform: 'translateZ(40px)' }}>
+          style={{ transform: reduceMotion ? undefined : 'translateZ(40px)' }}>
           {/* Base silver layer - More transparent */}
           <div className="absolute inset-0 rounded-full bg-gradient-to-br from-gray-100/40 via-gray-300/20 to-gray-500/40 backdrop-blur-[1px]" />
 
-          {/* Rainbow shimmer animation - More subtle */}
-          <div className="absolute inset-0 rounded-full opacity-30 animate-spin-slow"
-            style={{
-              background: `conic-gradient(from 0deg, #ff0096, #00ffff, #ffff00, #ff0096)`,
-              filter: "blur(10px)",
-              mixBlendMode: "screen"
-            }}
-          />
+          {/* Rainbow shimmer animation - More subtle (single animated layer) */}
+          {!reduceMotion && (
+            <div className="absolute inset-0 rounded-full opacity-30 animate-spin-slow"
+              style={{
+                background: `conic-gradient(from 0deg, #ff0096, #00ffff, #ffff00, #ff0096)`,
+                filter: "blur(10px)",
+                mixBlendMode: "screen"
+              }}
+            />
+          )}
 
           {/* Micro-Interference Mesh (Synced with Background) */}
           <div className="absolute inset-0 opacity-[0.3]">
@@ -242,29 +231,16 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
                 </pattern>
               </defs>
               <rect width="100%" height="100%" fill="url(#microInterference)" />
-              {/* Rotating layer for dynamic holographic shimmer */}
-              <rect width="100%" height="100%" fill="url(#microInterference)" className="animate-spin-slow" style={{ animationDuration: '40s', opacity: 0.5 }} />
             </svg>
           </div>
 
           {/* Centered Logo from logo.svg - More transparent */}
           <div className="absolute inset-0 flex items-center justify-center p-2.5">
             <img
-              src="/logo.svg"
+              src="/logo.svg" onError={(e)=>{const t=e.currentTarget;t.onerror=null;t.src='https://assets.bettergov.ph/logos/webp/icon-primary.webp';}}
               alt="BetterGov Logo"
               className="w-full h-full object-contain filter brightness-0 invert opacity-60 mix-blend-plus-lighter"
             />
-          </div>
-
-          {/* Microtext ring - More subtle */}
-          <div className="absolute inset-0 rounded-full flex items-center justify-center">
-            <svg viewBox="0 0 100 100" className="w-full h-full animate-spin-slow opacity-20" style={{ animationDuration: '20s' }}>
-              <path id="holoCircle" d="M 50, 50 m -45, 0 a 45,45 0 1,1 90,0 a 45,45 0 1,1 -90,0" fill="transparent" />
-              <text className="text-[4px] font-bold fill-white uppercase tracking-[0.2em]">
-                <textPath xlinkHref="#holoCircle">
-                  • BETTERGOVPH VERIFIED IDENTITY • OFFICIAL SECURITY HOLOGRAM • AUTHENTIC COMMUNITY ACCESS • TAMPER-PROTECTED VALIDATION •                </textPath>
-              </text>
-            </svg>
           </div>
 
           {/* High-gloss shine effect */}
@@ -272,7 +248,7 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
         </div>
 
         {/* Header - Government Format */}
-        <div className="relative z-10 flex flex-col items-center w-full" style={{ transform: 'translateZ(10px)' }}>
+        <div className="relative z-10 flex flex-col items-center w-full" style={{ transform: reduceMotion ? undefined : 'translateZ(10px)' }}>
           <div className="h-12 w-12 mb-2">
             <svg id="Design" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" className="w-full h-full fill-white" preserveAspectRatio="xMidYMid meet">
               <path d="M156,730.55a14.49,14.49,0,0,0,6.12-4.75,13.69,13.69,0,0,0,2.56-6.55,14.34,14.34,0,0,0-.92-6.94l.53-.24a14.79,14.79,0,0,0,7.34,5.61,12.19,12.19,0,0,0,9.09-.58,13.48,13.48,0,0,0,8-9.16q1.76-6.42-2.32-15.68l-10.09-22.9-54.93,24.18,10.85,24.65a26.49,26.49,0,0,0,6.56,9.47,16.56,16.56,0,0,0,8.34,4.11A15.6,15.6,0,0,0,156,730.55Zm15.6-43.28,3.32,7.57a8.89,8.89,0,0,1,.74,6,5.78,5.78,0,0,1-3.47,3.87,5.87,5.87,0,0,1-5.43-.11,9.33,9.33,0,0,1-4-4.66l-3.24-7.35Zm-30.08,23-3.61-8.21L151,696.34l3.72,8.45a9.83,9.83,0,0,1,.77,6.82,6.87,6.87,0,0,1-4.06,4.4,6,6,0,0,1-5.47,0Q143.46,714.63,141.55,710.31Z" />
@@ -297,10 +273,10 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
         </div>
 
         {/* Decorative Divider */}
-        <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-blue-300/30 to-transparent my-2 relative z-10" style={{ transform: 'translateZ(5px)' }} />
+        <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-blue-300/30 to-transparent my-2 relative z-10" style={{ transform: reduceMotion ? undefined : 'translateZ(5px)' }} />
 
         {/* Identity Details */}
-        <div className="relative z-10 flex flex-col items-center w-full text-center px-4" style={{ transform: 'translateZ(15px)' }}>
+        <div className="relative z-10 flex flex-col items-center w-full text-center px-4" style={{ transform: reduceMotion ? undefined : 'translateZ(15px)' }}>
           <div className="px-3 py-1 bg-blue-400/10 border border-blue-400/20 rounded-full text-blue-200 text-[8px] font-bold tracking-[0.2em] uppercase mb-2 backdrop-blur-sm shadow-sm">
             VOLUNTEERS COMMUNITY CARD
           </div>
@@ -326,7 +302,7 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
         </div>
 
         {/* Data Grid / Information Box */}
-        <div className="relative z-10 w-full mt-auto mb-2 bg-blue-900/40 backdrop-blur-md rounded-lg p-3 border border-blue-400/10 shadow-inner" style={{ transform: 'translateZ(10px)' }}>
+        <div className="relative z-10 w-full mt-auto mb-2 bg-blue-900/40 backdrop-blur-md rounded-[6px] p-3 border border-blue-400/10 shadow-inner" style={{ transform: reduceMotion ? undefined : 'translateZ(10px)' }}>
           <div className="flex flex-col space-y-2">
             <div className="flex justify-between items-center border-b border-blue-400/10 pb-1.5">
               <span className="text-blue-200/80 text-[9px] font-mono tracking-widest uppercase">Specialization</span>
@@ -344,7 +320,7 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
         </div>
 
         {/* Footer / QR Code */}
-        <div className="relative z-10 mt-auto flex flex-col items-center w-full" style={{ transform: 'translateZ(20px)' }}>
+        <div className="relative z-10 mt-auto flex flex-col items-center w-full" style={{ transform: reduceMotion ? undefined : 'translateZ(20px)' }}>
           <div className="mb-1">
             <QRCodeSVG
               value={publicUrl}
