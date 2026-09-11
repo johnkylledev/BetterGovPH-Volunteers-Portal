@@ -161,23 +161,18 @@ export async function fetchRepoContributions(repo: GithubRepo, token: string): P
     fetchPrsAndReviews(repo.owner, repo.name, token),
     fetchIssues(repo.owner, repo.name, token),
   ]);
-  for (const l of commits) upsert(l, { commits: 1, repos: [repoSlug] });
-  // accumulate commits per login rather than resetting
   const commitBuckets = new Map<string, number>();
   for (const l of commits) commitBuckets.set(l, (commitBuckets.get(l) ?? 0) + 1);
-  for (const [login, count] of commitBuckets) { const cur = map.get(login)!; cur.commits = count; map.set(login, cur); }
-  for (const l of prLogins) upsert(l, { prs: 1, repos: [repoSlug] });
+  for (const [login, count] of commitBuckets) upsert(login, { commits: count, repos: [repoSlug] });
   const prBuckets = new Map<string, number>();
   for (const l of prLogins) prBuckets.set(l, (prBuckets.get(l) ?? 0) + 1);
-  for (const [login, count] of prBuckets) { const cur = map.get(login)!; cur.prs = count; map.set(login, cur); }
-  for (const l of reviewLogins) upsert(l, { reviews: 1, repos: [repoSlug] });
+  for (const [login, count] of prBuckets) upsert(login, { prs: count, repos: [repoSlug] });
   const rvBuckets = new Map<string, number>();
   for (const l of reviewLogins) rvBuckets.set(l, (rvBuckets.get(l) ?? 0) + 1);
-  for (const [login, count] of rvBuckets) { const cur = map.get(login)!; cur.reviews = count; map.set(login, cur); }
-  for (const l of issues) upsert(l, { issues: 1, repos: [repoSlug] });
+  for (const [login, count] of rvBuckets) upsert(login, { reviews: count, repos: [repoSlug] });
   const isBuckets = new Map<string, number>();
   for (const l of issues) isBuckets.set(l, (isBuckets.get(l) ?? 0) + 1);
-  for (const [login, count] of isBuckets) { const cur = map.get(login)!; cur.issues = count; map.set(login, cur); }
+  for (const [login, count] of isBuckets) upsert(login, { issues: count, repos: [repoSlug] });
   return map;
 }
 
