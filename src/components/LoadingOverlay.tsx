@@ -1,15 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { motion, useReducedMotion, type Target, type Transition } from 'framer-motion';
-import { Shield } from 'lucide-react';
 
 export const LoadingOverlay = () => {
-  const [logoFailed, setLogoFailed] = useState(false);
   const reduce = useReducedMotion();
-
-  useEffect(() => {
-    const t = setTimeout(() => setLogoFailed(true), 800);
-    return () => clearTimeout(t);
-  }, []);
 
   const dotAnim: Target | undefined = reduce
     ? { opacity: 0.55 }
@@ -24,33 +17,25 @@ export const LoadingOverlay = () => {
   return (
     <div className="fixed inset-0 bg-slate-50 z-[9999] flex items-center justify-center">
       <motion.div
-        initial={{ opacity: 0, y: 4 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0, transform: "translate3d(0px,4px,0)" }}
+        animate={{ opacity: 1, transform: "translate3d(0px,0px,0)" }}
         transition={{ duration: 0.32, ease: [0.23, 1, 0.32, 1] }}
         className="flex flex-col items-center"
       >
-        {logoFailed ? (
-          <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 flex items-center justify-center mb-7 sm:mb-8">
-            <Shield className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 text-blue-900" strokeWidth={1.5} />
-          </div>
-        ) : (
-          <img
-            src="/favicon.svg"
-            alt="BetterGovPH"
-            loading="eager"
-            decoding="async"
-            className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 object-contain mb-7 sm:mb-8 drop-shadow-[0_6px_18px_rgba(30,58,138,0.12)]"
-            onError={(e) => {
-              const el = e.currentTarget;
-              if (el.src.includes('/favicon.svg')) {
-                el.onerror = null;
-                el.src = 'https://assets.bettergov.ph/logos/webp/icon-primary.webp';
-              } else {
-                setLogoFailed(true);
-              }
-            }}
-          />
-        )}
+        <img
+          src="/favicon.svg"
+          alt="BetterGovPH"
+          loading="eager"
+          decoding="async"
+          className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 object-contain mb-7 sm:mb-8 drop-shadow-[0_6px_18px_rgba(30,58,138,0.12)]"
+          onError={(e) => {
+            const el = e.currentTarget;
+            if (el.src.includes('/favicon.svg')) {
+              el.onerror = null;
+              el.src = 'https://assets.bettergov.ph/logos/webp/icon-primary.webp';
+            }
+          }}
+        />
 
         <div className="flex items-center gap-1.5">
           {[0, 1, 2].map((i) => (
