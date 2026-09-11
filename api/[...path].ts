@@ -1,50 +1,21 @@
-type Handler = (req: any, res: any) => Promise<void> | void;
-
-const HANDLER_PATHS: Record<string, string> = {
-  '/me': './_handlers/me',
-  '/admin': './_handlers/admin',
-  '/projects': './_handlers/projects',
-  '/submit-project': './_handlers/submit-project',
-  '/my-project-submissions': './_handlers/my-project-submissions',
-  '/volunteer-calls': './_handlers/volunteer-calls',
-  '/verify': './_handlers/verify',
-  '/discord': './_handlers/discord',
-  '/discord-username-taken': './_handlers/discord-username-taken',
-  '/contribution-scores': './_handlers/contribution-scores',
-};
-
-let handlerCache: Map<string, Handler> | null = null;
-
-const getHandlerCache = () => {
-  if (!handlerCache) handlerCache = new Map<string, Handler>();
-  return handlerCache;
-};
-
-const loadHandler = async (key: string, importPath: string): Promise<Handler> => {
-  const cache = getHandlerCache();
-  const cached = cache.get(key);
-  if (cached) return cached;
-  try {
-    const mod = await import(/* @vite-ignore */ importPath);
-    const fn: Handler =
-      typeof mod.default === 'function'
-        ? mod.default
-        : typeof mod.handler === 'function'
-          ? mod.handler
-          : null;
-    if (!fn) throw new Error(`Handler ${key} has no default export`);
-    cache.set(key, fn);
-    return fn;
-  } catch (err) {
-    console.error('[API][import-error]', { key, importPath, error: err });
-    throw err;
-  }
-};
+import meHandler from './_handlers/me';
+import adminHandler from './_handlers/admin';
+import projectsHandler from './_handlers/projects';
+import submitProjectHandler from './_handlers/submit-project';
+import myProjectSubmissionsHandler from './_handlers/my-project-submissions';
+import volunteerCallsHandler from './_handlers/volunteer-calls';
+import verifyHandler from './_handlers/verify';
+import discordHandler from './_handlers/discord';
+import discordUsernameTakenHandler from './_handlers/discord-username-taken';
+import contributionScoresHandler from './_handlers/contribution-scores';
 
 const API_VERSION = '1.0.0';
 
+let bootFailure: string | null = null;
+
 const sendJson = (res: any, statusCode: number, body: Record<string, unknown>) => {
   try {
+    if (!res) return;
     if (res.headersSent || res.writableEnded) return;
     res.statusCode = statusCode;
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -56,11 +27,11 @@ const sendJson = (res: any, statusCode: number, body: Record<string, unknown>) =
     res.end(JSON.stringify(body));
   } catch {
     try {
-      if (!res.headersSent) {
+      if (res && !res.headersSent) {
         res.statusCode = 500;
         res.setHeader('Content-Type', 'application/json');
         res.end(JSON.stringify({ error: 'Response write failed' }));
-      } else if (!res.writableEnded) {
+      } else if (res && !res.writableEnded) {
         res.end();
       }
     } catch {
@@ -71,6 +42,31 @@ const sendJson = (res: any, statusCode: number, body: Record<string, unknown>) =
 
 const sendError = (res: any, statusCode: number, message: string) =>
   sendJson(res, statusCode, { error: message });
+
+const errorToString = (err: unknown): string => {
+  if (typeof err === 'string') return err;
+  if (err && typeof err === 'object' && 'message' in err && typeof (err as any).message === 'string') {
+    return String((err as any).message);
+  }
+  return 'Internal server error';
+};
+
+try {
+  if (typeof process !== 'undefined' && typeof (process as any).on === 'function') {
+    try {
+      (process as any).on('unhandledRejection', (reason: unknown) => {
+        console.error('[API][unhandled-rejection]', reason);
+      });
+      (process as any).on('uncaughtException', (err: unknown) => {
+        console.error('[API][uncaught-exception]', err);
+      });
+    } catch {
+      // no-op
+    }
+  }
+} catch (err) {
+  bootFailure = errorToString(err);
+}
 
 const normalizePath = (req: any): string => {
   try {
@@ -102,72 +98,23 @@ const normalizePath = (req: any): string => {
   }
 };
 
-const route = async (req: any, res: any, pathname: string) => {
-  if (pathname === '/me' || pathname === '/') {
-    return loadHandler('/me', HANDLER_PATHS['/me']).then((h) => h(req, res));
+const callHandler = async (name: string, fn: any, req: any, res: any) => {
+  if (!fn) {
+    sendError(res, 500, `Handler ${name} failed to load`);
+    return;
   }
-  if (pathname === '/admin') {
-    return loadHandler('/admin', HANDLER_PATHS['/admin']).then((h) => h(req, res));
+  try {
+    await fn(req, res);
+  } catch (err) {
+    console.error('[API][handler-error]', { name, error: err });
+    sendError(res, 500, errorToString(err));
   }
-  if (pathname === '/projects') {
-    return loadHandler('/projects', HANDLER_PATHS['/projects']).then((h) => h(req, res));
-  }
-  if (pathname === '/submit-project') {
-    return loadHandler('/submit-project', HANDLER_PATHS['/submit-project']).then((h) => h(req, res));
-  }
-  if (pathname === '/my-project-submissions') {
-    return loadHandler('/my-project-submissions', HANDLER_PATHS['/my-project-submissions']).then((h) => h(req, res));
-  }
-  if (pathname === '/volunteer-calls' || pathname.startsWith('/volunteer-calls/')) {
-    return loadHandler('/volunteer-calls', HANDLER_PATHS['/volunteer-calls']).then((h) => h(req, res));
-  }
-
-  if (pathname.startsWith('/verify')) {
-    const parts = pathname.split('/verify/').filter(Boolean);
-    if (parts.length > 0) {
-      if (!req.query) req.query = {};
-      req.query.id = parts[0];
-      req.query.memberId = parts[0];
-    }
-    return loadHandler('/verify', HANDLER_PATHS['/verify']).then((h) => h(req, res));
-  }
-
-  if (pathname === '/discord') {
-    return loadHandler('/discord', HANDLER_PATHS['/discord']).then((h) => h(req, res));
-  }
-  if (pathname === '/discord-username-taken') {
-    return loadHandler('/discord-username-taken', HANDLER_PATHS['/discord-username-taken']).then((h) => h(req, res));
-  }
-  if (pathname === '/contribution-scores') {
-    return loadHandler('/contribution-scores', HANDLER_PATHS['/contribution-scores']).then((h) => h(req, res));
-  }
-
-  sendError(res, 404, 'API endpoint not found');
 };
-
-let bootError: string | null = null;
-
-try {
-  if (typeof process !== 'undefined' && typeof (process as any).on === 'function') {
-    try {
-      (process as any).on('unhandledRejection', (reason: unknown) => {
-        console.error('[API][unhandled-rejection]', reason);
-      });
-      (process as any).on('uncaughtException', (err: unknown) => {
-        console.error('[API][uncaught-exception]', err);
-      });
-    } catch {
-      // no-op
-    }
-  }
-} catch {
-  bootError = 'Boot hook init failed';
-}
 
 async function handleRequest(req: any, res: any) {
   try {
-    if (bootError) {
-      sendError(res, 500, bootError);
+    if (bootFailure) {
+      sendError(res, 500, bootFailure);
       return;
     }
 
@@ -181,24 +128,40 @@ async function handleRequest(req: any, res: any) {
     }
 
     if (req.method === 'OPTIONS') {
-      try {
-        res.statusCode = 204;
-        res.end();
-      } catch {
-        // no-op
-      }
+      try { res.statusCode = 204; res.end(); } catch { /* no-op */ }
       return;
     }
 
     const pathname = normalizePath(req);
-    await route(req, res, pathname);
-  } catch (err: unknown) {
-    const msg =
-      err && typeof err === 'object' && 'message' in err && typeof (err as any).message === 'string'
-        ? String((err as any).message)
-        : 'Internal server error';
-    console.error('[API][route-error]', { path: req.url, error: err });
-    sendError(res, 500, msg);
+
+    if (pathname === '/me' || pathname === '/') return callHandler('/me', meHandler, req, res);
+    if (pathname === '/admin') return callHandler('/admin', adminHandler, req, res);
+    if (pathname === '/projects') return callHandler('/projects', projectsHandler, req, res);
+    if (pathname === '/submit-project') return callHandler('/submit-project', submitProjectHandler, req, res);
+    if (pathname === '/my-project-submissions') return callHandler('/my-project-submissions', myProjectSubmissionsHandler, req, res);
+
+    if (pathname === '/volunteer-calls' || pathname.startsWith('/volunteer-calls/')) {
+      return callHandler('/volunteer-calls', volunteerCallsHandler, req, res);
+    }
+
+    if (pathname.startsWith('/verify')) {
+      const parts = pathname.split('/verify/').filter(Boolean);
+      if (parts.length > 0) {
+        if (!req.query) req.query = {};
+        req.query.id = parts[0];
+        req.query.memberId = parts[0];
+      }
+      return callHandler('/verify', verifyHandler, req, res);
+    }
+
+    if (pathname === '/discord') return callHandler('/discord', discordHandler, req, res);
+    if (pathname === '/discord-username-taken') return callHandler('/discord-username-taken', discordUsernameTakenHandler, req, res);
+    if (pathname === '/contribution-scores') return callHandler('/contribution-scores', contributionScoresHandler, req, res);
+
+    sendError(res, 404, 'API endpoint not found');
+  } catch (err) {
+    console.error('[API][request-error]', { path: req.url, error: err });
+    sendError(res, 500, errorToString(err));
   }
 }
 
