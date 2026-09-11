@@ -5,7 +5,7 @@ import {
   fetchRepoContributions,
   getContributionScores,
   type ExternalProject,
-} from '../../api/_lib/contributionScoring.ts';
+} from '../../api/_lib/contributionScoring';
 
 const token = process.env.GITHUB_TOKEN ?? '';
 

@@ -1,8 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import {
-  fetchProjects, extractRepos, fetchRepoContributions, aggregateContributions,
-  scoreContributors, getContributionScores,
-} from './_lib/contributionScoring.ts';
+import { getContributionScores } from './_lib/contributionScoring';
 
 let _crypto: any = null;
 let _cryptoInit = false;
