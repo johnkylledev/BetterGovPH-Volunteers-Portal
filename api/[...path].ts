@@ -1,13 +1,13 @@
-import meHandler from './handlers/me';
-import adminHandler from './handlers/admin';
-import projectsHandler from './handlers/projects';
-import submitProjectHandler from './handlers/submit-project';
-import myProjectSubmissionsHandler from './handlers/my-project-submissions';
-import volunteerCallsHandler from './handlers/volunteer-calls';
-import verifyHandler from './handlers/verify';
-import discordHandler from './handlers/discord';
-import discordUsernameTakenHandler from './handlers/discord-username-taken';
-import contributionScoresHandler from './handlers/contribution-scores';
+import meHandler from './_handlers/me';
+import adminHandler from './_handlers/admin';
+import projectsHandler from './_handlers/projects';
+import submitProjectHandler from './_handlers/submit-project';
+import myProjectSubmissionsHandler from './_handlers/my-project-submissions';
+import volunteerCallsHandler from './_handlers/volunteer-calls';
+import verifyHandler from './_handlers/verify';
+import discordHandler from './_handlers/discord';
+import discordUsernameTakenHandler from './_handlers/discord-username-taken';
+import contributionScoresHandler from './_handlers/contribution-scores';
 
 export default async function handler(req: any, res: any) {
   // Always set API version and CORS headers

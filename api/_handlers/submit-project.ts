@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { createClient } from '@supabase/supabase-js';
-import { invalidateCache } from '../lib/redis';
+import { invalidateCache } from '../_lib/redis';
 
 const getSupabaseConfig = () => {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
