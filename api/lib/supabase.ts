@@ -25,7 +25,14 @@ export const getBearerToken = (authorizationHeader: unknown) => {
 };
 
 export const getBody = (req: any) => {
-  const body = req.body ?? {};
+  let body = req.body ?? {};
+  if (Buffer.isBuffer(body)) {
+    try {
+      body = body.toString('utf-8');
+    } catch {
+      body = {};
+    }
+  }
   if (typeof body === 'string') {
     try {
       return JSON.parse(body);
@@ -33,7 +40,7 @@ export const getBody = (req: any) => {
       return {};
     }
   }
-  return body;
+  return body || {};
 };
 
 export const getStringParam = (value: unknown) => {

@@ -10,7 +10,7 @@ import clsx from 'clsx';
 import { User, ApplicationStatus, ProjectSubmission } from '../../types';
 import { deleteProjectSubmission, editProjectSubmission, getAllUsers, getAdminStats, getProjectSubmissions, updateProjectSubmission, supabase } from '../../services/supabase';
 import * as XLSX from 'xlsx-js-style';
-import { skillToSlug } from '../../utils/skillUtils';
+import { SkillIcon } from '../../components/SkillIcon';
 import { SPECIALIZATIONS } from '../../constants/specializations';
 
 export default function AdminDashboard() {
@@ -1265,14 +1265,9 @@ export default function AdminDashboard() {
                         <div className="flex flex-wrap gap-2">
                           {Array.isArray(selectedMember.skills) && selectedMember.skills.length > 0 ? (
                             selectedMember.skills.map((skill, i) => (
-                              <div key={i} className="flex items-center gap-1.5 pl-1.5 pr-3 py-1 bg-white border border-slate-200 rounded-md shadow-sm group">
-                                <div className="w-6 h-6 rounded bg-slate-50 flex items-center justify-center border border-slate-100">
-                                  <img
-                                    src={`https://cdn.simpleicons.org/${skillToSlug(skill.name)}`}
-                                    className="w-3.5 h-3.5 object-contain"
-                                    alt=""
-                                    onError={(e) => (e.target as HTMLImageElement).style.display = 'none'}
-                                  />
+                              <div key={i} className="flex items-center gap-1.5 pl-1.5 pr-3 py-1 bg-white border border-slate-200 rounded-[6px] shadow-sm group">
+                                <div className="w-6 h-6 rounded-[6px] bg-slate-50 flex items-center justify-center border border-slate-100">
+                                  <SkillIcon skillName={skill.name} size={12} />
                                 </div>
                                 <span className="text-xs font-semibold text-slate-800">{skill.name}</span>
                                 <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-400">{skill.level}</span>

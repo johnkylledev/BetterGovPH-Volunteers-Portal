@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 import './index.css'
+import { Toaster } from 'sonner'
 
 console.log(
   `%c
@@ -56,6 +57,21 @@ console.log(
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
+    <Toaster
+      theme="light"
+      richColors
+      position="top-right"
+      duration={2800}
+      closeButton
+      toastOptions={{
+        classNames: {
+          toast: '!rounded-[6px] !shadow-lg',
+          closeButton: '!rounded-[6px]',
+          actionButton: '!rounded-[6px] !bg-blue-900',
+          cancelButton: '!rounded-[6px]',
+        },
+      }}
+    />
     <App />
   </StrictMode>,
 )

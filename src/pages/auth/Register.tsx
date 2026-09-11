@@ -5,8 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { Calendar, ChevronDown, Check, MessageSquare, Home, ArrowRight, ArrowLeft, User, Mail, Lock, Briefcase, Users, ShieldCheck, Loader2, AlertCircle, CheckCircle2, Clock, Search, Plus, X, BookOpen, Wrench, GraduationCap, Brain, Code, Palette, Database, Globe, Cpu, Layers, Server, Smartphone, Zap, Target, BadgeCheck, Link2, Github } from 'lucide-react';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
+import { SkillIcon } from '../../components/SkillIcon';
 import { SkillLevel, ExperienceLevel, UserSkill } from '../../types';
-import { skillToSlug } from '../../utils/skillUtils';
 import { SPECIALIZATIONS, Specialization } from '../../constants/specializations';
 import { SKILL_CATEGORIES, SkillCategory } from '../../constants/skills';
 import { createOrUpdateUserRecord, getUserData, signInWithGoogle, supabase, connectDiscord, getDiscordStatus } from '../../services/supabase';
@@ -512,7 +512,6 @@ function LegacyRegister() {
     const renderSkillItem = (skill: string, sectionContext: string = 'default') => {
         const selectedSkill = formData.skills.find(s => s.name === skill);
         const isSelected = !!selectedSkill;
-        const skillSlug = skillToSlug(skill);
 
         return (
             <motion.div
@@ -532,26 +531,8 @@ function LegacyRegister() {
                             ? "bg-blue-900 text-white shadow-sm"
                             : "bg-blue-50 text-blue-600 group-hover:bg-blue-100 group-hover:text-blue-700"
                     )}>
-                        <div className="relative w-3.5 h-3.5 sm:w-4 sm:h-4 flex items-center justify-center">
-                            {skillSlug ? (
-                                <img
-                                    key={`activeLevel-${sectionContext}-${skill}`}
-                                    src={`https://cdn.simpleicons.org/${skillSlug}`}
-                                    className={clsx(
-                                        "w-full h-full object-contain transition-all duration-300",
-                                        isSelected ? "brightness-0 invert" : ""
-                                    )}
-                                    alt=""
-                                    onError={(e) => {
-                                        (e.target as HTMLImageElement).style.display = 'none';
-                                        const fallback = (e.target as HTMLImageElement).nextElementSibling;
-                                        if (fallback) (fallback as HTMLElement).style.display = 'flex';
-                                    }}
-                                />
-                            ) : null}
-                            <div style={{ display: skillSlug ? 'none' : 'flex' }} className="absolute inset-0 items-center justify-center fallback-icon">
-                                {getSkillFallbackIcon(skill)}
-                            </div>
+                        <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex items-center justify-center">
+                            <SkillIcon skillName={skill} size={14} invert={isSelected} />
                         </div>
                     </div>
 
@@ -1338,22 +1319,8 @@ function LegacyRegister() {
                                                                 className="flex items-center gap-1.5 pl-2 pr-1 py-1.5 bg-white border border-slate-200 rounded-[6px] shadow-sm hover:border-blue-300 hover:shadow-md transition-all group"
                                                             >
                                                                 <div className="w-5 h-5 rounded-md bg-blue-50 flex items-center justify-center shrink-0">
-                                                                    <div className="relative w-3 h-3 flex items-center justify-center">
-                                                                        {skillToSlug(skill.name) ? (
-                                                                            <img
-                                                                                src={`https://cdn.simpleicons.org/${skillToSlug(skill.name)}`}
-                                                                                className="w-full h-full object-contain"
-                                                                                alt=""
-                                                                                onError={(e) => {
-                                                                                    (e.target as HTMLImageElement).style.display = 'none';
-                                                                                    const fallback = (e.target as HTMLImageElement).nextElementSibling;
-                                                                                    if (fallback) (fallback as HTMLElement).style.display = 'flex';
-                                                                                }}
-                                                                            />
-                                                                        ) : null}
-                                                                        <div style={{ display: skillToSlug(skill.name) ? 'none' : 'flex' }} className="absolute inset-0 items-center justify-center">
-                                                                            {getSkillFallbackIcon(skill.name)}
-                                                                        </div>
+                                                                    <div className="w-3 h-3 flex items-center justify-center">
+                                                                        <SkillIcon skillName={skill.name} size={12} />
                                                                     </div>
                                                                 </div>
                                                                 <span className="text-xs font-bold text-slate-700">{skill.name}</span>
