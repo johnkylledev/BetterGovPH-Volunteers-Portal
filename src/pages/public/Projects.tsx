@@ -68,7 +68,7 @@ export default function Projects() {
           </div>
           <Link
             to="/"
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[6px] border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 text-xs font-semibold transition-all w-full sm:w-auto sm:self-start"
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[6px] border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 text-xs font-semibold transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out w-full sm:w-auto sm:self-start"
           >
             <Home size={14} />
             Back to Home
@@ -103,14 +103,14 @@ export default function Projects() {
                     href={p.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="group bg-white border border-slate-200 rounded-[6px] p-4 sm:p-5 hover:border-blue-300 hover:shadow-md transition-all duration-200 flex flex-col"
+                    className="group bg-white border border-slate-200 rounded-[6px] p-4 sm:p-5 hover:border-blue-300 hover:shadow-md transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out flex flex-col"
                   >
                     <div className="flex items-start justify-between gap-2.5 sm:gap-3 mb-3 sm:mb-4">
                       <div className="min-w-0 flex-grow">
                         <p className="text-sm sm:text-base font-bold text-slate-900 truncate">{p.title}</p>
                         <p className="mt-0.5 sm:mt-1 text-[11px] sm:text-xs text-slate-500 break-all leading-tight">{p.url}</p>
                       </div>
-                      <div className="p-2 rounded-[6px] bg-slate-50 border border-slate-200 text-slate-500 group-hover:text-blue-700 group-hover:bg-blue-50 group-hover:border-blue-200 transition-all flex-shrink-0">
+                      <div className="p-2 rounded-[6px] bg-slate-50 border border-slate-200 text-slate-500 group-hover:text-blue-700 group-hover:bg-blue-50 group-hover:border-blue-200 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out flex-shrink-0">
                         <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </div>
                     </div>

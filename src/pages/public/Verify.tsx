@@ -188,7 +188,7 @@ export default function Verify() {
             className="flex items-center gap-2.5 sm:gap-3"
           >
             <img
-              src="https://assets.bettergov.ph/logos/webp/icon-primary.webp"
+              src="/logo.svg" onError={(e)=>{const t=e.currentTarget;t.onerror=null;t.src='https://assets.bettergov.ph/logos/webp/icon-primary.webp';}}
               alt="BetterGovPH"
               className="w-7 h-7 sm:w-8 sm:h-8 object-contain drop-shadow-[0_6px_18px_rgba(30,58,138,0.12)]"
             />
@@ -258,7 +258,7 @@ export default function Verify() {
             >
               <div className="w-full flex justify-center px-2 sm:px-4">
                 <div ref={cardRef} className={clsx(
-                  "transition-all duration-500",
+                  "transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out",
                   !isValid && "opacity-50 grayscale blur-[1px] pointer-events-none"
                 )}>
                   <AccessCard user={userData} />
@@ -269,7 +269,7 @@ export default function Verify() {
                 <div className="w-full flex flex-col gap-2.5 sm:gap-3 px-2 sm:px-0">
                   <button
                     onClick={handleCopyLink}
-                    className="group relative flex w-full items-center justify-center gap-2 sm:gap-2.5 rounded-[6px] bg-blue-900 px-4 sm:px-5 py-3 sm:py-3.5 text-xs sm:text-sm font-bold text-white shadow-[0_10px_24px_-14px_rgba(30,58,138,0.5)] [@media(hover:hover){&:hover}]:bg-blue-800 [@media(hover:hover){&:hover}]:shadow-[0_14px_30px_-14px_rgba(30,58,138,0.55)] focus:outline-none focus:ring-4 focus:ring-blue-900/15 transition-[transform,box-shadow,background-color] duration-200 ease-out active:scale-[0.98]"
+                    className="group relative flex w-full items-center justify-center gap-2 sm:gap-2.5 rounded-[6px] bg-blue-900 px-4 sm:px-5 py-3 sm:py-3.5 text-xs sm:text-sm font-bold text-white shadow-[0_10px_24px_-14px_rgba(30,58,138,0.5)] [@media(hover:hover){&:hover}]:bg-blue-800 [@media(hover:hover){&:hover}]:shadow-[0_14px_30px_-14px_rgba(30,58,138,0.55)] focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 transition-[transform,box-shadow,background-color] duration-200 ease-out active:scale-[0.98]"
                   >
                     {copyStatus === 'copied' ? (
                       <><Check size={15} className="sm:hidden" /><Check size={16} className="hidden sm:inline-flex" /><span>Link Copied</span></>
@@ -367,7 +367,7 @@ export default function Verify() {
                   placeholder="Enter Member ID (e.g. BGPH-2026-001)"
                   value={searchId}
                   onChange={(e) => setSearchId(e.target.value.toUpperCase())}
-                  className="w-full pl-9 sm:pl-11 pr-10 sm:pr-11 py-3 sm:py-3.5 bg-white border border-slate-200 rounded-[6px] text-xs sm:text-sm focus:outline-none focus:ring-4 focus:ring-blue-900/12 focus:border-blue-900/30 transition-all uppercase placeholder:normal-case font-semibold shadow-[0_2px_8px_-4px_rgba(15,23,42,0.06)]"
+                  className="w-full pl-9 sm:pl-11 pr-10 sm:pr-11 py-3 sm:py-3.5 bg-white border border-slate-200 rounded-[6px] text-xs sm:text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out uppercase placeholder:normal-case font-semibold shadow-[0_2px_8px_-4px_rgba(15,23,42,0.06)]"
                 />
                 <div className="absolute right-3 sm:right-3.5 top-1/2 -translate-y-1/2">
                   {isSearching && <Loader2 size={14} className="text-blue-900 animate-spin" />}
@@ -395,7 +395,7 @@ export default function Verify() {
                     </div>
                     <button
                       onClick={() => navigate(`/verify/${searchResult.memberId}`)}
-                      className="inline-flex items-center gap-1.5 rounded-[6px] bg-slate-900 px-3 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-xs font-bold text-white shadow-[0_8px_20px_-10px_rgba(15,23,42,0.5)] [@media(hover:hover){&:hover}]:bg-slate-800 transition-colors active:scale-[0.98] ml-2 shrink-0"
+                      className="inline-flex items-center gap-1.5 rounded-[6px] bg-slate-900 px-3 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-xs font-bold text-white shadow-[0_8px_20px_-10px_rgba(15,23,42,0.5)] [@media(hover:hover){&:hover}]:bg-slate-800 transition-[color,background-color,border-color] duration-200 ease-out active:scale-[0.98] ml-2 shrink-0"
                     >
                       <span className="hidden sm:inline">View card</span>
                       <span className="sm:hidden">View</span>

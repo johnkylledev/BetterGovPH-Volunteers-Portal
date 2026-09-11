@@ -1,4 +1,6 @@
 import React from 'react';
+import { SkillIcon } from '../../components/SkillIcon';
+import { skillToSlug } from '../../utils/skillUtils';
 import {
   Code2,
   Palette,
@@ -134,11 +136,11 @@ const Contribute: React.FC = () => {
             >
               <button
                 onClick={() => navigate('/register')}
-                className="group inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-[6px] bg-blue-900 text-white font-bold text-sm hover:bg-blue-800 transition-all active:scale-[0.96] w-full sm:w-auto"
+                className="group inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-[6px] bg-blue-900 text-white font-bold text-sm hover:bg-blue-800 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.96] w-full sm:w-auto"
               >
                 <Users size={16} className="sm:hidden" />
                 <Users size={18} className="hidden sm:inline-block" />
-                Apply Now
+                Join Now
                 <ArrowRight size={14} className="sm:hidden group-hover:translate-x-0.5 transition-transform" />
                 <ArrowRight size={16} className="hidden sm:inline-block group-hover:translate-x-0.5 transition-transform" />
               </button>
@@ -146,7 +148,7 @@ const Contribute: React.FC = () => {
                 href={DISCORD_INVITE}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-[6px] border border-slate-300 bg-white text-slate-800 font-bold text-sm hover:border-slate-400 hover:bg-slate-50 transition-all active:scale-[0.96] w-full sm:w-auto"
+                className="group inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-[6px] border border-slate-300 bg-white text-slate-800 font-bold text-sm hover:border-slate-400 hover:bg-slate-50 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.96] w-full sm:w-auto"
               >
                 <MessageSquare size={16} className="sm:hidden" />
                 <MessageSquare size={18} className="hidden sm:inline-block" />
@@ -185,10 +187,10 @@ const Contribute: React.FC = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.06 }}
-                className="bg-white rounded-[6px] border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all duration-200 group p-5 flex flex-col cursor-pointer"
+                className="bg-white rounded-[6px] border border-slate-200 hover:border-blue-300 hover:shadow-md transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out group p-5 flex flex-col cursor-pointer"
               >
                 <div className="flex items-start justify-between mb-3 sm:mb-4">
-                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-[6px] bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-700 group-hover:bg-blue-900 group-hover:border-blue-900 group-hover:text-white transition-all">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-[6px] bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-700 group-hover:bg-blue-900 group-hover:border-blue-900 group-hover:text-white transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out">
                     {role.icon}
                   </div>
                   <span className="text-xs font-bold text-slate-300 uppercase tracking-widest">0{i + 1}</span>
@@ -202,11 +204,20 @@ const Contribute: React.FC = () => {
                   <div>
                     <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5 sm:mb-2">Skills</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {role.skills.map((skill, j) => (
-                        <span key={j} className="text-[11px] px-2 py-0.5 rounded-[4px] bg-slate-50 border border-slate-200 text-slate-600 font-semibold">
-                          {skill}
-                        </span>
-                      ))}
+                      {(() => {
+                        const seenSlugs = new Set<string>();
+                        return role.skills.map((skill, j) => {
+                          const slug = skillToSlug(skill);
+                          const isDuplicate = slug ? seenSlugs.has(slug) : false;
+                          if (slug) seenSlugs.add(slug);
+                          return (
+                            <span key={j} className="inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-[6px] bg-slate-50 border border-slate-200/80 text-slate-700 font-semibold shadow-xs">
+                              <SkillIcon skillName={skill} size={12} forceFallback={isDuplicate} />
+                              {skill}
+                            </span>
+                          );
+                        });
+                      })()}
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
@@ -243,7 +254,7 @@ const Contribute: React.FC = () => {
                 href={GITHUB_ORG}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-[6px] bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 transition-all active:scale-[0.96] group w-full sm:w-auto"
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-[6px] bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.96] group w-full sm:w-auto"
               >
                 <Github size={16} />
                 github.com/BetterGovPH
@@ -297,11 +308,11 @@ const Contribute: React.FC = () => {
             <div className="flex flex-col gap-2.5 sm:flex-row sm:gap-3">
               <button
                 onClick={() => navigate('/register')}
-                className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3.5 rounded-[6px] bg-white text-slate-900 font-bold text-sm hover:bg-blue-50 transition-all active:scale-[0.96] group w-full sm:w-auto"
+                className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3.5 rounded-[6px] bg-white text-slate-900 font-bold text-sm hover:bg-blue-50 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.96] group w-full sm:w-auto"
               >
                 <Users size={16} className="sm:hidden" />
                 <Users size={18} className="hidden sm:inline-block" />
-                Apply Now
+                Join Now
                 <ArrowRight size={14} className="sm:hidden group-hover:translate-x-0.5 transition-transform" />
                 <ArrowRight size={16} className="hidden sm:inline-block group-hover:translate-x-0.5 transition-transform" />
               </button>
@@ -309,7 +320,7 @@ const Contribute: React.FC = () => {
                 href={DISCORD_INVITE}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3.5 rounded-[6px] border border-white/20 text-white font-bold text-sm hover:bg-white/5 hover:border-white/35 transition-all active:scale-[0.96] w-full sm:w-auto"
+                className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3.5 rounded-[6px] border border-white/20 text-white font-bold text-sm hover:bg-white/5 hover:border-white/35 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.96] w-full sm:w-auto"
               >
                 <MessageSquare size={16} className="sm:hidden" />
                 <MessageSquare size={18} className="hidden sm:inline-block" />
@@ -319,7 +330,7 @@ const Contribute: React.FC = () => {
                 href={GITHUB_ORG}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3.5 rounded-[6px] border border-white/20 text-white font-bold text-sm hover:bg-white/5 hover:border-white/35 transition-all active:scale-[0.96] w-full sm:w-auto"
+                className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3.5 rounded-[6px] border border-white/20 text-white font-bold text-sm hover:bg-white/5 hover:border-white/35 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.96] w-full sm:w-auto"
               >
                 <Github size={16} className="sm:hidden" />
                 <Github size={18} className="hidden sm:inline-block" />
@@ -372,7 +383,7 @@ const Contribute: React.FC = () => {
               <h4 className="font-bold text-white mb-3 sm:mb-4 text-[10px] sm:text-xs uppercase tracking-wider">Portal</h4>
               <ul className="space-y-2 sm:space-y-2.5">
                 <li><button onClick={() => navigate('/login')} className="text-slate-400 hover:text-white text-xs sm:text-sm transition-colors">Sign In</button></li>
-                <li><button onClick={() => navigate('/register')} className="text-slate-400 hover:text-white text-xs sm:text-sm transition-colors">Apply Now</button></li>
+                <li><button onClick={() => navigate('/register')} className="text-slate-400 hover:text-white text-xs sm:text-sm transition-colors">Join Now</button></li>
                 <li><Link to="/verify" className="text-slate-400 hover:text-white text-xs sm:text-sm transition-colors">Verify a Card</Link></li>
               </ul>
             </div>

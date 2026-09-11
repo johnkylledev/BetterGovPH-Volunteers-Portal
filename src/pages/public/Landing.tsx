@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { SkillIcon } from '../../components/SkillIcon';
+import { skillToSlug } from '../../utils/skillUtils';
 import {
   Heart,
   Users,
@@ -171,17 +173,17 @@ const Landing: React.FC = () => {
               >
                 <button
                   onClick={handleApplyClick}
-                  className="group inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-[6px] bg-blue-900 text-white font-bold text-sm hover:bg-blue-800 transition-all active:scale-[0.96] w-full sm:w-auto"
+                  className="group inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-[6px] bg-blue-900 text-white font-bold text-sm hover:bg-blue-800 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.96] w-full sm:w-auto"
                 >
                   <IdCard size={18} />
-                  Apply Now
+                  Join Now
                   <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
                 </button>
                 <a
                   href={DISCORD_INVITE}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-[6px] border border-slate-300 bg-white text-slate-800 font-bold text-sm hover:border-slate-400 hover:bg-slate-50 transition-all active:scale-[0.96] w-full sm:w-auto"
+                  className="group inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-[6px] border border-slate-300 bg-white text-slate-800 font-bold text-sm hover:border-slate-400 hover:bg-slate-50 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.96] w-full sm:w-auto"
                 >
                   <MessageSquare size={18} />
                   Join Discord
@@ -386,10 +388,10 @@ const Landing: React.FC = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.06 }}
-                className="bg-white rounded-[6px] border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all duration-200 group p-5 flex flex-col cursor-pointer"
+                className="bg-white rounded-[6px] border border-slate-200 hover:border-blue-300 hover:shadow-md transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out group p-5 flex flex-col cursor-pointer"
               >
                 <div className="flex items-start justify-between mb-3 sm:mb-4">
-                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-[6px] bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-700 group-hover:bg-blue-900 group-hover:border-blue-900 group-hover:text-white transition-all">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-[6px] bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-700 group-hover:bg-blue-900 group-hover:border-blue-900 group-hover:text-white transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out">
                     {role.icon}
                   </div>
                   <span className="text-xs font-bold text-slate-300 group-hover:text-blue-200 transition-colors">
@@ -405,11 +407,20 @@ const Landing: React.FC = () => {
                   <div>
                     <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5 sm:mb-2">Skills</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {role.skills.map((skill, i) => (
-                        <span key={i} className="text-[11px] px-2 py-0.5 rounded-[4px] bg-slate-50 border border-slate-200 text-slate-600 font-semibold">
-                          {skill}
-                        </span>
-                      ))}
+                      {(() => {
+                        const seenSlugs = new Set<string>();
+                        return role.skills.map((skill, i) => {
+                          const slug = skillToSlug(skill);
+                          const isDuplicate = slug ? seenSlugs.has(slug) : false;
+                          if (slug) seenSlugs.add(slug);
+                          return (
+                            <span key={i} className="inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-[6px] bg-slate-50 border border-slate-200/80 text-slate-700 font-semibold shadow-xs">
+                              <SkillIcon skillName={skill} size={12} forceFallback={isDuplicate} />
+                              {skill}
+                            </span>
+                          );
+                        });
+                      })()}
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
@@ -434,7 +445,7 @@ const Landing: React.FC = () => {
               href={DISCORD_INVITE}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center sm:justify-start gap-2 px-4 py-2 rounded-[6px] bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 transition-all active:scale-[0.96] w-full sm:w-auto"
+              className="inline-flex items-center justify-center sm:justify-start gap-2 px-4 py-2 rounded-[6px] bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.96] w-full sm:w-auto"
             >
               <MessageSquare size={16} />
               Join Discord
@@ -478,7 +489,7 @@ const Landing: React.FC = () => {
                   <img
                     src={partner.logo}
                     alt={partner.name}
-                    className="h-8 sm:h-10 md:h-11 w-auto object-contain grayscale hover:grayscale-0 transition-all shrink-0"
+                    className="h-8 sm:h-10 md:h-11 w-auto object-contain grayscale hover:grayscale-0 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out shrink-0"
                     loading="lazy"
                   />
                 ) : (
@@ -510,7 +521,7 @@ const Landing: React.FC = () => {
             </h2>
           </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-4 items-stretch">
+          <div className="grid md:grid-cols-3 gap-4 items-stretch relative">
             {[
               {
                 title: "Join Discord",
@@ -521,7 +532,7 @@ const Landing: React.FC = () => {
               {
                 title: "Fill Out Form",
                 desc: "Share your skills and interests. Takes 5 minutes.",
-                action: "Apply Now",
+                action: "Join Now",
                 href: "/register"
               },
               {
@@ -545,22 +556,27 @@ const Landing: React.FC = () => {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.08 }}
-                  className="bg-white rounded-[6px] border border-slate-200 p-5 sm:p-6 flex flex-col"
+                  className="bg-white rounded-[6px] border border-slate-200 p-5 sm:p-6 flex flex-col relative group hover:border-slate-300 hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-8px_rgba(15,23,42,0.08)] transition-[border-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5"
                 >
-                  <div className="flex items-center justify-between mb-4 sm:mb-5">
-                    <div className="w-8 h-8 rounded-[6px] bg-slate-900 text-white flex items-center justify-center text-sm font-bold">
+                  {i < 2 && (
+                    <div className="hidden md:flex absolute top-1/2 -right-2 -translate-y-1/2 w-4 h-4 rounded-full bg-slate-50 border border-slate-200 items-center justify-center z-10 group-hover:bg-blue-900 group-hover:border-blue-900 group-hover:text-white text-slate-400 transition-[background-color,border-color,color] duration-200 ease-out">
+                      <ArrowRight size={10} strokeWidth={3} />
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3 mb-4 sm:mb-5">
+                    <div className="w-9 h-9 rounded-[6px] bg-slate-900 text-white flex items-center justify-center text-sm font-bold group-hover:bg-blue-900 transition-[background-color] duration-200 ease-out">
                       {i + 1}
                     </div>
-                    <span className="text-[10px] sm:text-xs font-bold text-slate-300 uppercase tracking-widest">Step {i + 1}</span>
+                    <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest">STEP {i + 1}</span>
                   </div>
-                  <h3 className="text-base font-bold text-slate-900 mb-2">{item.title}</h3>
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-2">{item.title}</h3>
                   <p className="text-xs sm:text-sm text-slate-600 leading-relaxed mb-4 sm:mb-5 flex-grow">{item.desc}</p>
                   <LinkComponent
                     {...linkProps as any}
-                    className="inline-flex items-center gap-1.5 text-sm font-bold text-blue-900 hover:gap-2 transition-all w-fit group"
+                    className="inline-flex items-center gap-1.5 text-sm font-bold text-blue-900 hover:gap-2 transition-[color,transform,box-shadow,border-color,background-color,opacity,gap] duration-200 ease-out w-fit group/link"
                   >
                     {item.action}
-                    <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+                    <ArrowRight size={14} className="group-hover/link:translate-x-0.5 transition-transform" />
                   </LinkComponent>
                 </motion.div>
               );
@@ -591,11 +607,11 @@ const Landing: React.FC = () => {
             <div className="flex flex-col gap-2.5 sm:flex-row sm:gap-3">
               <button
                 onClick={handleApplyClick}
-                className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3.5 rounded-[6px] bg-white text-slate-900 font-bold text-sm hover:bg-blue-50 transition-all active:scale-[0.96] group w-full sm:w-auto"
+                className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3.5 rounded-[6px] bg-white text-slate-900 font-bold text-sm hover:bg-blue-50 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.96] group w-full sm:w-auto"
               >
                 <Users size={16} className="sm:hidden" />
                 <Users size={18} className="hidden sm:inline-block" />
-                Apply Now
+                Join Now
                 <ArrowRight size={14} className="sm:hidden group-hover:translate-x-0.5 transition-transform" />
                 <ArrowRight size={16} className="hidden sm:inline-block group-hover:translate-x-0.5 transition-transform" />
               </button>
@@ -603,7 +619,7 @@ const Landing: React.FC = () => {
                 href={DISCORD_INVITE}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3.5 rounded-[6px] border border-white/20 text-white font-bold text-sm hover:bg-white/5 hover:border-white/35 transition-all active:scale-[0.96] w-full sm:w-auto"
+                className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3.5 rounded-[6px] border border-white/20 text-white font-bold text-sm hover:bg-white/5 hover:border-white/35 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.96] w-full sm:w-auto"
               >
                 <MessageSquare size={16} className="sm:hidden" />
                 <MessageSquare size={18} className="hidden sm:inline-block" />
@@ -648,7 +664,7 @@ const Landing: React.FC = () => {
               <h4 className="font-bold text-white mb-3 sm:mb-4 text-[10px] sm:text-xs uppercase tracking-wider">Join</h4>
               <ul className="space-y-2 sm:space-y-2.5">
                 <li><a href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white text-xs sm:text-sm transition-colors">Discord Server</a></li>
-                <li><button onClick={() => navigate('/register')} className="text-slate-400 hover:text-white text-xs sm:text-sm transition-colors">Apply Now</button></li>
+                <li><button onClick={() => navigate('/register')} className="text-slate-400 hover:text-white text-xs sm:text-sm transition-colors">Join Now</button></li>
                 <li><a href={GITHUB_ORG} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white text-xs sm:text-sm transition-colors">GitHub Organization</a></li>
               </ul>
             </div>
