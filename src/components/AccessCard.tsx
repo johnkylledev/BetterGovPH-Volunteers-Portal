@@ -302,7 +302,7 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
         {/* Identity Details */}
         <div className="relative z-10 flex flex-col items-center w-full text-center px-4" style={{ transform: 'translateZ(15px)' }}>
           <div className="px-3 py-1 bg-blue-400/10 border border-blue-400/20 rounded-full text-blue-200 text-[8px] font-bold tracking-[0.2em] uppercase mb-2 backdrop-blur-sm shadow-sm">
-            DEVELOPER COMMUNITY CARD
+            VOLUNTEERS COMMUNITY CARD
           </div>
 
           <div className="h-[64px] flex items-center justify-center w-full">

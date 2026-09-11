@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { invalidateCache } from './lib/redis';
 
 const getSupabaseConfig = () => {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
@@ -26,6 +27,7 @@ const respond = (res: any, statusCode: number, data: Record<string, unknown>) =>
   res.statusCode = statusCode;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('X-API-Version', '1.0.0');
   res.end(JSON.stringify(data));
 };
 
@@ -138,6 +140,12 @@ export default async function handler(req: any, res: any) {
   if (error || !data?.id) {
     respondError(res, 500, 'Failed to submit project');
     return;
+  }
+
+  try {
+    await invalidateCache('cache:admin:stats');
+  } catch (err) {
+    console.warn('[Submit Project API] Failed to invalidate cache:', err);
   }
 
   respond(res, 200, { message: 'Submitted successfully!', submissionId: data.id });

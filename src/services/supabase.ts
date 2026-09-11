@@ -206,7 +206,7 @@ export const getUserData = async (uid: string, email?: string) => {
   if (!token) return null;
   let response: { user: User | null } | null = null;
   try {
-    response = await apiRequest<{ user: User | null }>('/api/me', {
+    response = await apiRequest<{ user: User | null }>('/api/v1/me', {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -237,7 +237,7 @@ export const ensureUserHasMemberId = async (uid: string) => {
 export const createOrUpdateUserRecord = async (user: any) => {
   const token = await getAccessToken();
   if (!token) throw new Error('Not authenticated');
-  const res = await apiRequest<{ user: User }>('/api/me', {
+  const res = await apiRequest<{ user: User }>('/api/v1/me', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -264,7 +264,7 @@ export const updateUserData = async (uid: string, data: any) => {
 export const getUserByEmail = async (email: string) => {
   const token = await getAccessToken();
   if (!token) return null;
-  const response = await apiRequest<{ user: User | null }>('/api/me', {
+  const response = await apiRequest<{ user: User | null }>('/api/v1/me', {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -278,7 +278,7 @@ export const getUserByEmail = async (email: string) => {
 export const getUserByMemberIdOrId = async (id: string) => {
   if (!id) return null;
   try {
-    const data = await apiRequest<any>(`/api/verify?id=${encodeURIComponent(id)}`, { method: 'GET' });
+    const data = await apiRequest<any>(`/api/v1/verify?id=${encodeURIComponent(id)}`, { method: 'GET' });
     return data;
   } catch {
     return null;
@@ -288,7 +288,7 @@ export const getUserByMemberIdOrId = async (id: string) => {
 export const isDiscordUsernameTaken = async (discordUsername: string): Promise<boolean> => {
   try {
     const data = await apiRequest<{ taken: boolean }>(
-      `/api/discord-username-taken?username=${encodeURIComponent(discordUsername)}`,
+      `/api/v1/discord-username-taken?username=${encodeURIComponent(discordUsername)}`,
       { method: 'GET' }
     );
     return !!data?.taken;
@@ -307,7 +307,7 @@ export const getAllUsers = async (page = 0, pageSize = 20, filters?: { status?: 
   if (filters?.role) params.set('role', filters.role);
   if (filters?.search) params.set('search', filters.search);
 
-  const response = await apiRequest<{ users: User[]; totalCount: number }>(`/api/admin?resource=users&${params.toString()}`, {
+  const response = await apiRequest<{ users: User[]; totalCount: number }>(`/api/v1/admin?resource=users&${params.toString()}`, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -320,7 +320,7 @@ export const getAdminStats = async () => {
   try {
     const token = await getAccessToken();
     if (!token) return { total: 0, pending: 0, approved: 0 };
-    const response = await apiRequest<{ total: number; pending: number; approved: number }>('/api/admin?resource=stats', {
+    const response = await apiRequest<{ total: number; pending: number; approved: number }>('/api/v1/admin?resource=stats', {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -335,7 +335,7 @@ export const getAdminStats = async () => {
 export const updateUserStatus = async (uid: string, status: string, adminNotes?: string) => {
   const token = await getAccessToken();
   if (!token) throw new Error('Not authenticated');
-  const response = await apiRequest<{ memberId: string | null }>('/api/admin?resource=user-status', {
+  const response = await apiRequest<{ memberId: string | null }>('/api/v1/admin?resource=user-status', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -354,7 +354,7 @@ export const submitProjectSubmission = async (input: {
 }) => {
   const token = await getAccessToken();
   if (!token) throw new Error('Not authenticated');
-  const response = await apiRequest<{ message: string; submissionId: string }>('/api/submit-project', {
+  const response = await apiRequest<{ message: string; submissionId: string }>('/api/v1/submit-project', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -377,7 +377,7 @@ export const getMyProjectSubmissions = async (page = 0, pageSize = 20) => {
   params.set('page', String(page));
   params.set('pageSize', String(pageSize));
   const response = await apiRequest<{ submissions: ProjectSubmission[]; totalCount: number }>(
-    `/api/my-project-submissions?${params.toString()}`,
+    `/api/v1/my-project-submissions?${params.toString()}`,
     {
       method: 'GET',
       headers: {
@@ -401,7 +401,7 @@ export const getProjectSubmissions = async (
   if (filters?.status) params.set('status', filters.status);
 
   const response = await apiRequest<{ submissions: ProjectSubmission[]; totalCount: number }>(
-    `/api/admin?resource=submissions&${params.toString()}`,
+    `/api/v1/admin?resource=submissions&${params.toString()}`,
     {
       method: 'GET',
       headers: {
@@ -415,7 +415,7 @@ export const getProjectSubmissions = async (
 export const updateProjectSubmission = async (id: string, action: 'approve' | 'reject') => {
   const token = await getAccessToken();
   if (!token) throw new Error('Not authenticated');
-  const response = await apiRequest<{ message: string }>('/api/admin?resource=submissions', {
+  const response = await apiRequest<{ message: string }>('/api/v1/admin?resource=submissions', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -432,7 +432,7 @@ export const editProjectSubmission = async (
 ) => {
   const token = await getAccessToken();
   if (!token) throw new Error('Not authenticated');
-  const response = await apiRequest<{ message: string }>('/api/admin?resource=submissions', {
+  const response = await apiRequest<{ message: string }>('/api/v1/admin?resource=submissions', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -446,7 +446,7 @@ export const editProjectSubmission = async (
 export const deleteProjectSubmission = async (id: string, options?: { deleteUser?: boolean }) => {
   const token = await getAccessToken();
   if (!token) throw new Error('Not authenticated');
-  const response = await apiRequest<{ message: string }>('/api/admin?resource=submissions', {
+  const response = await apiRequest<{ message: string }>('/api/v1/admin?resource=submissions', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -466,7 +466,7 @@ export const createVolunteerCall = async (input: {
 }) => {
   const token = await getAccessToken();
   if (!token) throw new Error('Not authenticated');
-  const response = await apiRequest<{ message: string; id: string }>('/api/volunteer-calls', {
+  const response = await apiRequest<{ message: string; id: string }>('/api/v1/volunteer-calls', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -489,7 +489,7 @@ export const getVolunteerCalls = async (options?: { mine?: boolean }) => {
   const params = new URLSearchParams();
   if (options?.mine) params.set('mine', '1');
   const response = await apiRequest<{ calls: VolunteerCall[]; totalCount: number }>(
-    `/api/volunteer-calls?${params.toString()}`,
+    `/api/v1/volunteer-calls?${params.toString()}`,
     {
       method: 'GET',
       headers: {
@@ -507,7 +507,7 @@ export const getAdminVolunteerCalls = async (filters?: { status?: 'open' | 'clos
   params.set('admin', '1');
   if (filters?.status) params.set('status', filters.status);
   const response = await apiRequest<{ calls: VolunteerCall[]; totalCount: number }>(
-    `/api/volunteer-calls?${params.toString()}`,
+    `/api/v1/volunteer-calls?${params.toString()}`,
     {
       method: 'GET',
       headers: {
@@ -521,7 +521,7 @@ export const getAdminVolunteerCalls = async (filters?: { status?: 'open' | 'clos
 export const deleteVolunteerCall = async (id: string, options?: { deleteUser?: boolean }) => {
   const token = await getAccessToken();
   if (!token) throw new Error('Not authenticated');
-  const response = await apiRequest<{ message: string }>('/api/volunteer-calls', {
+  const response = await apiRequest<{ message: string }>('/api/v1/volunteer-calls', {
     method: 'DELETE',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -534,57 +534,20 @@ export const deleteVolunteerCall = async (id: string, options?: { deleteUser?: b
 
 export const getApprovedProjects = async () => {
   const token = await getAccessToken();
-  try {
-    const response = await apiRequest<any>('/api/projects', {
-      method: 'GET',
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    });
-    if (response && typeof response === 'object' && Array.isArray((response as any).projects)) {
-      const projects = ((response as any).projects as any[]).map(mapProjectRow);
-      return projects;
-    }
-  } catch (err) {
-    console.error('Error fetching from /api/projects:', err);
+  const response = await apiRequest<any>('/api/v1/projects', {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+  if (response && typeof response === 'object' && Array.isArray((response as any).projects)) {
+    return ((response as any).projects as any[]).map(mapProjectRow);
   }
-
-  const runQuery = async () => {
-    let result = await supabase
-      .from('project_submissions')
-      .select('*')
-      .in('status', ['approved', 'Approved', 'APPROVED'])
-      .order('created_at', { ascending: false })
-      .limit(100);
-    if (
-      result.error &&
-      typeof (result.error as any)?.message === 'string' &&
-      String((result.error as any).message).toLowerCase().includes('created_at')
-    ) {
-      result = await supabase
-        .from('project_submissions')
-        .select('*')
-        .in('status', ['approved', 'Approved', 'APPROVED'])
-        .order('id', { ascending: false })
-        .limit(100);
-    }
-    return result;
-  };
-
-  const result = await runQuery();
-  if (result.error) {
-    const message =
-      typeof (result.error as any)?.message === 'string'
-        ? String((result.error as any).message)
-        : 'Failed to load projects';
-    throw new Error(message);
-  }
-
-  return (result.data ?? []).map(mapProjectRow);
+  return [];
 };
 
 export const connectDiscord = async (): Promise<{ url: string }> => {
   const token = await getAccessToken();
   if (!token) throw new Error('Not authenticated');
-  return apiRequest<{ url: string }>('/api/discord?action=login', {
+  return apiRequest<{ url: string }>('/api/v1/discord?action=login', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -593,7 +556,7 @@ export const connectDiscord = async (): Promise<{ url: string }> => {
 export const syncDiscord = async (discordId?: string, discordUsername?: string, discordDisplayName?: string, discordAvatar?: string): Promise<any> => {
   const token = await getAccessToken();
   if (!token) throw new Error('Not authenticated');
-  return apiRequest<any>('/api/discord', {
+  return apiRequest<any>('/api/v1/discord', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ discord_id: discordId, discord_username: discordUsername, discord_display_name: discordDisplayName, discord_avatar: discordAvatar }),
@@ -603,7 +566,7 @@ export const syncDiscord = async (discordId?: string, discordUsername?: string, 
 export const getDiscordStatus = async (): Promise<any> => {
   const token = await getAccessToken();
   if (!token) return { connected: false };
-  return apiRequest<any>('/api/discord', {
+  return apiRequest<any>('/api/v1/discord', {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
   });

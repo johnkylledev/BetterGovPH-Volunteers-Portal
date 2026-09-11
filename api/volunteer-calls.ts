@@ -37,6 +37,7 @@ const respond = (res: any, statusCode: number, data: Record<string, unknown>) =>
   res.statusCode = statusCode;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('X-API-Version', '1.0.0');
   res.end(JSON.stringify(data));
 };
 
@@ -139,11 +140,6 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
-    if (!isAdmin) {
-      respondError(res, 403, 'Admin only');
-      return;
-    }
-
     const { data: call, error: callError } = await supabase
       .from('volunteer_calls')
       .select('id, user_id')
@@ -159,13 +155,18 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
+    if (!isAdmin && (call as any).user_id !== uid) {
+      respondError(res, 403, 'Forbidden: You do not own this volunteer call');
+      return;
+    }
+
     const { error: deleteError } = await supabase.from('volunteer_calls').delete().eq('id', id);
     if (deleteError) {
       respondError(res, 500, 'Failed to delete volunteer call');
       return;
     }
 
-    if (deleteUser) {
+    if (deleteUser && isAdmin) {
       const userId = typeof (call as any).user_id === 'string' ? String((call as any).user_id) : '';
       if (userId) {
         await supabase.from('project_submissions').delete().eq('user_id', userId);
@@ -179,7 +180,7 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    respond(res, 200, { message: deleteUser ? 'Deleted volunteer call and user' : 'Deleted volunteer call' });
+    respond(res, 200, { message: deleteUser && isAdmin ? 'Deleted volunteer call and user' : 'Deleted volunteer call' });
     return;
   }
 

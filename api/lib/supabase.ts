@@ -87,11 +87,31 @@ export const isAdmin = async (supabase: any, uid: string) => {
   }
 };
 
+export const API_VERSION = '1.0.0';
+
 export const respond = (res: any, statusCode: number, data: Record<string, unknown>) => {
   res.statusCode = statusCode;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('X-API-Version', API_VERSION);
   res.end(JSON.stringify(data));
+};
+
+export const sanitizeErrorMessage = (err: unknown, fallback = 'Internal server error'): string => {
+  if (typeof err === 'string') {
+    if (err.toLowerCase().includes('database') || err.toLowerCase().includes('select') || err.toLowerCase().includes('postgres')) {
+      return fallback;
+    }
+    return err;
+  }
+  if (err && typeof err === 'object' && 'message' in err && typeof (err as any).message === 'string') {
+    const msg = String((err as any).message);
+    if (msg.toLowerCase().includes('database') || msg.toLowerCase().includes('select') || msg.toLowerCase().includes('postgres') || msg.toLowerCase().includes('column')) {
+      return fallback;
+    }
+    return msg;
+  }
+  return fallback;
 };
 
 export const respondError = (res: any, statusCode: number, message: string) => {

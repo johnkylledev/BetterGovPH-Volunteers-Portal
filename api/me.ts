@@ -36,6 +36,7 @@ const respond = (res: any, statusCode: number, data: Record<string, unknown>) =>
   res.statusCode = statusCode;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('X-API-Version', '1.0.0');
   res.end(JSON.stringify(data));
 };
 
@@ -110,49 +111,8 @@ export default async function handler(req: any, res: any) {
     }
 
     if (!data) {
-      const { data: emailCheck } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .maybeSingle();
-
-      if (emailCheck) {
-        if (emailCheck.uid !== uid) {
-          await supabase
-            .from('users')
-            .update({ uid, updated_at: new Date().toISOString() })
-            .eq('email', email);
-        }
-        respond(res, 200, { user: mapUserRow(emailCheck) });
-        return;
-      }
-
       respond(res, 200, { user: null });
       return;
-    }
-
-    if ((!data.full_name || String(data.full_name).trim() === '') && email) {
-      const { data: completeRecord } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .not('uid', 'eq', uid)
-        .not('full_name', 'eq', '')
-        .maybeSingle();
-
-      if (completeRecord) {
-        await supabase
-          .from('users')
-          .update({ uid, updated_at: new Date().toISOString() })
-          .eq('uid', completeRecord.uid);
-        await supabase
-          .from('users')
-          .delete()
-          .eq('uid', uid)
-          .neq('uid', completeRecord.uid);
-        respond(res, 200, { user: mapUserRow(completeRecord) });
-        return;
-      }
     }
 
     if ((!data.email || String(data.email).trim() === '') && email) {
@@ -209,27 +169,6 @@ export default async function handler(req: any, res: any) {
     if (updated) {
       respond(res, 200, { user: mapUserRow(updated) });
       return;
-    }
-  }
-
-  if (!existingUser && email) {
-    const { data: userByEmail } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email)
-      .maybeSingle();
-
-    if (userByEmail) {
-      const { data: updatedRows } = await supabase
-        .from('users')
-        .update({ ...updates, uid, updated_at: new Date().toISOString() })
-        .eq('email', email)
-        .select('*');
-
-      if (updatedRows && updatedRows[0]) {
-        respond(res, 200, { user: mapUserRow(updatedRows[0]) });
-        return;
-      }
     }
   }
 

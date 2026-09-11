@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { getCache, setCache } from './lib/redis';
 
 const getSupabaseConfig = () => {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
@@ -23,6 +24,7 @@ const createServiceClient = (url: string, serviceKey: string) =>
 const respond = (res: any, statusCode: number, data: Record<string, unknown>) => {
   res.statusCode = statusCode;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('X-API-Version', '1.0.0');
   res.end(JSON.stringify(data));
 };
 
@@ -51,6 +53,18 @@ export default async function handler(req: any, res: any) {
   if (req.method !== 'GET') {
     respondError(res, 405, 'Method not allowed');
     return;
+  }
+
+  // Check Redis cache first
+  const cacheKey = 'cache:projects:approved';
+  try {
+    const cachedProjects = await getCache<any[]>(cacheKey);
+    if (cachedProjects && Array.isArray(cachedProjects)) {
+      respond(res, 200, { projects: cachedProjects });
+      return;
+    }
+  } catch (err) {
+    console.warn('[Projects API] Redis cache error:', err);
   }
 
   const { url: supabaseUrl, anonKey: supabaseAnonKey, serviceKey: serviceRoleKey } = getSupabaseConfig();
@@ -112,6 +126,12 @@ export default async function handler(req: any, res: any) {
   }
 
   const projects = (result.data ?? []).map(mapProjectRow);
+
+  try {
+    await setCache(cacheKey, projects, 300);
+  } catch (err) {
+    console.warn('[Projects API] Failed to set Redis cache:', err);
+  }
 
   respond(res, 200, { projects });
 }

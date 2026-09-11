@@ -56,7 +56,6 @@ h6 {
   font-family: var(--font-display);
 }
 
-/* PROTECT ACCESS CARD FONT */
 #access-card-container,
 #access-card-container * {
   font-family: var(--font-round) !important;

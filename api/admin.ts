@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { getCache, setCache, invalidateCache } from './lib/redis';
 
 const getSupabaseConfig = () => {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
@@ -45,6 +46,7 @@ const respond = (res: any, statusCode: number, data: Record<string, unknown>) =>
   res.statusCode = statusCode;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('X-API-Version', '1.0.0');
   res.end(JSON.stringify(data));
 };
 
@@ -199,6 +201,17 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
+    const cacheKey = 'cache:admin:stats';
+    try {
+      const cached = await getCache<any>(cacheKey);
+      if (cached) {
+        respond(res, 200, cached);
+        return;
+      }
+    } catch (err) {
+      console.warn('[Admin API] Redis stats cache error:', err);
+    }
+
     const { count: total } = await supabaseAdmin
       .from('users')
       .select('*', { count: 'exact', head: true });
@@ -206,19 +219,27 @@ export default async function handler(req: any, res: any) {
     const { count: pending } = await supabaseAdmin
       .from('users')
       .select('*', { count: 'exact', head: true })
-      .eq('status', 'Pending')
+      .in('status', ['Pending', 'pending', 'PENDING'])
       .not('full_name', 'eq', '');
 
     const { count: approved } = await supabaseAdmin
       .from('users')
       .select('*', { count: 'exact', head: true })
-      .eq('status', 'Approved');
+      .in('status', ['Approved', 'approved', 'APPROVED']);
 
-    respond(res, 200, {
+    const statsPayload = {
       total: total ?? 0,
       pending: pending ?? 0,
       approved: approved ?? 0,
-    });
+    };
+
+    try {
+      await setCache(cacheKey, statsPayload, 60);
+    } catch (err) {
+      console.warn('[Admin API] Failed to set Redis stats cache:', err);
+    }
+
+    respond(res, 200, statsPayload);
     return;
   }
 
@@ -263,7 +284,13 @@ export default async function handler(req: any, res: any) {
       .not('full_name', 'eq', '');
 
     if (statusFilter && statusFilter !== 'All') {
-      query = query.eq('status', statusFilter);
+      const statusVariants = Array.from(new Set([
+        statusFilter,
+        statusFilter.toLowerCase(),
+        statusFilter.toUpperCase(),
+        statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1).toLowerCase(),
+      ]));
+      query = query.in('status', statusVariants);
     }
 
     if (roleFilter && roleFilter !== 'All') {
@@ -377,6 +404,13 @@ export default async function handler(req: any, res: any) {
     if (!data || data.length === 0) {
       respondError(res, 404, 'User not found');
       return;
+    }
+
+    try {
+      await invalidateCache('cache:admin:stats');
+      await invalidateCache('cache:verify:*');
+    } catch (err) {
+      console.warn('[Admin API] Failed to invalidate cache:', err);
     }
 
     respond(res, 200, { memberId: memberId ?? data[0]?.member_id ?? null });
@@ -502,6 +536,15 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
+    const invalidateProjectCache = async () => {
+      try {
+        await invalidateCache('cache:projects:approved');
+        await invalidateCache('cache:admin:stats');
+      } catch (err) {
+        console.warn('[Admin API] Failed to invalidate project cache:', err);
+      }
+    };
+
     if (action === 'approve') {
       const { error: approveError } = await supabaseAdmin
         .from('project_submissions')
@@ -513,6 +556,7 @@ export default async function handler(req: any, res: any) {
         return;
       }
 
+      await invalidateProjectCache();
       respond(res, 200, { message: 'Approved submission' });
       return;
     }
@@ -528,6 +572,7 @@ export default async function handler(req: any, res: any) {
         return;
       }
 
+      await invalidateProjectCache();
       respond(res, 200, { message: 'Rejected submission' });
       return;
     }
@@ -557,6 +602,7 @@ export default async function handler(req: any, res: any) {
         return;
       }
 
+      await invalidateProjectCache();
       respond(res, 200, { message: 'Updated submission' });
       return;
     }
@@ -582,6 +628,7 @@ export default async function handler(req: any, res: any) {
         }
       }
 
+      await invalidateProjectCache();
       respond(res, 200, { message: deleteUser ? 'Deleted submission and user' : 'Deleted submission' });
       return;
     }

@@ -83,7 +83,7 @@ export const Navbar: React.FC = () => {
             <img src="/logo.svg" alt="BetterGovPH" className="h-7 w-auto" />
             <div className="flex flex-col leading-none">
               <span className="font-display font-bold text-base tracking-tight text-blue-900">BetterGovPH</span>
-              <span className="font-display font-bold text-[9px] uppercase tracking-[0.2em] text-blue-900/60 leading-tight">Developer Community</span>
+              <span className="font-display font-bold text-[9px] uppercase tracking-[0.2em] text-blue-900/60 leading-tight">Volunteers Community</span>
             </div>
           </Link>
           

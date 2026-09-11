@@ -76,8 +76,8 @@ export default function UserDashboard() {
     setTimeout(() => setCopyStatus('idle'), 2000);
   };
 
-  const loadMySubmissions = async () => {
-    setMySubmissionsLoading(true);
+  const loadMySubmissions = async (showLoading = true) => {
+    if (showLoading) setMySubmissionsLoading(true);
     setMySubmissionsError('');
     try {
       const { submissions } = await getMyProjectSubmissions(0, 50);
@@ -86,17 +86,12 @@ export default function UserDashboard() {
       const message = err instanceof Error ? err.message : typeof err?.message === 'string' ? err.message : 'Failed to load submissions';
       setMySubmissionsError(message);
     } finally {
-      setMySubmissionsLoading(false);
+      if (showLoading) setMySubmissionsLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (activeTab !== 'submit-project') return;
-    loadMySubmissions();
-  }, [activeTab]);
-
-  const loadVolunteerCalls = async () => {
-    setVolunteerCallsLoading(true);
+  const loadVolunteerCalls = async (showLoading = true) => {
+    if (showLoading) setVolunteerCallsLoading(true);
     setVolunteerCallsError('');
     try {
       const { calls } = await getVolunteerCalls();
@@ -105,28 +100,15 @@ export default function UserDashboard() {
       const message = err instanceof Error ? err.message : typeof err?.message === 'string' ? err.message : 'Failed to load volunteer calls';
       setVolunteerCallsError(message);
     } finally {
-      setVolunteerCallsLoading(false);
+      if (showLoading) setVolunteerCallsLoading(false);
     }
   };
 
   useEffect(() => {
-    if (activeTab !== 'volunteer') return;
-    loadVolunteerCalls();
-  }, [activeTab]);
-
-  useEffect(() => {
     if (activeTab === 'submit-project') {
-      loadMySubmissions();
-      const interval = setInterval(loadMySubmissions, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [activeTab]);
-
-  useEffect(() => {
-    if (activeTab === 'volunteer') {
-      loadVolunteerCalls();
-      const interval = setInterval(loadVolunteerCalls, 5000);
-      return () => clearInterval(interval);
+      loadMySubmissions(true);
+    } else if (activeTab === 'volunteer') {
+      loadVolunteerCalls(true);
     }
   }, [activeTab]);
 
@@ -144,7 +126,7 @@ export default function UserDashboard() {
           filter: `user_id=eq.${currentUser.id}`,
         },
         () => {
-          loadMySubmissions();
+          loadMySubmissions(false);
         }
       )
       .subscribe();
@@ -159,14 +141,14 @@ export default function UserDashboard() {
           table: 'volunteer_calls',
         },
         () => {
-          loadVolunteerCalls();
+          loadVolunteerCalls(false);
         }
       )
       .subscribe();
 
     return () => {
-      projectsChannel.unsubscribe();
-      volunteerChannel.unsubscribe();
+      supabase.removeChannel(projectsChannel);
+      supabase.removeChannel(volunteerChannel);
     };
   }, [currentUser]);
 
@@ -310,228 +292,228 @@ export default function UserDashboard() {
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
 
-          {/* Left Column: Status and Info */}
-          <div className="lg:col-span-7 space-y-6 order-2 lg:order-1">
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white sm:rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-100/80"
-            >
-              <h2 className="text-base sm:text-lg font-semibold text-slate-900 mb-4 sm:mb-6">Application Status</h2>
-              <div className={clsx(
-                "flex items-start sm:items-center space-x-4 p-5 rounded-xl border",
-                currentUser.status === 'Approved' ? 'bg-emerald-50/50 border-emerald-200/60' :
-                  currentUser.status === 'Declined' ? 'bg-red-50/50 border-red-200/60' :
-                    'bg-amber-50/50 border-amber-200/60'
-              )}>
-                <div className="mt-0.5 sm:mt-0">{getStatusIcon()}</div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-slate-900">{currentUser.status}</p>
-                  <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                    {currentUser.status === 'Approved' ? 'Your application has been approved. Your ID is ready.' :
-                      currentUser.status === 'Declined' ? 'Your application was declined by the administrator.' :
-                        'Your application is currently under review by our team.'}
-                  </p>
+            {/* Left Column: Status and Info */}
+            <div className="lg:col-span-7 space-y-6 order-2 lg:order-1">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white sm:rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-100/80"
+              >
+                <h2 className="text-base sm:text-lg font-semibold text-slate-900 mb-4 sm:mb-6">Application Status</h2>
+                <div className={clsx(
+                  "flex items-start sm:items-center space-x-4 p-5 rounded-xl border",
+                  currentUser.status === 'Approved' ? 'bg-emerald-50/50 border-emerald-200/60' :
+                    currentUser.status === 'Declined' ? 'bg-red-50/50 border-red-200/60' :
+                      'bg-amber-50/50 border-amber-200/60'
+                )}>
+                  <div className="mt-0.5 sm:mt-0">{getStatusIcon()}</div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-slate-900">{currentUser.status}</p>
+                    <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                      {currentUser.status === 'Approved' ? 'Your application has been approved. Your ID is ready.' :
+                        currentUser.status === 'Declined' ? 'Your application was declined by the administrator.' :
+                          'Your application is currently under review by our team.'}
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              {currentUser.adminNotes && (
-                <div className="mt-5 p-5 bg-slate-50/80 rounded-xl border border-slate-100/80">
-                  <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Admin Notes</p>
-                  <p className="text-sm text-slate-700 leading-relaxed">{currentUser.adminNotes}</p>
-                </div>
-              )}
-            </motion.div>
+                {currentUser.adminNotes && (
+                  <div className="mt-5 p-5 bg-slate-50/80 rounded-xl border border-slate-100/80">
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Admin Notes</p>
+                    <p className="text-sm text-slate-700 leading-relaxed">{currentUser.adminNotes}</p>
+                  </div>
+                )}
+              </motion.div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="bg-white sm:rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-100/80"
-            >
-              <h2 className="text-base sm:text-lg font-semibold text-slate-900 mb-4 sm:mb-6">Profile Information</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 sm:gap-x-8">
-                <div>
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Full Name</p>
-                  <p className="text-sm font-medium text-slate-900 truncate">{currentUser.fullName}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Email</p>
-                  <p className="text-sm font-medium text-slate-900 break-all">{currentUser.email}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Discord</p>
-                  <div className="flex items-center gap-2">
-                    {currentUser.discordAvatar && currentUser.discordId ? (
-                      <img
-                        src={`https://cdn.discordapp.com/avatars/${currentUser.discordId}/${currentUser.discordAvatar}.png?size=32`}
-                        alt=""
-                        className="w-6 h-6 rounded-full flex-shrink-0"
-                      />
-                    ) : null}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="bg-white sm:rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-100/80"
+              >
+                <h2 className="text-base sm:text-lg font-semibold text-slate-900 mb-4 sm:mb-6">Profile Information</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 sm:gap-x-8">
+                  <div>
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Full Name</p>
+                    <p className="text-sm font-medium text-slate-900 truncate">{currentUser.fullName}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Email</p>
+                    <p className="text-sm font-medium text-slate-900 break-all">{currentUser.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Discord</p>
+                    <div className="flex items-center gap-2">
+                      {currentUser.discordAvatar && currentUser.discordId ? (
+                        <img
+                          src={`https://cdn.discordapp.com/avatars/${currentUser.discordId}/${currentUser.discordAvatar}.png?size=32`}
+                          alt=""
+                          className="w-6 h-6 rounded-full flex-shrink-0"
+                        />
+                      ) : null}
+                      <div>
+                        <p className="text-sm font-medium text-slate-900 truncate">
+                          {currentUser.discordDisplayName || currentUser.discordUsername || '—'}
+                        </p>
+                        {currentUser.discordDisplayName && currentUser.discordUsername && (
+                          <p className="text-xs text-slate-400">@{currentUser.discordUsername}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Primary Role</p>
+                    <p className="text-sm font-medium text-slate-900">{currentUser.specialization}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Community Role</p>
+                    <p className="text-sm font-medium text-slate-900">{currentUser.role}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Member Since</p>
+                    <p className="text-sm font-medium text-slate-900">{currentUser.yearJoined || '-'}</p>
+                  </div>
+                  {currentUser.memberId && (
                     <div>
-                      <p className="text-sm font-medium text-slate-900 truncate">
-                        {currentUser.discordDisplayName || currentUser.discordUsername || '—'}
-                      </p>
-                      {currentUser.discordDisplayName && currentUser.discordUsername && (
-                        <p className="text-xs text-slate-400">@{currentUser.discordUsername}</p>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Member ID</p>
+                      <p className="text-sm font-mono font-semibold text-blue-600">{currentUser.memberId}</p>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
+                className="bg-white sm:rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-100/80"
+              >
+                <h2 className="text-base sm:text-lg font-semibold text-slate-900 mb-6">Skills & Expertise</h2>
+
+                <div className="space-y-6">
+                  <div>
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-4">Core Skills</p>
+                    <div className="flex flex-wrap gap-2">
+                      {currentUser.skills && currentUser.skills.length > 0 ? (
+                        currentUser.skills.map((skill, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center gap-1.5 pl-1.5 pr-3 py-1 bg-white border border-slate-100/80 rounded-md shadow-sm group"
+                          >
+                            <div className="w-6 h-6 rounded bg-slate-50/80 flex items-center justify-center flex-shrink-0 border border-slate-100/60">
+                              <img
+                                src={`https://cdn.simpleicons.org/${skillToSlug(skill.name)}`}
+                                className="w-3.5 h-3.5 object-contain"
+                                alt=""
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                              />
+                            </div>
+                            <span className="text-xs font-semibold text-slate-800">{skill.name}</span>
+                            <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-400">
+                              {skill.level === 'Expert' ? 'Expert' :
+                                skill.level === 'Practitioner' ? 'Practitioner' : 'Learner'}
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-slate-500 italic">No skills listed</p>
                       )}
                     </div>
                   </div>
-                </div>
-                <div>
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Primary Role</p>
-                  <p className="text-sm font-medium text-slate-900">{currentUser.specialization}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Community Role</p>
-                  <p className="text-sm font-medium text-slate-900">{currentUser.role}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Member Since</p>
-                  <p className="text-sm font-medium text-slate-900">{currentUser.yearJoined || '-'}</p>
-                </div>
-                {currentUser.memberId && (
+
                   <div>
-                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Member ID</p>
-                    <p className="text-sm font-mono font-semibold text-blue-600">{currentUser.memberId}</p>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
-              className="bg-white sm:rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-100/80"
-            >
-              <h2 className="text-base sm:text-lg font-semibold text-slate-900 mb-6">Skills & Expertise</h2>
-
-              <div className="space-y-6">
-                <div>
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-4">Core Skills</p>
-                  <div className="flex flex-wrap gap-2">
-                    {currentUser.skills && currentUser.skills.length > 0 ? (
-                      currentUser.skills.map((skill, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center gap-1.5 pl-1.5 pr-3 py-1 bg-white border border-slate-100/80 rounded-md shadow-sm group"
-                        >
-                          <div className="w-6 h-6 rounded bg-slate-50/80 flex items-center justify-center flex-shrink-0 border border-slate-100/60">
-                            <img
-                              src={`https://cdn.simpleicons.org/${skillToSlug(skill.name)}`}
-                              className="w-3.5 h-3.5 object-contain"
-                              alt=""
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = 'none';
-                              }}
-                            />
-                          </div>
-                          <span className="text-xs font-semibold text-slate-800">{skill.name}</span>
-                          <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-400">
-                            {skill.level === 'Expert' ? 'Expert' :
-                             skill.level === 'Practitioner' ? 'Practitioner' : 'Learner'}
-                          </span>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-slate-500 italic">No skills listed</p>
-                    )}
-                  </div>
-                </div>
-
-                <div>
                     <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Experience Level</p>
                     <p className="text-sm font-semibold text-slate-900">{currentUser.experienceLevel || '-'}</p>
                   </div>
-              </div>
-            </motion.div>
-
-          </div>
-
-          {/* Right Column: Digital ID */}
-          <div id="digital-card-section" className="lg:col-span-5 order-1 lg:order-2">
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
-              className="lg:sticky lg:top-24 flex flex-col items-center"
-            >
-              <div className="w-full flex justify-between items-center mb-6 px-2">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-base sm:text-lg font-semibold text-slate-900">Digital Access Card</h2>
-                  <div className="group relative">
-                  </div>
                 </div>
-                {currentUser.status === 'Approved' && (
-                  <span className="px-3 py-1.5 bg-emerald-100/80 text-emerald-800 text-[10px] sm:text-xs font-semibold rounded-lg uppercase tracking-wide">
-                    Ready to use
-                  </span>
-                )}
-              </div>
+              </motion.div>
 
-              <div className={clsx(
-                "relative group transition-all duration-500 max-w-full flex justify-center",
-                currentUser.status !== 'Approved' && "opacity-50 grayscale pointer-events-none blur-[2px]"
-              )}>
-                <AccessCard user={currentUser} />
+            </div>
 
-                {currentUser.status !== 'Approved' && (
-                  <div className="absolute inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white/95 backdrop-blur-sm px-8 py-5 rounded-2xl shadow-xl border border-slate-200/80 text-center">
-                      <p className="text-sm font-semibold text-slate-800">Card Unavailable</p>
-                      <p className="text-xs text-slate-500 mt-1">Pending Approval</p>
+            {/* Right Column: Digital ID */}
+            <div id="digital-card-section" className="lg:col-span-5 order-1 lg:order-2">
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 }}
+                className="lg:sticky lg:top-24 flex flex-col items-center"
+              >
+                <div className="w-full flex justify-between items-center mb-6 px-2">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-base sm:text-lg font-semibold text-slate-900">Digital Access Card</h2>
+                    <div className="group relative">
                     </div>
                   </div>
-                )}
-              </div>
+                  {currentUser.status === 'Approved' && (
+                    <span className="px-3 py-1.5 bg-emerald-100/80 text-emerald-800 text-[10px] sm:text-xs font-semibold rounded-lg uppercase tracking-wide">
+                      Ready to use
+                    </span>
+                  )}
+                </div>
 
-              {currentUser.status === 'Approved' && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="w-full mt-6 sm:mt-8 px-2 sm:px-0"
-                >
-                  <div className="flex flex-col gap-3">
-                    <button
-                      onClick={handleCopyLink}
-                      className="flex items-center justify-center gap-2 w-full py-4 bg-slate-900 text-white rounded-xl font-semibold text-sm hover:bg-slate-800 transition-all duration-200 shadow-lg active:scale-[0.98]"
-                    >
-                      {copyStatus === 'copied' ? (
-                        <>
-                          <Check className="w-4 h-4" />
-                          <span>Link Copied</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-4 h-4" />
-                          <span>Copy Public Link</span>
-                        </>
-                      )}
-                    </button>
-                    <button
-                      onClick={handleCopyEmbed}
-                      className="flex items-center justify-center gap-2 w-full py-4 bg-white border border-slate-200/80 text-slate-700 rounded-xl font-semibold text-sm hover:bg-slate-50 transition-all duration-200 shadow-sm active:scale-[0.98]"
-                    >
-                      {copyStatus === 'embed-copied' ? (
-                        <>
-                          <Check className="w-4 h-4" />
-                          <span>Code Copied</span>
-                        </>
-                      ) : (
-                        <>
-                          <Code className="w-4 h-4" />
-                          <span>Copy Embed Code</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </motion.div>
-          </div>
+                <div className={clsx(
+                  "relative group transition-all duration-500 max-w-full flex justify-center",
+                  currentUser.status !== 'Approved' && "opacity-50 grayscale pointer-events-none blur-[2px]"
+                )}>
+                  <AccessCard user={currentUser} />
+
+                  {currentUser.status !== 'Approved' && (
+                    <div className="absolute inset-0 z-50 flex items-center justify-center p-4">
+                      <div className="bg-white/95 backdrop-blur-sm px-8 py-5 rounded-2xl shadow-xl border border-slate-200/80 text-center">
+                        <p className="text-sm font-semibold text-slate-800">Card Unavailable</p>
+                        <p className="text-xs text-slate-500 mt-1">Pending Approval</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {currentUser.status === 'Approved' && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="w-full mt-6 sm:mt-8 px-2 sm:px-0"
+                  >
+                    <div className="flex flex-col gap-3">
+                      <button
+                        onClick={handleCopyLink}
+                        className="flex items-center justify-center gap-2 w-full py-4 bg-slate-900 text-white rounded-xl font-semibold text-sm hover:bg-slate-800 transition-all duration-200 shadow-lg active:scale-[0.98]"
+                      >
+                        {copyStatus === 'copied' ? (
+                          <>
+                            <Check className="w-4 h-4" />
+                            <span>Link Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-4 h-4" />
+                            <span>Copy Public Link</span>
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={handleCopyEmbed}
+                        className="flex items-center justify-center gap-2 w-full py-4 bg-white border border-slate-200/80 text-slate-700 rounded-xl font-semibold text-sm hover:bg-slate-50 transition-all duration-200 shadow-sm active:scale-[0.98]"
+                      >
+                        {copyStatus === 'embed-copied' ? (
+                          <>
+                            <Check className="w-4 h-4" />
+                            <span>Code Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Code className="w-4 h-4" />
+                            <span>Copy Embed Code</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </motion.div>
+            </div>
 
           </div>
         </main>
@@ -645,7 +627,7 @@ export default function UserDashboard() {
                     <p className="text-xs text-slate-500 mt-1">Loaded only when this tab is open.</p>
                   </div>
                   <button
-                    onClick={loadMySubmissions}
+                    onClick={() => loadMySubmissions(true)}
                     disabled={mySubmissionsLoading}
                     className="px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
                   >
@@ -828,7 +810,7 @@ export default function UserDashboard() {
                     <p className="text-xs text-slate-500 mt-1">Loaded only when this tab is open.</p>
                   </div>
                   <button
-                    onClick={loadVolunteerCalls}
+                    onClick={() => loadVolunteerCalls(true)}
                     disabled={volunteerCallsLoading}
                     className="px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
                   >

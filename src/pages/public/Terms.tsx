@@ -1,79 +1,136 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
-import { ChevronLeft, FileText } from 'lucide-react';
+import { FileText, Home, MessageSquare } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Navbar } from '../../components/Navbar';
+
+const DISCORD_INVITE = "https://discord.com/invite/mHtThpN8bT";
+
+const sections = [
+  {
+    n: "1",
+    title: "Acceptance of Terms",
+    body: (
+      <p>
+        By applying for and using the BetterGovPH Community Access Card, you agree to comply with and be bound by these Terms of Service. If you do not agree, you should not apply for the card.
+      </p>
+    )
+  },
+  {
+    n: "2",
+    title: "Community Standards",
+    body: (
+      <ul className="space-y-2.5 mt-1">
+        <li>Behave professionally and respectfully towards all members</li>
+        <li>Contribute constructively to community projects</li>
+        <li>Follow the BetterGovPH Code of Conduct (on GitHub)</li>
+        <li>Never misrepresent yourself as a government employee via the Access Card</li>
+      </ul>
+    )
+  },
+  {
+    n: "3",
+    title: "Use of Access Card",
+    body: (
+      <p>
+        The BetterGovPH Access Card is a digital-only identification for use within our community ecosystem. It grants verified status for events, project contributions, and networking. It is NOT an official government ID.
+      </p>
+    )
+  },
+  {
+    n: "4",
+    title: "Revocation of Status",
+    body: (
+      <p>
+        Administrators reserve the right to revoke any Access Card and community membership if a user violates community standards, provides false information during registration, or engages in harmful behavior.
+      </p>
+    )
+  }
+];
 
 const Terms: React.FC = () => {
+  const navigate = useNavigate();
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-900">
-      {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-blue-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <Link to="/" className="flex items-center gap-2 group">
-              <ChevronLeft size={20} className="text-slate-400 group-hover:text-blue-600 transition-colors" />
-              <img src="/logo.svg" alt="BetterGovPH Logo" className="h-8 w-auto" />
-              <span className="font-display font-bold text-xl tracking-tight text-blue-900">BetterGovPH</span>
-            </Link>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-900">
+      <Navbar />
 
-      <main className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-14 sm:pt-32 sm:pb-20">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-3xl p-8 md:p-12 shadow-sm border border-slate-100"
+          className="max-w-3xl mb-8 sm:mb-10"
         >
-          <div className="flex items-center gap-4 mb-8">
-            <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600">
-              <FileText size={24} />
-            </div>
-            <h1 className="text-3xl md:text-4xl font-display font-bold">Terms of Service</h1>
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-[6px] bg-slate-50 border border-slate-200 mb-4 sm:mb-5">
+            <FileText size={14} className="text-blue-900" />
+            <span className="text-[11px] sm:text-xs font-semibold text-slate-600 uppercase tracking-wider">Terms</span>
           </div>
-
-          <div className="prose prose-slate max-w-none space-y-8">
-            <section>
-              <h2 className="text-xl font-bold text-slate-900 mb-4">1. Acceptance of Terms</h2>
-              <p className="text-slate-600 leading-relaxed">
-                By applying for and using the BetterGovPH Developer Community Access Card, you agree to comply with and be bound by these Terms of Service. If you do not agree to these terms, you should not apply for the card.
-              </p>
-            </section>
-
-            <section>
-              <h2 className="text-xl font-bold text-slate-900 mb-4">2. Community Standards</h2>
-              <p className="text-slate-600 leading-relaxed">
-                BetterGovPH is a collaborative, public-interest community. Cardholders are expected to:
-              </p>
-              <ul className="list-disc pl-6 text-slate-600 space-y-2 mt-4">
-                <li>Behave professionally and respectfully towards all members.</li>
-                <li>Contribute constructively to community projects.</li>
-                <li>Adhere to the official BetterGovPH Code of Conduct (available on GitHub).</li>
-                <li>Not use the Access Card to misrepresent themselves as government employees.</li>
-              </ul>
-            </section>
-
-            <section>
-              <h2 className="text-xl font-bold text-slate-900 mb-4">3. Use of Digital Access Card</h2>
-              <p className="text-slate-600 leading-relaxed">
-                The BetterGovPH Access Card is a digital-only identification for use within our community ecosystem. It provides verified status for community events, project contributions, and networking. It is NOT an official government ID.
-              </p>
-            </section>
-
-            <section>
-              <h2 className="text-xl font-bold text-slate-900 mb-4">4. Revocation of Status</h2>
-              <p className="text-slate-600 leading-relaxed">
-                BetterGovPH administrators reserve the right to revoke any Access Card and community membership if a user violates community standards, provides false information during registration, or engages in harmful behavior.
-              </p>
-            </section>
-
-            <section className="pt-8 border-t border-slate-100">
-              <p className="text-sm text-slate-400">
-                Last updated: April 26, 2026. Terms are subject to change to reflect the evolution of our community.
-              </p>
-            </section>
-          </div>
+          <h1 className="text-2xl sm:text-4xl font-display font-bold leading-tight tracking-tight mb-3 sm:mb-4">
+            Terms of Service
+          </h1>
+          <p className="text-xs sm:text-base text-slate-600 max-w-2xl leading-relaxed">
+            Rules for the BetterGovPH Community Access Card and membership.
+          </p>
         </motion.div>
+
+        <div className="space-y-3 sm:space-y-5">
+          {sections.map((s, i) => (
+            <motion.section
+              key={s.n}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 + i * 0.06 }}
+              className="bg-white rounded-[6px] border border-slate-200 p-4 sm:p-6"
+            >
+              <div className="flex items-start gap-3 sm:gap-4">
+                <div className="w-8 h-8 rounded-[6px] bg-slate-900 text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
+                  {s.n}
+                </div>
+                <div className="min-w-0 flex-grow">
+                  <h2 className="text-sm sm:text-lg font-bold text-slate-900 mb-2 sm:mb-2.5 leading-snug">
+                    {s.title}
+                  </h2>
+                  <div className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                    {s.body}
+                  </div>
+                </div>
+              </div>
+            </motion.section>
+          ))}
+
+          <motion.section
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="bg-slate-50 rounded-[6px] border border-slate-200 p-4 sm:p-6"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+              <div>
+                <p className="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Last updated</p>
+                <p className="text-sm font-bold text-slate-800">April 26, 2026</p>
+                <p className="text-[11px] sm:text-xs text-slate-500 mt-1">Terms may change as the community evolves.</p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2.5 w-full sm:w-auto">
+                <button
+                  onClick={() => navigate('/')}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-[6px] border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 text-xs font-semibold transition-all w-full sm:w-auto"
+                >
+                  <Home size={14} />
+                  Home
+                </button>
+                <a
+                  href={DISCORD_INVITE}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-[6px] bg-slate-900 text-white hover:bg-slate-800 text-xs font-semibold transition-all w-full sm:w-auto"
+                >
+                  <MessageSquare size={14} />
+                  Join Discord
+                </a>
+              </div>
+            </div>
+          </motion.section>
+        </div>
       </main>
     </div>
   );

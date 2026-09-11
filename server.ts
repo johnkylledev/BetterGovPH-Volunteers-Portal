@@ -116,6 +116,7 @@ async function handler(req: http.IncomingMessage, res: http.ServerResponse) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('X-API-Version', '1.0.0');
 
   const host = req.headers.host;
   if (!isHostAllowed(host)) {
@@ -143,17 +144,25 @@ async function handler(req: http.IncomingMessage, res: http.ServerResponse) {
       return;
     }
 
-    const apiFile = pathname.replace('/api/', '').replace('/', '');
+    const relativePath = pathname.replace(/^\/api\/(v1\/)?/, '');
+    const parts = relativePath.split('?')[0].split('/').filter(Boolean);
+    const apiFile = parts[0] || '';
+    const pathIdParam = parts[1] || '';
+
     const apiPath = path.join(API_DIR, `${apiFile}.ts`);
 
     if (!fs.existsSync(apiPath)) {
       res.statusCode = 404;
       res.setHeader('Content-Type', 'application/json');
+      res.setHeader('X-API-Version', '1.0.0');
       res.end(JSON.stringify({ error: 'API endpoint not found' }));
       return;
     }
 
     const extendedReq = createExtendedRequest(req, url);
+    if (pathIdParam && !extendedReq.query.id && !extendedReq.query.memberId) {
+      extendedReq.query.id = pathIdParam;
+    }
     const extendedRes = createExtendedResponse(res);
 
     const body = await parseBody(req);
@@ -180,5 +189,51 @@ const server = http.createServer(handler);
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 server.listen(PORT, () => {
-  console.log(`API server running on http://localhost:${PORT}`);
+  console.log(`
+                                             %                                                      
+                                            %%%%                                                    
+                                           %%%%%%                                                   
+                                        %  %%%%%                                                    
+                                      %%%  %%%%%  %%%                                               
+                                      %%%  %%%%%  %%%                                               
+                                      %%%  %%%%%  %%%                                               
+                                      %%%% %%%%%  %%%                                               
+            %%%%%   %%%%               %%%  %%%%  %%%              %%%%   %%%%%                     
+            %%%%%%%  %%%%%             %%%  %%%%  %%%             %%%%  %%%%%%%                     
+            %%%%%%%%   %%%%            %%%  %%%  %%%            %%%%%  %%%%%%%%                     
+              %%%%%%%%  %%%%           %%%  %%%  %%%           %%%%  %%%%%%%%                       
+            %%  %%%%%%%%  %%%%          %%  %%%  %%%         %%%%%  %%%%%%%  %%                     
+            %%%%   %%%%%%  %%%%         %%  %%%  %%%        %%%%  %%%%%%%  %%%%                     
+             %%%%%   %%%%%%  %%%%      %%%%%%%%%%%%%       %%%%  %%%%%%  %%%%%%                     
+               %%%%%   %%%%%  %%%% %%%%%%%%%%%%%%%%%%%%% %%%%  %%%%%%  %%%%%%                       
+                 %%%%%   %%%%%  %%%%%%%%%%%%%%%%%%%%%%%%%%%   %%%%   %%%%%                          
+        %%%%%%      %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   %%%%%                            
+          %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% %%%%%%                              
+              %%%%%%%%%                 %%%%%%%%%%%%%%%%%%%%%%%%%%%                                 
+                                         %%%%%%%%%%%%%%%%%%%%%%%%                                   
+                                          %%%%%%%%%%%%%%%%%%%%%%%%                                  
+                    %%%%%%%%%%%%%%%%%%%%   %%%%%%%%%%%%%%%%%%%%%%%%         %%%%%%%%%%              
+                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%             
+       %%  %%%%%%%%%%%%%%%%%   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%                     
+        %%%%%%%%%% %%%%%%%%%%      %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% %%%%%%%%%%%%%%%%%%%%%%%        
+         %%%%%%%   %%%%%%%%%%%        %%%%              %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%       
+           %%%%%%%%%%%%%%%%%%%%%%%%%%  %%%%                %%%%%%%%% %%%%%%%%%%%%%%%%%%%%%%         
+              %%%%%%%%%%%%%%%%%%%%%%%  %%%%                   %%%%%%%%%%%%%%%%%                     
+             %%%%    %%%%%%%%%%%%%    %%%%                     %%%%%%%%%%%%%%%%%%%%%%%%             
+           %%%%%%%                    %%%%                      %%%%          %%%%%%%%              
+            %%%%%%%                 %%%%%                        %%%%                               
+             %%%%%%%               %%%%%                          %%%                               
+             %%%%%%%%             %%%%%%    %%                    %%%%                              
+              %%%%  %%%          %%%%%%%%%%%%                      %%%                              
+                  %%%%%%%        %%%%%%%%%%%                       %%%%                             
+                 %%%   %%%%      %%%% %%                            %%%                             
+                      %%%%%%%    %%%%%%%%      %%%%%%%%%%%%%%%%%%%%%%%%                             
+                     %%% %%%%%%%  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%                             
+                        %%%%% %%%%  %%%%%%%%%%%%%%%%         %% %%%%%%%                             
+                        %%%% %%%%%%%%%%%              %%%%%  %%     %%%%                            
+                            %%%%%%%% %%%%%%%%%%% %%  %%%%%%%%%%%      %%                            
+                               %% %%%%%%%% %%%%% %%  %%%%%%%% %%                                    
+                                   %%%  %%%%%  %%% %% %%   %%                                       
+                                               %%%  %                                               
+  `);
 });

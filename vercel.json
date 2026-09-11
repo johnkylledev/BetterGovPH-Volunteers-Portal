@@ -23,6 +23,7 @@
     }
   ],
   "routes": [
+    { "src": "/api/v1/(.*)", "dest": "/api/$1" },
     { "src": "/api/(.*)", "dest": "/api/$1" },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }

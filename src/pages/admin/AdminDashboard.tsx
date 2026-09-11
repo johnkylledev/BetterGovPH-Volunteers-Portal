@@ -59,10 +59,10 @@ export default function AdminDashboard() {
     setStats(s);
   };
 
-  const loadUsers = async (page: number) => {
+  const loadUsers = async (page: number, showLoading = true) => {
     if (!currentUser?.isAdmin) return;
     if (activeTab === 'projects') return;
-    setIsDataLoading(true);
+    if (showLoading) setIsDataLoading(true);
     try {
       const filters = {
         status: activeTab === 'members' ? 'Approved' : activeTab === 'applications' ? 'Pending' : statusFilter,
@@ -74,13 +74,13 @@ export default function AdminDashboard() {
       setTotalCount(fetchedTotal);
     } catch {
     } finally {
-      setIsDataLoading(false);
+      if (showLoading) setIsDataLoading(false);
     }
   };
 
-  const loadProjectSubmissions = async () => {
+  const loadProjectSubmissions = async (showLoading = true) => {
     if (!currentUser?.isAdmin) return;
-    setProjectSubmissionsLoading(true);
+    if (showLoading) setProjectSubmissionsLoading(true);
     try {
       const [mainRes, totalRes, pendingRes, approvedRes, rejectedRes] = await Promise.all([
         getProjectSubmissions(projectPage, projectPageSize, { status: projectStatusFilter === 'All' ? undefined : projectStatusFilter }),
@@ -102,7 +102,7 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error('Error loading project submissions:', error);
     } finally {
-      setProjectSubmissionsLoading(false);
+      if (showLoading) setProjectSubmissionsLoading(false);
     }
   };
 
@@ -118,13 +118,9 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!currentUser?.isAdmin) return;
     if (activeTab === 'projects') {
-      loadProjectSubmissions();
-      const interval = setInterval(loadProjectSubmissions, 5000);
-      return () => clearInterval(interval);
+      loadProjectSubmissions(true);
     } else {
-      loadUsers(currentPage);
-      const interval = setInterval(() => loadUsers(currentPage), 5000);
-      return () => clearInterval(interval);
+      loadUsers(currentPage, true);
     }
   }, [currentUser, currentPage, activeTab, statusFilter, roleFilter, searchTerm, projectStatusFilter, projectPage]);
 
@@ -142,7 +138,7 @@ export default function AdminDashboard() {
         },
         () => {
           if (activeTab !== 'projects') {
-            loadUsers(currentPage);
+            loadUsers(currentPage, false);
           }
           loadStats();
         }
@@ -159,17 +155,16 @@ export default function AdminDashboard() {
           table: 'project_submissions',
         },
         () => {
-          console.log('Real-time: Project submissions changed');
           if (activeTab === 'projects') {
-            loadProjectSubmissions();
+            loadProjectSubmissions(false);
           }
         }
       )
       .subscribe();
 
     return () => {
-      usersChannel.unsubscribe();
-      projectsChannel.unsubscribe();
+      supabase.removeChannel(usersChannel);
+      supabase.removeChannel(projectsChannel);
     };
   }, [currentUser?.isAdmin, currentPage, activeTab]);
 
@@ -363,51 +358,55 @@ export default function AdminDashboard() {
     return (users || []).filter(u => u && !u.isAdmin && u.status === 'Approved');
   }, [users]);
 
-  // Remove the old pendingCount/approvedCount definitions since we use stats now
-  // and we don't need them in the local scope anymore.
-
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
-      {/* Navbar */}
+    <div className="min-h-screen bg-white font-sans">
       <nav className="bg-white border-b border-slate-200 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center space-x-3">
-              <img src="/logo.svg" alt="BetterGovPH Logo" className="w-8 h-8 object-contain brightness-0" />
-              <span className="text-xl font-display font-bold text-slate-900">Admin Portal</span>
+        <div className="max-w-7xl mx-auto px-4 sm:px-5 lg:px-6">
+          <div className="flex justify-between h-14 sm:h-16">
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <img
+                src="https://assets.bettergov.ph/logos/webp/icon-primary.webp"
+                alt="BetterGovPH Logo"
+                className="w-7 h-7 sm:w-8 sm:h-8 object-contain drop-shadow-[0_6px_18px_rgba(30,58,138,0.12)]"
+              />
+              <div className="flex flex-col leading-none">
+                <span className="text-base sm:text-lg font-display font-bold text-slate-900">Admin</span>
+                <span className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-blue-900 font-semibold mt-0.5">Portal</span>
+              </div>
             </div>
-            <div className="flex items-center space-x-2 sm:space-x-4">
+            <div className="flex items-center gap-2 sm:gap-3">
               <button
                 onClick={() => setShowMyCard(true)}
-                className="inline-flex items-center gap-2 px-3 py-2 text-sm font-bold text-blue-900 bg-blue-50 hover:bg-blue-100 rounded-2xl transition-colors"
+                className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs sm:text-sm font-bold text-blue-900 bg-blue-50 border border-blue-100 hover:bg-blue-100 hover:border-blue-200 rounded-[6px] transition-colors active:scale-[0.98]"
               >
-                <CreditCard className="w-4 h-4" />
+                <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">My Card</span>
               </button>
-              <div className="h-6 w-[1px] bg-slate-200 hidden sm:block" />
-              <div className="hidden sm:flex flex-col items-end">
-                <span className="text-sm font-bold text-slate-900 leading-none">{currentUser.fullName}</span>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Administrator</span>
+              <div className="h-5 sm:h-6 w-[1px] bg-slate-200 hidden sm:block" />
+              <div className="hidden sm:flex flex-col items-end leading-none">
+                <span className="text-sm font-bold text-slate-900">{currentUser.fullName}</span>
+                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mt-1">Administrator</span>
               </div>
               <button
                 onClick={handleLogout}
-                className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all"
+                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs sm:text-sm font-bold text-slate-500 hover:text-red-600 border border-slate-200 hover:border-red-100 hover:bg-red-50 rounded-[6px] transition-all active:scale-[0.98]"
                 title="Logout"
               >
-                <LogOut className="w-5 h-5" />
+                <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Logout</span>
               </button>
             </div>
           </div>
         </div>
       </nav>
 
-      <div className="bg-white border-b border-slate-200 sticky top-[64px] z-20 overflow-x-auto no-scrollbar">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-w-max sm:min-w-0">
-          <div className="flex space-x-4 sm:space-x-8">
+      <div className="bg-white border-b border-slate-200 sticky top-[56px] sm:top-[64px] z-20 overflow-x-auto no-scrollbar">
+        <div className="max-w-7xl mx-auto px-4 sm:px-5 lg:px-6 min-w-max sm:min-w-0">
+          <div className="flex gap-6 sm:gap-8">
             <button
               onClick={() => setActiveTab('applications')}
               className={clsx(
-                "py-4 text-sm font-bold border-b-2 transition-all px-1",
+                "py-3.5 sm:py-4 text-xs sm:text-sm font-bold border-b-2 transition-colors px-1 whitespace-nowrap",
                 activeTab === 'applications'
                   ? "border-blue-900 text-blue-900"
                   : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
@@ -426,7 +425,7 @@ export default function AdminDashboard() {
             <button
               onClick={() => setActiveTab('members')}
               className={clsx(
-                "py-4 text-sm font-bold border-b-2 transition-all px-1",
+                "py-3.5 sm:py-4 text-xs sm:text-sm font-bold border-b-2 transition-colors px-1 whitespace-nowrap",
                 activeTab === 'members'
                   ? "border-blue-900 text-blue-900"
                   : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
@@ -445,7 +444,7 @@ export default function AdminDashboard() {
             <button
               onClick={() => setActiveTab('projects')}
               className={clsx(
-                "py-4 text-sm font-bold border-b-2 transition-all px-1",
+                "py-3.5 sm:py-4 text-xs sm:text-sm font-bold border-b-2 transition-colors px-1 whitespace-nowrap",
                 activeTab === 'projects'
                   ? "border-blue-900 text-blue-900"
                   : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
@@ -465,75 +464,57 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 flex flex-col lg:grid lg:grid-cols-[280px_minmax(0,1fr)] gap-8">
-        <aside className="space-y-6 hidden lg:block">
-          <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
-            <div className="px-6 py-5 border-b border-slate-100">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-400 font-semibold">Administrator</p>
-              <h2 className="mt-3 text-xl font-bold text-slate-900">{currentUser.fullName}</h2>
-              <p className="mt-1 text-sm text-slate-500 break-all">{currentUser.email}</p>
-            </div>
-            <div className="px-6 py-5 space-y-4">
-              <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Admin ID</p>
-                <p className="mt-2 font-mono text-slate-900">{currentUser.memberId || 'No ID assigned'}</p>
+      <main className="max-w-7xl mx-auto px-4 sm:px-5 lg:px-6 py-5 sm:py-7 lg:py-8 flex flex-col gap-5 sm:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            <div className="bg-white border border-slate-200 rounded-[6px] p-4 sm:p-5 flex items-center gap-3 sm:gap-4 shadow-[0_2px_8px_-4px_rgba(15,23,42,0.08)] [@media(hover:hover){&:hover}]:shadow-[0_8px_24px_-12px_rgba(15,23,42,0.15)] transition-shadow">
+              <div className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-[6px] bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-900">
+                <Users size={18} className="sm:hidden" />
+                <Users size={20} className="hidden sm:inline-flex" />
               </div>
-              <div className="grid gap-3">
-                <div className="rounded-lg bg-slate-50 border border-slate-200 p-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Role</p>
-                  <p className="mt-2 text-sm font-semibold text-slate-900">{currentUser.role}</p>
-                </div>
-                <div className="rounded-lg bg-slate-50 border border-slate-200 p-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Total Users</p>
-                  <p className="mt-2 text-3xl font-bold text-slate-900">{stats.total}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </aside>
-
-        <section className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 flex items-center gap-4">
-              <div className="text-blue-600 flex items-center justify-center">
-                <Users className="w-8 h-8" />
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-400 font-semibold">
-                  {activeTab === 'projects' ? 'Total Submissions' : 'Total Database Records'}
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.2em] text-slate-400 font-semibold">
+                  {activeTab === 'projects' ? 'Total Submissions' : 'Total Records'}
                 </p>
-                <p className="mt-2 text-2xl font-bold text-slate-900">{activeTab === 'projects' ? projectStats.total : stats.total}</p>
+                <p className="mt-1 sm:mt-1.5 text-xl sm:text-2xl font-bold text-slate-900 leading-none">
+                  {activeTab === 'projects' ? projectStats.total : stats.total}
+                </p>
               </div>
             </div>
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 flex items-center gap-4">
-              <div className="text-yellow-600 flex items-center justify-center">
-                <Clock className="w-8 h-8" />
+            <div className="bg-white border border-slate-200 rounded-[6px] p-4 sm:p-5 flex items-center gap-3 sm:gap-4 shadow-[0_2px_8px_-4px_rgba(15,23,42,0.08)] [@media(hover:hover){&:hover}]:shadow-[0_8px_24px_-12px_rgba(15,23,42,0.15)] transition-shadow">
+              <div className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-[6px] bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-700">
+                <Clock size={18} className="sm:hidden" />
+                <Clock size={20} className="hidden sm:inline-flex" />
               </div>
-              <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-400 font-semibold">Pending Review</p>
-                <p className="mt-2 text-2xl font-bold text-slate-900">{activeTab === 'projects' ? projectStats.pending : stats.pending}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.2em] text-slate-400 font-semibold">Pending</p>
+                <p className="mt-1 sm:mt-1.5 text-xl sm:text-2xl font-bold text-slate-900 leading-none">
+                  {activeTab === 'projects' ? projectStats.pending : stats.pending}
+                </p>
               </div>
             </div>
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 flex items-center gap-4">
-              <div className="text-blue-600 flex items-center justify-center">
-                <Key className="w-8 h-8" />
+            <div className="bg-white border border-slate-200 rounded-[6px] p-4 sm:p-5 flex items-center gap-3 sm:gap-4 shadow-[0_2px_8px_-4px_rgba(15,23,42,0.08)] [@media(hover:hover){&:hover}]:shadow-[0_8px_24px_-12px_rgba(15,23,42,0.15)] transition-shadow">
+              <div className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-[6px] bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700">
+                <CheckCircle2 size={18} className="sm:hidden" />
+                <CheckCircle2 size={20} className="hidden sm:inline-flex" />
               </div>
-              <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-400 font-semibold">
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.2em] text-slate-400 font-semibold">
                   {activeTab === 'projects' ? 'Approved' : 'IDs Issued'}
                 </p>
-                <p className="mt-2 text-2xl font-bold text-slate-900">{activeTab === 'projects' ? projectStats.approved : stats.approved}</p>
+                <p className="mt-1 sm:mt-1.5 text-xl sm:text-2xl font-bold text-slate-900 leading-none">
+                  {activeTab === 'projects' ? projectStats.approved : stats.approved}
+                </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+          <div className="bg-white border border-slate-200 rounded-[6px] shadow-sm overflow-hidden">
             {activeTab === 'applications' ? (
               <>
                 <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4 sm:gap-6">
                   <div>
-                    <h2 className="text-base sm:text-lg font-bold text-slate-900">Application Management</h2>
-                    <p className="text-xs sm:text-sm text-slate-500 mt-1">Review non-admin signups, update statuses, and generate IDs.</p>
+                    <h2 className="text-base sm:text-lg font-bold text-slate-900">Applications</h2>
+                    <p className="text-xs sm:text-sm text-slate-500 mt-1">Review and approve membership applications.</p>
                   </div>
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full xl:w-auto">
                     <div className="relative flex-1 xl:w-64">
@@ -543,7 +524,7 @@ export default function AdminDashboard() {
                         placeholder="Search applicants..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
                       />
                     </div>
                     <div className="grid grid-cols-2 sm:flex sm:items-center gap-3 w-full sm:w-auto">
@@ -552,7 +533,7 @@ export default function AdminDashboard() {
                         <select
                           value={roleFilter}
                           onChange={(e) => setRoleFilter(e.target.value)}
-                          className="w-full sm:w-44 pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
+                          className="w-full sm:w-44 pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
                         >
                           <option value="All">All Roles</option>
                           {SPECIALIZATIONS.map(spec => (
@@ -566,7 +547,7 @@ export default function AdminDashboard() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200 font-bold">
+                      <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
                         <th className="p-4 pl-6 font-semibold">Applicant</th>
                         <th className="p-4 font-semibold">Discord / Role</th>
                         <th className="p-4 font-semibold">Status</th>
@@ -603,7 +584,7 @@ export default function AdminDashboard() {
                                   />
                                 ) : null}
                                 <div>
-                                  <div className="font-medium text-slate-700">
+                                  <div className="font-semibold text-slate-700">
                                     {user.discordDisplayName || user.discordUsername || 'N/A'}
                                   </div>
                                   {user.discordDisplayName && user.discordUsername && (
@@ -615,10 +596,10 @@ export default function AdminDashboard() {
                             </td>
                             <td className="p-4">
                               <span className={clsx(
-                                'px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wide',
-                                user.status === 'Approved' ? 'bg-blue-100 text-blue-800' :
-                                  user.status === 'Declined' ? 'bg-red-100 text-red-800' :
-                                    'bg-yellow-100 text-yellow-800'
+                                'inline-flex items-center px-2.5 py-1 text-[10px] sm:text-[11px] font-bold rounded-[6px] uppercase tracking-wide border',
+                                user.status === 'Approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                  user.status === 'Declined' ? 'bg-red-50 text-red-700 border-red-200' :
+                                    'bg-amber-50 text-amber-700 border-amber-200'
                               )}>
                                 {user.status}
                               </span>
@@ -627,7 +608,7 @@ export default function AdminDashboard() {
                             <td className="p-4 pr-6 text-right">
                               <button
                                 onClick={() => setSelectedUser(user)}
-                                className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-2xl hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-sm"
+                                className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-[6px] hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-sm"
                               >
                                 Review
                               </button>
@@ -648,11 +629,11 @@ export default function AdminDashboard() {
                     <button
                       onClick={() => handlePageChange(currentPage - 1)}
                       disabled={currentPage === 0 || isDataLoading}
-                      className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                      className="p-2 rounded-[6px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                     >
                       <ChevronLeft className="w-5 h-5" />
                     </button>
-                    <div className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-xl">
+                    <div className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-[6px]">
                       <span className="text-sm font-bold text-slate-900">Page {currentPage + 1}</span>
                       <span className="text-slate-400 mx-1">of</span>
                       <span className="text-sm font-bold text-slate-900">{Math.ceil(totalCount / pageSize)}</span>
@@ -660,7 +641,7 @@ export default function AdminDashboard() {
                     <button
                       onClick={() => handlePageChange(currentPage + 1)}
                       disabled={(currentPage + 1) * pageSize >= totalCount || isDataLoading}
-                      className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                      className="p-2 rounded-[6px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                     >
                       <ChevronRight className="w-5 h-5" />
                     </button>
@@ -671,11 +652,11 @@ export default function AdminDashboard() {
               <>
                 <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4 sm:gap-6">
                   <div>
-                    <h2 className="text-base sm:text-lg font-bold text-slate-900">Project Submissions</h2>
-                    <p className="text-xs sm:text-sm text-slate-500 mt-1">Review user-submitted projects. Approving marks it as approved and displays it on the public Projects page.</p>
+                    <h2 className="text-base sm:text-lg font-bold text-slate-900">Projects</h2>
+                    <p className="text-xs sm:text-sm text-slate-500 mt-1">Review and moderate project submissions.</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
+                    <div className="flex gap-1 bg-slate-100 rounded-[6px] p-1">
                       {(['All', 'pending', 'approved', 'rejected'] as const).map((f) => (
                         <button
                           key={f}
@@ -705,7 +686,7 @@ export default function AdminDashboard() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200 font-bold">
+                        <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
                           <th className="p-4 pl-6 font-semibold">Project</th>
                           <th className="p-4 font-semibold">Submitted By</th>
                           <th className="p-4 font-semibold">Status</th>
@@ -731,7 +712,7 @@ export default function AdminDashboard() {
                               )}
                             </td>
                             <td className="p-4 align-top">
-                              <div className="font-semibold text-slate-900">
+                              <div className="font-bold text-slate-900">
                                 {submission.submittedBy?.fullName || submission.submittedBy?.email || submission.userId}
                               </div>
                               {submission.submittedBy?.email && submission.submittedBy?.fullName && (
@@ -740,10 +721,10 @@ export default function AdminDashboard() {
                             </td>
                             <td className="p-4 align-top">
                               <span className={clsx(
-                                "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold capitalize",
-                                submission.status === 'approved' && "bg-emerald-100 text-emerald-800",
-                                submission.status === 'rejected' && "bg-red-100 text-red-800",
-                                submission.status === 'pending' && "bg-amber-100 text-amber-800"
+                                "inline-flex items-center px-2.5 py-1 rounded-[6px] text-[10px] sm:text-[11px] font-bold uppercase tracking-wide border",
+                                submission.status === 'approved' && "bg-emerald-50 text-emerald-700 border-emerald-200",
+                                submission.status === 'rejected' && "bg-red-50 text-red-700 border-red-200",
+                                submission.status === 'pending' && "bg-amber-50 text-amber-700 border-amber-200"
                               )}>
                                 {submission.status}
                               </span>
@@ -756,7 +737,7 @@ export default function AdminDashboard() {
                                 <button
                                   onClick={() => handleEditClick(submission)}
                                   disabled={projectActionLoadingId === submission.id}
-                                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                                  className="inline-flex items-center gap-2 px-3 py-2 rounded-[6px] bg-white border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
                                 >
                                   Edit
                                 </button>
@@ -765,7 +746,7 @@ export default function AdminDashboard() {
                                     <button
                                       onClick={() => handleProjectAction(submission.id, 'approve')}
                                       disabled={projectActionLoadingId === submission.id}
-                                      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                                      className="inline-flex items-center gap-2 px-3 py-2 rounded-[6px] bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
                                     >
                                       <CheckCircle2 className="w-4 h-4" />
                                       Approve
@@ -773,7 +754,7 @@ export default function AdminDashboard() {
                                     <button
                                       onClick={() => handleProjectAction(submission.id, 'reject')}
                                       disabled={projectActionLoadingId === submission.id}
-                                      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-red-600 text-white text-xs font-bold hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                                      className="inline-flex items-center gap-2 px-3 py-2 rounded-[6px] bg-red-600 text-white text-xs font-bold hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
                                     >
                                       <XCircle className="w-4 h-4" />
                                       Reject
@@ -783,7 +764,7 @@ export default function AdminDashboard() {
                                 <button
                                   onClick={() => handleProjectDelete(submission.id)}
                                   disabled={projectActionLoadingId === submission.id}
-                                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-red-200 text-red-700 text-xs font-bold hover:bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                                  className="inline-flex items-center gap-2 px-3 py-2 rounded-[6px] bg-white border border-red-200 text-red-700 text-xs font-bold hover:bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
                                 >
                                   <Trash2 className="w-4 h-4" />
                                   Delete
@@ -805,11 +786,11 @@ export default function AdminDashboard() {
                       <button
                         onClick={() => setProjectPage(projectPage - 1)}
                         disabled={projectPage === 0 || projectSubmissionsLoading}
-                        className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        className="p-2 rounded-[6px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                       >
                         <ChevronLeft className="w-5 h-5" />
                       </button>
-                      <div className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-xl">
+                      <div className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-[6px]">
                         <span className="text-sm font-bold text-slate-900">Page {projectPage + 1}</span>
                         <span className="text-slate-400 mx-1">of</span>
                         <span className="text-sm font-bold text-slate-900">{Math.ceil(projectTotalCount / projectPageSize)}</span>
@@ -817,7 +798,7 @@ export default function AdminDashboard() {
                       <button
                         onClick={() => setProjectPage(projectPage + 1)}
                         disabled={(projectPage + 1) * projectPageSize >= projectTotalCount || projectSubmissionsLoading}
-                        className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        className="p-2 rounded-[6px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                       >
                         <ChevronRight className="w-5 h-5" />
                       </button>
@@ -829,8 +810,8 @@ export default function AdminDashboard() {
               <>
                 <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4 sm:gap-6">
                   <div>
-                    <h2 className="text-base sm:text-lg font-bold text-slate-900">Approved Member Access Cards</h2>
-                    <p className="text-xs sm:text-sm text-slate-500 mt-1">Active members are listed below, including their generated IDs.</p>
+                    <h2 className="text-base sm:text-lg font-bold text-slate-900">Members</h2>
+                    <p className="text-xs sm:text-sm text-slate-500 mt-1">Approved members and their issued IDs.</p>
                   </div>
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full xl:w-auto">
                     <div className="relative flex-1 xl:w-64">
@@ -840,7 +821,7 @@ export default function AdminDashboard() {
                         placeholder="Search members..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
                       />
                     </div>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
@@ -849,7 +830,7 @@ export default function AdminDashboard() {
                         <select
                           value={roleFilter}
                           onChange={(e) => setRoleFilter(e.target.value)}
-                          className="w-full sm:w-44 pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
+                          className="w-full sm:w-44 pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
                         >
                           <option value="All">All Roles</option>
                           {SPECIALIZATIONS.map(spec => (
@@ -860,7 +841,7 @@ export default function AdminDashboard() {
                       {users.filter(u => u && !u.isAdmin && u.status === 'Approved').length > 0 && (
                         <button
                           onClick={exportToExcel}
-                          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-xs sm:text-sm font-bold rounded-lg hover:bg-blue-700 transition-all shadow-md shadow-blue-900/10 active:scale-[0.98]"
+                          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-xs sm:text-sm font-bold rounded-[6px] hover:bg-blue-700 transition-all shadow-md shadow-blue-900/10 active:scale-[0.98]"
                         >
                           <Download className="w-4 h-4" />
                           <span>Export {searchTerm ? 'Filtered' : 'All'} to Excel</span>
@@ -879,7 +860,7 @@ export default function AdminDashboard() {
                     <div className="overflow-x-auto">
                       <table className="w-full text-left border-collapse">
                         <thead>
-                          <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200 font-bold">
+                          <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
                             <th className="p-4 pl-6 font-semibold">Member Name</th>
                             <th className="p-4 font-semibold">Primary Role</th>
                             <th className="p-4 font-semibold">Community Role</th>
@@ -899,13 +880,13 @@ export default function AdminDashboard() {
                                 <div className="font-bold text-slate-900">{member.fullName}</div>
                                 <div className="text-xs text-slate-500">{member.email}</div>
                               </td>
-                              <td className="p-4">{member.specialization}</td>
-                              <td className="p-4">{member.role}</td>
+                              <td className="p-4 font-semibold text-slate-700">{member.specialization}</td>
+                              <td className="p-4 font-semibold text-slate-700">{member.role}</td>
                               <td className="p-4 font-mono font-bold text-blue-700">{member.memberId}</td>
                               <td className="p-4 pr-6 text-right">
                                 <button
                                   onClick={() => setSelectedMember(member)}
-                                  className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-2xl hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-sm"
+                                  className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-[6px] hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-sm"
                                 >
                                   View Card
                                 </button>
@@ -925,11 +906,11 @@ export default function AdminDashboard() {
                         <button
                           onClick={() => handlePageChange(currentPage - 1)}
                           disabled={currentPage === 0 || isDataLoading}
-                          className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                          className="p-2 rounded-[6px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
                           <ChevronLeft className="w-5 h-5" />
                         </button>
-                        <div className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-xl">
+                        <div className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-[6px]">
                           <span className="text-sm font-bold text-slate-900">Page {currentPage + 1}</span>
                           <span className="text-slate-400 mx-1">of</span>
                           <span className="text-sm font-bold text-slate-900">{Math.ceil(totalCount / pageSize)}</span>
@@ -937,7 +918,7 @@ export default function AdminDashboard() {
                         <button
                           onClick={() => handlePageChange(currentPage + 1)}
                           disabled={(currentPage + 1) * pageSize >= totalCount || isDataLoading}
-                          className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                          className="p-2 rounded-[6px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
                           <ChevronRight className="w-5 h-5" />
                         </button>
@@ -948,7 +929,6 @@ export default function AdminDashboard() {
               </>
             )}
           </div>
-        </section>
       </main>
 
       {/* Review Modal */}
@@ -971,7 +951,7 @@ export default function AdminDashboard() {
             >
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]"
+                className="w-full max-w-lg bg-white rounded-[6px] shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]"
               >
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                   <div>
@@ -992,15 +972,15 @@ export default function AdminDashboard() {
                 <div className="p-4 sm:p-6 overflow-y-auto flex-1 no-scrollbar">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8 mb-10 px-2">
                     <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Applicant Name</p>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Applicant Name</p>
                       <p className="text-base font-bold text-slate-900">{selectedUser.fullName}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Email Address</p>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Email Address</p>
                       <p className="text-sm font-semibold text-slate-600 break-all">{selectedUser.email}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Discord</p>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Discord</p>
                       <div className="flex items-center gap-2">
                         {selectedUser.discordAvatar && selectedUser.discordId ? (
                           <img
@@ -1020,34 +1000,34 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Date Applied</p>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Date Applied</p>
                       <p className="text-sm font-bold text-slate-900">
                         {selectedUser.createdAt ? new Date(selectedUser.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) : 'N/A'}
                       </p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Primary Role</p>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Primary Role</p>
                       <p className="text-sm font-bold text-slate-900">{selectedUser.specialization || 'N/A'}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Community Role</p>
-                      <span className="inline-flex px-2 py-0.5 rounded-md bg-slate-100 text-[10px] font-black text-slate-600 uppercase tracking-widest">
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Community Role</p>
+                      <span className="inline-flex px-2 py-0.5 rounded-md bg-slate-100 text-[10px] font-semibold text-slate-600 uppercase tracking-widest">
                         {selectedUser.role}
                       </span>
                     </div>
                     <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Member Since</p>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Member Since</p>
                       <p className="text-sm font-bold text-slate-900">{selectedUser.yearJoined || 'N/A'}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Prof. Level</p>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Prof. Level</p>
                       <p className="text-sm font-bold text-slate-900">{selectedUser.experienceLevel || 'Beginner'}</p>
                     </div>
                   </div>
 
                   <div className="mb-6 space-y-4">
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Selected Skills</p>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-2">Selected Skills</p>
                       <div className="flex flex-wrap gap-1.5">
                         {Array.isArray(selectedUser.skills) && selectedUser.skills.length > 0 ? (
                           selectedUser.skills.map((skill, i) => (
@@ -1056,7 +1036,7 @@ export default function AdminDashboard() {
                                className="flex items-center gap-1.5 pl-2 pr-3 py-1.5 bg-white border border-slate-200 rounded-md shadow-sm group"
                              >
                                <span className="text-xs font-semibold text-slate-800">{skill.name}</span>
-                               <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                               <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-400">
                                  {skill.level}
                                </span>
                              </div>
@@ -1067,25 +1047,25 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Experience Level</p>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Experience Level</p>
                       <p className="text-sm font-bold text-slate-900">{selectedUser.experienceLevel || '-'}</p>
                     </div>
                   </div>
 
                   <div className="mb-2">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Admin Notes (Optional)</label>
+                    <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-2">Admin Notes (Optional)</label>
                     <textarea
                       value={adminNote}
                       onChange={(e) => setAdminNote(e.target.value)}
                       placeholder="Add notes for the applicant..."
-                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 resize-none h-24 transition-all"
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 resize-none h-24 transition-all"
                     />
                   </div>
                 </div>
 
                 <div className="p-6 border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row justify-end gap-3">
                   {selectedUser.status === 'Approved' ? (
-                    <div className="flex items-center gap-2 text-sm font-bold text-blue-600 px-4 py-2.5 bg-blue-50 rounded-2xl border border-blue-100">
+                    <div className="flex items-center gap-2 text-sm font-bold text-blue-600 px-4 py-2.5 bg-blue-50 rounded-[6px] border border-blue-100">
                       <CheckCircle2 className="w-4 h-4" />
                       <span>Member Approved</span>
                     </div>
@@ -1094,7 +1074,7 @@ export default function AdminDashboard() {
                       {selectedUser.status !== 'Declined' && (
                         <button
                           onClick={() => handleStatusUpdate(selectedUser.id, 'Declined')}
-                          className="px-6 py-2.5 bg-white border border-red-200 text-red-600 text-sm font-bold rounded-2xl hover:bg-red-50 hover:border-red-300 transition-colors shadow-sm"
+                          className="px-6 py-2.5 bg-white border border-red-200 text-red-600 text-sm font-bold rounded-[6px] hover:bg-red-50 hover:border-red-300 transition-colors shadow-sm"
                         >
                           Decline
                         </button>
@@ -1102,7 +1082,7 @@ export default function AdminDashboard() {
                       <button
                         onClick={() => handleStatusUpdate(selectedUser.id, 'Approved')}
                         className={clsx(
-                          "px-6 py-2.5 text-white text-sm font-bold rounded-2xl transition-all shadow-md flex items-center justify-center space-x-2",
+                          "px-6 py-2.5 text-white text-sm font-bold rounded-[6px] transition-all shadow-md flex items-center justify-center space-x-2",
                           selectedUser.status === 'Declined'
                             ? "bg-blue-600 hover:bg-blue-700 shadow-blue-900/10"
                             : "bg-blue-900 hover:bg-blue-800 shadow-blue-900/10"
@@ -1136,16 +1116,15 @@ export default function AdminDashboard() {
             >
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-lg bg-white rounded-xl shadow-2xl border border-slate-200 flex flex-col max-h-[95vh] sm:max-h-[90vh]"
+                className="w-full max-w-lg bg-white rounded-[6px] shadow-2xl border border-slate-200 flex flex-col max-h-[95vh] sm:max-h-[90vh]"
               >
                 <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 flex-shrink-0">
                   <div>
                     <h3 className="text-base sm:text-lg font-bold text-slate-900">My Access Card</h3>
-                    <p className="text-xs sm:text-sm text-slate-500">Official digital ID details.</p>
                   </div>
                   <button
                     onClick={() => setShowMyCard(false)}
-                    className="p-1.5 sm:p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                    className="p-1.5 sm:p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-[6px] transition-colors"
                   >
                     <XCircle className="w-5 h-5 sm:w-6 sm:h-6" />
                   </button>
@@ -1154,19 +1133,19 @@ export default function AdminDashboard() {
                   <div className="scale-[0.85] sm:scale-100 origin-top transition-transform">
                     <AccessCard user={currentUser} />
                   </div>
-                  <div className="w-full flex flex-col gap-3 pb-4">
+                  <div className="w-full flex flex-col gap-2.5 sm:gap-3 pb-4">
                     <button
                       onClick={() => handleCopyLink(currentUser)}
-                      className="flex items-center justify-center gap-2 w-full py-4 bg-blue-900 text-white rounded-xl font-bold text-sm hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/20"
+                      className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 bg-blue-900 text-white rounded-[6px] font-bold text-xs sm:text-sm hover:bg-blue-800 transition-colors shadow-[0_8px_20px_-12px_rgba(30,58,138,0.6)] active:scale-[0.98]"
                     >
-                      {copyStatus === 'copied' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      {copyStatus === 'copied' ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                       {copyStatus === 'copied' ? 'Link Copied' : 'Copy Public Link'}
                     </button>
                     <button
                       onClick={() => handleCopyEmbed(currentUser)}
-                      className="flex items-center justify-center gap-2 w-full py-4 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all shadow-sm"
+                      className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 bg-white border border-slate-200 text-slate-700 rounded-[6px] font-bold text-xs sm:text-sm hover:bg-slate-50 transition-colors active:scale-[0.98]"
                     >
-                      {copyStatus === 'embed-copied' ? <Check className="w-4 h-4" /> : <Code className="w-4 h-4" />}
+                      {copyStatus === 'embed-copied' ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Code className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                       {copyStatus === 'embed-copied' ? 'Embed Copied' : 'Copy Embed Code'}
                     </button>
                   </div>
@@ -1193,16 +1172,15 @@ export default function AdminDashboard() {
             >
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-4xl bg-white rounded-[2rem] shadow-2xl border border-slate-200 flex flex-col max-h-[95vh] sm:max-h-[90vh] overflow-hidden"
+                className="w-full max-w-4xl bg-white rounded-[6px] shadow-2xl border border-slate-200 flex flex-col max-h-[95vh] sm:max-h-[90vh] overflow-hidden"
               >
                 <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 flex-shrink-0">
                   <div>
                     <h3 className="text-xl font-bold text-slate-900 tracking-tight">Member Profile</h3>
-                    <p className="text-xs font-medium text-slate-500">Viewing official community record for {selectedMember.fullName}</p>
                   </div>
                   <button
                     onClick={() => setSelectedMember(null)}
-                    className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all active:scale-95"
+                    className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-[6px] transition-all active:scale-95"
                   >
                     <XCircle className="w-6 h-6" />
                   </button>
@@ -1217,14 +1195,14 @@ export default function AdminDashboard() {
                       <div className="w-full flex flex-col gap-3 max-w-[300px]">
                         <button
                           onClick={() => handleCopyLink(selectedMember)}
-                          className="flex items-center justify-center gap-2 w-full py-4 bg-blue-900 text-white rounded-2xl font-bold text-sm hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/20 active:scale-[0.98]"
+                          className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 bg-blue-900 text-white rounded-[6px] font-bold text-xs sm:text-sm hover:bg-blue-800 transition-colors shadow-[0_8px_20px_-12px_rgba(30,58,138,0.6)] active:scale-[0.98]"
                         >
                           {copyStatus === 'copied' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                           {copyStatus === 'copied' ? 'Link Copied' : 'Copy Public Link'}
                         </button>
                         <button
                           onClick={() => handleCopyEmbed(selectedMember)}
-                          className="flex items-center justify-center gap-2 w-full py-4 bg-white border-2 border-slate-100 text-slate-700 rounded-2xl font-bold text-sm hover:border-blue-100 hover:bg-blue-50/30 transition-all active:scale-[0.98]"
+                          className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 bg-white border border-slate-200 text-slate-700 rounded-[6px] font-bold text-xs sm:text-sm hover:border-blue-200 hover:bg-blue-50/40 transition-all active:scale-[0.98]"
                         >
                           {copyStatus === 'embed-copied' ? <Check className="w-4 h-4" /> : <Code className="w-4 h-4" />}
                           {copyStatus === 'embed-copied' ? 'Embed Copied' : 'Copy Embed Code'}
@@ -1235,15 +1213,15 @@ export default function AdminDashboard() {
                     <div className="space-y-8">
                       <div className="grid grid-cols-2 gap-y-6 gap-x-8 px-2">
                         <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Full Name</p>
+                          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Full Name</p>
                           <p className="text-sm font-bold text-slate-900">{selectedMember.fullName}</p>
                         </div>
                         <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Email Address</p>
+                          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Email Address</p>
                           <p className="text-sm font-semibold text-slate-600 break-all">{selectedMember.email}</p>
                         </div>
                         <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Discord</p>
+                          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Discord</p>
                           <div className="flex items-center gap-2">
                             {selectedMember.discordAvatar && selectedMember.discordId ? (
                               <img
@@ -1263,27 +1241,27 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                         <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Primary Role</p>
+                          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Primary Role</p>
                           <p className="text-sm font-bold text-slate-900">{selectedMember.specialization || 'N/A'}</p>
                         </div>
                         <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Community Role</p>
-                          <span className="inline-flex px-2 py-0.5 rounded-md bg-blue-50 text-[10px] font-black text-blue-700 uppercase tracking-widest">
+                          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Community Role</p>
+                          <span className="inline-flex px-2 py-0.5 rounded-md bg-blue-50 text-[10px] font-semibold text-blue-700 uppercase tracking-widest">
                             {selectedMember.role}
                           </span>
                         </div>
                         <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Member Since</p>
+                          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Member Since</p>
                           <p className="text-sm font-bold text-slate-900">{selectedMember.yearJoined || 'N/A'}</p>
                         </div>
                         <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Prof. Level</p>
+                          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Prof. Level</p>
                           <p className="text-sm font-bold text-slate-900">{selectedMember.experienceLevel || 'Beginner'}</p>
                         </div>
                       </div>
 
                       <div className="px-2">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Skills & Expertise</p>
+                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-4">Skills</p>
                         <div className="flex flex-wrap gap-2">
                           {Array.isArray(selectedMember.skills) && selectedMember.skills.length > 0 ? (
                             selectedMember.skills.map((skill, i) => (
@@ -1297,7 +1275,7 @@ export default function AdminDashboard() {
                                   />
                                 </div>
                                 <span className="text-xs font-semibold text-slate-800">{skill.name}</span>
-                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{skill.level}</span>
+                                <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-400">{skill.level}</span>
                               </div>
                             ))
                           ) : (
@@ -1306,18 +1284,15 @@ export default function AdminDashboard() {
                         </div>
                       </div>
 
-                      <div className="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Experience Level</p>
+                      <div className="p-5 bg-white rounded-[6px] border border-slate-100 shadow-sm">
+                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Experience Level</p>
                         <p className="text-sm font-bold text-slate-900">{selectedMember.experienceLevel || 'Professional'}</p>
                       </div>
 
                       {selectedMember.adminNotes && (
-                        <div className="p-5 bg-blue-50/50 rounded-2xl border border-blue-100/50 relative overflow-hidden">
-                          <div className="absolute top-0 right-0 p-2 opacity-10">
-                            <Key size={40} />
-                          </div>
-                          <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-2">Admin Remarks</p>
-                          <p className="text-sm text-slate-700 italic leading-relaxed font-medium">
+                        <div className="p-4 sm:p-5 bg-blue-50/60 rounded-[6px] border border-blue-100">
+                          <p className="text-[10px] font-semibold text-blue-900 uppercase tracking-[0.18em] mb-2">Admin Remarks</p>
+                          <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
                             "{selectedMember.adminNotes}"
                           </p>
                         </div>
@@ -1347,7 +1322,7 @@ export default function AdminDashboard() {
             >
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]"
+                className="w-full max-w-lg bg-white rounded-[6px] shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]"
               >
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                   <h3 className="text-lg font-bold text-slate-900">Edit Project Submission</h3>
@@ -1362,7 +1337,7 @@ export default function AdminDashboard() {
                       type="text"
                       value={editForm.projectName}
                       onChange={(e) => setEditForm({ ...editForm, projectName: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500"
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500"
                     />
                   </div>
                   <div>
@@ -1371,7 +1346,7 @@ export default function AdminDashboard() {
                       type="text"
                       value={editForm.projectUrl}
                       onChange={(e) => setEditForm({ ...editForm, projectUrl: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500"
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500"
                     />
                   </div>
                   <div>
@@ -1380,7 +1355,7 @@ export default function AdminDashboard() {
                       value={editForm.description}
                       onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                       rows={4}
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 resize-none"
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 resize-none"
                     />
                   </div>
                   <div>
@@ -1389,7 +1364,7 @@ export default function AdminDashboard() {
                       type="text"
                       value={editForm.projType}
                       onChange={(e) => setEditForm({ ...editForm, projType: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500"
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500"
                     />
                   </div>
                   <div>
@@ -1397,7 +1372,7 @@ export default function AdminDashboard() {
                     <select
                       value={editForm.status}
                       onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500"
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500"
                     >
                       <option value="pending">Pending</option>
                       <option value="approved">Approved</option>
@@ -1408,14 +1383,14 @@ export default function AdminDashboard() {
                 <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
                   <button
                     onClick={() => setEditingSubmission(null)}
-                    className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 text-sm font-bold rounded-2xl hover:bg-slate-50 transition-colors"
+                    className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 text-sm font-bold rounded-[6px] hover:bg-slate-50 transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleEditSave}
                     disabled={editSaving}
-                    className="px-6 py-2.5 bg-blue-900 text-white text-sm font-bold rounded-2xl hover:bg-blue-800 disabled:opacity-60 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+                    className="px-6 py-2.5 bg-blue-900 text-white text-sm font-bold rounded-[6px] hover:bg-blue-800 disabled:opacity-60 disabled:cursor-not-allowed transition-all flex items-center gap-2"
                   >
                     {editSaving ? 'Saving...' : 'Save Changes'}
                   </button>

@@ -8,8 +8,6 @@ import {
   MessageSquare,
   ArrowRight,
   Code2,
-  Menu,
-  X,
   Palette,
   Megaphone,
   Database,
@@ -24,12 +22,14 @@ import {
   Sun,
   Target,
   Flag,
-  ExternalLink
+  ExternalLink,
+  CheckCircle2,
+  GraduationCap
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AccessCard } from '../../components/AccessCard';
 import { User } from '../../types';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { motion, useScroll } from 'framer-motion';
 import { Navbar } from '../../components/Navbar';
 
 const DISCORD_INVITE = "https://discord.com/invite/mHtThpN8bT";
@@ -40,11 +40,6 @@ const Landing: React.FC = () => {
   const navigate = useNavigate();
 
   const { scrollYProgress } = useScroll();
-  const heroBgY = useTransform(scrollYProgress, [0, 0.2], [0, -80]);
-  const battleCryBgY = useTransform(scrollYProgress, [0.85, 0.95], [0, -120]);
-  const statsY = useTransform(scrollYProgress, [0.03, 0.1], [40, 0]);
-  const rolesY = useTransform(scrollYProgress, [0.25, 0.38], [60, -20]);
-  const valuesY = useTransform(scrollYProgress, [0.16, 0.26], [40, -20]);
 
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
@@ -142,548 +137,476 @@ const Landing: React.FC = () => {
 
       <Navbar />
 
-      {/* ── 1. Hero ───────────────────────────────────────────────── */}
-      <section className="relative min-h-screen flex items-center overflow-hidden bg-gradient-to-br from-blue-50 via-white to-slate-50">
-        <motion.div className="absolute inset-0 bg-gradient-to-br from-blue-50/80 via-white to-slate-50/80 pointer-events-none" style={{ y: heroBgY }} />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative pt-36 pb-16 sm:pt-40 sm:pb-24">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+      <section className="relative min-h-screen flex items-center bg-white overflow-hidden">
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(15,23,42,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.04)_1px,transparent_1px)] bg-[size:56px_56px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_40%,transparent_100%)] pointer-events-none" />
+        <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-6 relative pt-28 pb-20 sm:pt-32 sm:pb-28">
+          <div className="grid lg:grid-cols-[1.05fr_1fr] gap-10 lg:gap-16 items-center">
             <motion.div
-              initial={{ opacity: 0, x: -40 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.7, ease: "easeOut" }}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
             >
               <motion.h1
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="text-4xl lg:text-6xl font-display font-extrabold text-slate-900 leading-[1.1] mb-4"
+                transition={{ delay: 0.05 }}
+                className="text-3xl sm:text-5xl lg:text-6xl font-display font-bold text-slate-900 leading-[1.05] tracking-tight"
               >
-                Join the Philippines'
-                <span className="text-blue-600 block">Civic Tech Community</span>
+                Build civic tech
+                <span className="block text-blue-900">for the Philippines.</span>
               </motion.h1>
               <motion.p
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.3 }}
-                className="text-lg text-slate-600 mb-8 leading-relaxed max-w-xl"
+                transition={{ delay: 0.15 }}
+                className="mt-4 sm:mt-5 text-sm sm:text-lg text-slate-600 leading-relaxed max-w-lg"
               >
-                Build open-source tools for transparency and accountability. Collaborate with fellow Filipinos. Turn public data into public impact.
+                Join a community of developers, designers, researchers, and advocates building open-source tools for government transparency and accountability.
               </motion.p>
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-                className="flex flex-col sm:flex-row gap-4 items-start sm:items-center"
+                transition={{ delay: 0.25 }}
+                className="mt-6 sm:mt-8 flex flex-col gap-2.5"
               >
                 <button
                   onClick={handleApplyClick}
-                  className="group inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-2xl bg-blue-900 text-white font-bold text-sm hover:bg-blue-800 transition-all shadow-xl shadow-blue-900/25 active:scale-[0.97]"
+                  className="group inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-[6px] bg-blue-900 text-white font-bold text-sm hover:bg-blue-800 transition-all active:scale-[0.96] w-full sm:w-auto"
                 >
-                  <IdCard size={20} />
-                  Start Contributing
-                  <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                  <IdCard size={18} />
+                  Apply Now
+                  <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
                 </button>
                 <a
                   href={DISCORD_INVITE}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-2xl border-2 border-slate-300 bg-white text-slate-800 font-bold text-sm hover:border-blue-400 hover:text-blue-700 transition-all shadow-sm active:scale-[0.97]"
+                  className="group inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-[6px] border border-slate-300 bg-white text-slate-800 font-bold text-sm hover:border-slate-400 hover:bg-slate-50 transition-all active:scale-[0.96] w-full sm:w-auto"
                 >
-                  <MessageSquare size={20} />
+                  <MessageSquare size={18} />
                   Join Discord
                 </a>
               </motion.div>
             </motion.div>
-            <div className="flex justify-center items-center">
+            <div className="flex justify-center lg:justify-end mt-4 sm:mt-0 relative">
               <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.3 }}
+                initial={{ opacity: 0, scale: 0.96, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.18, ease: "easeOut" }}
                 className="relative"
               >
-                <div className="rotate-2 hover:rotate-0 transition-transform duration-500">
+                <div className="absolute -inset-6 bg-gradient-to-br from-blue-900/10 to-slate-900/5 rounded-[16px] blur-2xl" />
+                <div className="relative w-full max-w-[360px] sm:max-w-none">
                   <AccessCard user={mockUser} isDemo />
                 </div>
                 <motion.div
-                  initial={{ opacity: 0, scale: 0 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 1, type: "spring" }}
-                  className="absolute -top-3 -right-3 bg-white px-4 py-2 rounded-xl flex items-center gap-2 shadow-lg border border-slate-200"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.75 }}
+                  className="absolute -top-2.5 left-2 sm:-top-3 sm:-left-2 lg:-left-4 bg-white px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-[6px] flex items-center gap-1.5 sm:gap-2 shadow-md border border-slate-200"
                 >
-                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                  <span className="text-xs font-bold text-slate-700">Verified Contributor</span>
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
+                  <span className="text-[11px] sm:text-xs font-semibold text-slate-700 whitespace-nowrap">Verified</span>
                 </motion.div>
               </motion.div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── 2. Impact Stats ────────────────────────────────────────── */}
-      <motion.section style={{ y: statsY }} className="py-12 bg-white border-y border-slate-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {[
-              { value: "13+", label: "Major Projects", icon: <BarChart3 size={20} /> },
-              { value: "4,600+", label: "Discord Members", icon: <Users size={20} /> },
-              { value: "₱6.3T", label: "Budget Analyzed", icon: <Search size={20} /> },
-              { value: "5+", label: "Partner Organizations", icon: <Building2 size={20} /> }
-            ].map((stat, i) => (
               <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="text-center"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.9 }}
+                className="absolute -bottom-2.5 right-2 sm:-bottom-3 sm:-right-2 lg:-right-4 bg-white px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-[6px] flex items-center gap-1.5 sm:gap-2 shadow-md border border-slate-200"
               >
-                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-900 mx-auto mb-3">
-                  {stat.icon}
-                </div>
-                <div className="text-2xl lg:text-3xl font-display font-extrabold text-slate-900">{stat.value}</div>
-                <div className="text-sm text-slate-500 mt-1">{stat.label}</div>
+                <Users size={12} className="text-blue-900 flex-shrink-0 sm:hidden" />
+                <Users size={14} className="text-blue-900 flex-shrink-0 hidden sm:inline-flex" />
+                <span className="text-[11px] sm:text-xs font-semibold text-slate-700 whitespace-nowrap">4,600+ Members</span>
               </motion.div>
-            ))}
+            </div>
           </div>
-        </div>
-      </motion.section>
-
-      {/* ── 3. Battle Cry: The Old Way / Our Way ───────────────────── */}
-      <section className="py-20 lg:py-28 bg-white overflow-hidden relative">
-        <motion.div
-          className="absolute top-20 right-10 w-64 h-64 rounded-full bg-blue-50/50 pointer-events-none"
-          style={{ y: useTransform(scrollYProgress, [0.08, 0.2], [-30, 30]) }}
-        />
-        <motion.div
-          className="absolute bottom-20 left-10 w-48 h-48 rounded-full bg-indigo-50/50 pointer-events-none"
-          style={{ y: useTransform(scrollYProgress, [0.08, 0.2], [30, -30]) }}
-        />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-3xl lg:text-5xl font-display font-bold text-slate-900 mb-4">
-              We Are The Generation That Must Change The Old System
-            </h2>
-            <p className="text-slate-600 max-w-2xl mx-auto text-lg leading-relaxed">
-              Mga kababayan, we stand at a crossroads. The path we choose today will define Philippine democracy for generations.
-            </p>
-          </motion.div>
-
-          <div className="grid md:grid-cols-2 gap-8 lg:gap-12 max-w-5xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              className="bg-red-50 rounded-3xl p-8 lg:p-10 border border-red-100"
-            >
-              <div className="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center text-red-600 mb-6">
-                <Lock size={24} />
-              </div>
-              <h3 className="text-2xl font-bold text-slate-900 mb-4">The Old Way</h3>
-              <ul className="space-y-4">
-                <li className="flex items-start gap-3 text-slate-700">
-                  <div className="w-5 h-5 rounded-full bg-red-200 flex items-center justify-center shrink-0 mt-0.5">
-                    <X size={12} className="text-red-600" />
-                  </div>
-                  <span className="text-sm">Citizens are spectators to their own governance</span>
-                </li>
-                <li className="flex items-start gap-3 text-slate-700">
-                  <div className="w-5 h-5 rounded-full bg-red-200 flex items-center justify-center shrink-0 mt-0.5">
-                    <X size={12} className="text-red-600" />
-                  </div>
-                  <span className="text-sm">Transparency is a promise unfulfilled</span>
-                </li>
-                <li className="flex items-start gap-3 text-slate-700">
-                  <div className="w-5 h-5 rounded-full bg-red-200 flex items-center justify-center shrink-0 mt-0.5">
-                    <X size={12} className="text-red-600" />
-                  </div>
-                  <span className="text-sm">The digital age passes by our democracy like a ship in the night</span>
-                </li>
-                <li className="flex items-start gap-3 text-slate-700">
-                  <div className="w-5 h-5 rounded-full bg-red-200 flex items-center justify-center shrink-0 mt-0.5">
-                    <X size={12} className="text-red-600" />
-                  </div>
-                  <span className="text-sm">Data is trapped in PDFs and broken websites</span>
-                </li>
-              </ul>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.15 }}
-              className="bg-green-50 rounded-3xl p-8 lg:p-10 border border-green-100"
-            >
-              <div className="w-12 h-12 rounded-2xl bg-green-100 flex items-center justify-center text-green-600 mb-6">
-                <Sun size={24} />
-              </div>
-              <h3 className="text-2xl font-bold text-slate-900 mb-4">Our Way</h3>
-              <ul className="space-y-4">
-                <li className="flex items-start gap-3 text-slate-700">
-                  <div className="w-5 h-5 rounded-full bg-green-200 flex items-center justify-center shrink-0 mt-0.5">
-                    <ShieldCheck size={12} className="text-green-600" />
-                  </div>
-                  <span className="text-sm">Every Filipino with a smartphone becomes an agent of change</span>
-                </li>
-                <li className="flex items-start gap-3 text-slate-700">
-                  <div className="w-5 h-5 rounded-full bg-green-200 flex items-center justify-center shrink-0 mt-0.5">
-                    <ShieldCheck size={12} className="text-green-600" />
-                  </div>
-                  <span className="text-sm">Government works <span className="font-bold">with</span> us, not <span className="font-bold">above</span> us</span>
-                </li>
-                <li className="flex items-start gap-3 text-slate-700">
-                  <div className="w-5 h-5 rounded-full bg-green-200 flex items-center justify-center shrink-0 mt-0.5">
-                    <ShieldCheck size={12} className="text-green-600" />
-                  </div>
-                  <span className="text-sm">Technology serves <span className="font-bold">bayanihan</span>, not bureaucracy</span>
-                </li>
-                <li className="flex items-start gap-3 text-slate-700">
-                  <div className="w-5 h-5 rounded-full bg-green-200 flex items-center justify-center shrink-0 mt-0.5">
-                    <ShieldCheck size={12} className="text-green-600" />
-                  </div>
-                  <span className="text-sm">Open data, open code, open government — accessible to every Filipino</span>
-                </li>
-              </ul>
-            </motion.div>
-          </div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.3 }}
-            className="text-center mt-12"
-          >
-            <p className="text-2xl lg:text-3xl font-bold text-blue-900">We choose our way.</p>
-          </motion.div>
         </div>
       </section>
 
-      {/* ── 4. Our Declaration / Values ────────────────────────────── */}
-      <section className="py-20 lg:py-28 bg-slate-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="py-12 sm:py-18 lg:py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-6">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
+            className="max-w-2xl mb-8 sm:mb-10"
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-100 text-blue-900 text-sm font-bold mb-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-[6px] bg-blue-50 text-blue-900 text-xs font-semibold mb-4">
               <Target size={14} />
-              Our Declaration
+              Why We Exist
             </div>
-            <h2 className="text-3xl lg:text-5xl font-display font-bold text-slate-900 mb-4">
-              What We Stand For
+            <h2 className="text-2xl sm:text-4xl lg:text-5xl font-display font-bold text-slate-900 leading-tight tracking-tight">
+              The system doesn't fix itself.
+              <span className="block text-blue-900">We do.</span>
             </h2>
-            <p className="text-slate-600 max-w-2xl mx-auto text-lg leading-relaxed">
-              These principles guide every line of code, every design decision, and every project we build.
-            </p>
           </motion.div>
 
-          <motion.div style={{ y: valuesY }} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid md:grid-cols-2 gap-4 sm:gap-5 items-stretch">
+            <motion.div
+              initial={{ opacity: 0, x: -12 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="bg-white rounded-[6px] border border-slate-200 p-5 sm:p-7 flex flex-col"
+            >
+              <div className="flex items-center gap-3 mb-4 sm:mb-5">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-[6px] bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500">
+                  <Lock size={15} />
+                </div>
+                <div>
+                  <p className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-[0.15em]">Where We Are</p>
+                  <h3 className="text-base font-bold text-slate-900 mt-0.5">Current State</h3>
+                </div>
+              </div>
+              <ul className="space-y-2 sm:space-y-2.5 flex-grow">
+                {[
+                  "Citizens are spectators to governance",
+                  "Transparency is a promise, not a practice",
+                  "Public data trapped in broken systems",
+                  "Bureaucracy moves slower than technology"
+                ].map((item, i) => (
+                  <li key={i} className="flex items-start gap-2 sm:gap-2.5 text-slate-600 text-xs sm:text-sm">
+                    <span className="w-3 h-px sm:w-3.5 bg-slate-300 mt-2 sm:mt-2.5 flex-shrink-0 rounded-full" />
+                    <span className="leading-relaxed">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: 12 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.08 }}
+              className="bg-white rounded-[6px] border border-blue-200 p-5 sm:p-7 flex flex-col shadow-[0_0_0_1px_rgba(30,58,138,0.04),0_2px_10px_-4px_rgba(30,58,138,0.08)]"
+            >
+              <div className="flex items-center gap-3 mb-4 sm:mb-5">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-[6px] bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-900">
+                  <Sun size={15} />
+                </div>
+                <div>
+                  <p className="text-[10px] sm:text-[11px] font-semibold text-blue-900 uppercase tracking-[0.15em]">Where We're Going</p>
+                  <h3 className="text-base font-bold text-slate-900 mt-0.5">BetterGov Approach</h3>
+                </div>
+              </div>
+              <ul className="space-y-2 sm:space-y-2.5 flex-grow">
+                {[
+                  "Every Filipino is an agent of change",
+                  "Government works with us, not above us",
+                  "Open data, open code, open by default",
+                  "Technology serves bayanihan, not bureaucracy"
+                ].map((item, i) => (
+                  <li key={i} className="flex items-start gap-2 sm:gap-2.5 text-slate-700 text-xs sm:text-sm">
+                    <CheckCircle2 size={13} className="text-blue-700 mt-0.5 flex-shrink-0 sm:hidden" />
+                    <CheckCircle2 size={14} className="text-blue-700 mt-0.5 flex-shrink-0 hidden sm:inline-flex" />
+                    <span className="leading-relaxed font-medium">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      <section className="py-12 sm:py-18 lg:py-20 bg-slate-50 border-y border-slate-100">
+        <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-6">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="max-w-2xl mb-8 sm:mb-10"
+          >
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-[6px] bg-white border border-slate-200 text-slate-700 text-xs font-semibold mb-4">
+              <Flag size={14} />
+              Principles
+            </div>
+            <h2 className="text-2xl sm:text-4xl font-display font-bold text-slate-900 leading-tight tracking-tight">
+              What we stand for.
+            </h2>
+          </motion.div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {[
-              { icon: <Flag size={28} />, title: "Filipino-First", desc: "Built by Filipinos, for Filipinos" },
-              { icon: <Lightbulb size={28} />, title: "Innovation", desc: "Every line of code serves democracy" },
-              { icon: <Users size={28} />, title: "Collaboration", desc: "Building bridges, not walls" },
-              { icon: <Zap size={28} />, title: "Urgency", desc: "Fast feedback, real impact" },
-              { icon: <Github size={28} />, title: "Open", desc: "Code, data, movement transparent" },
-              { icon: <Heart size={28} />, title: "Accessible", desc: "Every Filipino participates" }
+              { icon: <Flag size={18} />, title: "Filipino-First", desc: "Built by Filipinos, for Filipinos" },
+              { icon: <Lightbulb size={18} />, title: "Open by Default", desc: "Code, data, and process are public" },
+              { icon: <Users size={18} />, title: "Collaboration", desc: "Build together, ship together" },
+              { icon: <Zap size={18} />, title: "Urgency", desc: "Ship fast, iterate faster" },
+              { icon: <ShieldCheck size={18} />, title: "Rigor", desc: "Verify sources, get it right" },
+              { icon: <Heart size={18} />, title: "Accessibility", desc: "Every Filipino can participate" }
             ].map((value, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 12 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.06 }}
-                className="text-center p-6"
+                transition={{ delay: i * 0.05 }}
+                className="bg-white rounded-[6px] border border-slate-200 p-4 sm:p-5"
               >
-                <div className="w-12 h-12 rounded-2xl bg-white shadow-sm border border-slate-200 flex items-center justify-center text-blue-900 mx-auto mb-4">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-[6px] bg-blue-50 flex items-center justify-center text-blue-900 mb-2.5 sm:mb-3">
                   {value.icon}
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 mb-1">{value.title}</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">{value.desc}</p>
+                <h3 className="text-xs sm:text-sm font-bold text-slate-900 mb-1 leading-snug">{value.title}</h3>
+                <p className="text-[11px] sm:text-xs text-slate-500 leading-relaxed">{value.desc}</p>
               </motion.div>
             ))}
-          </motion.div>
+          </div>
         </div>
       </section>
 
-      {/* ── 5. Open Roles ──────────────────────────────────────────── */}
-      <section id="open-roles" className="py-20 lg:py-28 bg-gradient-to-b from-white to-slate-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section id="open-roles" className="py-12 sm:py-18 lg:py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-6">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
+            className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 sm:gap-4 mb-8 sm:mb-10"
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-100 text-blue-900 text-sm font-bold mb-4">
-              <Users size={14} />
-              We Need Your Skills
+            <div className="max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-[6px] bg-blue-50 text-blue-900 text-xs font-semibold mb-4">
+                <Users size={14} />
+                Open Roles
+              </div>
+              <h2 className="text-2xl sm:text-4xl font-display font-bold text-slate-900 leading-tight tracking-tight">
+                Find how you can contribute.
+              </h2>
             </div>
-            <h2 className="text-3xl lg:text-5xl font-display font-bold text-slate-900 mb-4">
-              Find Your Role in the Movement
-            </h2>
-            <p className="text-slate-600 max-w-2xl mx-auto text-lg leading-relaxed">
-              Every skill is a tool for change. Whether you code, design, research, or organize — there's a place for you here.
+            <p className="text-xs sm:text-sm text-slate-600 max-w-md">
+              Whether you code, design, research, or organize — there's a place for you here.
             </p>
           </motion.div>
 
-          <motion.div style={{ y: rolesY }} className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {roles.map((role, index) => (
-              <motion.div
+              <motion.a
                 key={index}
-                initial={{ opacity: 0, y: 30 }}
+                href={role.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                initial={{ opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: index * 0.08 }}
-                className="bg-white p-8 rounded-2xl border border-slate-200 hover:border-blue-200 hover:shadow-xl transition-all duration-300 group flex flex-col"
+                transition={{ delay: index * 0.06 }}
+                className="bg-white rounded-[6px] border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all duration-200 group p-5 flex flex-col cursor-pointer"
               >
-                <div className="flex items-start justify-between mb-5">
-                  <span className="text-4xl font-display font-bold text-slate-100 group-hover:text-blue-100 transition-colors">
-                    {role.number}
-                  </span>
-                  <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center text-blue-900 group-hover:bg-blue-900 group-hover:text-white transition-all">
+                <div className="flex items-start justify-between mb-3 sm:mb-4">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-[6px] bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-700 group-hover:bg-blue-900 group-hover:border-blue-900 group-hover:text-white transition-all">
                     {role.icon}
                   </div>
+                  <span className="text-xs font-bold text-slate-300 group-hover:text-blue-200 transition-colors">
+                    {role.number}
+                  </span>
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 mb-3">{role.title}</h3>
-                <p className="text-slate-600 text-sm leading-relaxed mb-5 flex-grow">{role.description}</p>
-                <div className="space-y-4 mb-6">
+                <h3 className="text-base font-bold text-slate-900 mb-2 flex items-center justify-between">
+                  {role.title}
+                  <ExternalLink size={14} className="text-slate-300 group-hover:text-blue-600 transition-colors opacity-0 group-hover:opacity-100" />
+                </h3>
+                <p className="text-slate-600 text-xs sm:text-sm leading-relaxed mb-3 sm:mb-4 flex-grow">{role.description}</p>
+                <div className="space-y-2.5 sm:space-y-3">
                   <div>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Skills</p>
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5 sm:mb-2">Skills</p>
                     <div className="flex flex-wrap gap-1.5">
                       {role.skills.map((skill, i) => (
-                        <span key={i} className="text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 font-medium">
+                        <span key={i} className="text-[11px] px-2 py-0.5 rounded-[4px] bg-slate-50 border border-slate-200 text-slate-600 font-semibold">
                           {skill}
                         </span>
                       ))}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
                     <Zap size={12} />
                     <span>{role.commitment}</span>
                   </div>
                 </div>
-              </motion.div>
+              </motion.a>
             ))}
-          </motion.div>
+          </div>
 
           <motion.div
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mt-12"
+            className="mt-8 sm:mt-10 p-4 sm:p-5 rounded-[6px] bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
           >
-            <p className="text-slate-500 text-sm mb-4">Don't see your exact fit?</p>
+            <p className="text-xs sm:text-sm text-slate-600">
+              <span className="font-bold text-slate-900">Don't see your role?</span> Join Discord and introduce yourself.
+            </p>
             <a
               href={DISCORD_INVITE}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-blue-900 font-semibold text-sm hover:gap-3 transition-all group"
+              className="inline-flex items-center justify-center sm:justify-start gap-2 px-4 py-2 rounded-[6px] bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 transition-all active:scale-[0.96] w-full sm:w-auto"
             >
-              Join Discord and tell us how you want to contribute
-              <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+              <MessageSquare size={16} />
+              Join Discord
             </a>
           </motion.div>
         </div>
       </section>
 
-      {/* ── 9. Partners ────────────────────────────────────────────── */}
-      <section className="py-20 lg:py-28 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="py-10 sm:py-14 bg-slate-50 border-y border-slate-100 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-6">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 8 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-14"
+            className="mb-6 sm:mb-8"
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 text-white text-sm font-bold mb-4">
-              <Building2 size={14} />
-              Trusted By
-            </div>
-            <h2 className="text-3xl lg:text-5xl font-display font-bold text-slate-900 mb-4">
-              Our Partners & Allies
-            </h2>
-            <p className="text-slate-600 max-w-2xl mx-auto text-base leading-relaxed">
-              We don't work alone. These organizations have opened doors, shared expertise, and trusted us with real responsibility.
+            <p className="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">
+              Built with institutions that trust us
             </p>
           </motion.div>
         </div>
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          className="relative overflow-hidden w-full"
-        >
+        <div className="relative overflow-hidden w-full">
           <motion.div
-            className="flex gap-16 items-center"
+            className="flex flex-nowrap shrink-0 gap-8 sm:gap-14 md:gap-18 items-center"
             animate={{ x: ["0%", "-50%"] }}
-            transition={{ duration: 80, repeat: Infinity, ease: "linear" }}
+            transition={{ duration: 70, repeat: Infinity, ease: "linear" }}
           >
-            {[...Array(2)].flatMap(() => [
+            {[...Array(4)].flatMap((_, rep) => [
               { name: "BetterGovPH", logo: "https://assets.bettergov.ph/logos/webp/icon-primary.webp" },
               { name: "DICT", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/Department_of_Information_and_Communications_Technology_%28DICT%29.svg/960px-Department_of_Information_and_Communications_Technology_%28DICT%29.svg.png" },
-              { name: "Department of Budget and Management", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Department_of_Budget_and_Management_%28DBM%29.svg/250px-Department_of_Budget_and_Management_%28DBM%29.svg.png" },
+              { name: "DBM", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Department_of_Budget_and_Management_%28DBM%29.svg/250px-Department_of_Budget_and_Management_%28DBM%29.svg.png" },
               { name: "PCIJ", logo: "https://i0.wp.com/pcij.org/wp-content/uploads/2024/04/logo-pcij-web.png?w=619&quality=80&ssl=1" },
-              { name: "People's Budget Coalition", icon: <Scale size={28} /> },
-              { name: "Local Government Units", icon: <Building2 size={28} /> }
+              { name: "People's Budget Coalition", icon: <Scale size={18} /> },
+              { name: "LGUs", icon: <Building2 size={18} /> },
             ]).map((partner, i) => (
-              <motion.div
+              <div
                 key={i}
-                initial={{ opacity: 0, y: 10 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.03 }}
-                className="flex items-center gap-4 px-6 py-4 whitespace-nowrap"
+                className="shrink-0 flex items-center gap-2 sm:gap-3 px-4 sm:px-5 py-2.5 sm:py-3.5 whitespace-nowrap opacity-80 hover:opacity-100 transition-opacity"
               >
                 {'logo' in partner ? (
                   <img
                     src={partner.logo}
                     alt={partner.name}
-                    className="h-12 w-auto object-contain"
+                    className="h-8 sm:h-10 md:h-11 w-auto object-contain grayscale hover:grayscale-0 transition-all shrink-0"
                     loading="lazy"
                   />
                 ) : (
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-900">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-[6px] bg-white border border-slate-200 flex items-center justify-center text-slate-600 shrink-0">
                     {partner.icon}
                   </div>
                 )}
-                <span className="text-sm font-semibold text-slate-700">{partner.name}</span>
-              </motion.div>
+                <span className="text-[11px] sm:text-xs md:text-sm font-semibold text-slate-600">{partner.name}</span>
+              </div>
             ))}
           </motion.div>
-        </motion.div>
+        </div>
       </section>
 
-      {/* ── 10. How It Works ───────────────────────────────────────── */}
-      <section id="how-it-works" className="py-20 lg:py-28 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section id="how-it-works" className="py-12 sm:py-18 lg:py-20 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-6">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
+            className="max-w-2xl mb-8 sm:mb-10"
           >
-            <h2 className="text-3xl lg:text-5xl font-display font-bold text-slate-900 mb-4">
-              Start in 3 Simple Steps
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-[6px] bg-white border border-slate-200 text-slate-700 text-xs font-semibold mb-4">
+              <Zap size={14} />
+              Getting Started
+            </div>
+            <h2 className="text-2xl sm:text-4xl font-display font-bold text-slate-900 leading-tight tracking-tight">
+              Three steps to join.
             </h2>
-            <p className="text-slate-600 max-w-2xl mx-auto text-lg leading-relaxed">
-              Join fellow Filipinos building tools for transparency and accountability.
-            </p>
           </motion.div>
 
-          <div className="max-w-4xl mx-auto">
-            <div className="grid md:grid-cols-3 gap-8">
-              {[
-                {
-                  step: "01",
-                  title: "Join the Community",
-                  desc: "Hop into our Discord server. Say hello, introduce yourself, and see what people are building. This is where everything happens.",
-                  action: "Join Discord",
-                  href: DISCORD_INVITE
-                },
-                {
-                  step: "02",
-                  title: "Share Your Skills",
-                  desc: "Fill out a simple form — your name, skills, and what you want to work on. Takes 5 minutes. No bureaucracy.",
-                  action: "Get Started",
-                  href: "/register"
-                },
-                {
-                  step: "03",
-                  title: "Start Contributing",
-                  desc: "Jump into active projects, collaborate with fellow contributors, and help turn public data into public impact.",
-                  action: "See Open Roles",
-                  href: "#open-roles"
-                }
-              ].map((item, i) => (
+          <div className="grid md:grid-cols-3 gap-4 items-stretch">
+            {[
+              {
+                title: "Join Discord",
+                desc: "Meet the community. Say hello, see what's being built.",
+                action: "Open Discord",
+                href: DISCORD_INVITE
+              },
+              {
+                title: "Fill Out Form",
+                desc: "Share your skills and interests. Takes 5 minutes.",
+                action: "Apply Now",
+                href: "/register"
+              },
+              {
+                title: "Start Building",
+                desc: "Pick a project, collaborate, ship impact.",
+                action: "Browse Roles",
+                href: "#open-roles"
+              }
+            ].map((item, i) => {
+              const LinkComponent = item.href.startsWith('http') ? 'a' : item.href.startsWith('#') ? 'button' : 'button';
+              const linkProps = item.href.startsWith('http')
+                ? { href: item.href, target: "_blank", rel: "noopener noreferrer" }
+                : item.href.startsWith('#')
+                  ? { onClick: () => scrollToSection(item.href.replace('#', '')) }
+                  : { onClick: () => navigate(item.href) };
+
+              return (
                 <motion.div
                   key={i}
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 12 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  transition={{ delay: i * 0.15 }}
-                  className="relative flex flex-col items-center text-center p-8"
+                  transition={{ delay: i * 0.08 }}
+                  className="bg-white rounded-[6px] border border-slate-200 p-5 sm:p-6 flex flex-col"
                 >
-                  {i < 2 && (
-                    <div className="hidden md:block absolute top-16 left-[60%] w-[80%] h-px border-t-2 border-dashed border-blue-200" />
-                  )}
-                  <div className="w-14 h-14 rounded-full bg-blue-900 text-white flex items-center justify-center font-display font-bold text-xl mb-6 relative">
-                    <div className="absolute inset-0 rounded-full bg-blue-800 animate-ping opacity-20" />
-                    <span className="relative">{item.step}</span>
+                  <div className="flex items-center justify-between mb-4 sm:mb-5">
+                    <div className="w-8 h-8 rounded-[6px] bg-slate-900 text-white flex items-center justify-center text-sm font-bold">
+                      {i + 1}
+                    </div>
+                    <span className="text-[10px] sm:text-xs font-bold text-slate-300 uppercase tracking-widest">Step {i + 1}</span>
                   </div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-3">{item.title}</h3>
-                  <p className="text-slate-600 text-sm leading-relaxed mb-6">{item.desc}</p>
-                  {item.href.startsWith('http') ? (
-                    <a href={item.href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-blue-900 font-bold text-sm hover:gap-3 transition-all group">
-                      {item.action}
-                      <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                    </a>
-                  ) : item.href.startsWith('#') ? (
-                    <button onClick={() => scrollToSection(item.href.replace('#', ''))} className="inline-flex items-center gap-2 text-blue-900 font-bold text-sm hover:gap-3 transition-all group">
-                      {item.action}
-                      <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                    </button>
-                  ) : (
-                    <button onClick={() => navigate(item.href)} className="inline-flex items-center gap-2 text-blue-900 font-bold text-sm hover:gap-3 transition-all group">
-                      {item.action}
-                      <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                    </button>
-                  )}
+                  <h3 className="text-base font-bold text-slate-900 mb-2">{item.title}</h3>
+                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed mb-4 sm:mb-5 flex-grow">{item.desc}</p>
+                  <LinkComponent
+                    {...linkProps as any}
+                    className="inline-flex items-center gap-1.5 text-sm font-bold text-blue-900 hover:gap-2 transition-all w-fit group"
+                  >
+                    {item.action}
+                    <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+                  </LinkComponent>
                 </motion.div>
-              ))}
-            </div>
+              );
+            })}
           </div>
         </div>
       </section>
 
 
 
-      {/* ── 12. CTA / Final Battle Cry ─────────────────────────────── */}
-      <section className="relative py-32 lg:py-44 bg-gradient-to-br from-blue-900 via-blue-800 to-slate-900 text-white overflow-hidden">
-        <motion.div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" style={{ y: battleCryBgY }} />
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+      <section className="relative py-16 sm:py-20 lg:py-24 bg-slate-900 text-white overflow-hidden">
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:56px_56px] [mask-image:radial-gradient(ellipse_80%_60%_at_50%_50%,#000_40%,transparent_100%)]" />
+        <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-6 relative z-10">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
+            className="max-w-3xl"
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm text-white text-sm font-bold mb-8">
-              <Heart size={14} className="fill-white" />
-              Join the Movement
-            </div>
-            <h2 className="text-3xl lg:text-5xl font-display font-bold mb-3">
-              Hindi Tayo Tumitingin.
+            <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-4 sm:mb-5">Join us</p>
+            <h2 className="text-3xl sm:text-5xl lg:text-6xl font-display font-bold leading-[1.05] tracking-tight mb-3 sm:mb-4">
+              Hindi tayo tumitingin.
+              <span className="block text-blue-400 mt-1.5 sm:mt-2">Tayo ang gumagawa.</span>
             </h2>
-            <p className="text-5xl lg:text-7xl font-display font-extrabold mb-6 text-yellow-400">
-              Tayo Ang Gumagawa.
+            <p className="text-sm sm:text-lg text-slate-300 mb-6 sm:mb-8 max-w-xl">
+              We don't just watch. Every contributor brings us closer to the government we deserve.
             </p>
-            <p className="text-xl text-blue-100 mb-3">We don't just watch. We build.</p>
-            <p className="text-base text-blue-200/80 mb-10 max-w-lg mx-auto">
-              Every developer, designer, researcher, and advocate who joins brings us closer to the government we deserve.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:gap-3">
               <button
                 onClick={handleApplyClick}
-                className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-white text-blue-900 font-bold text-base hover:bg-blue-50 transition-all shadow-xl active:scale-[0.97] group"
+                className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3.5 rounded-[6px] bg-white text-slate-900 font-bold text-sm hover:bg-blue-50 transition-all active:scale-[0.96] group w-full sm:w-auto"
               >
-                <Users size={20} />
-                Join the Community
-                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                <Users size={16} className="sm:hidden" />
+                <Users size={18} className="hidden sm:inline-block" />
+                Apply Now
+                <ArrowRight size={14} className="sm:hidden group-hover:translate-x-0.5 transition-transform" />
+                <ArrowRight size={16} className="hidden sm:inline-block group-hover:translate-x-0.5 transition-transform" />
               </button>
               <a
                 href={DISCORD_INVITE}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl border-2 border-white/40 text-white font-bold text-base hover:bg-white/10 hover:border-white transition-all active:scale-[0.97] group"
+                className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3.5 rounded-[6px] border border-white/20 text-white font-bold text-sm hover:bg-white/5 hover:border-white/35 transition-all active:scale-[0.96] w-full sm:w-auto"
               >
-                <MessageSquare size={20} />
+                <MessageSquare size={16} className="sm:hidden" />
+                <MessageSquare size={18} className="hidden sm:inline-block" />
                 Join Discord
               </a>
             </div>
@@ -691,87 +614,64 @@ const Landing: React.FC = () => {
         </div>
       </section>
 
-      {/* ── 13. Footer ─────────────────────────────────────────────── */}
-      <motion.footer
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6 }}
-        className="bg-slate-900 text-slate-300 py-16"
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-4 gap-10 mb-12">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              className="col-span-2"
-            >
-              <div className="flex items-center gap-2 mb-5">
-                <img src="https://assets.bettergov.ph/logos/webp/icon-white.webp" alt="BetterGovPH" className="h-10 w-auto" />
+      <footer className="bg-slate-900 text-slate-300 py-10 sm:py-12">
+        <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-6">
+          <div className="grid md:grid-cols-3 gap-8 sm:gap-10 mb-8 sm:mb-10">
+            <div>
+              <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                <img src="https://assets.bettergov.ph/logos/webp/icon-white.webp" alt="BetterGovPH" className="h-8 sm:h-9 w-auto" />
               </div>
-              <p className="text-slate-400 max-w-sm text-sm leading-relaxed mb-6">
-                Building the future of digital governance in the Philippines through open source, collaboration, and community-driven technology.
+              <p className="text-slate-400 text-xs sm:text-sm leading-relaxed mb-4 sm:mb-5 max-w-xs">
+                Open source civic tech for Philippine transparency and accountability.
               </p>
-              <div className="flex gap-3">
-                <a href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white transition-all" aria-label="Discord">
-                  <MessageSquare size={16} />
-                </a>
-                <a href={GITHUB_ORG} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white transition-all" aria-label="GitHub">
-                  <Github size={16} />
-                </a>
-                <a href={MAIN_WEBSITE} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white transition-all" aria-label="Website">
-                  <Globe size={16} />
-                </a>
+              <div className="flex gap-2">
+                {[
+                  { href: DISCORD_INVITE, iconS: <MessageSquare size={14} className="sm:hidden" />, iconL: <MessageSquare size={15} className="hidden sm:inline-block" />, label: "Discord" },
+                  { href: GITHUB_ORG, iconS: <Github size={14} className="sm:hidden" />, iconL: <Github size={15} className="hidden sm:inline-block" />, label: "GitHub" },
+                  { href: MAIN_WEBSITE, iconS: <Globe size={14} className="sm:hidden" />, iconL: <Globe size={15} className="hidden sm:inline-block" />, label: "Website" }
+                ].map((s, i) => (
+                  <a
+                    key={i}
+                    href={s.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={s.label}
+                    className="w-8 h-8 rounded-[6px] bg-slate-800 flex items-center justify-center text-slate-400 hover:bg-blue-900 hover:text-white transition-colors"
+                  >
+                    {s.iconS}
+                    {s.iconL}
+                  </a>
+                ))}
               </div>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.2 }}
-            >
-              <h4 className="font-bold text-white mb-5 text-xs uppercase tracking-widest">Get Involved</h4>
-              <ul className="space-y-3">
-                <li><a href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white text-sm transition-colors">Join Discord</a></li>
-                <li><Link to="/contribute" className="text-slate-400 hover:text-white text-sm transition-colors">How to Contribute</Link></li>
-                <li><a href={GITHUB_ORG} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white text-sm transition-colors">Open Source Repos</a></li>
-                <li><button onClick={() => navigate('/register')} className="text-slate-400 hover:text-white text-sm transition-colors">Apply to Join</button></li>
-              </ul>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.3 }}
-            >
-              <h4 className="font-bold text-white mb-5 text-xs uppercase tracking-widest">Developer Portal</h4>
-              <ul className="space-y-3">
-                <li><button onClick={() => navigate('/login')} className="text-slate-400 hover:text-white text-sm transition-colors">Sign In</button></li>
-                <li><Link to="/projects" className="text-slate-400 hover:text-white text-sm transition-colors">Projects</Link></li>
-                <li><Link to="/verify" className="text-slate-400 hover:text-white text-sm transition-colors">Verify a Card</Link></li>
-                <li><Link to="/privacy" className="text-slate-400 hover:text-white text-sm transition-colors">Privacy Policy</Link></li>
-              </ul>
-            </motion.div>
-          </div>
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.4 }}
-            className="pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4"
-          >
-            <p className="text-slate-500 text-xs">
-              &copy; {new Date().getFullYear()} BetterGovPH. Built with purpose for the Filipino people.
-            </p>
-            <div className="flex gap-6">
-              <Link to="/privacy" className="text-slate-500 hover:text-white text-xs transition-colors">Privacy</Link>
-              <Link to="/terms" className="text-slate-500 hover:text-white text-xs transition-colors">Terms</Link>
             </div>
-          </motion.div>
+            <div>
+              <h4 className="font-bold text-white mb-3 sm:mb-4 text-[10px] sm:text-xs uppercase tracking-wider">Join</h4>
+              <ul className="space-y-2 sm:space-y-2.5">
+                <li><a href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white text-xs sm:text-sm transition-colors">Discord Server</a></li>
+                <li><button onClick={() => navigate('/register')} className="text-slate-400 hover:text-white text-xs sm:text-sm transition-colors">Apply Now</button></li>
+                <li><a href={GITHUB_ORG} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white text-xs sm:text-sm transition-colors">GitHub Organization</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-bold text-white mb-3 sm:mb-4 text-[10px] sm:text-xs uppercase tracking-wider">Portal</h4>
+              <ul className="space-y-2 sm:space-y-2.5">
+                <li><button onClick={() => navigate('/login')} className="text-slate-400 hover:text-white text-xs sm:text-sm transition-colors">Sign In</button></li>
+                <li><Link to="/projects" className="text-slate-400 hover:text-white text-xs sm:text-sm transition-colors">Projects</Link></li>
+                <li><Link to="/verify" className="text-slate-400 hover:text-white text-xs sm:text-sm transition-colors">Verify a Card</Link></li>
+              </ul>
+            </div>
+          </div>
+          <div className="pt-6 sm:pt-8 border-t border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4">
+            <p className="text-slate-500 text-[11px] sm:text-xs text-center sm:text-left">
+              &copy; {new Date().getFullYear()} BetterGovPH. Built for Filipinos.
+            </p>
+            <div className="flex gap-4 sm:gap-5">
+              <Link to="/privacy" className="text-slate-500 hover:text-white text-[11px] sm:text-xs transition-colors">Privacy</Link>
+              <Link to="/terms" className="text-slate-500 hover:text-white text-[11px] sm:text-xs transition-colors">Terms</Link>
+            </div>
+          </div>
         </div>
-      </motion.footer>
+      </footer>
     </div>
   );
 };

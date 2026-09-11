@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { getCache, setCache } from './lib/redis';
 
 const getSupabaseConfig = () => {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
@@ -33,6 +34,7 @@ const respond = (res: any, statusCode: number, data: Record<string, unknown>) =>
   res.statusCode = statusCode;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('X-API-Version', '1.0.0');
   res.end(JSON.stringify(data));
 };
 
@@ -95,6 +97,20 @@ export default async function handler(req: any, res: any) {
     }
   }
 
+  // Check Redis cache for public verification
+  const cacheKey = `cache:verify:${lookup}`;
+  if (!isAdminCaller) {
+    try {
+      const cached = await getCache<any>(cacheKey);
+      if (cached) {
+        respond(res, 200, cached);
+        return;
+      }
+    } catch (err) {
+      console.warn('[Verify API] Redis cache error:', err);
+    }
+  }
+
   const anonSupabase = createClient(supabaseUrl, supabaseAnonKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
@@ -139,14 +155,14 @@ export default async function handler(req: any, res: any) {
   }
 
   if (!isAdminCaller) {
-    const isApproved = row.status === 'Approved' || !!row.is_admin;
+    const isApproved = ['approved', 'Approved', 'APPROVED'].includes(String(row.status ?? '')) || !!row.is_admin;
     if (!isApproved) {
       respondError(res, 404, 'Not found');
       return;
     }
   }
 
-  respond(res, 200, {
+  const responsePayload = {
     uid: row.uid,
     fullName: row.full_name ?? '',
     specialization: row.specialization ?? '',
@@ -156,5 +172,15 @@ export default async function handler(req: any, res: any) {
     yearJoined: row.year_joined ?? null,
     discordUsername: row.discord_username ?? '',
     isAdmin: !!row.is_admin,
-  });
+  };
+
+  if (!isAdminCaller) {
+    try {
+      await setCache(cacheKey, responsePayload, 300);
+    } catch (err) {
+      console.warn('[Verify API] Failed to set Redis cache:', err);
+    }
+  }
+
+  respond(res, 200, responsePayload);
 }
