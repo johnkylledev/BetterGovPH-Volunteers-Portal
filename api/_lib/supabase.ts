@@ -26,7 +26,9 @@ export const getBearerToken = (authorizationHeader: unknown) => {
 
 export const getBody = (req: any) => {
   let body = req.body ?? {};
-  if (Buffer.isBuffer(body)) {
+  const isBuffer =
+    typeof Buffer !== 'undefined' && Buffer.isBuffer && Buffer.isBuffer(body);
+  if (isBuffer) {
     try {
       body = body.toString('utf-8');
     } catch {
