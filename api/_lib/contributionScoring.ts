@@ -1,279 +1,229 @@
-const GITHUB_GRAPHQL = 'https://api.github.com/graphql';
-const DEFAULT_PROJECTS_URL = 'https://bettergov.ph/api/projects.json';
+export type ExternalProject = {
+  slug?: string;
+  title?: string;
+  id?: string;
+  project_name?: string;
+  project_url?: string;
+  description?: string | null;
+  repositoryUrls?: string[];
+  [k: string]: unknown;
+};
 
-export interface ExternalProject {
-  slug: string;
-  title: string;
-  repositoryUrls: string[];
-  [key: string]: unknown;
-}
+export type GithubRepo = { owner: string; name: string };
 
-export interface GithubRepo {
-  owner: string;
-  name: string;
-}
-
-export interface ContributorStats {
+export type ContributorStats = {
   login: string;
   commits: number;
   prs: number;
   reviews: number;
   issues: number;
   repos: string[];
-}
+};
 
-export interface ContributorScore extends ContributorStats {
-  score: number;
-}
+export type ContributorScore = ContributorStats & { score: number };
 
-// ── Projects ──────────────────────────────────────────────────────────────────
-
-export async function fetchProjects(url: string): Promise<ExternalProject[]> {
-  const res = await fetch(url);
+export async function fetchProjects(projectsUrl: string): Promise<ExternalProject[]> {
+  const res = await fetch(projectsUrl, { headers: { Accept: 'application/json' } });
   if (!res.ok) throw new Error(`Failed to fetch projects: ${res.status}`);
-  const data = await res.json() as unknown;
-  if (Array.isArray(data)) return data as ExternalProject[];
-  if (data && typeof data === 'object' && Array.isArray((data as any).projects))
-    return (data as any).projects as ExternalProject[];
+  const body = (await res.json()) as unknown;
+  if (Array.isArray(body)) return body as ExternalProject[];
+  if (body && typeof body === 'object') {
+    const b = body as Record<string, unknown>;
+    if (Array.isArray(b.projects)) return b.projects as ExternalProject[];
+    if (Array.isArray(b.data)) return b.data as ExternalProject[];
+  }
   throw new Error('Unexpected projects response shape');
 }
 
-const GITHUB_REPO_RE = /^https?:\/\/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?\/?$/;
+const GH_RE = /github\.com\/([A-Za-z0-9_.\-~]+)\/([A-Za-z0-9_.\-~]+?)(?:\.git)?(?:[#?\/]|$)/i;
 
 export function extractRepos(projects: ExternalProject[]): GithubRepo[] {
   const seen = new Set<string>();
-  const repos: GithubRepo[] = [];
-  for (const project of projects) {
-    for (const rawUrl of project.repositoryUrls ?? []) {
-      const match = String(rawUrl).match(GITHUB_REPO_RE);
-      if (!match) continue;
-      const key = `${match[1]}/${match[2]}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      repos.push({ owner: match[1], name: match[2] });
+  const out: GithubRepo[] = [];
+  const addStr = (s: string) => {
+    const m = s.match(GH_RE);
+    if (!m) return;
+    const owner = m[1].toLowerCase();
+    const name = m[2].toLowerCase();
+    if (owner === 'sponsors' || owner === 'features' || owner === 'topics' || owner.length < 2 || name.length < 2) return;
+    const k = `${owner}/${name}`;
+    if (seen.has(k)) return;
+    seen.add(k);
+    out.push({ owner, name });
+  };
+  for (const p of projects) {
+    if (Array.isArray(p.repositoryUrls)) for (const u of p.repositoryUrls) if (typeof u === 'string') addStr(u);
+    for (const k of ['project_url', 'url', 'homepage', 'repo', 'repositoryUrl', 'html_url']) {
+      const v = (p as Record<string, unknown>)[k];
+      if (typeof v === 'string') addStr(v);
     }
+    if (typeof p.description === 'string') addStr(p.description);
   }
-  return repos;
+  return out;
 }
 
-// ── GitHub GraphQL ─────────────────────────────────────────────────────────────
+const GITHUB_API = 'https://api.github.com/graphql';
 
-async function githubGraphql(
-  query: string,
-  variables: Record<string, unknown>,
-  token: string,
-): Promise<any> {
-  const res = await fetch(GITHUB_GRAPHQL, {
+async function ghGql(token: string, query: string, variables?: Record<string, unknown>): Promise<any> {
+  const res = await fetch(GITHUB_API, {
     method: 'POST',
     headers: {
+      Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
-      Authorization: `bearer ${token}`,
+      'User-Agent': 'bettergovph-score/1.0',
     },
     body: JSON.stringify({ query, variables }),
   });
-  if (!res.ok) throw new Error(`GitHub GraphQL HTTP ${res.status}`);
-  const json = await res.json() as { data?: any; errors?: Array<{ message: string }> };
-  if (json.errors?.length) throw new Error(`GitHub GraphQL: ${json.errors[0].message}`);
-  return json.data;
+  return res.json();
 }
 
-const COMMITS_QUERY = `
-  query($owner: String!, $name: String!, $cursor: String) {
-    repository(owner: $owner, name: $name) {
-      defaultBranchRef {
-        target {
-          ... on Commit {
-            history(first: 100, after: $cursor) {
-              nodes { author { user { login } } }
-              pageInfo { hasNextPage endCursor }
+async function fetchCommits(owner: string, repo: string, token: string): Promise<string[]> {
+  const logins: string[] = [];
+  let cursor: string | null = null;
+  for (let page = 0; page < 10; page++) {
+    const q = `
+      query {
+        repository(owner: ${JSON.stringify(owner)}, name: ${JSON.stringify(repo)}) {
+          defaultBranchRef {
+            target {
+              ... on Commit {
+                history(first: 100${cursor ? `, after: ${JSON.stringify(cursor)}` : ''}) {
+                  nodes { author { user { login } } }
+                  pageInfo { hasNextPage endCursor }
+                }
+              }
             }
           }
         }
-      }
-    }
+      }`;
+    const j = await ghGql(token, q);
+    const h = j?.data?.repository?.defaultBranchRef?.target?.history;
+    const nodes: any[] = h?.nodes ?? [];
+    for (const n of nodes) { const l = n?.author?.user?.login; if (l) logins.push(String(l)); }
+    if (!h?.pageInfo?.hasNextPage) break;
+    cursor = h.pageInfo.endCursor ?? null;
+    if (!cursor) break;
   }
-`;
+  return logins;
+}
 
-const PRS_QUERY = `
-  query($owner: String!, $name: String!, $cursor: String) {
-    repository(owner: $owner, name: $name) {
-      pullRequests(first: 100, after: $cursor, states: [OPEN, MERGED, CLOSED]) {
-        nodes {
-          author { login }
-          reviews(first: 100) {
-            nodes { author { login } }
+async function fetchPrsAndReviews(owner: string, repo: string, token: string): Promise<{ prLogins: string[]; reviewLogins: string[] }> {
+  const q = `
+    query {
+      repository(owner: ${JSON.stringify(owner)}, name: ${JSON.stringify(repo)}) {
+        pullRequests(first: 100, orderBy: { field: CREATED_AT, direction: DESC }) {
+          nodes {
+            author { login }
+            reviews(first: 30) { nodes { author { login } } }
           }
         }
-        pageInfo { hasNextPage endCursor }
       }
-    }
+    }`;
+  const j = await ghGql(token, q);
+  const nodes: any[] = j?.data?.repository?.pullRequests?.nodes ?? [];
+  const prLogins: string[] = [];
+  const reviewLogins: string[] = [];
+  for (const n of nodes) {
+    const l = n?.author?.login; if (l) prLogins.push(String(l));
+    const rns: any[] = n?.reviews?.nodes ?? [];
+    for (const r of rns) { const rl = r?.author?.login; if (rl) reviewLogins.push(String(rl)); }
   }
-`;
+  return { prLogins, reviewLogins };
+}
 
-const ISSUES_QUERY = `
-  query($owner: String!, $name: String!, $cursor: String) {
-    repository(owner: $owner, name: $name) {
-      issues(first: 100, after: $cursor) {
-        nodes { author { login } }
-        pageInfo { hasNextPage endCursor }
+async function fetchIssues(owner: string, repo: string, token: string): Promise<string[]> {
+  const q = `
+    query {
+      repository(owner: ${JSON.stringify(owner)}, name: ${JSON.stringify(repo)}) {
+        issues(first: 100, orderBy: { field: CREATED_AT, direction: DESC }) {
+          nodes { author { login } }
+        }
       }
-    }
-  }
-`;
-
-function getOrCreate(
-  map: Map<string, ContributorStats>,
-  login: string,
-  repo: GithubRepo,
-): ContributorStats {
-  if (!map.has(login)) {
-    map.set(login, {
-      login,
-      commits: 0,
-      prs: 0,
-      reviews: 0,
-      issues: 0,
-      repos: [`${repo.owner}/${repo.name}`],
-    });
-  }
-  return map.get(login)!;
+    }`;
+  const j = await ghGql(token, q);
+  const nodes: any[] = j?.data?.repository?.issues?.nodes ?? [];
+  const out: string[] = [];
+  for (const n of nodes) { const l = n?.author?.login; if (l) out.push(String(l)); }
+  return out;
 }
 
-async function fetchAllCommits(
-  repo: GithubRepo,
-  token: string,
-  stats: Map<string, ContributorStats>,
-): Promise<void> {
-  let cursor: string | null = null;
-  do {
-    const data = await githubGraphql(COMMITS_QUERY, { ...repo, cursor }, token);
-    const history = data?.repository?.defaultBranchRef?.target?.history;
-    if (!history) break;
-    for (const node of history.nodes ?? []) {
-      const login: string | undefined = node?.author?.user?.login;
-      if (!login) continue;
-      getOrCreate(stats, login, repo).commits++;
-    }
-    cursor = history.pageInfo?.hasNextPage ? history.pageInfo.endCursor : null;
-  } while (cursor);
-}
-
-async function fetchAllPRs(
-  repo: GithubRepo,
-  token: string,
-  stats: Map<string, ContributorStats>,
-): Promise<void> {
-  let cursor: string | null = null;
-  do {
-    const data = await githubGraphql(PRS_QUERY, { ...repo, cursor }, token);
-    const prs = data?.repository?.pullRequests;
-    if (!prs) break;
-    for (const node of prs.nodes ?? []) {
-      const prLogin: string | undefined = node?.author?.login;
-      if (prLogin) getOrCreate(stats, prLogin, repo).prs++;
-      for (const review of node?.reviews?.nodes ?? []) {
-        const reviewLogin: string | undefined = review?.author?.login;
-        if (reviewLogin) getOrCreate(stats, reviewLogin, repo).reviews++;
-      }
-    }
-    cursor = prs.pageInfo?.hasNextPage ? prs.pageInfo.endCursor : null;
-  } while (cursor);
-}
-
-async function fetchAllIssues(
-  repo: GithubRepo,
-  token: string,
-  stats: Map<string, ContributorStats>,
-): Promise<void> {
-  let cursor: string | null = null;
-  do {
-    const data = await githubGraphql(ISSUES_QUERY, { ...repo, cursor }, token);
-    const issues = data?.repository?.issues;
-    if (!issues) break;
-    for (const node of issues.nodes ?? []) {
-      const login: string | undefined = node?.author?.login;
-      if (login) getOrCreate(stats, login, repo).issues++;
-    }
-    cursor = issues.pageInfo?.hasNextPage ? issues.pageInfo.endCursor : null;
-  } while (cursor);
-}
-
-export async function fetchRepoContributions(
-  repo: GithubRepo,
-  token: string,
-): Promise<Map<string, ContributorStats>> {
-  const stats = new Map<string, ContributorStats>();
-  await Promise.all([
-    fetchAllCommits(repo, token, stats),
-    fetchAllPRs(repo, token, stats),
-    fetchAllIssues(repo, token, stats),
+export async function fetchRepoContributions(repo: GithubRepo, token: string): Promise<Map<string, ContributorStats>> {
+  const map = new Map<string, ContributorStats>();
+  const upsert = (login: string, patch: Partial<ContributorStats>) => {
+    const cur: ContributorStats = map.get(login) ?? { login, commits: 0, prs: 0, reviews: 0, issues: 0, repos: [] };
+    const merged: ContributorStats = { ...cur, ...patch, repos: [...cur.repos, ...(patch.repos ?? [])] };
+    merged.repos = Array.from(new Set(merged.repos));
+    map.set(login, merged);
+  };
+  const repoSlug = `${repo.owner}/${repo.name}`;
+  const [commits, { prLogins, reviewLogins }, issues] = await Promise.all([
+    fetchCommits(repo.owner, repo.name, token),
+    fetchPrsAndReviews(repo.owner, repo.name, token),
+    fetchIssues(repo.owner, repo.name, token),
   ]);
-  return stats;
+  for (const l of commits) upsert(l, { commits: 1, repos: [repoSlug] });
+  // accumulate commits per login rather than resetting
+  const commitBuckets = new Map<string, number>();
+  for (const l of commits) commitBuckets.set(l, (commitBuckets.get(l) ?? 0) + 1);
+  for (const [login, count] of commitBuckets) { const cur = map.get(login)!; cur.commits = count; map.set(login, cur); }
+  for (const l of prLogins) upsert(l, { prs: 1, repos: [repoSlug] });
+  const prBuckets = new Map<string, number>();
+  for (const l of prLogins) prBuckets.set(l, (prBuckets.get(l) ?? 0) + 1);
+  for (const [login, count] of prBuckets) { const cur = map.get(login)!; cur.prs = count; map.set(login, cur); }
+  for (const l of reviewLogins) upsert(l, { reviews: 1, repos: [repoSlug] });
+  const rvBuckets = new Map<string, number>();
+  for (const l of reviewLogins) rvBuckets.set(l, (rvBuckets.get(l) ?? 0) + 1);
+  for (const [login, count] of rvBuckets) { const cur = map.get(login)!; cur.reviews = count; map.set(login, cur); }
+  for (const l of issues) upsert(l, { issues: 1, repos: [repoSlug] });
+  const isBuckets = new Map<string, number>();
+  for (const l of issues) isBuckets.set(l, (isBuckets.get(l) ?? 0) + 1);
+  for (const [login, count] of isBuckets) { const cur = map.get(login)!; cur.issues = count; map.set(login, cur); }
+  return map;
 }
 
-// ── Aggregation & Scoring ──────────────────────────────────────────────────────
-
-export function aggregateContributions(
-  entries: Array<{ repo: GithubRepo; stats: Map<string, ContributorStats> }>,
-): Map<string, ContributorStats> {
-  const global = new Map<string, ContributorStats>();
-  for (const { repo, stats } of entries) {
-    const slug = `${repo.owner}/${repo.name}`;
-    for (const [login, s] of stats) {
-      if (!global.has(login)) {
-        global.set(login, { login, commits: 0, prs: 0, reviews: 0, issues: 0, repos: [] });
-      }
-      const g = global.get(login)!;
-      g.commits += s.commits;
-      g.prs += s.prs;
-      g.reviews += s.reviews;
-      g.issues += s.issues;
-      if (!g.repos.includes(slug)) g.repos.push(slug);
+export function aggregateContributions(entries: Array<{ repo: GithubRepo; stats: Map<string, ContributorStats> }>): Map<string, ContributorStats> {
+  const agg = new Map<string, ContributorStats>();
+  for (const entry of entries) {
+    for (const [login, s] of entry.stats) {
+      const cur = agg.get(login) ?? { login, commits: 0, prs: 0, reviews: 0, issues: 0, repos: [] };
+      cur.commits += s.commits;
+      cur.prs += s.prs;
+      cur.reviews += s.reviews;
+      cur.issues += s.issues;
+      for (const r of s.repos) if (!cur.repos.includes(r)) cur.repos.push(r);
+      agg.set(login, cur);
     }
   }
-  return global;
+  return agg;
 }
 
 export function scoreContributors(agg: Map<string, ContributorStats>): ContributorScore[] {
-  return Array.from(agg.values())
-    .map((s) => ({
-      ...s,
-      score: s.commits * 1 + s.prs * 5 + s.reviews * 3 + s.issues * 2,
-    }))
-    .sort((a, b) => b.score - a.score);
-}
-
-// ── Concurrency helper ──────────────────────────────────────────────────────────
-
-async function concurrentMap<T, U>(
-  items: T[],
-  limit: number,
-  fn: (item: T) => Promise<U>,
-): Promise<U[]> {
-  const results: U[] = new Array(items.length);
-  let idx = 0;
-  async function worker() {
-    while (idx < items.length) {
-      const i = idx++;
-      results[i] = await fn(items[i]);
-    }
+  const arr: ContributorScore[] = [];
+  for (const s of agg.values()) {
+    const score = s.commits * 1 + s.prs * 5 + s.reviews * 3 + s.issues * 2;
+    arr.push({ ...s, score });
   }
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
-  return results;
+  arr.sort((a, b) => b.score - a.score || a.login.localeCompare(b.login));
+  return arr;
 }
-
-// ── Orchestrator ───────────────────────────────────────────────────────────────
 
 export async function getContributionScores(
   githubToken: string,
-  projectsUrl: string = DEFAULT_PROJECTS_URL,
+  projectsUrl: string = 'https://bettergov.ph/api/projects.json',
 ): Promise<ContributorScore[]> {
   const projects = await fetchProjects(projectsUrl);
   const repos = extractRepos(projects);
-  const repoResults = await concurrentMap(repos, 5, async (repo) => {
-    const stats = await fetchRepoContributions(repo, githubToken);
-    return { repo, stats };
-  });
-  const agg = aggregateContributions(repoResults);
-  return scoreContributors(agg);
+  const results: Array<{ repo: GithubRepo; stats: Map<string, ContributorStats> }> = [];
+  let idx = 0;
+  const limit = Math.min(5, Math.max(1, repos.length));
+  await Promise.all(
+    Array.from({ length: limit }, async () => {
+      while (true) {
+        const i = idx++;
+        if (i >= repos.length) return;
+        try { results.push({ repo: repos[i], stats: await fetchRepoContributions(repos[i], githubToken) }); } catch { /* noop */ }
+      }
+    }),
+  );
+  return scoreContributors(aggregateContributions(results));
 }
