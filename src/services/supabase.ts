@@ -361,10 +361,15 @@ export const submitProjectSubmission = async (input: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
+      projectName: input.projectName,
       project_name: input.projectName,
+      projectUrl: input.projectUrl,
       project_url: input.projectUrl,
+      title: input.projectName,
+      url: input.projectUrl,
       description: input.description,
       proj_type: input.projType,
+      projType: input.projType,
     }),
   });
   return response;
@@ -516,6 +521,47 @@ export const getAdminVolunteerCalls = async (filters?: { status?: 'open' | 'clos
     }
   );
   return response;
+};
+
+export const updateVolunteerCall = async (
+  id: string,
+  fields: { title?: string; projectUrl?: string; description?: string; rolesNeeded?: string; contact?: string; status?: 'open' | 'closed' }
+) => {
+  const token = await getAccessToken();
+  if (!token) throw new Error('Not authenticated');
+
+  const payload = {
+    id,
+    action: 'update',
+    title: fields.title,
+    project_url: fields.projectUrl,
+    projectUrl: fields.projectUrl,
+    description: fields.description,
+    roles_needed: fields.rolesNeeded,
+    rolesNeeded: fields.rolesNeeded,
+    contact: fields.contact,
+    status: fields.status,
+  };
+
+  try {
+    return await apiRequest<{ message: string }>('/api/v1/volunteer-calls', {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (err: any) {
+    return await apiRequest<{ message: string }>('/api/v1/volunteer-calls', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+  }
 };
 
 export const deleteVolunteerCall = async (id: string, options?: { deleteUser?: boolean }) => {

@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { getCache, setCache, invalidateCache } from './lib/redis';
+import { getCache, setCache, invalidateCache } from '../lib/redis';
 
 const getSupabaseConfig = () => {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';

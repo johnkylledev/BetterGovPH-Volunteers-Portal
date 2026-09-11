@@ -1,8 +1,44 @@
+import React from 'react';
+import {
+  Layers, Search, Palette, Cpu, Zap, BookOpen, Server, Globe,
+  Smartphone, Brain, Code, ShieldCheck, Briefcase
+} from 'lucide-react';
+
 const sanitizeSkillSlug = (value: string) =>
   value
     .toLowerCase()
     .replace(/[^a-z0-9-]/g, '')
     .replace(/^-+|-+$/g, '') || 'code';
+
+const SKILL_CATEGORIES: Record<string, string[]> = {
+  'Software Engineering': [],
+  'Design & Creative': [],
+  'Data & AI': [],
+  'DevOps & Infrastructure': [],
+  'Cybersecurity': [],
+};
+
+export const getSkillFallbackIcon = (skillName: string, size: number = 20) => {
+  const lowerSkill = skillName.toLowerCase();
+  if (lowerSkill.includes('prototyp')) return React.createElement(Layers, { size });
+  if (lowerSkill.includes('research')) return React.createElement(Search, { size });
+  if (lowerSkill.includes('visual') || lowerSkill.includes('design')) return React.createElement(Palette, { size });
+  if (lowerSkill.includes('system')) return React.createElement(Cpu, { size });
+  if (lowerSkill.includes('agile') || lowerSkill.includes('scrum')) return React.createElement(Zap, { size });
+  if (lowerSkill.includes('doc') || lowerSkill.includes('write')) return React.createElement(BookOpen, { size });
+  if (lowerSkill.includes('api') || lowerSkill.includes('backend')) return React.createElement(Server, { size });
+  if (lowerSkill.includes('frontend') || lowerSkill.includes('ui')) return React.createElement(Globe, { size });
+  if (lowerSkill.includes('mobile') || lowerSkill.includes('app')) return React.createElement(Smartphone, { size });
+  if (lowerSkill.includes('data') || lowerSkill.includes('ai')) return React.createElement(Brain, { size });
+  for (const [category] of Object.entries(SKILL_CATEGORIES)) {
+    if (category === 'Software Engineering') return React.createElement(Code, { size });
+    if (category === 'Design & Creative') return React.createElement(Palette, { size });
+    if (category === 'Data & AI') return React.createElement(Brain, { size });
+    if (category === 'DevOps & Infrastructure') return React.createElement(Cpu, { size });
+    if (category === 'Cybersecurity') return React.createElement(ShieldCheck, { size });
+  }
+  return React.createElement(Briefcase, { size });
+};
 
 export const skillToSlug = (skill: string) => {
   const cleanSkill = skill.toLowerCase().trim();
@@ -17,7 +53,16 @@ export const skillToSlug = (skill: string) => {
     'vue.js': 'vuedotjs',
     'next.js': 'nextdotjs',
     'react': 'react',
-    'angular': 'angular',
+    'react / next.js': 'react',
+    'react/next.js': 'react',
+    'reactnextjs': 'react',
+    'artificial intelligence': 'openai',
+    'artificialintelligence': 'openai',
+    'ai': 'openai',
+    'ai / ml': 'openai',
+    'api': 'postman',
+    'apis': 'postman',
+    'rest api': 'postman',
     'svelte': 'svelte',
     'python': 'python',
     'django': 'django',
@@ -115,3 +160,11 @@ export const skillToSlug = (skill: string) => {
 
   return sanitizeSkillSlug(fallbackSlug);
 };
+
+export const formatExternalUrl = (url?: string) => {
+  if (!url) return '#';
+  const trimmed = url.trim();
+  if (!trimmed) return '#';
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+};
+

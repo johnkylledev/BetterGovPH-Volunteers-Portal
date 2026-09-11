@@ -144,14 +144,9 @@ async function handler(req: http.IncomingMessage, res: http.ServerResponse) {
       return;
     }
 
-    const relativePath = pathname.replace(/^\/api\/(v1\/)?/, '');
-    const parts = relativePath.split('?')[0].split('/').filter(Boolean);
-    const apiFile = parts[0] || '';
-    const pathIdParam = parts[1] || '';
+    const catchAllPath = path.join(API_DIR, '[...path].ts');
 
-    const apiPath = path.join(API_DIR, `${apiFile}.ts`);
-
-    if (!fs.existsSync(apiPath)) {
+    if (!fs.existsSync(catchAllPath)) {
       res.statusCode = 404;
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('X-API-Version', '1.0.0');
@@ -160,15 +155,12 @@ async function handler(req: http.IncomingMessage, res: http.ServerResponse) {
     }
 
     const extendedReq = createExtendedRequest(req, url);
-    if (pathIdParam && !extendedReq.query.id && !extendedReq.query.memberId) {
-      extendedReq.query.id = pathIdParam;
-    }
     const extendedRes = createExtendedResponse(res);
 
     const body = await parseBody(req);
     extendedReq.body = body;
 
-    const fileUrl = pathToFileURL(path.resolve(apiPath));
+    const fileUrl = pathToFileURL(path.resolve(catchAllPath)) + `?t=${Date.now()}`;
     const mod = await import(fileUrl);
     const handlerFn = mod.default;
 
