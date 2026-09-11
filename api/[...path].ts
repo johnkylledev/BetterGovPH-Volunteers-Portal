@@ -1,14 +1,3 @@
-import meHandler from './_handlers/me';
-import adminHandler from './_handlers/admin';
-import projectsHandler from './_handlers/projects';
-import submitProjectHandler from './_handlers/submit-project';
-import myProjectSubmissionsHandler from './_handlers/my-project-submissions';
-import volunteerCallsHandler from './_handlers/volunteer-calls';
-import verifyHandler from './_handlers/verify';
-import discordHandler from './_handlers/discord';
-import discordUsernameTakenHandler from './_handlers/discord-username-taken';
-import contributionScoresHandler from './_handlers/contribution-scores';
-
 const API_VERSION = '1.0.0';
 
 let bootFailure: string | null = null;
@@ -51,6 +40,103 @@ const errorToString = (err: unknown): string => {
   return 'Internal server error';
 };
 
+type Handler = (req: any, res: any) => any;
+const handlers: Record<string, Handler | null> = {
+  '/me': null,
+  '/admin': null,
+  '/projects': null,
+  '/submit-project': null,
+  '/my-project-submissions': null,
+  '/volunteer-calls': null,
+  '/verify': null,
+  '/discord': null,
+  '/discord-username-taken': null,
+  '/contribution-scores': null,
+};
+
+// CJS require() executes INLINE — NOT hoisted — so these are fully catchable.
+// Vercel's bundler still sees the literal require() strings and bundles the files.
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const m = require('./_handlers/me');
+  handlers['/me'] = m.default || m.handler;
+} catch (err) {
+  console.error('[API][boot] /me load failed', err);
+  if (!bootFailure) bootFailure = '/me: ' + errorToString(err);
+}
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const m = require('./_handlers/admin');
+  handlers['/admin'] = m.default || m.handler;
+} catch (err) {
+  console.error('[API][boot] /admin load failed', err);
+  if (!bootFailure) bootFailure = '/admin: ' + errorToString(err);
+}
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const m = require('./_handlers/projects');
+  handlers['/projects'] = m.default || m.handler;
+} catch (err) {
+  console.error('[API][boot] /projects load failed', err);
+  if (!bootFailure) bootFailure = '/projects: ' + errorToString(err);
+}
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const m = require('./_handlers/submit-project');
+  handlers['/submit-project'] = m.default || m.handler;
+} catch (err) {
+  console.error('[API][boot] /submit-project load failed', err);
+  if (!bootFailure) bootFailure = '/submit-project: ' + errorToString(err);
+}
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const m = require('./_handlers/my-project-submissions');
+  handlers['/my-project-submissions'] = m.default || m.handler;
+} catch (err) {
+  console.error('[API][boot] /my-project-submissions load failed', err);
+  if (!bootFailure) bootFailure = '/my-project-submissions: ' + errorToString(err);
+}
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const m = require('./_handlers/volunteer-calls');
+  handlers['/volunteer-calls'] = m.default || m.handler;
+} catch (err) {
+  console.error('[API][boot] /volunteer-calls load failed', err);
+  if (!bootFailure) bootFailure = '/volunteer-calls: ' + errorToString(err);
+}
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const m = require('./_handlers/verify');
+  handlers['/verify'] = m.default || m.handler;
+} catch (err) {
+  console.error('[API][boot] /verify load failed', err);
+  if (!bootFailure) bootFailure = '/verify: ' + errorToString(err);
+}
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const m = require('./_handlers/discord');
+  handlers['/discord'] = m.default || m.handler;
+} catch (err) {
+  console.error('[API][boot] /discord load failed', err);
+  if (!bootFailure) bootFailure = '/discord: ' + errorToString(err);
+}
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const m = require('./_handlers/discord-username-taken');
+  handlers['/discord-username-taken'] = m.default || m.handler;
+} catch (err) {
+  console.error('[API][boot] /discord-username-taken load failed', err);
+  if (!bootFailure) bootFailure = '/discord-username-taken: ' + errorToString(err);
+}
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const m = require('./_handlers/contribution-scores');
+  handlers['/contribution-scores'] = m.default || m.handler;
+} catch (err) {
+  console.error('[API][boot] /contribution-scores load failed', err);
+  if (!bootFailure) bootFailure = '/contribution-scores: ' + errorToString(err);
+}
+
 try {
   if (typeof process !== 'undefined' && typeof (process as any).on === 'function') {
     try {
@@ -65,7 +151,7 @@ try {
     }
   }
 } catch (err) {
-  bootFailure = errorToString(err);
+  if (!bootFailure) bootFailure = errorToString(err);
 }
 
 const normalizePath = (req: any): string => {
@@ -98,9 +184,10 @@ const normalizePath = (req: any): string => {
   }
 };
 
-const callHandler = async (name: string, fn: any, req: any, res: any) => {
+const callHandler = async (name: string, req: any, res: any) => {
+  const fn = handlers[name];
   if (!fn) {
-    sendError(res, 500, `Handler ${name} failed to load`);
+    sendError(res, 500, `Handler ${name} failed to load${bootFailure ? ' — ' + bootFailure : ''}`);
     return;
   }
   try {
@@ -113,11 +200,6 @@ const callHandler = async (name: string, fn: any, req: any, res: any) => {
 
 async function handleRequest(req: any, res: any) {
   try {
-    if (bootFailure) {
-      sendError(res, 500, bootFailure);
-      return;
-    }
-
     try {
       res.setHeader('X-API-Version', API_VERSION);
       res.setHeader('Access-Control-Allow-Origin', '*');
@@ -127,6 +209,11 @@ async function handleRequest(req: any, res: any) {
       // headers already sent
     }
 
+    if (bootFailure) {
+      sendError(res, 500, bootFailure);
+      return;
+    }
+
     if (req.method === 'OPTIONS') {
       try { res.statusCode = 204; res.end(); } catch { /* no-op */ }
       return;
@@ -134,14 +221,14 @@ async function handleRequest(req: any, res: any) {
 
     const pathname = normalizePath(req);
 
-    if (pathname === '/me' || pathname === '/') return callHandler('/me', meHandler, req, res);
-    if (pathname === '/admin') return callHandler('/admin', adminHandler, req, res);
-    if (pathname === '/projects') return callHandler('/projects', projectsHandler, req, res);
-    if (pathname === '/submit-project') return callHandler('/submit-project', submitProjectHandler, req, res);
-    if (pathname === '/my-project-submissions') return callHandler('/my-project-submissions', myProjectSubmissionsHandler, req, res);
+    if (pathname === '/me' || pathname === '/') return callHandler('/me', req, res);
+    if (pathname === '/admin') return callHandler('/admin', req, res);
+    if (pathname === '/projects') return callHandler('/projects', req, res);
+    if (pathname === '/submit-project') return callHandler('/submit-project', req, res);
+    if (pathname === '/my-project-submissions') return callHandler('/my-project-submissions', req, res);
 
     if (pathname === '/volunteer-calls' || pathname.startsWith('/volunteer-calls/')) {
-      return callHandler('/volunteer-calls', volunteerCallsHandler, req, res);
+      return callHandler('/volunteer-calls', req, res);
     }
 
     if (pathname.startsWith('/verify')) {
@@ -151,12 +238,12 @@ async function handleRequest(req: any, res: any) {
         req.query.id = parts[0];
         req.query.memberId = parts[0];
       }
-      return callHandler('/verify', verifyHandler, req, res);
+      return callHandler('/verify', req, res);
     }
 
-    if (pathname === '/discord') return callHandler('/discord', discordHandler, req, res);
-    if (pathname === '/discord-username-taken') return callHandler('/discord-username-taken', discordUsernameTakenHandler, req, res);
-    if (pathname === '/contribution-scores') return callHandler('/contribution-scores', contributionScoresHandler, req, res);
+    if (pathname === '/discord') return callHandler('/discord', req, res);
+    if (pathname === '/discord-username-taken') return callHandler('/discord-username-taken', req, res);
+    if (pathname === '/contribution-scores') return callHandler('/contribution-scores', req, res);
 
     sendError(res, 404, 'API endpoint not found');
   } catch (err) {
