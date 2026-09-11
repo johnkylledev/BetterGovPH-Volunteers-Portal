@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { getContributionScores } from '../lib/contributionScoring';
+import { getContributionScores } from '../_lib/contributionScoring';
 
 const getSupabaseConfig = () => {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
