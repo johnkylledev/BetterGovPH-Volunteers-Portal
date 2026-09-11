@@ -4,18 +4,22 @@ interface MemoryCacheEntry {
 }
 
 const memoryCache = new Map<string, MemoryCacheEntry>();
+let gcScheduled = false;
 
-// Clean up expired in-memory keys every 60 seconds
-if (typeof setInterval !== 'undefined') {
-  setInterval(() => {
-    const now = Date.now();
-    for (const [key, entry] of memoryCache.entries()) {
-      if (now > entry.expiresAt) {
-        memoryCache.delete(key);
+const scheduleGc = () => {
+  if (gcScheduled || typeof setInterval === 'undefined') return;
+  gcScheduled = true;
+  try {
+    setInterval(() => {
+      const now = Date.now();
+      for (const [key, entry] of memoryCache.entries()) {
+        if (now > entry.expiresAt) memoryCache.delete(key);
       }
-    }
-  }, 60_000);
-}
+    }, 60_000);
+  } catch {
+    gcScheduled = false;
+  }
+};
 
 const getRedisConfig = () => {
   const url =
@@ -96,12 +100,12 @@ export async function setCache(key: string, value: any, ttlSeconds: number = 300
   const stringified = JSON.stringify(value);
   const { url, token } = getRedisConfig();
 
-  // Store in Upstash Redis if configured
+  scheduleGc();
+
   if (url && token) {
     await upstashCommand(['SET', key, stringified, 'EX', ttlSeconds]);
   }
 
-  // Always update in-memory cache as well
   memoryCache.set(key, {
     value,
     expiresAt: Date.now() + ttlSeconds * 1000,
