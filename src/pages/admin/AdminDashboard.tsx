@@ -465,470 +465,470 @@ export default function AdminDashboard() {
       </div>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-5 lg:px-6 py-5 sm:py-7 lg:py-8 flex flex-col gap-5 sm:gap-6">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-            <div className="bg-white border border-slate-200 rounded-[6px] p-4 sm:p-5 flex items-center gap-3 sm:gap-4 shadow-[0_2px_8px_-4px_rgba(15,23,42,0.08)] [@media(hover:hover){&:hover}]:shadow-[0_8px_24px_-12px_rgba(15,23,42,0.15)] transition-shadow">
-              <div className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-[6px] bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-900">
-                <Users size={18} className="sm:hidden" />
-                <Users size={20} className="hidden sm:inline-flex" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.2em] text-slate-400 font-semibold">
-                  {activeTab === 'projects' ? 'Total Submissions' : 'Total Records'}
-                </p>
-                <p className="mt-1 sm:mt-1.5 text-xl sm:text-2xl font-bold text-slate-900 leading-none">
-                  {activeTab === 'projects' ? projectStats.total : stats.total}
-                </p>
-              </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          <div className="bg-white border border-slate-200 rounded-[6px] p-4 sm:p-5 flex items-center gap-3 sm:gap-4 shadow-[0_2px_8px_-4px_rgba(15,23,42,0.08)] [@media(hover:hover){&:hover}]:shadow-[0_8px_24px_-12px_rgba(15,23,42,0.15)] transition-shadow">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-[6px] bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-900">
+              <Users size={18} className="sm:hidden" />
+              <Users size={20} className="hidden sm:inline-flex" />
             </div>
-            <div className="bg-white border border-slate-200 rounded-[6px] p-4 sm:p-5 flex items-center gap-3 sm:gap-4 shadow-[0_2px_8px_-4px_rgba(15,23,42,0.08)] [@media(hover:hover){&:hover}]:shadow-[0_8px_24px_-12px_rgba(15,23,42,0.15)] transition-shadow">
-              <div className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-[6px] bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-700">
-                <Clock size={18} className="sm:hidden" />
-                <Clock size={20} className="hidden sm:inline-flex" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.2em] text-slate-400 font-semibold">Pending</p>
-                <p className="mt-1 sm:mt-1.5 text-xl sm:text-2xl font-bold text-slate-900 leading-none">
-                  {activeTab === 'projects' ? projectStats.pending : stats.pending}
-                </p>
-              </div>
-            </div>
-            <div className="bg-white border border-slate-200 rounded-[6px] p-4 sm:p-5 flex items-center gap-3 sm:gap-4 shadow-[0_2px_8px_-4px_rgba(15,23,42,0.08)] [@media(hover:hover){&:hover}]:shadow-[0_8px_24px_-12px_rgba(15,23,42,0.15)] transition-shadow">
-              <div className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-[6px] bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700">
-                <CheckCircle2 size={18} className="sm:hidden" />
-                <CheckCircle2 size={20} className="hidden sm:inline-flex" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.2em] text-slate-400 font-semibold">
-                  {activeTab === 'projects' ? 'Approved' : 'IDs Issued'}
-                </p>
-                <p className="mt-1 sm:mt-1.5 text-xl sm:text-2xl font-bold text-slate-900 leading-none">
-                  {activeTab === 'projects' ? projectStats.approved : stats.approved}
-                </p>
-              </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.2em] text-slate-400 font-semibold">
+                {activeTab === 'projects' ? 'Total Submissions' : 'Total Records'}
+              </p>
+              <p className="mt-1 sm:mt-1.5 text-xl sm:text-2xl font-bold text-slate-900 leading-none">
+                {activeTab === 'projects' ? projectStats.total : stats.total}
+              </p>
             </div>
           </div>
+          <div className="bg-white border border-slate-200 rounded-[6px] p-4 sm:p-5 flex items-center gap-3 sm:gap-4 shadow-[0_2px_8px_-4px_rgba(15,23,42,0.08)] [@media(hover:hover){&:hover}]:shadow-[0_8px_24px_-12px_rgba(15,23,42,0.15)] transition-shadow">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-[6px] bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-700">
+              <Clock size={18} className="sm:hidden" />
+              <Clock size={20} className="hidden sm:inline-flex" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.2em] text-slate-400 font-semibold">Pending</p>
+              <p className="mt-1 sm:mt-1.5 text-xl sm:text-2xl font-bold text-slate-900 leading-none">
+                {activeTab === 'projects' ? projectStats.pending : stats.pending}
+              </p>
+            </div>
+          </div>
+          <div className="bg-white border border-slate-200 rounded-[6px] p-4 sm:p-5 flex items-center gap-3 sm:gap-4 shadow-[0_2px_8px_-4px_rgba(15,23,42,0.08)] [@media(hover:hover){&:hover}]:shadow-[0_8px_24px_-12px_rgba(15,23,42,0.15)] transition-shadow">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-[6px] bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700">
+              <CheckCircle2 size={18} className="sm:hidden" />
+              <CheckCircle2 size={20} className="hidden sm:inline-flex" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.2em] text-slate-400 font-semibold">
+                {activeTab === 'projects' ? 'Approved' : 'IDs Issued'}
+              </p>
+              <p className="mt-1 sm:mt-1.5 text-xl sm:text-2xl font-bold text-slate-900 leading-none">
+                {activeTab === 'projects' ? projectStats.approved : stats.approved}
+              </p>
+            </div>
+          </div>
+        </div>
 
-          <div className="bg-white border border-slate-200 rounded-[6px] shadow-sm overflow-hidden">
-            {activeTab === 'applications' ? (
-              <>
-                <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4 sm:gap-6">
-                  <div>
-                    <h2 className="text-base sm:text-lg font-bold text-slate-900">Applications</h2>
-                    <p className="text-xs sm:text-sm text-slate-500 mt-1">Review and approve membership applications.</p>
+        <div className="bg-white border border-slate-200 rounded-[6px] shadow-sm overflow-hidden">
+          {activeTab === 'applications' ? (
+            <>
+              <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4 sm:gap-6">
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900">Applications</h2>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-1">Review and approve membership applications.</p>
+                </div>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full xl:w-auto">
+                  <div className="relative flex-1 xl:w-64">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="Search applicants..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                    />
                   </div>
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full xl:w-auto">
-                    <div className="relative flex-1 xl:w-64">
-                      <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        placeholder="Search applicants..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 sm:flex sm:items-center gap-3 w-full sm:w-auto">
-                      <div className="relative w-full sm:w-auto">
-                        <Briefcase className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                        <select
-                          value={roleFilter}
-                          onChange={(e) => setRoleFilter(e.target.value)}
-                          className="w-full sm:w-44 pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
-                        >
-                          <option value="All">All Roles</option>
-                          {SPECIALIZATIONS.map(spec => (
-                            <option key={spec.id} value={spec.label}>{spec.label}</option>
-                          ))}
-                        </select>
-                      </div>
+                  <div className="grid grid-cols-2 sm:flex sm:items-center gap-3 w-full sm:w-auto">
+                    <div className="relative w-full sm:w-auto">
+                      <Briefcase className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <select
+                        value={roleFilter}
+                        onChange={(e) => setRoleFilter(e.target.value)}
+                        className="w-full sm:w-44 pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
+                      >
+                        <option value="All">All Roles</option>
+                        {SPECIALIZATIONS.map(spec => (
+                          <option key={spec.id} value={spec.label}>{spec.label}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                      <th className="p-4 pl-6 font-semibold">Applicant</th>
+                      <th className="p-4 font-semibold">Discord / Role</th>
+                      <th className="p-4 font-semibold">Status</th>
+                      <th className="p-4 font-semibold">Member ID</th>
+                      <th className="p-4 pr-6 font-semibold text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-sm">
+                    {filteredUsers.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="p-8 text-center text-slate-500">
+                          No applicants found matching the criteria.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredUsers.map((user) => (
+                        <motion.tr
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          key={user.id}
+                          className="hover:bg-slate-50/50 transition-colors"
+                        >
+                          <td className="p-4 pl-6">
+                            <div className="font-bold text-slate-900">{user.fullName}</div>
+                            <div className="text-xs text-slate-500">{user.email}</div>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-2 mb-1">
+                              {user.discordAvatar && user.discordId ? (
+                                <img
+                                  src={`https://cdn.discordapp.com/avatars/${user.discordId}/${user.discordAvatar}.png?size=28`}
+                                  alt=""
+                                  className="w-6 h-6 rounded-full flex-shrink-0"
+                                />
+                              ) : null}
+                              <div>
+                                <div className="font-semibold text-slate-700">
+                                  {user.discordDisplayName || user.discordUsername || 'N/A'}
+                                </div>
+                                {user.discordDisplayName && user.discordUsername && (
+                                  <div className="text-xs text-slate-400">@{user.discordUsername}</div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-xs text-slate-500">{user.specialization} • {user.role}</div>
+                          </td>
+                          <td className="p-4">
+                            <span className={clsx(
+                              'inline-flex items-center px-2.5 py-1 text-[10px] sm:text-[11px] font-bold rounded-[6px] uppercase tracking-wide border',
+                              user.status === 'Approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                user.status === 'Declined' ? 'bg-red-50 text-red-700 border-red-200' :
+                                  'bg-amber-50 text-amber-700 border-amber-200'
+                            )}>
+                              {user.status}
+                            </span>
+                          </td>
+                          <td className="p-4 font-mono text-slate-600">{user.memberId || '-'}</td>
+                          <td className="p-4 pr-6 text-right">
+                            <button
+                              onClick={() => setSelectedUser(user)}
+                              className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-[6px] hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-sm"
+                            >
+                              Review
+                            </button>
+                          </td>
+                        </motion.tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination Controls */}
+              <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Showing <span className="text-slate-900">{filteredUsers.length}</span> of <span className="text-slate-900">{totalCount}</span> records
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 0 || isDataLoading}
+                    className="p-2 rounded-[6px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <div className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-[6px]">
+                    <span className="text-sm font-bold text-slate-900">Page {currentPage + 1}</span>
+                    <span className="text-slate-400 mx-1">of</span>
+                    <span className="text-sm font-bold text-slate-900">{Math.ceil(totalCount / pageSize)}</span>
+                  </div>
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={(currentPage + 1) * pageSize >= totalCount || isDataLoading}
+                    className="p-2 rounded-[6px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : activeTab === 'projects' ? (
+            <>
+              <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4 sm:gap-6">
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900">Projects</h2>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-1">Review and moderate project submissions.</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex gap-1 bg-slate-100 rounded-[6px] p-1">
+                    {(['All', 'pending', 'approved', 'rejected'] as const).map((f) => (
+                      <button
+                        key={f}
+                        onClick={() => setProjectStatusFilter(f)}
+                        className={clsx(
+                          "px-3 py-1.5 text-xs font-bold rounded-md transition-all capitalize",
+                          projectStatusFilter === f
+                            ? "bg-white text-slate-900 shadow-sm"
+                            : "text-slate-500 hover:text-slate-700"
+                        )}
+                      >
+                        {f === 'All' ? 'All' : f}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {projectSubmissionsLoading ? (
+                <div className="p-12 text-center text-slate-500">
+                  Loading submissions...
+                </div>
+              ) : projectSubmissions.length === 0 ? (
+                <div className="p-12 text-center text-slate-500">
+                  No {projectStatusFilter === 'All' ? '' : projectStatusFilter} submissions found.
+                </div>
+              ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
-                        <th className="p-4 pl-6 font-semibold">Applicant</th>
-                        <th className="p-4 font-semibold">Discord / Role</th>
+                        <th className="p-4 pl-6 font-semibold">Project</th>
+                        <th className="p-4 font-semibold">Submitted By</th>
                         <th className="p-4 font-semibold">Status</th>
-                        <th className="p-4 font-semibold">Member ID</th>
+                        <th className="p-4 font-semibold">Description</th>
                         <th className="p-4 pr-6 font-semibold text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-sm">
-                      {filteredUsers.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="p-8 text-center text-slate-500">
-                            No applicants found matching the criteria.
+                      {projectSubmissions.map((submission) => (
+                        <tr key={submission.id} className="hover:bg-slate-50/60 transition-colors">
+                          <td className="p-4 pl-6 align-top">
+                            <div className="font-bold text-slate-900">{submission.projectName}</div>
+                            <a
+                              href={submission.projectUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs text-blue-700 hover:underline break-all"
+                            >
+                              {submission.projectUrl}
+                            </a>
+                            {submission.projType && (
+                              <div className="mt-2 text-xs text-slate-500">{submission.projType}</div>
+                            )}
+                          </td>
+                          <td className="p-4 align-top">
+                            <div className="font-bold text-slate-900">
+                              {submission.submittedBy?.fullName || submission.submittedBy?.email || submission.userId}
+                            </div>
+                            {submission.submittedBy?.email && submission.submittedBy?.fullName && (
+                              <div className="text-xs text-slate-500 break-all">{submission.submittedBy.email}</div>
+                            )}
+                          </td>
+                          <td className="p-4 align-top">
+                            <span className={clsx(
+                              "inline-flex items-center px-2.5 py-1 rounded-[6px] text-[10px] sm:text-[11px] font-bold uppercase tracking-wide border",
+                              submission.status === 'approved' && "bg-emerald-50 text-emerald-700 border-emerald-200",
+                              submission.status === 'rejected' && "bg-red-50 text-red-700 border-red-200",
+                              submission.status === 'pending' && "bg-amber-50 text-amber-700 border-amber-200"
+                            )}>
+                              {submission.status}
+                            </span>
+                          </td>
+                          <td className="p-4 align-top max-w-[420px]">
+                            <div className="text-slate-700 whitespace-pre-wrap break-words">{submission.description}</div>
+                          </td>
+                          <td className="p-4 pr-6 align-top text-right">
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                              <button
+                                onClick={() => handleEditClick(submission)}
+                                disabled={projectActionLoadingId === submission.id}
+                                className="inline-flex items-center gap-2 px-3 py-2 rounded-[6px] bg-white border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                              >
+                                Edit
+                              </button>
+                              {submission.status === 'pending' && (
+                                <>
+                                  <button
+                                    onClick={() => handleProjectAction(submission.id, 'approve')}
+                                    disabled={projectActionLoadingId === submission.id}
+                                    className="inline-flex items-center gap-2 px-3 py-2 rounded-[6px] bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                                  >
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    Approve
+                                  </button>
+                                  <button
+                                    onClick={() => handleProjectAction(submission.id, 'reject')}
+                                    disabled={projectActionLoadingId === submission.id}
+                                    className="inline-flex items-center gap-2 px-3 py-2 rounded-[6px] bg-red-600 text-white text-xs font-bold hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                                  >
+                                    <XCircle className="w-4 h-4" />
+                                    Reject
+                                  </button>
+                                </>
+                              )}
+                              <button
+                                onClick={() => handleProjectDelete(submission.id)}
+                                disabled={projectActionLoadingId === submission.id}
+                                className="inline-flex items-center gap-2 px-3 py-2 rounded-[6px] bg-white border border-red-200 text-red-700 text-xs font-bold hover:bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                Delete
+                              </button>
+                            </div>
                           </td>
                         </tr>
-                      ) : (
-                        filteredUsers.map((user) => (
-                          <motion.tr
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            key={user.id}
-                            className="hover:bg-slate-50/50 transition-colors"
-                          >
-                            <td className="p-4 pl-6">
-                              <div className="font-bold text-slate-900">{user.fullName}</div>
-                              <div className="text-xs text-slate-500">{user.email}</div>
-                            </td>
-                            <td className="p-4">
-                              <div className="flex items-center gap-2 mb-1">
-                                {user.discordAvatar && user.discordId ? (
-                                  <img
-                                    src={`https://cdn.discordapp.com/avatars/${user.discordId}/${user.discordAvatar}.png?size=28`}
-                                    alt=""
-                                    className="w-6 h-6 rounded-full flex-shrink-0"
-                                  />
-                                ) : null}
-                                <div>
-                                  <div className="font-semibold text-slate-700">
-                                    {user.discordDisplayName || user.discordUsername || 'N/A'}
-                                  </div>
-                                  {user.discordDisplayName && user.discordUsername && (
-                                    <div className="text-xs text-slate-400">@{user.discordUsername}</div>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="text-xs text-slate-500">{user.specialization} • {user.role}</div>
-                            </td>
-                            <td className="p-4">
-                              <span className={clsx(
-                                'inline-flex items-center px-2.5 py-1 text-[10px] sm:text-[11px] font-bold rounded-[6px] uppercase tracking-wide border',
-                                user.status === 'Approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                                  user.status === 'Declined' ? 'bg-red-50 text-red-700 border-red-200' :
-                                    'bg-amber-50 text-amber-700 border-amber-200'
-                              )}>
-                                {user.status}
-                              </span>
-                            </td>
-                            <td className="p-4 font-mono text-slate-600">{user.memberId || '-'}</td>
-                            <td className="p-4 pr-6 text-right">
-                              <button
-                                onClick={() => setSelectedUser(user)}
-                                className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-[6px] hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-sm"
-                              >
-                                Review
-                              </button>
-                            </td>
-                          </motion.tr>
-                        ))
-                      )}
+                      ))}
                     </tbody>
                   </table>
                 </div>
-
-                {/* Pagination Controls */}
+              )}
+              {projectTotalCount > projectPageSize && (
                 <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                    Showing <span className="text-slate-900">{filteredUsers.length}</span> of <span className="text-slate-900">{totalCount}</span> records
+                    Showing <span className="text-slate-900">{projectSubmissions.length}</span> of <span className="text-slate-900">{projectTotalCount}</span> records
                   </p>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 0 || isDataLoading}
+                      onClick={() => setProjectPage(projectPage - 1)}
+                      disabled={projectPage === 0 || projectSubmissionsLoading}
                       className="p-2 rounded-[6px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                     >
                       <ChevronLeft className="w-5 h-5" />
                     </button>
                     <div className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-[6px]">
-                      <span className="text-sm font-bold text-slate-900">Page {currentPage + 1}</span>
+                      <span className="text-sm font-bold text-slate-900">Page {projectPage + 1}</span>
                       <span className="text-slate-400 mx-1">of</span>
-                      <span className="text-sm font-bold text-slate-900">{Math.ceil(totalCount / pageSize)}</span>
+                      <span className="text-sm font-bold text-slate-900">{Math.ceil(projectTotalCount / projectPageSize)}</span>
                     </div>
                     <button
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={(currentPage + 1) * pageSize >= totalCount || isDataLoading}
+                      onClick={() => setProjectPage(projectPage + 1)}
+                      disabled={(projectPage + 1) * projectPageSize >= projectTotalCount || projectSubmissionsLoading}
                       className="p-2 rounded-[6px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                     >
                       <ChevronRight className="w-5 h-5" />
                     </button>
                   </div>
                 </div>
-              </>
-            ) : activeTab === 'projects' ? (
-              <>
-                <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4 sm:gap-6">
-                  <div>
-                    <h2 className="text-base sm:text-lg font-bold text-slate-900">Projects</h2>
-                    <p className="text-xs sm:text-sm text-slate-500 mt-1">Review and moderate project submissions.</p>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4 sm:gap-6">
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900">Members</h2>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-1">Approved members and their issued IDs.</p>
+                </div>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full xl:w-auto">
+                  <div className="relative flex-1 xl:w-64">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="Search members..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                    />
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex gap-1 bg-slate-100 rounded-[6px] p-1">
-                      {(['All', 'pending', 'approved', 'rejected'] as const).map((f) => (
-                        <button
-                          key={f}
-                          onClick={() => setProjectStatusFilter(f)}
-                          className={clsx(
-                            "px-3 py-1.5 text-xs font-bold rounded-md transition-all capitalize",
-                            projectStatusFilter === f
-                              ? "bg-white text-slate-900 shadow-sm"
-                              : "text-slate-500 hover:text-slate-700"
-                          )}
-                        >
-                          {f === 'All' ? 'All' : f}
-                        </button>
-                      ))}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+                    <div className="relative flex-1 sm:w-auto">
+                      <Briefcase className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <select
+                        value={roleFilter}
+                        onChange={(e) => setRoleFilter(e.target.value)}
+                        className="w-full sm:w-44 pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
+                      >
+                        <option value="All">All Roles</option>
+                        {SPECIALIZATIONS.map(spec => (
+                          <option key={spec.id} value={spec.label}>{spec.label}</option>
+                        ))}
+                      </select>
                     </div>
+                    {users.filter(u => u && !u.isAdmin && u.status === 'Approved').length > 0 && (
+                      <button
+                        onClick={exportToExcel}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-xs sm:text-sm font-bold rounded-[6px] hover:bg-blue-700 transition-all shadow-md shadow-blue-900/10 active:scale-[0.98]"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>Export {searchTerm ? 'Filtered' : 'All'} to Excel</span>
+                      </button>
+                    )}
                   </div>
                 </div>
-                {projectSubmissionsLoading ? (
-                  <div className="p-12 text-center text-slate-500">
-                    Loading submissions...
-                  </div>
-                ) : projectSubmissions.length === 0 ? (
-                  <div className="p-12 text-center text-slate-500">
-                    No {projectStatusFilter === 'All' ? '' : projectStatusFilter} submissions found.
-                  </div>
-                ) : (
+              </div>
+              {filteredApprovedMembers.length === 0 ? (
+                <div className="p-12 text-center text-slate-500">
+                  <CreditCard className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                  <p>{searchTerm ? 'No members match your search' : 'No approved members yet'}</p>
+                </div>
+              ) : (
+                <>
                   <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
-                          <th className="p-4 pl-6 font-semibold">Project</th>
-                          <th className="p-4 font-semibold">Submitted By</th>
-                          <th className="p-4 font-semibold">Status</th>
-                          <th className="p-4 font-semibold">Description</th>
-                          <th className="p-4 pr-6 font-semibold text-right">Actions</th>
+                          <th className="p-4 pl-6 font-semibold">Member Name</th>
+                          <th className="p-4 font-semibold">Primary Role</th>
+                          <th className="p-4 font-semibold">Community Role</th>
+                          <th className="p-4 font-semibold">Member ID</th>
+                          <th className="p-4 pr-6 font-semibold text-right">Card Preview</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-sm">
-                        {projectSubmissions.map((submission) => (
-                          <tr key={submission.id} className="hover:bg-slate-50/60 transition-colors">
-                            <td className="p-4 pl-6 align-top">
-                              <div className="font-bold text-slate-900">{submission.projectName}</div>
-                              <a
-                                href={submission.projectUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-xs text-blue-700 hover:underline break-all"
+                        {filteredApprovedMembers.map((member) => (
+                          <motion.tr
+                            key={member.id}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="hover:bg-slate-50/50 transition-colors"
+                          >
+                            <td className="p-4 pl-6">
+                              <div className="font-bold text-slate-900">{member.fullName}</div>
+                              <div className="text-xs text-slate-500">{member.email}</div>
+                            </td>
+                            <td className="p-4 font-semibold text-slate-700">{member.specialization}</td>
+                            <td className="p-4 font-semibold text-slate-700">{member.role}</td>
+                            <td className="p-4 font-mono font-bold text-blue-700">{member.memberId}</td>
+                            <td className="p-4 pr-6 text-right">
+                              <button
+                                onClick={() => setSelectedMember(member)}
+                                className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-[6px] hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-sm"
                               >
-                                {submission.projectUrl}
-                              </a>
-                              {submission.projType && (
-                                <div className="mt-2 text-xs text-slate-500">{submission.projType}</div>
-                              )}
+                                View Card
+                              </button>
                             </td>
-                            <td className="p-4 align-top">
-                              <div className="font-bold text-slate-900">
-                                {submission.submittedBy?.fullName || submission.submittedBy?.email || submission.userId}
-                              </div>
-                              {submission.submittedBy?.email && submission.submittedBy?.fullName && (
-                                <div className="text-xs text-slate-500 break-all">{submission.submittedBy.email}</div>
-                              )}
-                            </td>
-                            <td className="p-4 align-top">
-                              <span className={clsx(
-                                "inline-flex items-center px-2.5 py-1 rounded-[6px] text-[10px] sm:text-[11px] font-bold uppercase tracking-wide border",
-                                submission.status === 'approved' && "bg-emerald-50 text-emerald-700 border-emerald-200",
-                                submission.status === 'rejected' && "bg-red-50 text-red-700 border-red-200",
-                                submission.status === 'pending' && "bg-amber-50 text-amber-700 border-amber-200"
-                              )}>
-                                {submission.status}
-                              </span>
-                            </td>
-                            <td className="p-4 align-top max-w-[420px]">
-                              <div className="text-slate-700 whitespace-pre-wrap break-words">{submission.description}</div>
-                            </td>
-                            <td className="p-4 pr-6 align-top text-right">
-                              <div className="flex flex-wrap items-center justify-end gap-2">
-                                <button
-                                  onClick={() => handleEditClick(submission)}
-                                  disabled={projectActionLoadingId === submission.id}
-                                  className="inline-flex items-center gap-2 px-3 py-2 rounded-[6px] bg-white border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
-                                >
-                                  Edit
-                                </button>
-                                {submission.status === 'pending' && (
-                                  <>
-                                    <button
-                                      onClick={() => handleProjectAction(submission.id, 'approve')}
-                                      disabled={projectActionLoadingId === submission.id}
-                                      className="inline-flex items-center gap-2 px-3 py-2 rounded-[6px] bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
-                                    >
-                                      <CheckCircle2 className="w-4 h-4" />
-                                      Approve
-                                    </button>
-                                    <button
-                                      onClick={() => handleProjectAction(submission.id, 'reject')}
-                                      disabled={projectActionLoadingId === submission.id}
-                                      className="inline-flex items-center gap-2 px-3 py-2 rounded-[6px] bg-red-600 text-white text-xs font-bold hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
-                                    >
-                                      <XCircle className="w-4 h-4" />
-                                      Reject
-                                    </button>
-                                  </>
-                                )}
-                                <button
-                                  onClick={() => handleProjectDelete(submission.id)}
-                                  disabled={projectActionLoadingId === submission.id}
-                                  className="inline-flex items-center gap-2 px-3 py-2 rounded-[6px] bg-white border border-red-200 text-red-700 text-xs font-bold hover:bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                  Delete
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
+                          </motion.tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                )}
-                {projectTotalCount > projectPageSize && (
+
+                  {/* Pagination Controls for Members Tab */}
                   <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      Showing <span className="text-slate-900">{projectSubmissions.length}</span> of <span className="text-slate-900">{projectTotalCount}</span> records
+                      Showing <span className="text-slate-900">{filteredApprovedMembers.length}</span> of <span className="text-slate-900">{totalCount}</span> records
                     </p>
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => setProjectPage(projectPage - 1)}
-                        disabled={projectPage === 0 || projectSubmissionsLoading}
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 0 || isDataLoading}
                         className="p-2 rounded-[6px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                       >
                         <ChevronLeft className="w-5 h-5" />
                       </button>
                       <div className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-[6px]">
-                        <span className="text-sm font-bold text-slate-900">Page {projectPage + 1}</span>
+                        <span className="text-sm font-bold text-slate-900">Page {currentPage + 1}</span>
                         <span className="text-slate-400 mx-1">of</span>
-                        <span className="text-sm font-bold text-slate-900">{Math.ceil(projectTotalCount / projectPageSize)}</span>
+                        <span className="text-sm font-bold text-slate-900">{Math.ceil(totalCount / pageSize)}</span>
                       </div>
                       <button
-                        onClick={() => setProjectPage(projectPage + 1)}
-                        disabled={(projectPage + 1) * projectPageSize >= projectTotalCount || projectSubmissionsLoading}
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={(currentPage + 1) * pageSize >= totalCount || isDataLoading}
                         className="p-2 rounded-[6px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                       >
                         <ChevronRight className="w-5 h-5" />
                       </button>
                     </div>
                   </div>
-                )}
-              </>
-            ) : (
-              <>
-                <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4 sm:gap-6">
-                  <div>
-                    <h2 className="text-base sm:text-lg font-bold text-slate-900">Members</h2>
-                    <p className="text-xs sm:text-sm text-slate-500 mt-1">Approved members and their issued IDs.</p>
-                  </div>
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full xl:w-auto">
-                    <div className="relative flex-1 xl:w-64">
-                      <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        placeholder="Search members..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
-                      />
-                    </div>
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-                      <div className="relative flex-1 sm:w-auto">
-                        <Briefcase className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                        <select
-                          value={roleFilter}
-                          onChange={(e) => setRoleFilter(e.target.value)}
-                          className="w-full sm:w-44 pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
-                        >
-                          <option value="All">All Roles</option>
-                          {SPECIALIZATIONS.map(spec => (
-                            <option key={spec.id} value={spec.label}>{spec.label}</option>
-                          ))}
-                        </select>
-                      </div>
-                      {users.filter(u => u && !u.isAdmin && u.status === 'Approved').length > 0 && (
-                        <button
-                          onClick={exportToExcel}
-                          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-xs sm:text-sm font-bold rounded-[6px] hover:bg-blue-700 transition-all shadow-md shadow-blue-900/10 active:scale-[0.98]"
-                        >
-                          <Download className="w-4 h-4" />
-                          <span>Export {searchTerm ? 'Filtered' : 'All'} to Excel</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                {filteredApprovedMembers.length === 0 ? (
-                  <div className="p-12 text-center text-slate-500">
-                    <CreditCard className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                    <p>{searchTerm ? 'No members match your search' : 'No approved members yet'}</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
-                            <th className="p-4 pl-6 font-semibold">Member Name</th>
-                            <th className="p-4 font-semibold">Primary Role</th>
-                            <th className="p-4 font-semibold">Community Role</th>
-                            <th className="p-4 font-semibold">Member ID</th>
-                            <th className="p-4 pr-6 font-semibold text-right">Card Preview</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 text-sm">
-                          {filteredApprovedMembers.map((member) => (
-                            <motion.tr
-                              key={member.id}
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              className="hover:bg-slate-50/50 transition-colors"
-                            >
-                              <td className="p-4 pl-6">
-                                <div className="font-bold text-slate-900">{member.fullName}</div>
-                                <div className="text-xs text-slate-500">{member.email}</div>
-                              </td>
-                              <td className="p-4 font-semibold text-slate-700">{member.specialization}</td>
-                              <td className="p-4 font-semibold text-slate-700">{member.role}</td>
-                              <td className="p-4 font-mono font-bold text-blue-700">{member.memberId}</td>
-                              <td className="p-4 pr-6 text-right">
-                                <button
-                                  onClick={() => setSelectedMember(member)}
-                                  className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-[6px] hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-sm"
-                                >
-                                  View Card
-                                </button>
-                              </td>
-                            </motion.tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* Pagination Controls for Members Tab */}
-                    <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                        Showing <span className="text-slate-900">{filteredApprovedMembers.length}</span> of <span className="text-slate-900">{totalCount}</span> records
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handlePageChange(currentPage - 1)}
-                          disabled={currentPage === 0 || isDataLoading}
-                          className="p-2 rounded-[6px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                        >
-                          <ChevronLeft className="w-5 h-5" />
-                        </button>
-                        <div className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-[6px]">
-                          <span className="text-sm font-bold text-slate-900">Page {currentPage + 1}</span>
-                          <span className="text-slate-400 mx-1">of</span>
-                          <span className="text-sm font-bold text-slate-900">{Math.ceil(totalCount / pageSize)}</span>
-                        </div>
-                        <button
-                          onClick={() => handlePageChange(currentPage + 1)}
-                          disabled={(currentPage + 1) * pageSize >= totalCount || isDataLoading}
-                          className="p-2 rounded-[6px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                        >
-                          <ChevronRight className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </>
-            )}
-          </div>
+                </>
+              )}
+            </>
+          )}
+        </div>
       </main>
 
       {/* Review Modal */}
@@ -1031,15 +1031,15 @@ export default function AdminDashboard() {
                       <div className="flex flex-wrap gap-1.5">
                         {Array.isArray(selectedUser.skills) && selectedUser.skills.length > 0 ? (
                           selectedUser.skills.map((skill, i) => (
-                             <div
-                               key={i}
-                               className="flex items-center gap-1.5 pl-2 pr-3 py-1.5 bg-white border border-slate-200 rounded-md shadow-sm group"
-                             >
-                               <span className="text-xs font-semibold text-slate-800">{skill.name}</span>
-                               <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-400">
-                                 {skill.level}
-                               </span>
-                             </div>
+                            <div
+                              key={i}
+                              className="flex items-center gap-1.5 pl-2 pr-3 py-1.5 bg-white border border-slate-200 rounded-md shadow-sm group"
+                            >
+                              <span className="text-xs font-semibold text-slate-800">{skill.name}</span>
+                              <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-400">
+                                {skill.level}
+                              </span>
+                            </div>
                           ))
                         ) : (
                           <span className="text-xs text-slate-400 italic">None provided</span>
@@ -1120,7 +1120,7 @@ export default function AdminDashboard() {
               >
                 <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 flex-shrink-0">
                   <div>
-                    <h3 className="text-base sm:text-lg font-bold text-slate-900">My Access Card</h3>
+                    <h3 className="text-base sm:text-lg font-bold text-slate-900">My Volunteer Card</h3>
                   </div>
                   <button
                     onClick={() => setShowMyCard(false)}

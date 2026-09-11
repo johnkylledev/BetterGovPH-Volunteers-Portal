@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 
 const getSupabaseConfig = () => {
