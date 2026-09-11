@@ -32,6 +32,16 @@ export default function Login() {
             <Home size={14} className="hidden sm:inline-flex group-hover:-translate-x-0.5 transition-transform" />
             <span>Back to home</span>
           </Link>
+          <Link
+            to="/register"
+            className="text-xs sm:text-sm font-semibold text-slate-500 hover:text-blue-900 transition-colors inline-flex items-center gap-1 group"
+          >
+            <span>New here?</span>
+            <span className="text-blue-900 font-bold group-hover:translate-x-0.5 transition-transform">
+              <span className="sm:hidden">Apply</span>
+              <span className="hidden sm:inline">Apply now →</span>
+            </span>
+          </Link>
         </div>
 
         <div className="flex-1 flex items-center w-full px-4 sm:px-5 lg:px-6 py-8 sm:py-10 max-w-7xl mx-auto">

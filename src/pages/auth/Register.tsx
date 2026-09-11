@@ -240,8 +240,11 @@ function LegacyRegister() {
                             to="/login"
                             className="text-xs sm:text-sm font-semibold text-slate-500 hover:text-blue-900 transition-colors inline-flex items-center gap-1 group"
                         >
-                            Already have an account?
-                            <span className="hidden sm:inline text-blue-900 group-hover:translate-x-0.5 transition-transform">Sign in →</span>
+                            <span>Already have an account?</span>
+                            <span className="text-blue-900 font-bold group-hover:translate-x-0.5 transition-transform">
+                                <span className="sm:hidden">Sign in</span>
+                                <span className="hidden sm:inline">Sign in →</span>
+                            </span>
                         </Link>
                     </div>
 

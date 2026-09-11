@@ -9,24 +9,28 @@ import discordHandler from './_handlers/discord';
 import discordUsernameTakenHandler from './_handlers/discord-username-taken';
 import contributionScoresHandler from './_handlers/contribution-scores';
 
-export default async function handler(req: any, res: any) {
-  // Always set API version and CORS headers
-  res.setHeader('X-API-Version', '1.0.0');
+const API_VERSION = '1.0.0';
+
+const sendJson = (res: any, statusCode: number, body: Record<string, unknown>) => {
+  if (res.headersSent || res.writableEnded) return;
+  res.statusCode = statusCode;
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('X-API-Version', API_VERSION);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Version');
+  res.end(JSON.stringify(body));
+};
 
-  if (req.method === 'OPTIONS') {
-    res.statusCode = 204;
-    return res.end();
-  }
+const sendError = (res: any, statusCode: number, message: string) =>
+  sendJson(res, statusCode, { error: message });
 
-  // Determine URL path
-  const host = req.headers?.host || 'localhost';
+const normalizePath = (req: any): string => {
+  const host = (req.headers?.host as string) || 'localhost';
   const fullUrl = new URL(req.url || '/', `http://${host}`);
   let pathname = fullUrl.pathname;
 
-  // If Vercel passed path via query (from rewrite dest: /api/[...path]?path=$1)
   const pathQuery = req.query?.path;
   if (typeof pathQuery === 'string' && pathQuery.length > 0) {
     pathname = '/' + pathQuery.replace(/^\/+/, '');
@@ -34,7 +38,6 @@ export default async function handler(req: any, res: any) {
     pathname = '/' + pathQuery.join('/');
   }
 
-  // Normalize pathname: remove leading /api/v1 or /api
   if (pathname.startsWith('/api/v1')) {
     pathname = pathname.slice('/api/v1'.length);
   } else if (pathname.startsWith('/api')) {
@@ -45,27 +48,18 @@ export default async function handler(req: any, res: any) {
     pathname = pathname.slice(0, -1);
   }
 
-  // Handle route matching
-  if (pathname === '/me' || pathname === '') {
-    return meHandler(req, res);
-  }
-  if (pathname === '/admin') {
-    return adminHandler(req, res);
-  }
-  if (pathname === '/projects') {
-    return projectsHandler(req, res);
-  }
-  if (pathname === '/submit-project') {
-    return submitProjectHandler(req, res);
-  }
-  if (pathname === '/my-project-submissions') {
-    return myProjectSubmissionsHandler(req, res);
-  }
-  if (pathname === '/volunteer-calls' || pathname.startsWith('/volunteer-calls/')) {
-    return volunteerCallsHandler(req, res);
-  }
+  return pathname || '/';
+};
+
+const route = async (req: any, res: any, pathname: string) => {
+  if (pathname === '/me' || pathname === '/') return meHandler(req, res);
+  if (pathname === '/admin') return adminHandler(req, res);
+  if (pathname === '/projects') return projectsHandler(req, res);
+  if (pathname === '/submit-project') return submitProjectHandler(req, res);
+  if (pathname === '/my-project-submissions') return myProjectSubmissionsHandler(req, res);
+  if (pathname === '/volunteer-calls' || pathname.startsWith('/volunteer-calls/')) return volunteerCallsHandler(req, res);
+
   if (pathname.startsWith('/verify')) {
-    // Extract ID from pathname e.g. /verify/BGPH-2026-001
     const parts = pathname.split('/verify/').filter(Boolean);
     if (parts.length > 0) {
       if (!req.query) req.query = {};
@@ -74,17 +68,35 @@ export default async function handler(req: any, res: any) {
     }
     return verifyHandler(req, res);
   }
-  if (pathname === '/discord') {
-    return discordHandler(req, res);
-  }
-  if (pathname === '/discord-username-taken') {
-    return discordUsernameTakenHandler(req, res);
-  }
-  if (pathname === '/contribution-scores') {
-    return contributionScoresHandler(req, res);
-  }
 
-  res.statusCode = 404;
-  res.setHeader('Content-Type', 'application/json');
-  return res.end(JSON.stringify({ error: 'API endpoint not found' }));
+  if (pathname === '/discord') return discordHandler(req, res);
+  if (pathname === '/discord-username-taken') return discordUsernameTakenHandler(req, res);
+  if (pathname === '/contribution-scores') return contributionScoresHandler(req, res);
+
+  sendError(res, 404, 'API endpoint not found');
+};
+
+export default async function handler(req: any, res: any) {
+  try {
+    res.setHeader('X-API-Version', API_VERSION);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Version');
+
+    if (req.method === 'OPTIONS') {
+      res.statusCode = 204;
+      res.end();
+      return;
+    }
+
+    const pathname = normalizePath(req);
+    await route(req, res, pathname);
+  } catch (err: unknown) {
+    const msg =
+      err && typeof err === 'object' && 'message' in err && typeof (err as any).message === 'string'
+        ? (err as any).message
+        : 'Internal server error';
+    console.error('[API][route-error]', { path: req.url, error: err });
+    sendError(res, 500, msg);
+  }
 }
