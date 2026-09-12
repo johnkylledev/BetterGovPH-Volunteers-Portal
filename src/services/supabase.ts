@@ -578,9 +578,10 @@ export const deleteVolunteerCall = async (id: string, options?: { deleteUser?: b
   return response;
 };
 
-export const getApprovedProjects = async () => {
+export const getApprovedProjects = async (opts?: { merged?: boolean }) => {
   const token = await getAccessToken();
-  const response = await apiRequest<any>('/api/v1/projects', {
+  const query = opts?.merged ? '?source=merged' : '';
+  const response = await apiRequest<any>(`/api/v1/projects${query}`, {
     method: 'GET',
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
