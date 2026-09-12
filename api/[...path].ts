@@ -601,9 +601,9 @@ const handler_admin: H = async (req, res) => {
     if (!adminCheck.ok) { sendError(res, 403, adminCheck.error); return; }
     const cacheKey = 'cache:admin:stats';
     try { const c = await getCache<any>(cacheKey); if (c) { sendJson(res, 200, c); return; } } catch { /* noop */ }
-    const { count: total } = await adminSup.from('users').select('*', { count: 'exact', head: true });
+    const { count: total } = await adminSup.from('users').select('*', { count: 'exact', head: true }).or('discord_connected.eq.true,status.eq.Approved,status.eq.approved');
     const { count: pending } = await adminSup.from('users').select('*', { count: 'exact', head: true })
-      .in('status', ['Pending', 'pending', 'PENDING']).not('full_name', 'eq', '');
+      .in('status', ['Pending', 'pending', 'PENDING']).not('full_name', 'eq', '').eq('discord_connected', true);
     const { count: approved } = await adminSup.from('users').select('*', { count: 'exact', head: true })
       .in('status', ['Approved', 'approved', 'APPROVED']);
     const payload = { total: total ?? 0, pending: pending ?? 0, approved: approved ?? 0 };
@@ -628,7 +628,7 @@ const handler_admin: H = async (req, res) => {
     const statusFilter = getStringParam(req.query?.status);
     const roleFilter = getStringParam(req.query?.role);
     const searchRaw = getStringParam(req.query?.search);
-    let query: any = adminSup.from('users').select('*', { count: 'exact' }).eq('is_admin', false).not('full_name', 'eq', '');
+    let query: any = adminSup.from('users').select('*', { count: 'exact' }).eq('is_admin', false).not('full_name', 'eq', '').or('discord_connected.eq.true,status.eq.Approved,status.eq.approved');
     if (statusFilter && statusFilter !== 'All') {
       const variants = Array.from(new Set([statusFilter, statusFilter.toLowerCase(), statusFilter.toUpperCase(),
         statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1).toLowerCase()]));
@@ -1254,7 +1254,7 @@ const handler_volunteer_calls: H = async (req, res) => {
 };
 
 // ---------- /verify (api/_handlers/verify.ts) -------------------------------
-const isSafeMemberId = (value: string) => /^BGPH-\d{4}-\d{3}$/i.test(value);
+const isSafeMemberId = (value: string) => /^BGPH-\d{4}-\d{3,4}$/i.test(value);
 const normalizeLookupId = (raw: string) => raw.trim().toUpperCase();
 
 const handler_verify: H = async (req, res) => {
@@ -1262,66 +1262,73 @@ const handler_verify: H = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'GET' && req.method !== 'POST') { sendError(res, 405, 'Method not allowed'); return; }
   const { url: supabaseUrl, anonKey, serviceKey } = getSupabaseConfig();
-  if (!supabaseUrl || !anonKey) { sendError(res, 500, 'Server not configured'); return; }
+  if (!supabaseUrl) { sendError(res, 500, 'Server not configured'); return; }
   const queryId = getStringParam(req.query?.id ?? req.query?.memberId);
   const bodyId = getStringParam(req.body?.id ?? req.body?.memberId);
   const lookupRaw = queryId ?? bodyId;
-  if (!lookupRaw) { sendError(res, 400, 'Missing id (memberId)'); return; }
+  if (!lookupRaw || !lookupRaw.trim()) { sendError(res, 400, 'Missing id (memberId)'); return; }
   const lookup = normalizeLookupId(lookupRaw);
-  if (!isSafeMemberId(lookup) && !isUuid(lookupRaw.trim())) { sendError(res, 400, 'Invalid id format'); return; }
+  
   const token = getBearerToken(req.headers?.authorization);
   let isAdminCaller = false;
+  const dbClient = serviceKey
+    ? createServiceClient(supabaseUrl, serviceKey)
+    : createAnonClient(supabaseUrl, anonKey);
+
   if (token && serviceKey) {
     try {
-      const adminSupabase = createServiceClient(supabaseUrl, serviceKey);
-      const { data: authData } = await adminSupabase.auth.getUser(token);
+      const { data: authData } = await dbClient.auth.getUser(token);
       if (authData?.user) {
         const callerUid = authData.user.id;
-        const { data: callerRow } = await adminSupabase
+        const { data: callerRow } = await dbClient
           .from('users').select('is_admin').eq('uid', callerUid).maybeSingle();
         isAdminCaller = !!callerRow?.is_admin;
       }
     } catch { isAdminCaller = false; }
   }
-  const cacheKey = `cache:verify:${lookup}`;
-  if (!isAdminCaller) {
-    try { const cached = await getCache<any>(cacheKey); if (cached) { sendJson(res, 200, cached); return; } }
-    catch { /* noop */ }
-  }
-  const anonSupabase = createAnonClient(supabaseUrl, anonKey);
+
+  const cleanLookup = lookupRaw.trim();
+  const lookupUpper = cleanLookup.toUpperCase();
+  const exactMemberId = lookupUpper.startsWith('BGPH-') ? lookupUpper : `BGPH-${lookupUpper}`;
+
   let row: any | null = null;
-  const exactMemberId = lookup.startsWith('BGPH-') ? lookup : `BGPH-${lookup}`;
-  if (isSafeMemberId(exactMemberId)) {
-    const { data, error } = await anonSupabase
-      .from('users')
-      .select('uid, full_name, specialization, role, status, member_id, year_joined, discord_username, is_admin')
-      .eq('member_id', exactMemberId).maybeSingle();
-    if (error) { sendError(res, 500, 'Lookup failed'); return; }
-    row = data ?? null;
-  }
-  if (!row && isAdminCaller && isUuid(lookupRaw.trim())) {
-    const { data, error } = await anonSupabase
+
+  const { data: memberData } = await dbClient
+    .from('users')
+    .select('uid, full_name, specialization, role, status, member_id, year_joined, discord_username, is_admin')
+    .or(`member_id.eq.${exactMemberId},member_id.eq.${cleanLookup},member_id.ilike.%${cleanLookup}%`)
+    .maybeSingle();
+
+  row = memberData ?? null;
+
+  if (!row && isUuid(lookupRaw.trim())) {
+    const { data: uidData } = await dbClient
       .from('users')
       .select('uid, full_name, specialization, role, status, member_id, year_joined, discord_username, is_admin')
       .eq('uid', lookupRaw.trim()).maybeSingle();
-    if (error) { sendError(res, 500, 'Lookup failed'); return; }
-    row = data ?? null;
+    row = uidData ?? null;
   }
+
   if (!row) { sendError(res, 404, 'Not found'); return; }
-  if (!isAdminCaller) {
-    const isApproved = ['approved', 'Approved', 'APPROVED'].includes(String(row.status ?? '')) || !!row.is_admin;
-    if (!isApproved) { sendError(res, 404, 'Not found'); return; }
-  }
-  const responsePayload = {
-    uid: row.uid, fullName: row.full_name ?? '', specialization: row.specialization ?? '',
+
+  const rawStatus = String(row.status || 'Pending').trim();
+  const statusNormalized = row.is_admin
+    ? 'Approved'
+    : rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1).toLowerCase();
+
+  const responsePayload: Record<string, any> = {
+    memberId: row.member_id ?? null,
+    fullName: row.full_name ?? '',
+    specialization: row.specialization ?? '',
     role: row.role ?? 'Member',
-    status: isAdminCaller ? (row.status ?? 'Pending') : 'Approved',
-    memberId: row.member_id ?? null, yearJoined: row.year_joined ?? null,
-    discordUsername: row.discord_username ?? '', isAdmin: !!row.is_admin,
+    status: statusNormalized,
+    yearJoined: row.year_joined ?? null,
   };
-  if (!isAdminCaller) {
-    try { await setCache(cacheKey, responsePayload, 300); } catch { /* noop */ }
+
+  if (row.discord_username && String(row.discord_username).trim()) {
+    responsePayload.discordUsername = String(row.discord_username).trim();
   }
+
   sendJson(res, 200, responsePayload);
 };
 
@@ -1588,11 +1595,13 @@ async function handleRequest(req: any, res: any) {
     if (pathname === '/volunteer-calls' || pathname.startsWith('/volunteer-calls/')) return callHandler('/volunteer-calls', req, res);
 
     if (pathname.startsWith('/verify')) {
-      const parts = pathname.split('/verify/').filter(Boolean);
-      if (parts.length > 0) {
-        if (!req.query) req.query = {};
-        req.query.id = parts[0];
-        req.query.memberId = parts[0];
+      if (pathname.startsWith('/verify/')) {
+        const idFromPath = pathname.slice('/verify/'.length).trim();
+        if (idFromPath) {
+          if (!req.query) req.query = {};
+          if (!req.query.id) req.query.id = idFromPath;
+          if (!req.query.memberId) req.query.memberId = idFromPath;
+        }
       }
       return callHandler('/verify', req, res);
     }

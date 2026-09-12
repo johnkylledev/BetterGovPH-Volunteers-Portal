@@ -5,7 +5,6 @@ import { ShieldCheck, XCircle, Copy, Code, Check, Search, Loader2, Home, ArrowRi
 import { useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
-import html2canvas from 'html2canvas';
 import { getUserByMemberIdOrId } from '../../services/supabase';
 import { AccessCard } from '../../components/AccessCard';
 
@@ -20,7 +19,6 @@ export default function Verify() {
   });
   const [loading, setLoading] = useState(!userData && !!id);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'embed-copied'>('idle');
-  const [downloadLoading, setDownloadLoading] = useState(false);
   const [searchId, setSearchId] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchResult, setSearchResult] = useState<any>(null);
@@ -54,23 +52,27 @@ export default function Verify() {
     fetchUser();
   }, [id, users]);
 
+  const performSearchNow = async (term = searchId) => {
+    const cleanTerm = term.trim();
+    if (!cleanTerm || cleanTerm.length < 3) {
+      setSearchResult(null);
+      return;
+    }
+    setIsSearching(true);
+    try {
+      const result = await getUserByMemberIdOrId(cleanTerm);
+      setSearchResult(result);
+    } catch {
+      setSearchResult(null);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
   useEffect(() => {
-    const performSearch = async () => {
-      if (!searchId || searchId.length < 5) {
-        setSearchResult(null);
-        return;
-      }
-      setIsSearching(true);
-      try {
-        const result = await getUserByMemberIdOrId(searchId);
-        setSearchResult(result);
-      } catch {
-        setSearchResult(null);
-      } finally {
-        setIsSearching(false);
-      }
-    };
-    const timeout = setTimeout(performSearch, 400);
+    const timeout = setTimeout(() => {
+      performSearchNow(searchId);
+    }, 300);
     return () => clearTimeout(timeout);
   }, [searchId]);
 
@@ -78,9 +80,10 @@ export default function Verify() {
     ? `${window.location.origin}/verify/${userData.memberId}`
     : '';
 
-  const isValid = userData && (userData.status === 'Approved' || userData.isAdmin);
-  const isPending = userData && userData.status === 'Pending' && !userData.isAdmin;
-  const isDeclined = userData && userData.status === 'Declined' && !userData.isAdmin;
+  const statusLower = (userData?.status || '').toLowerCase();
+  const isValid = userData && (statusLower === 'approved' || userData.isAdmin);
+  const isPending = userData && statusLower === 'pending' && !userData.isAdmin;
+  const isDeclined = userData && statusLower === 'declined' && !userData.isAdmin;
 
   const handleCopyLink = async () => {
     if (!publicUrl) return;
@@ -99,26 +102,6 @@ export default function Verify() {
       setCopyStatus('embed-copied');
       setTimeout(() => setCopyStatus('idle'), 2000);
     } catch {}
-  };
-
-  const downloadCard = async () => {
-    if (!cardRef.current || !userData) return;
-    setDownloadLoading(true);
-    try {
-      const canvas = await html2canvas(cardRef.current, {
-        backgroundColor: null,
-        scale: 2,
-        useCORS: true,
-        logging: false,
-      });
-      const link = document.createElement('a');
-      link.download = `BetterGovPH_Card_${userData.memberId || userData.id}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    } catch {
-    } finally {
-      setDownloadLoading(false);
-    }
   };
 
   if (isEmbed) {
@@ -267,43 +250,25 @@ export default function Verify() {
 
               {isValid && (
                 <div className="w-full flex flex-col gap-2.5 sm:gap-3 px-2 sm:px-0">
-                  <button
-                    onClick={handleCopyLink}
-                    className="group relative flex w-full items-center justify-center gap-2 sm:gap-2.5 rounded-[6px] bg-blue-900 px-4 sm:px-5 py-3 sm:py-3.5 text-xs sm:text-sm font-bold text-white shadow-[0_10px_24px_-14px_rgba(30,58,138,0.5)] [@media(hover:hover){&:hover}]:bg-blue-800 [@media(hover:hover){&:hover}]:shadow-[0_14px_30px_-14px_rgba(30,58,138,0.55)] focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 transition-[transform,box-shadow,background-color] duration-200 ease-out active:scale-[0.98]"
-                  >
-                    {copyStatus === 'copied' ? (
-                      <><Check size={15} className="sm:hidden" /><Check size={16} className="hidden sm:inline-flex" /><span>Link Copied</span></>
-                    ) : (
-                      <><Copy size={15} className="sm:hidden" /><Copy size={16} className="hidden sm:inline-flex group-hover:scale-110 transition-transform" /><span>Copy Public Link</span></>
-                    )}
-                  </button>
-                  <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+                    <button
+                      onClick={handleCopyLink}
+                      className="group relative flex w-full items-center justify-center gap-2 rounded-[6px] bg-blue-900 px-4 py-3 sm:py-3.5 text-xs sm:text-sm font-bold text-white shadow-[0_10px_24px_-14px_rgba(30,58,138,0.5)] [@media(hover:hover){&:hover}]:bg-blue-800 [@media(hover:hover){&:hover}]:shadow-[0_14px_30px_-14px_rgba(30,58,138,0.55)] focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 transition-[transform,box-shadow,background-color] duration-200 ease-out active:scale-[0.98]"
+                    >
+                      {copyStatus === 'copied' ? (
+                        <><Check size={14} /><span>Link Copied</span></>
+                      ) : (
+                        <><Copy size={14} className="group-hover:scale-110 transition-transform" /><span>Copy Public Link</span></>
+                      )}
+                    </button>
                     <button
                       onClick={handleCopyEmbed}
-                      className="inline-flex items-center justify-center gap-2 w-full rounded-[6px] border border-slate-200 bg-white px-4 py-3 sm:py-3 text-xs sm:text-sm font-bold text-slate-700 [@media(hover:hover){&:hover}]:border-slate-300 [@media(hover:hover){&:hover}]:bg-slate-50 transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out active:scale-[0.98]"
+                      className="inline-flex items-center justify-center gap-2 w-full rounded-[6px] border border-slate-200 bg-white px-4 py-3 sm:py-3.5 text-xs sm:text-sm font-bold text-slate-700 [@media(hover:hover){&:hover}]:border-slate-300 [@media(hover:hover){&:hover}]:bg-slate-50 transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out active:scale-[0.98]"
                     >
                       {copyStatus === 'embed-copied' ? (
                         <><Check size={14} /><span>Embed Copied</span></>
                       ) : (
                         <><Code size={14} /><span>Embed Code</span></>
-                      )}
-                    </button>
-                    <button
-                      onClick={downloadCard}
-                      disabled={downloadLoading}
-                      className="inline-flex items-center justify-center gap-2 w-full rounded-[6px] border border-slate-200 bg-white px-4 py-3 sm:py-3 text-xs sm:text-sm font-bold text-slate-700 [@media(hover:hover){&:hover}]:border-slate-300 [@media(hover:hover){&:hover}]:bg-slate-50 transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      {downloadLoading ? (
-                        <><Loader2 size={14} className="animate-spin" /><span>Exporting...</span></>
-                      ) : (
-                        <>
-                          <svg viewBox="0 0 24 24" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                            <polyline points="7 10 12 15 17 10" />
-                            <line x1="12" y1="15" x2="12" y2="3" />
-                          </svg>
-                          <span>Download PNG</span>
-                        </>
                       )}
                     </button>
                   </div>
@@ -358,7 +323,7 @@ export default function Verify() {
               </p>
             </div>
 
-            <div className="w-full space-y-3 sm:space-y-4">
+            <form onSubmit={(e) => { e.preventDefault(); performSearchNow(); }} className="w-full space-y-3 sm:space-y-4">
               <div className="relative">
                 <Search size={14} className="sm:hidden text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <Search size={15} className="hidden sm:inline-flex text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -394,6 +359,7 @@ export default function Verify() {
                       <p className="text-[11px] sm:text-xs text-slate-600 font-mono truncate">{searchResult.memberId}</p>
                     </div>
                     <button
+                      type="button"
                       onClick={() => navigate(`/verify/${searchResult.memberId}`)}
                       className="inline-flex items-center gap-1.5 rounded-[6px] bg-slate-900 px-3 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-xs font-bold text-white shadow-[0_8px_20px_-10px_rgba(15,23,42,0.5)] [@media(hover:hover){&:hover}]:bg-slate-800 transition-[color,background-color,border-color] duration-200 ease-out active:scale-[0.98] ml-2 shrink-0"
                     >
@@ -402,7 +368,7 @@ export default function Verify() {
                       <ArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
                     </button>
                   </motion.div>
-                ) : searchId.length >= 5 && !isSearching ? (
+                ) : searchId.trim().length >= 3 && !isSearching ? (
                   <motion.div
                     key="missing"
                     initial={{ opacity: 0, y: 8 }}
@@ -423,7 +389,7 @@ export default function Verify() {
                   </motion.div>
                 ) : null}
               </AnimatePresence>
-            </div>
+            </form>
 
             <div className="w-full pt-4 sm:pt-6 mt-1 sm:mt-2 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
               <Link

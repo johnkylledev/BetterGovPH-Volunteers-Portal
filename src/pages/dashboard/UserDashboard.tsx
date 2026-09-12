@@ -4,8 +4,7 @@ import { useStore } from '../../store/useStore';
 import { AccessCard } from '../../components/AccessCard';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
 import { motion } from 'framer-motion';
-import { ShieldAlert, CheckCircle2, Clock, LogOut, Download, Copy, Code, Check, Info, Zap, User, Mail, Calendar, Award, MapPin, ExternalLink, Share2, Sparkles, Edit3, Trash2, X, Lock, Unlock, FolderPlus, Users, FileText, AlertCircle, RefreshCw } from 'lucide-react';
-import html2canvas from 'html2canvas';
+import { ShieldAlert, CheckCircle2, Clock, LogOut, Copy, Code, Check, Info, Zap, User, Mail, Calendar, Award, MapPin, ExternalLink, Share2, Sparkles, Edit3, Trash2, X, Lock, Unlock, FolderPlus, Users, FileText, AlertCircle, RefreshCw } from 'lucide-react';
 import clsx from 'clsx';
 import { toast } from 'sonner';
 import { SkillIcon } from '../../components/SkillIcon';
@@ -38,7 +37,6 @@ export default function UserDashboard() {
   const { currentUser, authInitialized } = useStore();
   const logout = useStore((s) => s.logout);
   const navigate = useNavigate();
-  const [downloadLoading, setDownloadLoading] = React.useState(false);
   const [copyStatus, setCopyStatus] = React.useState<'idle' | 'copied' | 'embed-copied'>('idle');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'submit-project' | 'volunteer'>('dashboard');
   const [projectName, setProjectName] = useState('');
@@ -350,7 +348,7 @@ export default function UserDashboard() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16 sm:h-20">
               <div className="flex items-center space-x-2 sm:space-x-3">
-                <img src="/logo.svg" onError={(e)=>{const t=e.currentTarget;t.onerror=null;t.src='https://assets.bettergov.ph/logos/webp/icon-primary.webp';}} alt="BetterGovPH Logo" className="w-7 h-7 sm:w-8 sm:h-8 object-contain brightness-0" />
+                <img src="/logo.svg" onError={(e) => { const t = e.currentTarget; t.onerror = null; t.src = 'https://assets.bettergov.ph/logos/webp/icon-primary.webp'; }} alt="BetterGovPH Logo" className="w-7 h-7 sm:w-8 sm:h-8 object-contain brightness-0" />
                 <span className="text-lg sm:text-xl font-display font-bold text-slate-900 truncate">BetterGovPH Volunteers</span>
               </div>
               <div className="flex items-center space-x-2 sm:space-x-4">
@@ -597,37 +595,25 @@ export default function UserDashboard() {
                       transition={{ delay: 0.3 }}
                       className="w-full mt-6 sm:mt-8 px-2 sm:px-0"
                     >
-                      <div className="flex flex-col gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                         <button
                           onClick={handleCopyLink}
-                          className="flex items-center justify-center gap-2 w-full py-4 bg-slate-900 text-white rounded-[6px] font-semibold text-sm hover:bg-slate-800 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out shadow-lg active:scale-[0.98]"
+                          className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 bg-blue-900 text-white rounded-[6px] font-bold text-xs sm:text-sm hover:bg-blue-800 transition-[transform,box-shadow,background-color] duration-200 ease-out shadow-[0_10px_24px_-14px_rgba(30,58,138,0.5)] active:scale-[0.98]"
                         >
                           {copyStatus === 'copied' ? (
-                            <>
-                              <Check className="w-4 h-4" />
-                              <span>Link Copied</span>
-                            </>
+                            <><Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" /><span>Link Copied</span></>
                           ) : (
-                            <>
-                              <Copy className="w-4 h-4" />
-                              <span>Copy Public Link</span>
-                            </>
+                            <><Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4" /><span>Copy Public Link</span></>
                           )}
                         </button>
                         <button
                           onClick={handleCopyEmbed}
-                          className="flex items-center justify-center gap-2 w-full py-4 bg-white border border-slate-200/80 text-slate-700 rounded-[6px] font-semibold text-sm hover:bg-slate-50 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out shadow-sm active:scale-[0.98]"
+                          className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 bg-white border border-slate-200 text-slate-700 rounded-[6px] font-bold text-xs sm:text-sm [@media(hover:hover){&:hover}]:bg-slate-50 [@media(hover:hover){&:hover}]:border-slate-300 transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out active:scale-[0.98]"
                         >
                           {copyStatus === 'embed-copied' ? (
-                            <>
-                              <Check className="w-4 h-4" />
-                              <span>Code Copied</span>
-                            </>
+                            <><Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" /><span>Embed Copied</span></>
                           ) : (
-                            <>
-                              <Code className="w-4 h-4" />
-                              <span>Copy Embed Code</span>
-                            </>
+                            <><Code className="w-3.5 h-3.5 sm:w-4 sm:h-4" /><span>Embed Code</span></>
                           )}
                         </button>
                       </div>
