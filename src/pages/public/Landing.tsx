@@ -293,20 +293,35 @@ const Landing: React.FC = () => {
               whileInView={vpTo}
               viewport={VIEWPORT}
               transition={t(0)}
-              className="bg-white rounded-[6px] border border-slate-200 p-4 sm:p-5 flex flex-col"
+              className="bg-white rounded-[6px] border border-slate-200 overflow-hidden flex flex-col group"
             >
-              <div className="mb-4">
-                <p className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-[0.15em]">Where We Are</p>
-                <h3 className="text-base font-bold text-slate-900 mt-0.5 tracking-tight">Current State</h3>
+              <div className="h-[2px] w-full bg-slate-300" />
+              <div className="p-4 sm:p-5 flex flex-col flex-grow">
+                <div className="mb-4">
+                  <p className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-[0.15em]">Where We Are</p>
+                  <h3 className="text-base font-bold text-slate-900 mt-0.5 tracking-tight">Current State</h3>
+                </div>
+                <ul className="flex-grow flex flex-col gap-1.5">
+                  {CURRENT_STATE.map((item, i) => (
+                    <motion.li
+                      key={i}
+                      initial={reduce ? {} : { opacity: 0, x: -6 }}
+                      whileInView={reduce ? {} : { opacity: 1, x: 0 }}
+                      viewport={VIEWPORT}
+                      transition={t(0.15 + i * 0.06, 0.35)}
+                      className="flex items-start gap-2.5 sm:gap-3 p-2.5 sm:p-3 rounded-[6px] hover:bg-slate-50 transition-colors duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.99]"
+                    >
+                      <span className="flex-shrink-0 w-6 h-6 rounded-[6px] bg-slate-100 text-slate-500 flex items-center justify-center text-[10px] font-bold tabular-nums">
+                        {String(i + 1).padStart(2, '0')}
+                      </span>
+                      <div className="flex items-start gap-2 min-w-0 flex-1 pt-[1px]">
+                        <Minus size={11} strokeWidth={2.8} className="mt-[4.5px] flex-shrink-0 text-slate-400" />
+                        <span className="leading-relaxed font-medium text-slate-600 text-[12.5px] sm:text-[13.5px]">{item}</span>
+                      </div>
+                    </motion.li>
+                  ))}
+                </ul>
               </div>
-              <ul className="flex-grow flex flex-col divide-y divide-slate-100">
-                {CURRENT_STATE.map((item, i) => (
-                  <li key={i} className="flex items-start gap-2 sm:gap-2.5 py-3 sm:py-3.5 first:pt-0 last:pb-0 text-slate-600 text-[12.5px] sm:text-[13.5px]">
-                    <Minus size={13} strokeWidth={2.6} className="mt-[5px] sm:mt-[5.5px] flex-shrink-0 text-slate-400" />
-                    <span className="leading-relaxed font-medium">{item}</span>
-                  </li>
-                ))}
-              </ul>
             </motion.div>
 
             <motion.div
@@ -314,20 +329,35 @@ const Landing: React.FC = () => {
               whileInView={vpTo}
               viewport={VIEWPORT}
               transition={t(0.08)}
-              className="bg-white rounded-[6px] border border-blue-900/20 p-4 sm:p-5 flex flex-col shadow-[0_0_0_1px_rgba(30,58,138,0.04),0_2px_10px_-4px_rgba(30,58,138,0.08)]"
+              className="bg-gradient-to-br from-white to-blue-50/40 rounded-[6px] border border-blue-900/15 overflow-hidden flex flex-col shadow-[0_0_0_1px_rgba(30,58,138,0.04),0_4px_16px_-6px_rgba(30,58,138,0.12)] group"
             >
-              <div className="mb-4">
-                <p className="text-[10px] sm:text-[11px] font-bold text-blue-900 uppercase tracking-[0.15em]">Where We're Going</p>
-                <h3 className="text-base font-bold text-slate-900 mt-0.5 tracking-tight">BetterGoPH Approach</h3>
+              <div className="h-[2px] w-full bg-gradient-to-r from-blue-700 via-blue-900 to-blue-700" />
+              <div className="p-4 sm:p-5 flex flex-col flex-grow">
+                <div className="mb-4">
+                  <p className="text-[10px] sm:text-[11px] font-bold text-blue-900 uppercase tracking-[0.15em]">Where We're Going</p>
+                  <h3 className="text-base font-bold text-slate-900 mt-0.5 tracking-tight">BetterGovPH Approach</h3>
+                </div>
+                <ul className="flex-grow flex flex-col gap-1.5">
+                  {BETTERGOV_APPROACH.map((item, i) => (
+                    <motion.li
+                      key={i}
+                      initial={reduce ? {} : { opacity: 0, x: 6 }}
+                      whileInView={reduce ? {} : { opacity: 1, x: 0 }}
+                      viewport={VIEWPORT}
+                      transition={t(0.22 + i * 0.06, 0.35)}
+                      className="flex items-start gap-2.5 sm:gap-3 p-2.5 sm:p-3 rounded-[6px] bg-white/60 border border-blue-900/[0.05] hover:bg-white hover:border-blue-900/10 hover:shadow-[0_1px_4px_-2px_rgba(30,58,138,0.12)] transition-all duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.99]"
+                    >
+                      <span className="flex-shrink-0 w-6 h-6 rounded-[6px] bg-blue-900 text-white flex items-center justify-center text-[10px] font-bold tabular-nums shadow-[0_1px_2px_rgba(30,58,138,0.25)]">
+                        {String(i + 1).padStart(2, '0')}
+                      </span>
+                      <div className="flex items-start gap-2 min-w-0 flex-1 pt-[1px]">
+                        <Check size={11} strokeWidth={3.2} className="mt-[3px] flex-shrink-0 text-blue-900" />
+                        <span className="leading-relaxed font-semibold text-slate-800 text-[12.5px] sm:text-[13.5px]">{item}</span>
+                      </div>
+                    </motion.li>
+                  ))}
+                </ul>
               </div>
-              <ul className="flex-grow flex flex-col divide-y divide-blue-900/[0.07]">
-                {BETTERGOV_APPROACH.map((item, i) => (
-                  <li key={i} className="flex items-start gap-2 sm:gap-2.5 py-3 sm:py-3.5 first:pt-0 last:pb-0 text-slate-800 text-[12.5px] sm:text-[13.5px]">
-                    <Check size={13} strokeWidth={3} className="mt-[3px] sm:mt-[3.5px] flex-shrink-0 text-blue-900" />
-                    <span className="leading-relaxed font-semibold">{item}</span>
-                  </li>
-                ))}
-              </ul>
             </motion.div>
           </div>
         </div>
@@ -351,28 +381,35 @@ const Landing: React.FC = () => {
             </h2>
           </motion.div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-200/70 border-y border-slate-200/70">
             {[
-              { icon: <Flag size={18} />, title: "Filipino-First", desc: "Built by Filipinos, for Filipinos" },
-              { icon: <Lightbulb size={18} />, title: "Open by Default", desc: "Code, data, and process are public" },
-              { icon: <Users size={18} />, title: "Collaboration", desc: "Build together, ship together" },
-              { icon: <Zap size={18} />, title: "Urgency", desc: "Ship fast, iterate faster" },
-              { icon: <ShieldCheck size={18} />, title: "Rigor", desc: "Verify sources, get it right" },
-              { icon: <Heart size={18} />, title: "Accessibility", desc: "Every Filipino can participate" }
+              { icon: <Flag size={16} />, title: "Filipino-First", desc: "Built by Filipinos, for Filipinos" },
+              { icon: <Lightbulb size={16} />, title: "Open by Default", desc: "Code, data, and process are public" },
+              { icon: <Users size={16} />, title: "Collaboration", desc: "Build together, ship together" },
+              { icon: <Zap size={16} />, title: "Urgency", desc: "Ship fast, iterate faster" },
+              { icon: <ShieldCheck size={16} />, title: "Rigor", desc: "Verify sources, get it right" },
+              { icon: <Heart size={16} />, title: "Accessibility", desc: "Every Filipino can participate" }
             ].map((value, i) => (
               <motion.div
                 key={i}
-                initial={vpCard("bottom", 12)}
+                initial={vpCard("bottom", 10)}
                 whileInView={vpTo}
                 viewport={VIEWPORT}
-                transition={t(i * 0.05)}
-                className="bg-white rounded-[6px] border border-slate-200 p-4 sm:p-5 hover:border-slate-300 hover:shadow-sm transition-[border-color,box-shadow,transform] duration-200 ease-out"
+                transition={t(i * 0.04)}
+                className="group relative px-3.5 sm:px-6 py-4 sm:py-5 lg:px-8 lg:py-6 hover:bg-white transition-colors duration-200 ease-[cubic-bezier(0.23,1,0.32,1)]"
               >
-                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-[6px] bg-blue-50 flex items-center justify-center text-blue-900 mb-2.5 sm:mb-3">
-                  {value.icon}
+                <div className="flex items-start gap-3 sm:gap-4">
+                  <span className="shrink-0 text-3xl sm:text-4xl font-display font-bold text-blue-900/15 group-hover:text-blue-900/25 transition-colors duration-200 tabular-nums leading-none pt-[2px]">
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-blue-900 shrink-0">{value.icon}</span>
+                      <h3 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight leading-tight">{value.title}</h3>
+                    </div>
+                    <p className="text-[12px] sm:text-[13px] text-slate-500 leading-relaxed pl-0 sm:pl-7">{value.desc}</p>
+                  </div>
                 </div>
-                <h3 className="text-xs sm:text-sm font-bold text-slate-900 mb-1 leading-snug">{value.title}</h3>
-                <p className="text-[11px] sm:text-xs text-slate-500 leading-relaxed">{value.desc}</p>
               </motion.div>
             ))}
           </div>

@@ -4,7 +4,7 @@ import { Menu, X, ExternalLink } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useStore } from '../store/useStore';
 
-const MAIN_WEBSITE = "https://bettergov.ph/";
+const MAIN_WEBSITE = "https://about.bettergov.ph/";
 
 const isProfileComplete = (u: any) => {
   if (!u) return false;
