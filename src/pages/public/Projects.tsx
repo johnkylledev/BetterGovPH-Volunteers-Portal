@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { ExternalLink, FolderKanban, Home, Plus, Globe } from 'lucide-react';
+import { ExternalLink, FolderKanban, Home, Plus, Globe, Search as SearchIcon, X as XIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getApprovedProjects, supabase } from '../../services/supabase';
 import { Project } from '../../types';
@@ -19,6 +19,7 @@ export default function Projects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
+  const [query, setQuery] = useState('');
 
   const loadProjects = useCallback(async (isInitial = false) => {
     if (isInitial) setStatus('loading');
@@ -51,43 +52,100 @@ export default function Projects() {
     };
   }, [loadProjects]);
 
+  const q = query.trim().toLowerCase();
   const enriched = useMemo(() => {
     return projects.map((p) => ({ ...p, host: hostnameFromUrl(p.url) }));
   }, [projects]);
+
+  const filtered = useMemo(() => {
+    if (!q) return enriched;
+    return enriched.filter((p) => (
+      p.title.toLowerCase().includes(q) ||
+      p.host.toLowerCase().includes(q) ||
+      (p.projType || '').toLowerCase().includes(q) ||
+      p.description.toLowerCase().includes(q)
+    ));
+  }, [enriched, q]);
+
+  const total = enriched.length;
+  const matched = filtered.length;
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-900">
       <Navbar />
 
       <main className="max-w-6xl mx-auto px-3 sm:px-5 lg:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 sm:gap-4 mb-6 sm:mb-8">
-          <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-[6px] bg-white border border-slate-200 mb-3.5 sm:mb-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-              <FolderKanban size={13} className="text-blue-900" />
-              <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-[0.14em]">Projects</span>
+        <div className="flex flex-col gap-4 sm:gap-5 mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 sm:gap-4">
+            <div className="max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-[6px] bg-white border border-slate-200 mb-3.5 sm:mb-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+                <FolderKanban size={13} className="text-blue-900" />
+                <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-[0.14em]">Projects</span>
+              </div>
+              <h1 className="text-xl sm:text-3xl font-display font-bold leading-tight tracking-tight">
+                Community projects.
+              </h1>
+              <p className="mt-2 text-[12px] sm:text-[13.5px] text-slate-600 max-w-xl leading-relaxed">
+                Approved projects submitted by members. Browse demos, docs, and repositories.
+              </p>
             </div>
-            <h1 className="text-xl sm:text-3xl font-display font-bold leading-tight tracking-tight">
-              Community projects.
-            </h1>
-            <p className="mt-2 text-[12px] sm:text-[13.5px] text-slate-600 max-w-xl leading-relaxed">
-              Approved projects submitted by members. Browse demos, docs, and repositories.
-            </p>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:self-start sm:items-center justify-end">
+              <Link
+                to="/dashboard?tab=submit-project"
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-[7px] rounded-[6px] bg-slate-900 text-white text-[11.5px] font-bold hover:bg-slate-800 active:scale-[0.98] transition-colors duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] w-full sm:w-auto shadow-[0_1px_2px_rgba(15,23,42,0.06),0_8px_20px_-8px_rgba(15,23,42,0.25)]"
+              >
+                <Plus size={13} />
+                Submit Project
+              </Link>
+              <Link
+                to="/"
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-[7px] rounded-[6px] border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-[11.5px] font-semibold active:scale-[0.98] transition-colors duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] w-full sm:w-auto shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+              >
+                <Home size={13} />
+                Home
+              </Link>
+            </div>
           </div>
-          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:self-start sm:items-center">
-            <Link
-              to="/dashboard?tab=submit-project"
-              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-[7px] rounded-[6px] bg-slate-900 text-white text-[11.5px] font-bold hover:bg-slate-800 active:scale-[0.98] transition-colors duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] w-full sm:w-auto shadow-[0_1px_2px_rgba(15,23,42,0.06),0_8px_20px_-8px_rgba(15,23,42,0.25)]"
-            >
-              <Plus size={13} />
-              Submit Project
-            </Link>
-            <Link
-              to="/"
-              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-[7px] rounded-[6px] border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-[11.5px] font-semibold active:scale-[0.98] transition-colors duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] w-full sm:w-auto shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
-            >
-              <Home size={13} />
-              Home
-            </Link>
+
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+            <label className="group relative block w-full sm:max-w-[480px]">
+              <span className="sr-only">Search projects</span>
+              <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 inline-flex items-center text-slate-400 group-focus-within:text-blue-700 transition-colors duration-200 ease-[cubic-bezier(0.23,1,0.32,1)]">
+                <SearchIcon size={13} />
+              </span>
+              <input
+                type="search"
+                inputMode="search"
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+                placeholder="Search projects, hosts, tags…"
+                aria-label="Search projects"
+                className="w-full h-[30px] pl-8 pr-8 rounded-[6px] border border-slate-200 bg-white text-[12px] text-slate-800 placeholder:text-slate-400 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-[border-color,box-shadow,background-color] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] focus:outline-none focus:border-blue-900/30 focus:bg-white focus:shadow-[0_0_0_3px_rgba(30,58,138,0.08),0_1px_2px_rgba(15,23,42,0.04)] active:scale-[0.999]"
+              />
+              {q ? (
+                <button
+                  type="button"
+                  aria-label="Clear search"
+                  onClick={() => setQuery('')}
+                  className="absolute right-[5px] top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-5 h-5 rounded-[4px] text-slate-400 hover:text-slate-700 hover:bg-slate-100 active:scale-[0.96] transition-colors duration-200 ease-[cubic-bezier(0.23,1,0.32,1)]"
+                >
+                  <XIcon size={12} />
+                </button>
+              ) : null}
+            </label>
+            {status === 'success' && (
+              <div className="flex items-center justify-end sm:justify-start w-full sm:w-auto sm:ml-auto">
+                <span className="inline-flex items-center gap-1.5 text-[10.5px] font-semibold tabular-nums text-slate-500">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-900/40" />
+                  {q ? `${matched} of ${total}` : `${total} projects`}
+                  {q ? <span className="text-slate-400">matching “{q}”</span> : null}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -118,26 +176,42 @@ export default function Projects() {
         )}
 
         {status !== 'loading' && status !== 'error' && (
-          projects.length === 0 ? (
+          matched === 0 ? (
             <div className="rounded-[6px] border border-slate-200/80 bg-white py-10 sm:py-12 px-5 sm:px-8 flex flex-col items-center text-center shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)]">
               <div className="w-10 h-10 rounded-[6px] bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 mb-3.5 shadow-inner">
-                <FolderKanban size={16} />
+                {q ? <SearchIcon size={16} /> : <FolderKanban size={16} />}
               </div>
-              <h2 className="text-sm sm:text-base font-bold text-slate-900 mb-1">No projects yet.</h2>
+              <h2 className="text-sm sm:text-base font-bold text-slate-900 mb-1">
+                {q ? 'No projects match your search.' : 'No projects yet.'}
+              </h2>
               <p className="text-[12px] sm:text-[13px] text-slate-500 max-w-sm mb-4 leading-relaxed">
-                Be the first to ship an approved community project.
+                {q
+                  ? 'Try a different term, or submit a project that fits.'
+                  : 'Be the first to ship an approved community project.'}
               </p>
-              <Link
-                to="/dashboard?tab=submit-project"
-                className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-[6px] bg-slate-900 text-white text-[11.5px] font-bold hover:bg-slate-800 active:scale-[0.98] transition-colors duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] shadow-[0_1px_2px_rgba(15,23,42,0.06),0_8px_20px_-8px_rgba(15,23,42,0.25)]"
-              >
-                <Plus size={13} />
-                Submit First Project
-              </Link>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2">
+                {q ? (
+                  <button
+                    type="button"
+                    onClick={() => setQuery('')}
+                    className="inline-flex items-center justify-center gap-1.5 px-3.5 py-[7px] rounded-[6px] border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-[11.5px] font-semibold active:scale-[0.98] transition-colors duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+                  >
+                    <XIcon size={12} />
+                    Clear search
+                  </button>
+                ) : null}
+                <Link
+                  to="/dashboard?tab=submit-project"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-[6px] bg-slate-900 text-white text-[11.5px] font-bold hover:bg-slate-800 active:scale-[0.98] transition-colors duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] shadow-[0_1px_2px_rgba(15,23,42,0.06),0_8px_20px_-8px_rgba(15,23,42,0.25)] justify-center"
+                >
+                  <Plus size={13} />
+                  {q ? 'Submit Matching Project' : 'Submit First Project'}
+                </Link>
+              </div>
             </div>
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-              {enriched.map((p, i) => {
+              {filtered.map((p, i) => {
                 const isRemote = (p as any).source === 'bettergov.ph';
                 return (
                   <a
