@@ -42,13 +42,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     plugins: [
-      react({
-        babel: {
-          plugins: [
-            'react-dev-locator',
-          ],
-        },
-      }),
+      react(),
       tsconfigPaths()
     ],
   }
