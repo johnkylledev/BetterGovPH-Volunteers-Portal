@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import clsx from 'clsx';
 import { SkillIcon } from '../../components/SkillIcon';
 import { skillToSlug } from '../../utils/skillUtils';
 import {
@@ -18,13 +19,12 @@ import {
   BarChart3,
   ShieldCheck,
   Lightbulb,
-  Lock,
-  Sun,
   Target,
   Flag,
   ExternalLink,
-  CheckCircle2,
-  GraduationCap
+  GraduationCap,
+  Minus,
+  Check
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AccessCard } from '../../components/AccessCard';
@@ -35,6 +35,20 @@ import { Navbar } from '../../components/Navbar';
 const DISCORD_INVITE = "https://discord.com/invite/mHtThpN8bT";
 const MAIN_WEBSITE = "https://bettergov.ph/";
 const GITHUB_ORG = "https://github.com/BetterGovPH";
+
+const CURRENT_STATE = [
+  "Citizens are spectators to governance",
+  "Transparency is a promise, not a practice",
+  "Public data trapped in broken systems",
+  "Bureaucracy moves slower than technology"
+] as const;
+
+const BETTERGOV_APPROACH = [
+  "Every Filipino is an agent of change",
+  "Government works with us, not above us",
+  "Open data, open code, open by default",
+  "Technology serves bayanihan, not bureaucracy"
+] as const;
 
 const EASE_OUT = [0.23, 1, 0.32, 1] as const;
 const VIEWPORT = { once: true, margin: "-10% 0px -10% 0px" } as const;
@@ -279,27 +293,17 @@ const Landing: React.FC = () => {
               whileInView={vpTo}
               viewport={VIEWPORT}
               transition={t(0)}
-              className="bg-white rounded-[6px] border border-slate-200 p-5 sm:p-7 flex flex-col"
+              className="bg-white rounded-[6px] border border-slate-200 p-4 sm:p-5 flex flex-col"
             >
-              <div className="flex items-center gap-3 mb-4 sm:mb-5">
-                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-[6px] bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500">
-                  <Lock size={15} />
-                </div>
-                <div>
-                  <p className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-[0.15em]">Where We Are</p>
-                  <h3 className="text-base font-bold text-slate-900 mt-0.5">Current State</h3>
-                </div>
+              <div className="mb-4">
+                <p className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-[0.15em]">Where We Are</p>
+                <h3 className="text-base font-bold text-slate-900 mt-0.5 tracking-tight">Current State</h3>
               </div>
-              <ul className="space-y-2 sm:space-y-2.5 flex-grow">
-                {[
-                  "Citizens are spectators to governance",
-                  "Transparency is a promise, not a practice",
-                  "Public data trapped in broken systems",
-                  "Bureaucracy moves slower than technology"
-                ].map((item, i) => (
-                  <li key={i} className="flex items-start gap-2 sm:gap-2.5 text-slate-600 text-xs sm:text-sm">
-                    <span className="w-3 h-px sm:w-3.5 bg-slate-300 mt-2 sm:mt-2.5 flex-shrink-0 rounded-full" />
-                    <span className="leading-relaxed">{item}</span>
+              <ul className="flex-grow flex flex-col divide-y divide-slate-100">
+                {CURRENT_STATE.map((item, i) => (
+                  <li key={i} className="flex items-start gap-2 sm:gap-2.5 py-3 sm:py-3.5 first:pt-0 last:pb-0 text-slate-600 text-[12.5px] sm:text-[13.5px]">
+                    <Minus size={13} strokeWidth={2.6} className="mt-[5px] sm:mt-[5.5px] flex-shrink-0 text-slate-400" />
+                    <span className="leading-relaxed font-medium">{item}</span>
                   </li>
                 ))}
               </ul>
@@ -310,28 +314,17 @@ const Landing: React.FC = () => {
               whileInView={vpTo}
               viewport={VIEWPORT}
               transition={t(0.08)}
-              className="bg-white rounded-[6px] border border-blue-200 p-5 sm:p-7 flex flex-col shadow-[0_0_0_1px_rgba(30,58,138,0.04),0_2px_10px_-4px_rgba(30,58,138,0.08)]"
+              className="bg-white rounded-[6px] border border-blue-900/20 p-4 sm:p-5 flex flex-col shadow-[0_0_0_1px_rgba(30,58,138,0.04),0_2px_10px_-4px_rgba(30,58,138,0.08)]"
             >
-              <div className="flex items-center gap-3 mb-4 sm:mb-5">
-                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-[6px] bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-900">
-                  <Sun size={15} />
-                </div>
-                <div>
-                  <p className="text-[10px] sm:text-[11px] font-semibold text-blue-900 uppercase tracking-[0.15em]">Where We're Going</p>
-                  <h3 className="text-base font-bold text-slate-900 mt-0.5">BetterGov Approach</h3>
-                </div>
+              <div className="mb-4">
+                <p className="text-[10px] sm:text-[11px] font-bold text-blue-900 uppercase tracking-[0.15em]">Where We're Going</p>
+                <h3 className="text-base font-bold text-slate-900 mt-0.5 tracking-tight">BetterGoPH Approach</h3>
               </div>
-              <ul className="space-y-2 sm:space-y-2.5 flex-grow">
-                {[
-                  "Every Filipino is an agent of change",
-                  "Government works with us, not above us",
-                  "Open data, open code, open by default",
-                  "Technology serves bayanihan, not bureaucracy"
-                ].map((item, i) => (
-                  <li key={i} className="flex items-start gap-2 sm:gap-2.5 text-slate-700 text-xs sm:text-sm">
-                    <CheckCircle2 size={13} className="text-blue-700 mt-0.5 flex-shrink-0 sm:hidden" />
-                    <CheckCircle2 size={14} className="text-blue-700 mt-0.5 flex-shrink-0 hidden sm:inline-flex" />
-                    <span className="leading-relaxed font-medium">{item}</span>
+              <ul className="flex-grow flex flex-col divide-y divide-blue-900/[0.07]">
+                {BETTERGOV_APPROACH.map((item, i) => (
+                  <li key={i} className="flex items-start gap-2 sm:gap-2.5 py-3 sm:py-3.5 first:pt-0 last:pb-0 text-slate-800 text-[12.5px] sm:text-[13.5px]">
+                    <Check size={13} strokeWidth={3} className="mt-[3px] sm:mt-[3.5px] flex-shrink-0 text-blue-900" />
+                    <span className="leading-relaxed font-semibold">{item}</span>
                   </li>
                 ))}
               </ul>
