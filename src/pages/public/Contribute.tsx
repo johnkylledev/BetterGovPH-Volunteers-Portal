@@ -346,7 +346,7 @@ const Contribute: React.FC = () => {
           <div className="grid md:grid-cols-3 gap-8 sm:gap-10 mb-8 sm:mb-10">
             <div>
               <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                <img src="https://assets.bettergov.ph/logos/webp/icon-white.webp" alt="BetterGovPH" className="h-8 sm:h-9 w-auto" />
+                <img src="/logo.svg" onError={(e)=>{const t=e.currentTarget;t.onerror=null;t.src='https://assets.bettergov.ph/logos/webp/icon-white.webp';}} alt="BetterGovPH" className="h-8 sm:h-9 w-auto" style={{ filter: 'brightness(0) saturate(100%) invert(100%) sepia(100%) saturate(0) hue-rotate(115deg) brightness(104%) contrast(100%)' }} />
               </div>
               <p className="text-slate-400 text-xs sm:text-sm leading-relaxed mb-4 sm:mb-5 max-w-xs">
                 Open source civic tech for Philippine transparency and accountability.
