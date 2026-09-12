@@ -540,7 +540,7 @@ const Landing: React.FC = () => {
             transition={{ duration: 70, repeat: Infinity, ease: "linear" }}
           >
             {[...Array(4)].flatMap((_, rep) => [
-              { name: "BetterGovPH", logo: "https://assets.bettergov.ph/logos/webp/icon-primary.webp" },
+              { name: "BetterGovPH", logo: "/logo.svg" },
               { name: "LGUs", logo: "https://1000logos.net/wp-content/uploads/2019/03/DILG-Logo.png" },
               { name: "DICT", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/Department_of_Information_and_Communications_Technology_%28DICT%29.svg/960px-Department_of_Information_and_Communications_Technology_%28DICT%29.svg.png" },
               { name: "DBM", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Department_of_Budget_and_Management_%28DBM%29.svg/250px-Department_of_Budget_and_Management_%28DBM%29.svg.png" },
@@ -695,7 +695,7 @@ const Landing: React.FC = () => {
           <div className="grid md:grid-cols-3 gap-8 sm:gap-10 mb-8 sm:mb-10">
             <div>
               <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                <img src="https://assets.bettergov.ph/logos/webp/icon-white.webp" alt="BetterGovPH" className="h-8 sm:h-9 w-auto" />
+                <img src="/logo.svg" onError={(e)=>{const t=e.currentTarget;t.onerror=null;t.src='https://assets.bettergov.ph/logos/webp/icon-white.webp';}} alt="BetterGovPH" className="h-8 sm:h-9 w-auto drop-shadow-[0_1px_0_rgba(255,255,255,0.08)]" style={{ filter: 'brightness(0) saturate(100%) invert(100%) sepia(100%) saturate(0) hue-rotate(115deg) brightness(104%) contrast(100%)' }} />
               </div>
               <p className="text-slate-400 text-xs sm:text-sm leading-relaxed mb-4 sm:mb-5 max-w-xs">
                 Open source civic tech for Philippine transparency and accountability.
