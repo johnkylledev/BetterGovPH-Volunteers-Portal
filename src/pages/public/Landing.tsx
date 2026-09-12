@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import clsx from 'clsx';
 import { SkillIcon } from '../../components/SkillIcon';
 import { skillToSlug } from '../../utils/skillUtils';
 import {
@@ -61,6 +60,23 @@ const Landing: React.FC = () => {
   const barScaleX = useTransform(scrollYProgress, [0, 0.95], [0, 1]);
   const cardParallax = useTransform(scrollYProgress, [0, 0.25], [0, reduce ? 0 : -14]);
   const glowOpacity = useTransform(scrollYProgress, [0, 0.2], [0.8, 0.2]);
+
+  const ROTATING_WORDS = React.useMemo(() => [
+    'Developers',
+    'Designers',
+    'Researchers',
+    'Advocates',
+    'Data Engineers',
+    'Filipinos'
+  ], []);
+
+  const [wordIndex, setWordIndex] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setWordIndex((i) => (i + 1) % ROTATING_WORDS.length);
+    }, 2400);
+    return () => clearInterval(id);
+  }, [ROTATING_WORDS.length]);
 
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
@@ -191,8 +207,34 @@ const Landing: React.FC = () => {
                 transition={t(0.05)}
                 className="text-3xl sm:text-5xl lg:text-6xl font-display font-bold text-slate-900 leading-[1.05] tracking-tight"
               >
-                Build civic tech
-                <span className="block text-blue-900">for the Philippines.</span>
+                <span className="block">Build civic tech</span>
+                <span className="block">
+                  for{' '}
+                  <span className="relative inline-block align-baseline text-blue-900 min-w-[0.01em]">
+                    {ROTATING_WORDS.map((w, i) => (
+                      <motion.span
+                        key={w}
+                        initial="hidden"
+                        animate={i === wordIndex ? 'show' : 'hidden'}
+                        variants={{
+                          show: reduce
+                            ? { opacity: 1, y: 0 }
+                            : { opacity: 1, y: 0, transition: { ease: EASE_OUT, duration: 0.24, delay: 0.02 } },
+                          hidden: reduce
+                            ? { opacity: i === wordIndex ? 1 : 0, y: 0 }
+                            : { opacity: 0, y: '-0.6em', transition: { ease: [0.77, 0, 0.175, 1], duration: 0.2 } }
+                        }}
+                        className="absolute left-0 top-0 whitespace-nowrap"
+                        aria-hidden={i !== wordIndex}
+                      >
+                        {w}
+                        <span className="text-blue-900">.</span>
+                      </motion.span>
+                    ))}
+                    <span className="invisible whitespace-nowrap select-none">{ROTATING_WORDS.reduce((a, b) => (a.length >= b.length ? a : b))}</span>
+                    <span className="invisible select-none">.</span>
+                  </span>
+                </span>
               </motion.h1>
               <motion.p
                 initial={reduce ? { opacity: 0 } : { opacity: 0, transform: "translate3d(0px, 12px, 0)" }}
