@@ -535,7 +535,6 @@ const handler_me: H = async (req, res) => {
   if (email) updates.email = email;
   if (typeof body.fullName === 'string') updates.full_name = body.fullName.trim().slice(0, 200);
   if (typeof body.specialization === 'string') updates.specialization = body.specialization.trim().slice(0, 100);
-  if (typeof body.role === 'string') updates.role = body.role.trim().slice(0, 50);
   if (typeof body.discordUsername === 'string') updates.discord_username = body.discordUsername.trim().slice(0, 64);
   if (typeof body.yearJoined === 'number' && body.yearJoined >= 2020 && body.yearJoined <= 2100) updates.year_joined = body.yearJoined;
   if (Array.isArray(body.skills) && body.skills.length <= 100) updates.skills = body.skills;
