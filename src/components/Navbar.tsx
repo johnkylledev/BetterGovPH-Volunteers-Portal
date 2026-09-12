@@ -77,13 +77,13 @@ export const Navbar: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex justify-between h-16 items-center">
           <Link to="/" className="flex items-center gap-2 group">
-            <img src="/logo.svg" onError={(e)=>{const t=e.currentTarget;t.onerror=null;t.src='https://assets.bettergov.ph/logos/webp/icon-primary.webp';}} alt="BetterGovPH" className="h-7 w-auto" />
+            <img src="/logo.svg" onError={(e) => { const t = e.currentTarget; t.onerror = null; t.src = 'https://assets.bettergov.ph/logos/webp/icon-primary.webp'; }} alt="BetterGovPH" className="h-7 w-auto" />
             <div className="flex flex-col leading-none">
               <span className="font-display font-bold text-base tracking-tight text-blue-900">BetterGovPH</span>
               <span className="font-display font-bold text-[9px] uppercase tracking-[0.2em] text-blue-900/60 leading-tight">Volunteers Community</span>
             </div>
           </Link>
-          
+
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-6">
             {navLinks.map((link) => {
@@ -115,7 +115,7 @@ export const Navbar: React.FC = () => {
                 </Link>
               );
             })}
-            
+
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.97 }}
@@ -171,7 +171,7 @@ export const Navbar: React.FC = () => {
                 </Link>
               );
             })}
-            
+
             <div className="border-t border-slate-100 my-1" />
             <button
               onClick={() => {

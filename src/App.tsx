@@ -98,10 +98,10 @@ export default function App() {
     const initAuth = async () => {
       const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
         if (cancelled) return;
-        
+
         const uid = session?.user?.id ?? null;
         setSessionUserId(uid);
-        
+
         if (!uid) {
           setCurrentUser(null);
           setAuthInitialized(true);
@@ -110,15 +110,15 @@ export default function App() {
         }
 
         setAuthInitialized(true);
-        
+
         if (profileLoading || useStore.getState().currentUser) {
           return;
         }
         profileLoading = true;
-        
+
         setTimeout(async () => {
           if (cancelled) return;
-          
+
           try {
             const profile = await getUserData(uid);
             if (!cancelled && profile) {
@@ -146,11 +146,11 @@ export default function App() {
       if (document.visibilityState === 'visible') {
         const currentSessionUserId = useStore.getState().sessionUserId;
         const currentAuthInitialized = useStore.getState().authInitialized;
-        
+
         try {
           const { data } = await supabase.auth.getSession();
           const uid = data.session?.user?.id ?? null;
-          
+
           if (uid) {
             setSessionUserId(uid);
             if (!currentAuthInitialized) {
@@ -186,7 +186,7 @@ export default function App() {
       }
     };
     window.addEventListener('focus', handleFocus);
-    
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);

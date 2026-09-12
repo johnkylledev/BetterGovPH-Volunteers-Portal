@@ -2,8 +2,7 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, CheckCircle2, XCircle, LogOut, Filter, Users, Key, CreditCard, Download, Copy, Code, Check, Clock, Zap, Briefcase, ChevronLeft, ChevronRight, Trash2, UserX } from 'lucide-react';
-import html2canvas from 'html2canvas';
+import { Search, CheckCircle2, XCircle, LogOut, Filter, Users, Key, CreditCard, Copy, Code, Check, Clock, Zap, Briefcase, ChevronLeft, ChevronRight, Trash2, UserX } from 'lucide-react';
 import { AccessCard } from '../../components/AccessCard';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
 import clsx from 'clsx';
@@ -25,7 +24,6 @@ export default function AdminDashboard() {
   const [selectedMember, setSelectedMember] = useState<User | null>(null);
   const [showMyCard, setShowMyCard] = useState(false);
   const [adminNote, setAdminNote] = useState('');
-  const [downloadLoading, setDownloadLoading] = useState(false);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'embed-copied'>('idle');
   const [projectSubmissions, setProjectSubmissions] = useState<ProjectSubmission[]>([]);
   const [projectSubmissionsTotal, setProjectSubmissionsTotal] = useState(0);
@@ -40,12 +38,20 @@ export default function AdminDashboard() {
   const [editForm, setEditForm] = useState({ projectName: '', projectUrl: '', description: '', projType: '', status: '' });
   const [editSaving, setEditSaving] = useState(false);
 
-  // Pagination State
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize] = useState(5);
   const [totalCount, setTotalCount] = useState(0);
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [stats, setStats] = useState({ total: 0, pending: 0, approved: 0 });
+
+  const [debouncedSearch, setDebouncedSearch] = useState(searchTerm);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
 
   useEffect(() => {
     if (authInitialized && (!currentUser || !currentUser.isAdmin)) {
@@ -59,7 +65,7 @@ export default function AdminDashboard() {
     setStats(s);
   };
 
-  const loadUsers = async (page: number, showLoading = true) => {
+  const loadUsers = async (page: number, showLoading = true, search = debouncedSearch) => {
     if (!currentUser?.isAdmin) return;
     if (activeTab === 'projects') return;
     if (showLoading) setIsDataLoading(true);
@@ -67,10 +73,11 @@ export default function AdminDashboard() {
       const filters = {
         status: activeTab === 'members' ? 'Approved' : activeTab === 'applications' ? 'Pending' : statusFilter,
         role: roleFilter,
-        search: searchTerm
+        search: search
       };
       const { users: fetchedUsers, totalCount: fetchedTotal } = await getAllUsers(page, pageSize, filters);
-      setUsers(fetchedUsers);
+      const validUsers = fetchedUsers.filter(u => u.status === 'Approved' || u.discordConnected === true || (u.discordUsername && u.discordUsername.trim().length > 0));
+      setUsers(validUsers);
       setTotalCount(fetchedTotal);
     } catch {
     } finally {
@@ -113,16 +120,18 @@ export default function AdminDashboard() {
   useEffect(() => {
     setCurrentPage(0);
     setProjectPage(0);
-  }, [activeTab, statusFilter, roleFilter, searchTerm, projectStatusFilter]);
+    setUsers([]);
+    setProjectSubmissions([]);
+  }, [activeTab, statusFilter, roleFilter, debouncedSearch, projectStatusFilter]);
 
   useEffect(() => {
     if (!currentUser?.isAdmin) return;
     if (activeTab === 'projects') {
       loadProjectSubmissions(true);
     } else {
-      loadUsers(currentPage, true);
+      loadUsers(currentPage, true, debouncedSearch);
     }
-  }, [currentUser, currentPage, activeTab, statusFilter, roleFilter, searchTerm, projectStatusFilter, projectPage]);
+  }, [currentUser, currentPage, activeTab, statusFilter, roleFilter, debouncedSearch, projectStatusFilter, projectPage]);
 
   useEffect(() => {
     if (!currentUser?.isAdmin) return;
@@ -556,7 +565,29 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-sm">
-                    {filteredUsers.length === 0 ? (
+                    {isDataLoading ? (
+                      Array.from({ length: 5 }).map((_, idx) => (
+                        <tr key={`skel-${idx}`} className="animate-pulse">
+                          <td className="p-4 pl-6">
+                            <div className="h-4 bg-slate-200 rounded w-32 mb-1.5" />
+                            <div className="h-3 bg-slate-100 rounded w-40" />
+                          </td>
+                          <td className="p-4">
+                            <div className="h-4 bg-slate-200 rounded w-28 mb-1.5" />
+                            <div className="h-3 bg-slate-100 rounded w-36" />
+                          </td>
+                          <td className="p-4">
+                            <div className="h-5 bg-slate-200 rounded-md w-16" />
+                          </td>
+                          <td className="p-4">
+                            <div className="h-4 bg-slate-100 rounded w-20" />
+                          </td>
+                          <td className="p-4 pr-6 text-right">
+                            <div className="h-8 bg-slate-200 rounded-[6px] w-16 ml-auto" />
+                          </td>
+                        </tr>
+                      ))
+                    ) : filteredUsers.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="p-8 text-center text-slate-500">
                           No applicants found matching the criteria.
@@ -674,28 +705,48 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               </div>
-              {projectSubmissionsLoading ? (
-                <div className="p-12 text-center text-slate-500">
-                  Loading submissions...
-                </div>
-              ) : projectSubmissions.length === 0 ? (
-                <div className="p-12 text-center text-slate-500">
-                  No {projectStatusFilter === 'All' ? '' : projectStatusFilter} submissions found.
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
-                        <th className="p-4 pl-6 font-semibold">Project</th>
-                        <th className="p-4 font-semibold">Submitted By</th>
-                        <th className="p-4 font-semibold">Status</th>
-                        <th className="p-4 font-semibold">Description</th>
-                        <th className="p-4 pr-6 font-semibold text-right">Actions</th>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                      <th className="p-4 pl-6 font-semibold">Project</th>
+                      <th className="p-4 font-semibold">Submitted By</th>
+                      <th className="p-4 font-semibold">Status</th>
+                      <th className="p-4 font-semibold">Description</th>
+                      <th className="p-4 pr-6 font-semibold text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-sm">
+                    {projectSubmissionsLoading ? (
+                      Array.from({ length: 4 }).map((_, idx) => (
+                        <tr key={`pskel-${idx}`} className="animate-pulse">
+                          <td className="p-4 pl-6 align-top">
+                            <div className="h-4 bg-slate-200 rounded w-36 mb-1.5" />
+                            <div className="h-3 bg-slate-100 rounded w-48" />
+                          </td>
+                          <td className="p-4 align-top">
+                            <div className="h-4 bg-slate-200 rounded w-28 mb-1.5" />
+                            <div className="h-3 bg-slate-100 rounded w-32" />
+                          </td>
+                          <td className="p-4 align-top">
+                            <div className="h-5 bg-slate-200 rounded-md w-16" />
+                          </td>
+                          <td className="p-4 align-top">
+                            <div className="h-4 bg-slate-100 rounded w-40" />
+                          </td>
+                          <td className="p-4 pr-6 align-top text-right">
+                            <div className="h-8 bg-slate-200 rounded-[6px] w-20 ml-auto" />
+                          </td>
+                        </tr>
+                      ))
+                    ) : projectSubmissions.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="p-12 text-center text-slate-500">
+                          No {projectStatusFilter === 'All' ? '' : projectStatusFilter} submissions found.
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-sm">
-                      {projectSubmissions.map((submission) => (
+                    ) : (
+                      projectSubmissions.map((submission) => (
                         <tr key={submission.id} className="hover:bg-slate-50/60 transition-colors">
                           <td className="p-4 pl-6 align-top">
                             <div className="font-bold text-slate-900">{submission.projectName}</div>
@@ -772,11 +823,11 @@ export default function AdminDashboard() {
                             </div>
                           </td>
                         </tr>
-                      ))}
-                    </tbody>
+                      ))
+                    )}
+                  </tbody>
                   </table>
                 </div>
-              )}
               {projectTotalCount > projectPageSize && (
                 <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
@@ -843,7 +894,11 @@ export default function AdminDashboard() {
                         onClick={exportToExcel}
                         className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-xs sm:text-sm font-bold rounded-[6px] hover:bg-blue-700 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out shadow-md shadow-blue-900/10 active:scale-[0.98]"
                       >
-                        <Download className="w-4 h-4" />
+                        <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="7 10 12 15 17 10" />
+                          <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
                         <span>Export {searchTerm ? 'Filtered' : 'All'} to Excel</span>
                       </button>
                     )}
@@ -1136,21 +1191,23 @@ export default function AdminDashboard() {
                   <div className="scale-[0.85] sm:scale-100 origin-top transition-transform">
                     <AccessCard user={currentUser} />
                   </div>
-                  <div className="w-full flex flex-col gap-2.5 sm:gap-3 pb-4">
-                    <button
-                      onClick={() => handleCopyLink(currentUser)}
-                      className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 bg-blue-900 text-white rounded-[6px] font-bold text-xs sm:text-sm hover:bg-blue-800 transition-colors shadow-[0_8px_20px_-12px_rgba(30,58,138,0.6)] active:scale-[0.98]"
-                    >
-                      {copyStatus === 'copied' ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
-                      {copyStatus === 'copied' ? 'Link Copied' : 'Copy Public Link'}
-                    </button>
-                    <button
-                      onClick={() => handleCopyEmbed(currentUser)}
-                      className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 bg-white border border-slate-200 text-slate-700 rounded-[6px] font-bold text-xs sm:text-sm hover:bg-slate-50 transition-[color,background-color,border-color] duration-200 ease-out active:scale-[0.98]"
-                    >
-                      {copyStatus === 'embed-copied' ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Code className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
-                      {copyStatus === 'embed-copied' ? 'Embed Copied' : 'Copy Embed Code'}
-                    </button>
+                  <div className="w-full pb-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+                      <button
+                        onClick={() => handleCopyLink(currentUser)}
+                        className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 bg-blue-900 text-white rounded-[6px] font-bold text-xs sm:text-sm hover:bg-blue-800 transition-[transform,box-shadow,background-color] duration-200 ease-out shadow-[0_10px_24px_-14px_rgba(30,58,138,0.5)] active:scale-[0.98]"
+                      >
+                        {copyStatus === 'copied' ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+                        {copyStatus === 'copied' ? 'Link Copied' : 'Copy Public Link'}
+                      </button>
+                      <button
+                        onClick={() => handleCopyEmbed(currentUser)}
+                        className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 bg-white border border-slate-200 text-slate-700 rounded-[6px] font-bold text-xs sm:text-sm [@media(hover:hover){&:hover}]:bg-slate-50 [@media(hover:hover){&:hover}]:border-slate-300 transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out active:scale-[0.98]"
+                      >
+                        {copyStatus === 'embed-copied' ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Code className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+                        {copyStatus === 'embed-copied' ? 'Embed Copied' : 'Embed Code'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1195,21 +1252,23 @@ export default function AdminDashboard() {
                       <div className="scale-[0.85] sm:scale-100 origin-top transition-transform drop-shadow-2xl">
                         <AccessCard user={selectedMember} />
                       </div>
-                      <div className="w-full flex flex-col gap-3 max-w-[300px]">
-                        <button
-                          onClick={() => handleCopyLink(selectedMember)}
-                          className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 bg-blue-900 text-white rounded-[6px] font-bold text-xs sm:text-sm hover:bg-blue-800 transition-colors shadow-[0_8px_20px_-12px_rgba(30,58,138,0.6)] active:scale-[0.98]"
-                        >
-                          {copyStatus === 'copied' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                          {copyStatus === 'copied' ? 'Link Copied' : 'Copy Public Link'}
-                        </button>
-                        <button
-                          onClick={() => handleCopyEmbed(selectedMember)}
-                          className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 bg-white border border-slate-200 text-slate-700 rounded-[6px] font-bold text-xs sm:text-sm hover:border-blue-200 hover:bg-blue-50/40 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.98]"
-                        >
-                          {copyStatus === 'embed-copied' ? <Check className="w-4 h-4" /> : <Code className="w-4 h-4" />}
-                          {copyStatus === 'embed-copied' ? 'Embed Copied' : 'Copy Embed Code'}
-                        </button>
+                      <div className="w-full max-w-[320px] sm:max-w-none">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+                          <button
+                            onClick={() => handleCopyLink(selectedMember)}
+                            className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 bg-blue-900 text-white rounded-[6px] font-bold text-xs sm:text-sm hover:bg-blue-800 transition-[transform,box-shadow,background-color] duration-200 ease-out shadow-[0_10px_24px_-14px_rgba(30,58,138,0.5)] active:scale-[0.98]"
+                          >
+                            {copyStatus === 'copied' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                            {copyStatus === 'copied' ? 'Link Copied' : 'Copy Public Link'}
+                          </button>
+                          <button
+                            onClick={() => handleCopyEmbed(selectedMember)}
+                            className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 bg-white border border-slate-200 text-slate-700 rounded-[6px] font-bold text-xs sm:text-sm [@media(hover:hover){&:hover}]:bg-slate-50 [@media(hover:hover){&:hover}]:border-slate-300 transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out active:scale-[0.98]"
+                          >
+                            {copyStatus === 'embed-copied' ? <Check className="w-4 h-4" /> : <Code className="w-4 h-4" />}
+                            {copyStatus === 'embed-copied' ? 'Embed Copied' : 'Embed Code'}
+                          </button>
+                        </div>
                       </div>
                     </div>
 

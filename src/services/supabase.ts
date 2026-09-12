@@ -277,12 +277,53 @@ export const getUserByEmail = async (email: string) => {
 
 export const getUserByMemberIdOrId = async (id: string) => {
   if (!id) return null;
+  const cleanId = id.trim();
   try {
-    const data = await apiRequest<any>(`/api/v1/verify?id=${encodeURIComponent(id)}`, { method: 'GET' });
-    return data;
+    const data = await apiRequest<any>(`/api/v1/verify?id=${encodeURIComponent(cleanId)}`, { method: 'GET' });
+    if (data && (data.fullName || data.memberId)) return data;
   } catch {
-    return null;
+    /* fallback to direct client query below */
   }
+
+  try {
+    const upperId = cleanId.toUpperCase();
+    const exactMemberId = upperId.startsWith('BGPH-') ? upperId : `BGPH-${upperId}`;
+    
+    let query = supabase
+      .from('users')
+      .select('*');
+
+    if (isUuid(cleanId)) {
+      query = query.eq('uid', cleanId);
+    } else {
+      query = query.or(`member_id.eq.${exactMemberId},member_id.eq.${cleanId},member_id.ilike.%${cleanId}%`);
+    }
+
+    const { data: dbData } = await query.maybeSingle();
+
+    if (dbData) {
+      const rawStatus = String(dbData.status || 'Pending').trim();
+      const statusNormalized = dbData.is_admin
+        ? 'Approved'
+        : rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1).toLowerCase();
+
+      const resultObj: Record<string, any> = {
+        memberId: dbData.member_id ?? null,
+        fullName: dbData.full_name ?? '',
+        specialization: dbData.specialization ?? '',
+        role: dbData.role ?? 'Member',
+        status: statusNormalized,
+        yearJoined: dbData.year_joined ?? null,
+      };
+
+      if (dbData.discord_username && String(dbData.discord_username).trim()) {
+        resultObj.discordUsername = String(dbData.discord_username).trim();
+      }
+
+      return resultObj;
+    }
+  } catch {}
+  return null;
 };
 
 export const isDiscordUsernameTaken = async (discordUsername: string): Promise<boolean> => {
