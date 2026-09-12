@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { ExternalLink, FolderKanban, Home, Plus } from 'lucide-react';
+import { ExternalLink, FolderKanban, Home, Plus, Globe } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getApprovedProjects, supabase } from '../../services/supabase';
 import { Project } from '../../types';
@@ -24,7 +24,7 @@ export default function Projects() {
     if (isInitial) setStatus('loading');
     setMessage('');
     try {
-      const list = await getApprovedProjects();
+      const list = await getApprovedProjects({ merged: true });
       setProjects(list);
       setStatus('success');
     } catch (err: any) {
@@ -73,7 +73,7 @@ export default function Projects() {
               Approved projects submitted by members. Browse demos, docs, and repositories.
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:self-start">
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:self-start sm:items-center">
             <Link
               to="/dashboard?tab=submit-project"
               className="inline-flex items-center justify-center gap-1.5 px-3.5 py-[7px] rounded-[6px] bg-slate-900 text-white text-[11.5px] font-bold hover:bg-slate-800 active:scale-[0.98] transition-colors duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] w-full sm:w-auto shadow-[0_1px_2px_rgba(15,23,42,0.06),0_8px_20px_-8px_rgba(15,23,42,0.25)]"
@@ -137,47 +137,68 @@ export default function Projects() {
             </div>
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-              {enriched.map((p, i) => (
-                <a
-                  key={p.id}
-                  href={p.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="group relative block rounded-[6px] border border-slate-200/80 bg-white p-3.5 sm:p-4 hover:border-slate-200 hover:-translate-y-[1px] hover:shadow-[0_0_0_1px_rgba(15,23,42,0.04),0_10px_28px_-10px_rgba(15,23,42,0.14),0_2px_4px_-2px_rgba(15,23,42,0.06)] active:scale-[0.99] active:translate-y-0 transition-[transform,box-shadow,border-color,background-color] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)]"
-                >
-                  <div className="flex items-start justify-between mb-3 sm:mb-3.5">
-                    <span className="inline-flex items-center text-[10.5px] font-bold tabular-nums text-blue-900/25 group-hover:text-blue-900/50 transition-colors duration-200 pt-[1px]">
-                      {String(i + 1).padStart(2, '0')}
-                    </span>
-                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-[6px] bg-slate-50 border border-slate-100 text-slate-300 group-hover:text-blue-700 group-hover:bg-blue-50 group-hover:border-blue-100 transition-colors duration-200 shrink-0">
-                      <ExternalLink size={12} />
-                    </span>
-                  </div>
-                  <h2 className="text-[13.5px] sm:text-[14.5px] font-bold text-slate-900 tracking-tight leading-tight truncate mb-1.5">
-                    {p.title}
-                  </h2>
-                  <p className="text-[12px] sm:text-[12.5px] text-slate-600 leading-snug line-clamp-3 mb-3 sm:mb-3.5 min-h-[44px] sm:min-h-[46px]">
-                    {p.description}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {p.host && (
-                      <span className="inline-flex items-center px-2 py-[3px] rounded-[4px] bg-slate-50 border border-slate-200/80 text-[10px] font-semibold text-slate-600 tabular-nums shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]">
-                        {p.host}
+              {enriched.map((p, i) => {
+                const isRemote = (p as any).source === 'bettergov.ph';
+                return (
+                  <a
+                    key={p.id}
+                    href={p.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={
+                      'group relative block rounded-[6px] border bg-white p-3.5 sm:p-4 hover:-translate-y-[1px] active:scale-[0.99] active:translate-y-0 transition-[transform,box-shadow,border-color,background-color] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] ' +
+                      (isRemote
+                        ? 'border-blue-900/5 hover:border-blue-900/25 hover:shadow-[0_0_0_1px_rgba(30,58,138,0.05),0_10px_28px_-10px_rgba(30,58,138,0.12),0_2px_4px_-2px_rgba(30,58,138,0.05)]'
+                        : 'border-slate-200/80 hover:border-slate-200 hover:shadow-[0_0_0_1px_rgba(15,23,42,0.04),0_10px_28px_-10px_rgba(15,23,42,0.14),0_2px_4px_-2px_rgba(15,23,42,0.06)]')
+                    }
+                  >
+                    <div className="flex items-start justify-between mb-3 sm:mb-3.5">
+                      <span
+                        className={
+                          'inline-flex items-center text-[10.5px] font-bold tabular-nums transition-colors duration-200 pt-[1px] group-hover:opacity-100 ' +
+                          (isRemote ? 'text-blue-900/25 group-hover:text-blue-900/55' : 'text-blue-900/25 group-hover:text-blue-900/50')
+                        }
+                      >
+                        {String(i + 1).padStart(2, '0')}
                       </span>
-                    )}
-                    {p.projType && (
-                      <span className="inline-flex items-center px-2 py-[3px] rounded-[4px] bg-blue-50 border border-blue-100 text-[10px] font-bold uppercase tracking-wider text-blue-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]">
-                        {p.projType}
-                      </span>
-                    )}
-                    {p.createdAt && (
-                      <span className="inline-flex items-center text-[10px] font-medium text-slate-400 tabular-nums ml-auto sm:ml-0">
-                        {new Date(p.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-                      </span>
-                    )}
-                  </div>
-                </a>
-              ))}
+                      <div className="flex items-center gap-1.5">
+                        {isRemote && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-[2px] rounded-[4px] bg-blue-50 border border-blue-100 text-[9.5px] font-bold uppercase tracking-wider text-blue-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]">
+                            <Globe size={10} />
+                            Remote
+                          </span>
+                        )}
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-[6px] bg-slate-50 border border-slate-100 text-slate-300 group-hover:text-blue-700 group-hover:bg-blue-50 group-hover:border-blue-100 transition-colors duration-200 shrink-0">
+                          <ExternalLink size={12} />
+                        </span>
+                      </div>
+                    </div>
+                    <h2 className="text-[13.5px] sm:text-[14.5px] font-bold text-slate-900 tracking-tight leading-tight truncate mb-1.5">
+                      {p.title}
+                    </h2>
+                    <p className="text-[12px] sm:text-[12.5px] text-slate-600 leading-snug line-clamp-3 mb-3 sm:mb-3.5 min-h-[44px] sm:min-h-[46px]">
+                      {p.description}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {p.host && (
+                        <span className="inline-flex items-center px-2 py-[3px] rounded-[4px] bg-slate-50 border border-slate-200/80 text-[10px] font-semibold text-slate-600 tabular-nums shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]">
+                          {p.host}
+                        </span>
+                      )}
+                      {p.projType && (
+                        <span className="inline-flex items-center px-2 py-[3px] rounded-[4px] bg-blue-50 border border-blue-100 text-[10px] font-bold uppercase tracking-wider text-blue-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]">
+                          {p.projType}
+                        </span>
+                      )}
+                      {p.createdAt && (
+                        <span className="inline-flex items-center text-[10px] font-medium text-slate-400 tabular-nums ml-auto sm:ml-0">
+                          {new Date(p.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                        </span>
+                      )}
+                    </div>
+                  </a>
+                );
+              })}
             </div>
           )
         )}
