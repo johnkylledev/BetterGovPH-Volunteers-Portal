@@ -1,6 +1,9 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Project, ProjectSubmission, User, VolunteerCall } from '../types';
 
+const isUuid = (value: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+
 let _supabase: SupabaseClient | null = null;
 
 export function resetSupabaseClient() {
