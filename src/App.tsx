@@ -13,6 +13,7 @@ import Privacy from "./pages/public/Privacy";
 import Terms from "./pages/public/Terms";
 import Projects from "./pages/public/Projects";
 import Contribute from "./pages/public/Contribute";
+import NotFound from "./pages/public/NotFound";
 import DiscordCallback from "./pages/auth/DiscordCallback";
 
 const isProfileComplete = (u: any) => {
@@ -240,6 +241,7 @@ export default function App() {
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/discord-callback" element={<DiscordCallback />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Router>
     </>
