@@ -1,28 +1,11 @@
-export type ExternalProject = {
-  slug?: string;
-  title?: string;
-  id?: string;
-  project_name?: string;
-  project_url?: string;
-  description?: string | null;
-  repositoryUrls?: string[];
-  [k: string]: unknown;
-};
+/**
+ * api/_lib/scoring.ts
+ * GitHub GraphQL fetching and contribution scoring calculation engine
+ */
 
-export type GithubRepo = { owner: string; name: string };
+import type { ExternalProject, GithubRepo, ContributorStats, ContributorScore } from './types';
 
-export type ContributorStats = {
-  login: string;
-  commits: number;
-  prs: number;
-  reviews: number;
-  issues: number;
-  repos: string[];
-};
-
-export type ContributorScore = ContributorStats & { score: number };
-
-export async function fetchProjects(projectsUrl: string): Promise<ExternalProject[]> {
+async function fetchProjects(projectsUrl: string): Promise<ExternalProject[]> {
   const res = await fetch(projectsUrl, { headers: { Accept: 'application/json' } });
   if (!res.ok) throw new Error(`Failed to fetch projects: ${res.status}`);
   const body = (await res.json()) as unknown;
@@ -37,7 +20,7 @@ export async function fetchProjects(projectsUrl: string): Promise<ExternalProjec
 
 const GH_RE = /github\.com\/([A-Za-z0-9_.\-~]+)\/([A-Za-z0-9_.\-~]+?)(?:\.git)?(?:[#?\/]|$)/i;
 
-export function extractRepos(projects: ExternalProject[]): GithubRepo[] {
+function extractRepos(projects: ExternalProject[]): GithubRepo[] {
   const seen = new Set<string>();
   const out: GithubRepo[] = [];
   const addStr = (s: string) => {
@@ -45,7 +28,8 @@ export function extractRepos(projects: ExternalProject[]): GithubRepo[] {
     if (!m) return;
     const owner = m[1].toLowerCase();
     const name = m[2].toLowerCase();
-    if (owner === 'sponsors' || owner === 'features' || owner === 'topics' || owner.length < 2 || name.length < 2) return;
+    if (owner === 'sponsors' || owner === 'features' || owner === 'topics' || owner.length < 2 || name.length < 2)
+      return;
     const k = `${owner}/${name}`;
     if (seen.has(k)) return;
     seen.add(k);
@@ -63,7 +47,6 @@ export function extractRepos(projects: ExternalProject[]): GithubRepo[] {
 }
 
 const GITHUB_API = 'https://api.github.com/graphql';
-
 async function ghGql(token: string, query: string, variables?: Record<string, unknown>): Promise<any> {
   const res = await fetch(GITHUB_API, {
     method: 'POST',
@@ -99,7 +82,10 @@ async function fetchCommits(owner: string, repo: string, token: string): Promise
     const j = await ghGql(token, q);
     const h = j?.data?.repository?.defaultBranchRef?.target?.history;
     const nodes: any[] = h?.nodes ?? [];
-    for (const n of nodes) { const l = n?.author?.user?.login; if (l) logins.push(String(l)); }
+    for (const n of nodes) {
+      const l = n?.author?.user?.login;
+      if (l) logins.push(String(l));
+    }
     if (!h?.pageInfo?.hasNextPage) break;
     cursor = h.pageInfo.endCursor ?? null;
     if (!cursor) break;
@@ -107,7 +93,11 @@ async function fetchCommits(owner: string, repo: string, token: string): Promise
   return logins;
 }
 
-async function fetchPrsAndReviews(owner: string, repo: string, token: string): Promise<{ prLogins: string[]; reviewLogins: string[] }> {
+async function fetchPrsAndReviews(
+  owner: string,
+  repo: string,
+  token: string,
+): Promise<{ prLogins: string[]; reviewLogins: string[] }> {
   const q = `
     query {
       repository(owner: ${JSON.stringify(owner)}, name: ${JSON.stringify(repo)}) {
@@ -124,9 +114,13 @@ async function fetchPrsAndReviews(owner: string, repo: string, token: string): P
   const prLogins: string[] = [];
   const reviewLogins: string[] = [];
   for (const n of nodes) {
-    const l = n?.author?.login; if (l) prLogins.push(String(l));
+    const l = n?.author?.login;
+    if (l) prLogins.push(String(l));
     const rns: any[] = n?.reviews?.nodes ?? [];
-    for (const r of rns) { const rl = r?.author?.login; if (rl) reviewLogins.push(String(rl)); }
+    for (const r of rns) {
+      const rl = r?.author?.login;
+      if (rl) reviewLogins.push(String(rl));
+    }
   }
   return { prLogins, reviewLogins };
 }
@@ -143,11 +137,14 @@ async function fetchIssues(owner: string, repo: string, token: string): Promise<
   const j = await ghGql(token, q);
   const nodes: any[] = j?.data?.repository?.issues?.nodes ?? [];
   const out: string[] = [];
-  for (const n of nodes) { const l = n?.author?.login; if (l) out.push(String(l)); }
+  for (const n of nodes) {
+    const l = n?.author?.login;
+    if (l) out.push(String(l));
+  }
   return out;
 }
 
-export async function fetchRepoContributions(repo: GithubRepo, token: string): Promise<Map<string, ContributorStats>> {
+async function fetchRepoContributions(repo: GithubRepo, token: string): Promise<Map<string, ContributorStats>> {
   const map = new Map<string, ContributorStats>();
   const upsert = (login: string, patch: Partial<ContributorStats>) => {
     const cur: ContributorStats = map.get(login) ?? { login, commits: 0, prs: 0, reviews: 0, issues: 0, repos: [] };
@@ -176,7 +173,9 @@ export async function fetchRepoContributions(repo: GithubRepo, token: string): P
   return map;
 }
 
-export function aggregateContributions(entries: Array<{ repo: GithubRepo; stats: Map<string, ContributorStats> }>): Map<string, ContributorStats> {
+function aggregateContributions(
+  entries: Array<{ repo: GithubRepo; stats: Map<string, ContributorStats> }>,
+): Map<string, ContributorStats> {
   const agg = new Map<string, ContributorStats>();
   for (const entry of entries) {
     for (const [login, s] of entry.stats) {
@@ -192,7 +191,7 @@ export function aggregateContributions(entries: Array<{ repo: GithubRepo; stats:
   return agg;
 }
 
-export function scoreContributors(agg: Map<string, ContributorStats>): ContributorScore[] {
+function scoreContributors(agg: Map<string, ContributorStats>): ContributorScore[] {
   const arr: ContributorScore[] = [];
   for (const s of agg.values()) {
     const score = s.commits * 1 + s.prs * 5 + s.reviews * 3 + s.issues * 2;
@@ -216,7 +215,11 @@ export async function getContributionScores(
       while (true) {
         const i = idx++;
         if (i >= repos.length) return;
-        try { results.push({ repo: repos[i], stats: await fetchRepoContributions(repos[i], githubToken) }); } catch { /* noop */ }
+        try {
+          results.push({ repo: repos[i], stats: await fetchRepoContributions(repos[i], githubToken) });
+        } catch {
+          /* noop */
+        }
       }
     }),
   );
