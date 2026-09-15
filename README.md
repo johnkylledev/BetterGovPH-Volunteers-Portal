@@ -88,10 +88,10 @@ A membership platform for [BetterGovPH](https://bettergov.ph/) — a civic tech 
 Create a `.env` file in the project root:
 
 ```env
-VITE_SUPABASE_URL=https://<project>.supabase.co
-VITE_SUPABASE_ANON_KEY=<anon-key>
-SUPABASE_URL=https://<project>.supabase.co
-SUPABASE_ANON_KEY=<anon-key>
+VITE_SUPABASE_URL=https://<project>.supabase.co (important)
+VITE_SUPABASE_ANON_KEY=<anon-key> (important)
+SUPABASE_URL=https://<project>.supabase.co (important)
+SUPABASE_ANON_KEY=<anon-key> (important)
 SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
 
 # Required for the contribution scoring endpoint and live tests
