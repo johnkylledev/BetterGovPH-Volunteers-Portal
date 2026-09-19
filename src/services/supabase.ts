@@ -4,6 +4,18 @@ import { Project, ProjectSubmission, User, VolunteerCall } from '../types';
 const isUuid = (value: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 
+const CANONICAL_API_ORIGIN = 'https://volunteers.bettergov.ph';
+
+const resolveApiUrl = (path: string): string => {
+  if (/^https?:\/\//i.test(path)) return path;
+  if (typeof window === 'undefined') return path;
+  const here = window.location.hostname.toLowerCase();
+  if (here === 'localhost' || here === '127.0.0.1' || here === '') return path;
+  const want = CANONICAL_API_ORIGIN;
+  if (window.location.origin === want) return path;
+  return want.replace(/\/$/, '') + path;
+};
+
 let _supabase: SupabaseClient | null = null;
 
 export function resetSupabaseClient() {
@@ -88,7 +100,7 @@ const apiRequest = async <T = any>(path: string, init?: RequestInit): Promise<T>
   const t = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
   let res: Response;
   try {
-    res = await fetch(path, { ...(init || {}), signal: controller?.signal });
+    res = await fetch(resolveApiUrl(path), { ...(init || {}), signal: controller?.signal });
   } catch (e: any) {
     if (t) clearTimeout(t);
     const isAbort =
