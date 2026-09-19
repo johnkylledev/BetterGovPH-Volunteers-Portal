@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { AccessCard } from '../../components/AccessCard';
@@ -191,6 +191,140 @@ export default function UserDashboard() {
     setCopyStatus('embed-copied');
     setTimeout(() => setCopyStatus('idle'), 2000);
   };
+
+  const toYmd = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  const displayName = (
+    currentUser.discordUsername
+      ? `@${currentUser.discordUsername}`
+      : (currentUser.fullName || 'Volunteer').split(' ').join('_')
+  );
+
+  const joinDate = (() => {
+    if (currentUser.createdAt) {
+      const t = new Date(currentUser.createdAt).getTime();
+      if (!Number.isNaN(t)) return new Date(t);
+    }
+    if (currentUser.yearJoined) {
+      return new Date(currentUser.yearJoined, 0, 1);
+    }
+    return new Date();
+  })();
+  const today = new Date();
+  const MS_PER_DAY = 86_400_000;
+  const daysSinceJoin = Math.max(1, Math.floor((today.getTime() - new Date(joinDate.getFullYear(), joinDate.getMonth(), joinDate.getDate()).getTime()) / MS_PER_DAY) + 1);
+
+  const earnedBadges: Array<{ id: string; label: string; tone: 'emerald' | 'blue' | 'amber' | 'slate' }> = [];
+  if (currentUser.isAdmin) earnedBadges.push({ id: 'admin', label: 'Admin', tone: 'amber' });
+  if (currentUser.status === 'Approved') earnedBadges.push({ id: 'verified', label: 'Verified', tone: 'emerald' });
+  if (currentUser.discordConnected || currentUser.discordId) earnedBadges.push({ id: 'discord', label: 'Discord Linked', tone: 'blue' });
+  const totalSkills = Array.isArray(currentUser.skills) ? currentUser.skills.length : 0;
+  if (totalSkills >= 8) earnedBadges.push({ id: 'stacked', label: 'Stacked', tone: 'blue' });
+  else if (totalSkills >= 4) earnedBadges.push({ id: 'building', label: 'Building Stack', tone: 'slate' });
+  const approvedCount = mySubmissions.filter(s => s.status === 'approved').length;
+  const submittedCount = mySubmissions.length;
+  if (approvedCount >= 3) earnedBadges.push({ id: 'guru', label: 'Guru', tone: 'emerald' });
+  else if (approvedCount >= 1) earnedBadges.push({ id: 'ship', label: 'Shipped', tone: 'emerald' });
+  else if (submittedCount >= 1) earnedBadges.push({ id: 'first-pr', label: 'First Submission', tone: 'slate' });
+  if (currentUser.role === 'Fellow' || currentUser.role === 'Contributor') {
+    earnedBadges.push({ id: currentUser.role.toLowerCase(), label: currentUser.role, tone: 'amber' });
+  }
+  if (currentUser.experienceLevel === 'Professional' || currentUser.experienceLevel === 'Advanced') {
+    earnedBadges.push({ id: 'lvl-up', label: `${currentUser.experienceLevel} LVL`, tone: 'blue' });
+  }
+  const earliest = Number.isFinite(currentUser.yearJoined) ? (currentUser.yearJoined as number) : new Date().getFullYear();
+  if (earliest <= new Date().getFullYear() - 1) earnedBadges.push({ id: 'early', label: 'Early Bird', tone: 'slate' });
+
+  const activityDayKeys = new Set<string>();
+  const activityCountPerDay = new Map<string, number>();
+  const addDay = (iso?: string, weight = 1) => {
+    if (!iso) return;
+    const t = new Date(iso).getTime();
+    if (Number.isNaN(t)) return;
+    const d = new Date(t);
+    const key = toYmd(d);
+    activityDayKeys.add(key);
+    activityCountPerDay.set(key, (activityCountPerDay.get(key) || 0) + weight);
+  };
+  mySubmissions.forEach(s => addDay(s.createdAt, s.status === 'approved' ? 3 : 1));
+  addDay(currentUser.createdAt, 2);
+  addDay(currentUser.updatedAt, 1);
+  volunteerCalls.forEach(v => addDay(v.createdAt, v.userId === currentUser.id || v.userId === currentUser.uid ? 2 : 0));
+
+  const toneClass = (tone: 'emerald' | 'blue' | 'amber' | 'slate') => {
+    switch (tone) {
+      case 'emerald': return 'text-emerald-600 bg-emerald-50 border border-emerald-100';
+      case 'blue':    return 'text-blue-900 bg-blue-50 border border-blue-100';
+      case 'amber':   return 'text-amber-800 bg-amber-50 border border-amber-100';
+      case 'slate':
+      default:        return 'text-slate-600 bg-slate-100/70 border border-slate-200';
+    }
+  };
+
+  const WEEKS = 53;
+  const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const sundayOfThisWeek = new Date(todayMid);
+  const dow = (sundayOfThisWeek.getDay() + 7) % 7;
+  sundayOfThisWeek.setDate(sundayOfThisWeek.getDate() - dow);
+  const firstSunday = new Date(sundayOfThisWeek);
+  firstSunday.setDate(firstSunday.getDate() - ((WEEKS - 1) * 7));
+  const grid: Array<{ date: Date; count: number }[]> = [];
+  for (let w = 0; w < WEEKS; w++) {
+    const col: Array<{ date: Date; count: number }> = [];
+    for (let dow2 = 0; dow2 < 7; dow2++) {
+      const d = new Date(firstSunday);
+      d.setDate(firstSunday.getDate() + (w * 7) + dow2);
+      const k = toYmd(d);
+      col.push({ date: d, count: activityCountPerDay.get(k) || 0 });
+    }
+    grid.push(col);
+  }
+
+  const levelForCount = (c: number) => {
+    if (c <= 0) return 0;
+    if (c === 1) return 1;
+    if (c <= 2) return 2;
+    if (c <= 4) return 3;
+    return 4;
+  };
+  const levelBg = [
+    'bg-slate-200/80',
+    'bg-emerald-200',
+    'bg-emerald-300',
+    'bg-emerald-500',
+    'bg-emerald-600',
+  ];
+
+  const monthShort = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const LABEL_INDICES = new Set<number>([0, 9, 18, 26, 35, 44, 52]);
+  const monthLabels: Array<{ i: number; label: string }> = [];
+  let lastMonthLabeled = -1;
+  for (let w = 0; w < WEEKS; w++) {
+    if (!LABEL_INDICES.has(w)) continue;
+    const d = grid[w][0].date;
+    const m = d.getMonth();
+    const forceLatest = w === WEEKS - 1;
+    if (forceLatest || m !== lastMonthLabeled) {
+      lastMonthLabeled = m;
+      monthLabels.push({ i: w, label: monthShort[m] });
+    }
+  }
+  const heatmapScrollerRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = heatmapScrollerRef.current;
+    if (!el) return;
+    const raf = window.requestAnimationFrame(() => {
+      try {
+        el.scrollLeft = Math.max(0, (el.scrollWidth ?? 0) - (el.clientWidth ?? 0));
+      } catch {}
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, []);
 
   const loadMySubmissions = async (showLoading = true) => {
     if (showLoading) setMySubmissionsLoading(true);
@@ -415,37 +549,131 @@ export default function UserDashboard() {
           <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
 
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="lg:col-span-12 order-0"
+              >
+                <div className="space-y-4 pb-1">
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    <span className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight leading-[1.08]">Hello!</span>
+                    <span className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-[1.08] text-blue-900 break-words">{displayName}</span>
+                  </div>
+                  <p className="text-base sm:text-lg text-slate-600 leading-relaxed max-w-3xl">
+                    This is your day&nbsp;
+                    <span className="font-semibold text-slate-900 tabular-nums">{daysSinceJoin.toLocaleString()}</span>
+                    &nbsp;of contributing to BetterGovPH Volunteers.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-1">
+                    {earnedBadges.length === 0 ? (
+                      <span className="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 px-2.5 py-1">
+                        <Sparkles size={12} /> Complete your profile & submit work to earn badges
+                      </span>
+                    ) : earnedBadges.map((b) => (
+                      <span
+                        key={b.id}
+                        className={clsx(
+                          "inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-[6px] text-[11px] sm:text-xs font-bold uppercase tracking-[0.08em] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out",
+                          toneClass(b.tone)
+                        )}
+                      >
+                        <span className="opacity-70">#</span>
+                        <span>{b.label}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+
               {/* Left Column: Status and Info */}
               <div className="lg:col-span-7 space-y-6 order-2 lg:order-1">
+                {currentUser.adminNotes && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-3.5 sm:p-4 bg-slate-50/70 rounded-[6px] border border-slate-200/70"
+                  >
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Admin Notes</p>
+                    <p className="text-xs sm:text-[13px] text-slate-700 leading-relaxed">{currentUser.adminNotes}</p>
+                  </motion.div>
+                )}
+
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-white rounded-[6px] p-6 sm:p-8 shadow-sm border border-slate-100/80"
+                  className="bg-white rounded-[6px] border border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_10px_36px_-22px_rgba(15,23,42,0.18)] p-4 sm:p-5 lg:p-6"
                 >
-                  <h2 className="text-base sm:text-lg font-semibold text-slate-900 mb-4 sm:mb-6">Application Status</h2>
-                  <div className={clsx(
-                    "flex items-start sm:items-center space-x-4 p-5 rounded-[6px] border",
-                    currentUser.status === 'Approved' ? 'bg-emerald-50/50 border-emerald-200/60' :
-                      currentUser.status === 'Declined' ? 'bg-red-50/50 border-red-200/60' :
-                        'bg-amber-50/50 border-amber-200/60'
-                  )}>
-                    <div className="mt-0.5 sm:mt-0">{getStatusIcon()}</div>
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-slate-900">{currentUser.status}</p>
-                      <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                        {currentUser.status === 'Approved' ? 'Your application has been approved. Your ID is ready.' :
-                          currentUser.status === 'Declined' ? 'Your application was declined by the administrator.' :
-                            'Your application is currently under review by our team.'}
-                      </p>
+                  <div className="flex items-center gap-2 mb-4 sm:mb-5">
+                    <h3 className="font-display text-lg sm:text-xl font-bold text-slate-900 tracking-tight">BetterGovPH Contribution Days</h3>
+                    <div className="group relative">
+                      <Info size={14} className="w-4 h-4 text-slate-400 group-hover:text-slate-600 transition-colors" />
+                      <div className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-50 absolute left-6 -top-1 bg-slate-900 text-white text-[11px] font-medium px-2.5 py-1.5 rounded-[6px] shadow-lg w-56 leading-relaxed">
+                        Counts submitted & approved projects, volunteer calls posted, and profile activity over the past year.
+                      </div>
                     </div>
                   </div>
 
-                  {currentUser.adminNotes && (
-                    <div className="mt-5 p-5 bg-slate-50/80 rounded-[6px] border border-slate-100/80">
-                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Admin Notes</p>
-                      <p className="text-sm text-slate-700 leading-relaxed">{currentUser.adminNotes}</p>
+                  <div ref={heatmapScrollerRef} className="min-w-0 w-full overflow-x-auto no-scrollbar pr-1 pb-1" dir="ltr">
+                    <div className="inline-flex flex-col gap-2 pr-2" style={{ width: `calc(16px + ${WEEKS} * (11px + 3px) + 8px)` }}>
+                      <div className="flex gap-[3px] pl-4 pr-2">
+                        {Array.from({ length: WEEKS }, (_, w) => {
+                          const ml = monthLabels.find(m => m.i === w);
+                          return (
+                            <div key={`m-${w}`} className="flex-shrink-0" style={{ width: '11px' }}>
+                              {ml ? (
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block whitespace-nowrap leading-none h-[12px]">
+                                  {ml.label}
+                                </span>
+                              ) : (
+                                <span className="block h-[12px]" />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div className="flex items-start gap-0">
+                        <div className="flex flex-col gap-[3px] pr-2 pt-0">
+                          <span className="h-[11px] w-2" />
+                          <span className="h-[11px] text-[10px] font-bold uppercase tracking-wider text-slate-400 leading-[11px] flex items-center">M</span>
+                          <span className="h-[11px] w-2" />
+                          <span className="h-[11px] text-[10px] font-bold uppercase tracking-wider text-slate-400 leading-[11px] flex items-center">W</span>
+                          <span className="h-[11px] w-2" />
+                          <span className="h-[11px] text-[10px] font-bold uppercase tracking-wider text-slate-400 leading-[11px] flex items-center">F</span>
+                          <span className="h-[11px] w-2" />
+                        </div>
+                        <div className="flex gap-[3px] pr-2">
+                          {grid.map((weekCol, wi) => (
+                            <div key={wi} className="flex flex-col gap-[3px]" style={{ width: '11px' }}>
+                              {weekCol.map((cell, di) => {
+                                const lvl = levelForCount(cell.count);
+                                return (
+                                  <div
+                                    key={di}
+                                    title={cell.count > 0
+                                      ? `${toYmd(cell.date)} — ${cell.count} contribution${cell.count === 1 ? '' : 's'}`
+                                      : toYmd(cell.date)}
+                                    className={clsx(
+                                      "w-[11px] h-[11px] flex-shrink-0 rounded-[3px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-150 ease-out hover:ring-2 hover:ring-emerald-700/25 hover:ring-offset-1 hover:ring-offset-white",
+                                      levelBg[lvl]
+                                    )}
+                                  />
+                                );
+                              })}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
-                  )}
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 mt-3 pl-4 pr-1 text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                    <span className="whitespace-nowrap flex-shrink-0">Less</span>
+                    {levelBg.map((cls, i) => (
+                      <div key={i} className={clsx(cls, "flex-shrink-0 w-[11px] h-[11px] sm:w-3 sm:h-3 rounded-[3px]")} />
+                    ))}
+                    <span className="whitespace-nowrap flex-shrink-0">More</span>
+                  </div>
                 </motion.div>
 
                 <motion.div
@@ -559,17 +787,36 @@ export default function UserDashboard() {
                   transition={{ delay: 0.2 }}
                   className="lg:sticky lg:top-24 flex flex-col items-center"
                 >
-                  <div className="w-full flex justify-between items-center mb-6 px-2">
+                  <div className="w-full flex flex-wrap items-center justify-between gap-3 mb-6 px-2">
                     <div className="flex items-center gap-2">
                       <h2 className="text-base sm:text-lg font-semibold text-slate-900">Digital Access Card</h2>
-                      <div className="group relative">
-                      </div>
                     </div>
-                    {currentUser.status === 'Approved' && (
-                      <span className="px-3 py-1.5 bg-emerald-100/80 text-emerald-800 text-[10px] sm:text-xs font-semibold rounded-[6px] uppercase tracking-wide">
-                        Ready to use
-                      </span>
-                    )}
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 justify-end">
+                      {currentUser.status === 'Approved' ? (
+                        <>
+                          <span className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 bg-emerald-100/85 text-emerald-800 text-[10px] sm:text-xs font-bold rounded-[6px] uppercase tracking-wide ring-1 ring-emerald-700/10">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Approved
+                          </span>
+                        </>
+                      ) : currentUser.status === 'Declined' ? (
+                        <>
+                          <span className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 bg-red-100/85 text-red-800 text-[10px] sm:text-xs font-bold rounded-[6px] uppercase tracking-wide ring-1 ring-red-700/10">
+                            <ShieldAlert className="w-3.5 h-3.5" />
+                            Declined
+                          </span>
+                          <span className="text-[11px] sm:text-xs text-slate-500">See admin notes.</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 bg-amber-100/85 text-amber-800 text-[10px] sm:text-xs font-bold rounded-[6px] uppercase tracking-wide ring-1 ring-amber-700/10">
+                            <Clock className="w-3.5 h-3.5" />
+                            Under review
+                          </span>
+                          <span className="text-[11px] sm:text-xs text-slate-500">Admin review in progress.</span>
+                        </>
+                      )}
+                    </div>
                   </div>
 
                   <div className={clsx(
@@ -628,7 +875,6 @@ export default function UserDashboard() {
           <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
             <div className="bg-white rounded-[6px] shadow-sm border border-slate-100/80 overflow-hidden">
               <div className="p-6 sm:p-8 border-b border-slate-100">
-                <p className="text-[10px] tracking-[0.2em] text-blue-900 font-semibold uppercase mb-2">Project Submission</p>
                 <h2 className="text-base sm:text-lg font-semibold text-slate-900">Submit a New Project</h2>
                 <p className="text-xs sm:text-sm text-slate-500 mt-1">
                   Submit your project for admin review. Approved projects will appear in the main projects list.
@@ -807,9 +1053,6 @@ export default function UserDashboard() {
             <div className="bg-white rounded-[6px] shadow-sm border border-slate-100/80 overflow-hidden">
               <div className="p-6 sm:p-8 border-b border-slate-100 flex items-center justify-between">
                 <div>
-                  <p className="text-[10px] tracking-[0.2em] text-blue-900 font-semibold uppercase mb-2">
-                    Volunteer Center
-                  </p>
                   <h2 className="text-base sm:text-lg font-semibold text-slate-900">
                     Volunteer Hub
                   </h2>
