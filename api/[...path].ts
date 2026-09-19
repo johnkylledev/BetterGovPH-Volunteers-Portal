@@ -541,6 +541,15 @@ const handler_me: H = async (req, res) => {
   if (typeof body.experienceLevel === 'string') updates.experience_level = body.experienceLevel.trim().slice(0, 50);
   updates.auth_provider = 'google';
 
+  if (typeof updates.discord_username === 'string' && updates.discord_username.trim()) {
+    const { data: unameDup } = await supabase
+      .from('users').select('uid').eq('discord_username', updates.discord_username).maybeSingle();
+    if (unameDup && String(unameDup.uid) !== String(uid)) {
+      sendError(res, 409, `Discord username "${updates.discord_username}" is already used by another member. Please use a different Discord username.`);
+      return;
+    }
+  }
+
   const { data: existingUser } = await supabase.from('users').select('*').eq('uid', uid).maybeSingle();
   if (existingUser) {
     const { data: updatedRows, error: updateError } = await supabase
@@ -1427,12 +1436,20 @@ const handler_discord: H = async (req, res) => {
         const discordAvatarFromBody: string | undefined =
           typeof body.discord_avatar === 'string' ? (body.discord_avatar.trim() || undefined) : undefined;
         const { data: userData } = await supabase
-          .from('users').select('discord_id').eq('uid', uid).maybeSingle();
+          .from('users').select('discord_id, discord_username').eq('uid', uid).maybeSingle();
         const discordId = discordIdFromBody ?? userData?.discord_id;
         if (!discordId) { sendJson(res, 200, { connected: false }); return; }
-        const bettygoRes = await fetch(`${bettygoBaseUrl}/users/${discordId}/discord`, { headers: { 'X-Api-Key': bettygoKey } });
-        if (!bettygoRes.ok) { sendJson(res, 200, { connected: false }); return; }
-        const { verified } = await bettygoRes.json();
+
+        if (discordId && discordId !== (userData?.discord_id ?? null)) {
+          const { data: idDup } = await supabase
+            .from('users').select('uid, discord_username').eq('discord_id', discordId).maybeSingle();
+          if (idDup && String(idDup.uid) !== String(uid)) {
+            const owner = idDup.discord_username ? ` (${idDup.discord_username})` : '';
+            sendError(res, 409, `This Discord account is already linked to another member${owner}. Please use a different Discord account.`);
+            return;
+          }
+        }
+
         let discordUsername = discordUsernameFromBody ?? null;
         let discordDisplayName = discordDisplayNameFromBody ?? null;
         let discordAvatar = discordAvatarFromBody ?? null;
@@ -1440,6 +1457,19 @@ const handler_discord: H = async (req, res) => {
           const profile = await resolveDiscordProfile(discordId, discordBotToken);
           if (profile) { discordUsername = profile.username; discordDisplayName = profile.displayName; discordAvatar = profile.avatar; }
         }
+
+        if (discordUsername && discordUsername !== (userData?.discord_username ?? null)) {
+          const { data: unameDup } = await supabase
+            .from('users').select('uid, discord_id').eq('discord_username', discordUsername).maybeSingle();
+          if (unameDup && String(unameDup.uid) !== String(uid)) {
+            sendError(res, 409, `Discord username "${discordUsername}" is already used by another member. Please use a different Discord username.`);
+            return;
+          }
+        }
+
+        const bettygoRes = await fetch(`${bettygoBaseUrl}/users/${discordId}/discord`, { headers: { 'X-Api-Key': bettygoKey } });
+        if (!bettygoRes.ok) { sendJson(res, 200, { connected: false }); return; }
+        const { verified } = await bettygoRes.json();
         const updateFields: any = {
           discord_id: discordId, discord_username: discordUsername, discord_display_name: discordDisplayName,
           discord_avatar: discordAvatar, discord_connected: true, discord_verified: !!verified,
