@@ -1422,7 +1422,15 @@ const handler_discord: H = async (req, res) => {
         const bettygoRes = await fetch(`${bettygoBaseUrl}/auth/login?${params.toString()}`, { headers: { 'X-Api-Key': bettygoKey } });
         if (!bettygoRes.ok) { sendJson(res, 502, { error: 'Failed to initiate Discord OAuth' }); return; }
         const d = await bettygoRes.json();
-        sendJson(res, 200, { url: d.url });
+        let oauthUrl: string = String(d.url || '');
+        if (oauthUrl && callbackUrl) {
+          try {
+            const u = new URL(oauthUrl);
+            u.searchParams.set('redirect_uri', callbackUrl);
+            oauthUrl = u.toString();
+          } catch { /* invalid URL; keep original */ }
+        }
+        sendJson(res, 200, { url: oauthUrl });
         return;
       }
       if (action === 'sync') {
