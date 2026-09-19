@@ -1418,7 +1418,7 @@ const handler_discord: H = async (req, res) => {
       if (action === 'login') {
         if (!bettygoKey) { sendError(res, 500, 'Discord integration not configured'); return; }
         if (!uid) { sendError(res, 401, 'Invalid token'); return; }
-        const payload = JSON.stringify({ uid, redirect_uri: callbackUrl });
+        const payload = JSON.stringify({ user_id: uid, redirect_uri: callbackUrl });
         let bettygoRes = await fetch(`${bettygoBaseUrl}/auth/login`, {
           method: 'POST',
           headers: {
@@ -1429,7 +1429,7 @@ const handler_discord: H = async (req, res) => {
           body: payload,
         });
         if (bettygoRes.status === 404 || bettygoRes.status === 405) {
-          const params = new URLSearchParams({ uid, redirect_uri: callbackUrl });
+          const params = new URLSearchParams({ user_id: uid, redirect_uri: callbackUrl });
           bettygoRes = await fetch(`${bettygoBaseUrl}/auth/login?${params.toString()}`, { headers: { 'X-Api-Key': bettygoKey } });
         }
         if (!bettygoRes.ok) {
