@@ -186,6 +186,17 @@ function LegacyRegister() {
         let cancelled = false;
         (async () => {
             try {
+                const storedErr = (() => {
+                    try { return sessionStorage.getItem('discord_connect_error'); } catch { return null; }
+                })();
+                if (storedErr) {
+                    try { sessionStorage.removeItem('discord_connect_error'); } catch { /* noop */ }
+                    if (!cancelled) {
+                        setError(storedErr);
+                        setShouldShake(true);
+                        setTimeout(() => setShouldShake(false), 500);
+                    }
+                }
                 const status = await getDiscordStatus();
                 if (!cancelled && status?.connected) {
                     setDiscordConnected(true);
