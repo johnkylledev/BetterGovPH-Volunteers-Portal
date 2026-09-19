@@ -1418,9 +1418,36 @@ const handler_discord: H = async (req, res) => {
       if (action === 'login') {
         if (!bettygoKey) { sendError(res, 500, 'Discord integration not configured'); return; }
         if (!uid) { sendError(res, 401, 'Invalid token'); return; }
-        const params = new URLSearchParams({ user_id: uid, redirect_uri: callbackUrl });
-        const bettygoRes = await fetch(`${bettygoBaseUrl}/auth/login?${params.toString()}`, { headers: { 'X-Api-Key': bettygoKey } });
-        if (!bettygoRes.ok) { sendJson(res, 502, { error: 'Failed to initiate Discord OAuth' }); return; }
+        const payload = JSON.stringify({ uid, redirect_uri: callbackUrl });
+        let bettygoRes = await fetch(`${bettygoBaseUrl}/auth/login`, {
+          method: 'POST',
+          headers: {
+            'X-Api-Key': bettygoKey,
+            'Content-Type': 'application/json',
+            'Content-Length': String(new TextEncoder().encode(payload).length),
+          },
+          body: payload,
+        });
+        if (bettygoRes.status === 404 || bettygoRes.status === 405) {
+          const params = new URLSearchParams({ uid, redirect_uri: callbackUrl });
+          bettygoRes = await fetch(`${bettygoBaseUrl}/auth/login?${params.toString()}`, { headers: { 'X-Api-Key': bettygoKey } });
+        }
+        if (!bettygoRes.ok) {
+          const bt = await bettygoRes.text().catch(() => '');
+          let bMsg = '';
+          try {
+            const bj = JSON.parse(bt);
+            bMsg = String(bj?.message || bj?.error || bj?.msg || bt || '').slice(0, 300);
+          } catch {
+            bMsg = bt.slice(0, 300);
+          }
+          sendJson(res, 502, {
+            error: 'Failed to initiate Discord OAuth',
+            upstream_status: bettygoRes.status,
+            upstream_message: bMsg || null,
+          });
+          return;
+        }
         const d = await bettygoRes.json();
         let oauthUrl: string = String(d.url || '');
         if (oauthUrl && callbackUrl) {
