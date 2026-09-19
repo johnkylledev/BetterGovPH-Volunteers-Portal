@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, ArrowLeft } from 'lucide-react';
 import { syncDiscord } from '../../services/supabase';
 
 export default function DiscordCallback() {
@@ -20,9 +20,10 @@ export default function DiscordCallback() {
         user_fetch_failed: 'Could not fetch your Discord profile.',
         guild_check_failed: 'Could not verify guild membership.',
       };
-      setErrorMsg(messages[error] ?? 'Discord connection failed.');
-      const timer = setTimeout(() => navigate('/register'), 2500);
-      return () => clearTimeout(timer);
+      const msg = messages[error] ?? 'Discord connection failed.';
+      try { sessionStorage.setItem('discord_connect_error', msg); } catch { /* noop */ }
+      setErrorMsg(msg);
+      return;
     }
 
     const discordId = params.get('discord_id') ?? undefined;
@@ -34,10 +35,16 @@ export default function DiscordCallback() {
     (async () => {
       try {
         await syncDiscord(discordId, discordUsername, discordDisplayName, discordAvatar);
-      } catch {
-        // ignore sync errors — still return to step 4
+      } catch (e: any) {
+        const msg = e instanceof Error ? e.message : typeof e?.message === 'string' ? e.message : 'Discord sync failed. Please try again.';
+        if (!cancelled) {
+          try { sessionStorage.setItem('discord_connect_error', msg); } catch { /* noop */ }
+          setErrorMsg(msg);
+        }
+        return;
       }
       if (!cancelled) {
+        try { sessionStorage.removeItem('discord_connect_error'); } catch { /* noop */ }
         navigate('/register');
       }
     })();
@@ -47,14 +54,26 @@ export default function DiscordCallback() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="text-center space-y-4">
+      <div className="text-center space-y-4 max-w-md w-full">
         {errorMsg ? (
           <>
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-red-50 text-red-500 mb-2">
               <AlertCircle size={28} />
             </div>
-            <p className="text-sm font-semibold text-slate-700">{errorMsg}</p>
-            <p className="text-xs text-slate-400">Redirecting you back...</p>
+            <p className="text-sm font-bold text-slate-800">Discord connection failed</p>
+            <p className="text-sm font-medium text-red-700 bg-red-50 border border-red-100 rounded-[6px] px-4 py-3 leading-relaxed">
+              {errorMsg}
+            </p>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => navigate('/register')}
+                className="inline-flex items-center gap-2 rounded-[6px] bg-slate-900 px-5 py-3 text-sm font-bold text-white shadow-[0_10px_24px_-14px_rgba(15,23,42,0.5)] hover:bg-slate-800 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 transition-colors active:scale-[0.98]"
+              >
+                <ArrowLeft size={15} />
+                Back to registration
+              </button>
+            </div>
           </>
         ) : (
           <>
