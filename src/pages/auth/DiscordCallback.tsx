@@ -1,24 +1,32 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Loader2, AlertCircle, ArrowLeft, ExternalLink } from 'lucide-react';
 import { syncDiscord } from '../../services/supabase';
+
+const CANONICAL = 'https://volunteers.bettergov.ph/discord-callback';
+const KNOWN_STALE = /(^|\.)better-gov-ph-access-card-development\.vercel\.app$/i;
 
 export default function DiscordCallback() {
   const navigate = useNavigate();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [bouncing, setBouncing] = useState<null | string>(null);
 
   useEffect(() => {
-    const target = String(import.meta.env.VITE_DISCORD_CALLBACK_URL || '').trim();
+    const envTarget = String(import.meta.env.VITE_DISCORD_CALLBACK_URL || '').trim();
+    const target = envTarget || CANONICAL;
     if (!target || typeof window === 'undefined') return;
     try {
       const want = new URL(target);
-      if (!want.origin || want.origin === window.location.origin) return;
+      const sameOrigin = !!want.origin && want.origin === window.location.origin;
+      const staleHost = KNOWN_STALE.test(window.location.hostname);
+      if (sameOrigin && !staleHost) return;
       const here = new URL(window.location.href);
       const next = new URL(want.origin + want.pathname);
       Array.from(here.searchParams.entries()).forEach(([k, v]) => next.searchParams.append(k, v));
       next.hash = here.hash;
-      window.location.replace(next.toString());
-      return;
+      const showTimer = window.setTimeout(() => setBouncing(next.toString()), 200);
+      const navTimer = window.setTimeout(() => window.location.replace(next.toString()), 280);
+      return () => { window.clearTimeout(showTimer); window.clearTimeout(navTimer); };
     } catch { return; }
   }, []);
 
@@ -90,10 +98,20 @@ export default function DiscordCallback() {
               </button>
             </div>
           </>
+        ) : bouncing ? (
+          <>
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-blue-50 text-blue-900 mb-2">
+              <Loader2 size={28} className="animate-spin" />
+            </div>
+            <p className="text-sm font-bold text-slate-800">Redirecting…</p>
+            <p className="text-xs text-slate-500">
+              Finishing Discord connection on <span className="inline-flex items-center gap-1 font-semibold text-slate-700">{new URL(bouncing).hostname}<ExternalLink size={11} /></span>
+            </p>
+          </>
         ) : (
           <>
             <Loader2 size={32} className="animate-spin text-blue-900 mx-auto" />
-            <p className="text-sm font-semibold text-slate-700">Connecting your Discord...</p>
+            <p className="text-sm font-semibold text-slate-700">Connecting your Discord…</p>
           </>
         )}
       </div>

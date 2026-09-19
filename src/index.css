@@ -110,6 +110,19 @@ body {
   padding: 0;
 }
 
+/* Global tactile button press — uniform active:scale-[0.99] across every <button>
+   for consistent micro-interactions. Buttons already using a tighter class
+   (.btn-primary active:scale-97 / active:scale-[0.98] etc.) win over this via
+   Tailwind specificity (inline utility > element selector). */
+button:not(:disabled) {
+  transform-origin: center;
+}
+@media (hover: hover) {
+  button:not(:disabled):active {
+    transform: scale(0.99);
+  }
+}
+
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
