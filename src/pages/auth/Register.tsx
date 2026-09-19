@@ -213,6 +213,7 @@ function LegacyRegister() {
         setDiscordConnecting(true);
         setError('');
         try {
+            try { sessionStorage.removeItem('discord_connect_error'); } catch { /* noop */ }
             localStorage.setItem('onboarding_connections', '1');
             const { url } = await connectDiscord();
             window.location.href = url;
@@ -645,23 +646,27 @@ function LegacyRegister() {
         if (!(await validateStep(3))) return;
 
         setError('');
-        setLoading(true);
 
         const primaryRole = formData.specialization;
         const rl = formData.role === 'Other' ? formData.customRole : formData.role;
 
         if (!rl) {
             setError('Please provide role details.');
-            setLoading(false);
+            setShouldShake(true);
+            setTimeout(() => setShouldShake(false), 500);
             return;
         }
 
-        try {
-            if (!sessionUserId) {
-                setError('Please create an account (or sign in) to continue.');
-                return;
-            }
+        if (!sessionUserId) {
+            setError('Please create an account (or sign in) to continue.');
+            setShouldShake(true);
+            setTimeout(() => setShouldShake(false), 500);
+            return;
+        }
 
+        setCurrentStep(4);
+
+        try {
             const saved = await createOrUpdateUserRecord({
                 uid: sessionUserId,
                 fullName: formData.fullName.trim(),
@@ -673,11 +678,11 @@ function LegacyRegister() {
                 authProvider: 'google',
             });
             if (saved) setCurrentUser(saved as any);
-            setCurrentStep(4);
         } catch (err: any) {
+            setCurrentStep(3);
             setError(err.message || 'Registration failed');
-        } finally {
-            setLoading(false);
+            setShouldShake(true);
+            setTimeout(() => setShouldShake(false), 500);
         }
     };
 
@@ -797,14 +802,14 @@ function LegacyRegister() {
                         x: { duration: 0.5, ease: "easeInOut" }
                     }}
                 >
-                    <div className="bg-white rounded-[6px] border border-slate-200 shadow-[0_16px_48px_-20px_rgba(15,23,42,0.12)] py-6 sm:py-7 px-4 sm:px-8 lg:px-10 relative">
+                    <div className="bg-white rounded-[6px] border border-slate-200 shadow-[0_16px_48px_-20px_rgba(15,23,42,0.12)] py-6 sm:py-7 px-4 sm:px-8 lg:px-10 relative max-w-xl mx-auto w-full">
                         <AnimatePresence mode="wait">
                             {error && (
                                 <motion.div
                                     initial={{ opacity: 0, height: 0 }}
                                     animate={{ opacity: 1, height: 'auto' }}
                                     exit={{ opacity: 0, height: 0 }}
-                                    className="bg-red-50 text-red-700 p-3 rounded-[6px] text-xs sm:text-sm font-medium border border-red-100 flex items-start gap-2.5 sm:gap-3 mb-5 sm:mb-6"
+                                    className="bg-red-50 text-red-700 p-3 rounded-[6px] text-xs sm:text-sm font-medium border border-red-100 flex items-start gap-2.5 sm:gap-3 mb-5 sm:mb-6 w-full"
                                 >
                                     <AlertCircle className="w-5 h-5 shrink-0" />
                                     <span>{error}</span>
@@ -812,7 +817,7 @@ function LegacyRegister() {
                             )}
                         </AnimatePresence>
 
-                        <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
+                        <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6 w-full">
                             <AnimatePresence mode="wait">
                                 {currentStep === 1 && (
                                     <motion.div
@@ -1423,7 +1428,7 @@ function LegacyRegister() {
                                         animate={{ opacity: 1, transform: "translate3d(0px,0,0)" }}
                                         exit={{ opacity: 0, transform: "translate3d(-20px,0,0)" }}
                                         transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
-                                        className="space-y-5"
+                                        className="space-y-5 w-full"
                                     >
                                         <div className="flex flex-col gap-1">
                                             <h2 className="text-base font-bold text-slate-900 tracking-tight">Connect Discord</h2>
@@ -1466,10 +1471,10 @@ function LegacyRegister() {
                                                         type="button"
                                                         onClick={handleConnectDiscord}
                                                         disabled={discordConnecting}
-                                                        className="shrink-0 inline-flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2.5 bg-[#5865F2] text-white rounded-[6px] text-xs font-bold tracking-tight hover:bg-[#4752C4] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.96] disabled:opacity-60"
+                                                        className="shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-[#5865F2] text-white rounded-[6px] text-[11px] font-bold uppercase tracking-[0.08em] hover:bg-[#4752C4] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.96] disabled:opacity-60"
                                                     >
                                                         {discordConnecting ? (
-                                                            <><Loader2 size={13} className="animate-spin" /><span>Connecting</span></>
+                                                            <><Loader2 size={12} className="animate-spin" /><span>Connecting</span></>
                                                         ) : (
                                                             <span>Connect</span>
                                                         )}
@@ -1495,7 +1500,7 @@ function LegacyRegister() {
                                             <button
                                                 type="button"
                                                 disabled
-                                                className="shrink-0 inline-flex items-center justify-center px-3.5 sm:px-4 py-2.5 bg-slate-50 text-slate-400 rounded-[6px] text-xs font-bold tracking-tight cursor-not-allowed border border-slate-200"
+                                                className="shrink-0 inline-flex items-center justify-center px-3 py-2 bg-slate-50 text-slate-400 rounded-[6px] text-[11px] font-bold uppercase tracking-[0.08em] cursor-not-allowed border border-slate-200"
                                             >
                                                 Connect
                                             </button>
@@ -1507,14 +1512,14 @@ function LegacyRegister() {
                             {!(currentStep === 1 && !hasSession) && (
                                 <>
                                     {currentStep === 4 && !discordConnected && (
-                                        <div className="pt-5">
+                                        <div className="pt-5 w-full">
                                             <p className="text-center text-[11px] font-semibold text-amber-600">
                                                 <AlertCircle size={11} className="inline-block mr-1 -mt-0.5" />
                                                 Connect Discord to submit
                                             </p>
                                         </div>
                                     )}
-                                    <div className="pt-6 flex gap-2.5">
+                                    <div className="pt-6 flex gap-2.5 w-full">
                                         {currentStep > 1 && (
                                             <button
                                                 type="button"
