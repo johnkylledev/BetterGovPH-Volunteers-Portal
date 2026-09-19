@@ -25,15 +25,22 @@ const isProfileComplete = (u: any) => {
   return fullNameOk && specializationOk && yearOk && discordOk;
 };
 
+function GatedRedirect({ to, forceReplace = false }: { to: string, forceReplace?: boolean }) {
+  const location = useLocation();
+  const alreadyRedirectedFromHere = (location.state as any)?.from === to;
+  if (alreadyRedirectedFromHere) return null;
+  return <Navigate to={to} state={{ from: location.pathname }} replace={forceReplace} />;
+}
+
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) {
   const { currentUser, authInitialized } = useStore();
   const { sessionUserId } = useStore();
 
   if (!authInitialized) return <LoadingOverlay />;
-  if (!sessionUserId) return <Navigate to="/login" replace />;
+  if (!sessionUserId) return <GatedRedirect to="/login" forceReplace />;
   if (!currentUser) return <LoadingOverlay />;
-  if (adminOnly && !currentUser?.isAdmin) return <Navigate to="/dashboard" replace />;
-  if (!adminOnly && !currentUser?.isAdmin && !isProfileComplete(currentUser)) return <Navigate to="/register" replace />;
+  if (adminOnly && !currentUser?.isAdmin) return <GatedRedirect to="/dashboard" />;
+  if (!adminOnly && !currentUser?.isAdmin && !isProfileComplete(currentUser)) return <GatedRedirect to="/register" />;
 
   return <>{children}</>;
 }
@@ -46,11 +53,11 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   if (!authInitialized) return <LoadingOverlay />;
   if (sessionUserId) {
     if (!currentUser) {
-      if (location.pathname === "/login") return <Navigate to="/register" replace />;
+      if (location.pathname === "/login") return <GatedRedirect to="/register" forceReplace />;
       return <LoadingOverlay />;
     }
-    if (currentUser?.isAdmin) return <Navigate to="/admin" replace />;
-    return <Navigate to={isProfileComplete(currentUser) ? "/dashboard" : "/register"} replace />;
+    if (currentUser?.isAdmin) return <GatedRedirect to="/admin" />;
+    return <GatedRedirect to={isProfileComplete(currentUser) ? "/dashboard" : "/register"} />;
   }
 
   return <>{children}</>;
@@ -62,8 +69,8 @@ function HomeRoute({ children }: { children: React.ReactNode }) {
 
   if (!authInitialized) return <LoadingOverlay />;
   if (sessionUserId && currentUser) {
-    if (currentUser?.isAdmin) return <Navigate to="/admin" replace />;
-    return <Navigate to={isProfileComplete(currentUser) ? "/dashboard" : "/register"} replace />;
+    if (currentUser?.isAdmin) return <GatedRedirect to="/admin" />;
+    return <GatedRedirect to={isProfileComplete(currentUser) ? "/dashboard" : "/register"} />;
   }
 
   return <>{children}</>;
@@ -78,8 +85,8 @@ function RegisterRoute({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
   if (sessionUserId && currentUser) {
-    if (currentUser?.isAdmin) return <Navigate to="/admin" replace />;
-    if (isProfileComplete(currentUser)) return <Navigate to="/dashboard" replace />;
+    if (currentUser?.isAdmin) return <GatedRedirect to="/admin" />;
+    if (isProfileComplete(currentUser)) return <GatedRedirect to="/dashboard" />;
   }
 
   return <>{children}</>;

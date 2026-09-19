@@ -130,6 +130,49 @@ function LegacyRegister() {
         }
     }, [formData.skills, formData.specialization]);
 
+    const DRAFT_KEY = 'bgph-register-draft';
+
+    const loadDraft = (): { step?: Step; data?: any } | null => {
+        try {
+            const raw = sessionStorage.getItem(DRAFT_KEY);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            const step: unknown = parsed?.step;
+            const data: unknown = parsed?.data;
+            const validStep = step === 1 || step === 2 || step === 3 || step === 4 ? (step as Step) : undefined;
+            return { step: validStep, data: (data && typeof data === 'object') ? data : undefined };
+        } catch { return null; }
+    };
+    const saveDraft = () => {
+        try {
+            const payload = { step: currentStep, data: formData, updatedAt: Date.now() };
+            sessionStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+        } catch { /* quota / private mode; ignore */ }
+    };
+    const clearDraft = () => { try { sessionStorage.removeItem(DRAFT_KEY); } catch { /* noop */ } };
+
+    useEffect(() => {
+        const draft = loadDraft();
+        if (draft?.step && !hasSession) {
+            setCurrentStep(draft.step);
+        }
+        if (draft?.data && !hasSession) {
+            setFormData(prev => ({
+                ...prev,
+                fullName: typeof draft.data.fullName === 'string' ? draft.data.fullName : prev.fullName,
+                discordUsername: typeof draft.data.discordUsername === 'string' ? draft.data.discordUsername : prev.discordUsername,
+                yearJoined: Number.isFinite(draft.data.yearJoined) ? Number(draft.data.yearJoined) : prev.yearJoined,
+                skills: Array.isArray(draft.data.skills) ? draft.data.skills : prev.skills,
+                experienceLevel: typeof draft.data.experienceLevel === 'string' ? draft.data.experienceLevel : prev.experienceLevel,
+                role: typeof draft.data.role === 'string' ? draft.data.role : prev.role,
+                customRole: typeof draft.data.customRole === 'string' ? draft.data.customRole : prev.customRole,
+                specialization: typeof draft.data.specialization === 'string' ? draft.data.specialization : prev.specialization,
+            }));
+        }
+    }, []);
+
+    useEffect(() => { saveDraft(); }, [currentStep, formData]);
+
     useEffect(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }, [currentStep]);
@@ -216,7 +259,10 @@ function LegacyRegister() {
             try { sessionStorage.removeItem('discord_connect_error'); } catch { /* noop */ }
             localStorage.setItem('onboarding_connections', '1');
             const { url } = await connectDiscord();
-            window.location.href = url;
+            const target = url;
+            window.requestAnimationFrame(() => {
+                window.setTimeout(() => { window.location.href = target; }, 50);
+            });
         } catch (err: any) {
             setDiscordConnecting(false);
             setError(err.message || 'Failed to start Discord connection. Please try again.');
@@ -224,6 +270,7 @@ function LegacyRegister() {
     };
 
     const handleComplete = () => {
+        clearDraft();
         navigate('/dashboard');
     };
 
@@ -313,6 +360,7 @@ function LegacyRegister() {
                                     )}
 
                                     <button
+                                        id="btn-google-signin"
                                         type="button"
                                         disabled={loading}
                                         onClick={async () => {
@@ -438,26 +486,31 @@ function LegacyRegister() {
 
     const validateStep = async (step: Step) => {
         setError('');
-        const triggerError = (msg: string) => {
+        let invalidFieldId: string | null = null;
+        const triggerError = (msg: string, fieldId?: string) => {
             setError(msg);
             setShouldShake(true);
             setTimeout(() => setShouldShake(false), 500);
+            if (fieldId) invalidFieldId = fieldId;
+            if (invalidFieldId) setTimeout(() => {
+                try { (document.getElementById(invalidFieldId!) as HTMLElement | null)?.focus?.(); } catch { /* noop */ }
+            }, 60);
             return false;
         };
 
         if (step === 1) {
-            if (!hasSession) return triggerError('Please create an account (or sign in) to continue.');
-            if (!formData.fullName.trim()) return triggerError('Please enter your full name.');
+            if (!hasSession) return triggerError('Please create an account (or sign in) to continue.', 'btn-google-signin');
+            if (!formData.fullName.trim()) return triggerError('Please enter your full name.', 'field-full-name');
         } else if (step === 2) {
             if (!formData.specialization) {
-                return triggerError('Please select your specialization.');
+                return triggerError('Please select your specialization.', 'field-specialization');
             }
             if (formData.role === 'Other' && !formData.customRole.trim()) {
-                return triggerError('Please specify your custom role.');
+                return triggerError('Please specify your custom role.', 'field-custom-role');
             }
         } else if (step === 3) {
             if (formData.skills.length === 0) {
-                return triggerError('Please select at least one skill.');
+                return triggerError('Please select at least one skill.', 'field-skill-search');
             }
 
             const spec = SPECIALIZATIONS.find(s => s.label === formData.specialization);
@@ -467,7 +520,6 @@ function LegacyRegister() {
                 );
 
                 if (spec.id === 'fullstack') {
-                    // Special rule for fullstack: 2 frontend + 2 backend
                     const frontendSkills = formData.skills.filter(s =>
                         SPECIALIZATIONS.find(sp => sp.id === 'frontend')?.requiredSkills.some(rs => rs.toLowerCase() === s.name.toLowerCase())
                     );
@@ -476,16 +528,16 @@ function LegacyRegister() {
                     );
 
                     if (frontendSkills.length < 2 || backendSkills.length < 2) {
-                        return triggerError(`Full Stack Developer requires at least 2 frontend and 2 backend skills to verify your balance.`);
+                        return triggerError(`Full Stack Developer requires at least 2 frontend and 2 backend skills to verify your balance.`, 'field-skill-search');
                     }
                 } else if (matchingSkills.length < spec.minRequiredCount) {
-                    return triggerError(`To verify your role as ${spec.label}, please select at least ${spec.minRequiredCount} relevant skills.`);
+                    return triggerError(`To verify your role as ${spec.label}, please select at least ${spec.minRequiredCount} relevant skills.`, 'field-skill-search');
                 }
             }
 
             const allLevelsSet = formData.skills.every(s => s.level);
             if (!allLevelsSet) {
-                return triggerError('Please set a level for each selected skill.');
+                return triggerError('Please set a level for each selected skill.', 'field-skill-search');
             }
         }
         return true;
@@ -760,7 +812,16 @@ function LegacyRegister() {
 
                         {steps.map((step) => (
                             <div key={step.id} className="flex flex-col items-center gap-2 relative z-10">
-                                <motion.div
+                                <motion.button
+                                    type="button"
+                                    onClick={() => {
+                                        const target = Number(step.id);
+                                        if (!Number.isNaN(target) && target >= 1 && target <= 4) {
+                                            setCurrentStep(target as Step);
+                                        }
+                                    }}
+                                    aria-current={currentStep === step.id ? 'step' : undefined}
+                                    aria-label={`Step ${step.id} — ${step.name}${currentStep === step.id ? ' (current)' : ''}`}
                                     initial={false}
                                     animate={{
                                         backgroundColor: currentStep >= step.id ? '#1e3a8a' : 'rgb(255, 255, 255)',
@@ -769,14 +830,14 @@ function LegacyRegister() {
                                     }}
                                     transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
                                     className={clsx(
-                                        "w-9 h-9 sm:w-10 sm:h-10 rounded-[6px] border-2 flex items-center justify-center font-bold transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out",
+                                        "w-9 h-9 sm:w-10 sm:h-10 rounded-[6px] border-2 flex items-center justify-center font-bold transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out outline-none focus-visible:ring-2 focus-visible:ring-blue-900/30 focus-visible:ring-offset-2 focus-visible:ring-offset-white active:scale-[0.99]",
                                         currentStep === step.id && "ring-2 ring-blue-900/15 shadow-[0_6px_16px_-8px_rgba(30,58,138,0.4)]"
                                     )}
                                 >
                                     {currentStep > step.id
                                         ? <><Check size={14} className="sm:hidden" /><Check size={16} className="hidden sm:inline-flex" /></>
                                         : step.icon}
-                                </motion.div>
+                                </motion.button>
                                 <span className={clsx(
                                     "text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.15em] whitespace-nowrap transition-colors duration-300",
                                     currentStep >= step.id ? "text-blue-900" : "text-slate-400"
@@ -806,6 +867,9 @@ function LegacyRegister() {
                         <AnimatePresence mode="wait">
                             {error && (
                                 <motion.div
+                                    id="register-form-error"
+                                    role="alert"
+                                    aria-live="assertive"
                                     initial={{ opacity: 0, height: 0 }}
                                     animate={{ opacity: 1, height: 'auto' }}
                                     exit={{ opacity: 0, height: 0 }}
@@ -840,17 +904,21 @@ function LegacyRegister() {
                                                 </div>
 
                                                 <div>
-                                                    <label className="block text-base font-bold text-slate-800 mb-4 tracking-tight">Full Name</label>
+                                                    <label htmlFor="field-full-name" className="block text-base font-bold text-slate-800 mb-4 tracking-tight">Full Name</label>
                                                     <div className="relative group">
                                                         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-900 transition-colors">
                                                             <User size={18} />
                                                         </div>
                                                         <input
+                                                            id="field-full-name"
                                                             name="fullName"
                                                             type="text"
+                                                            autoComplete="name"
                                                             value={formData.fullName}
                                                             onChange={handleChange}
-                                                            className="block w-full appearance-none rounded-[6px] border border-slate-200 px-4 py-4 pl-11 placeholder-slate-400 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 text-base transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                                                            aria-invalid={!!(error && !formData.fullName.trim())}
+                                                            aria-describedby={error ? 'register-form-error' : undefined}
+                                                            className="block w-full appearance-none rounded-[6px] border border-slate-200 px-4 py-4 pl-11 placeholder-slate-400 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 text-base transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.998]"
                                                             placeholder="Juan Dela Cruz"
                                                         />
                                                     </div>
@@ -938,11 +1006,19 @@ function LegacyRegister() {
                                             <div>
                                                 <div className="flex flex-col gap-1 mb-4">
                                                     <div className="flex items-center justify-between">
-                                                        <label className="block text-base font-bold text-slate-900 tracking-tight">Primary Role <span className="text-blue-900">(Required)</span></label>
+                                                        <label id="label-specialization" className="block text-base font-bold text-slate-900 tracking-tight">Primary Role <span className="text-blue-900">(Required)</span></label>
                                                     </div>
                                                     <p className="text-[11px] sm:text-xs text-slate-500 leading-relaxed">Pick the closest match. You'll validate this with your skills on the next step.</p>
                                                 </div>
-                                                <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
+                                                <div
+                                                    id="field-specialization"
+                                                    role="radiogroup"
+                                                    aria-labelledby="label-specialization"
+                                                    aria-invalid={!!(error && !formData.specialization)}
+                                                    aria-describedby={error ? 'register-form-error' : undefined}
+                                                    tabIndex={-1}
+                                                    className="grid grid-cols-2 gap-2 sm:gap-2.5"
+                                                >
                                                     {SPECIALIZATIONS.map((spec) => {
                                                         const Icon = spec.icon;
                                                         const isSelected = formData.specialization === spec.label;
@@ -952,9 +1028,11 @@ function LegacyRegister() {
                                                             <button
                                                                 key={spec.id}
                                                                 type="button"
+                                                                role="radio"
+                                                                aria-checked={isSelected}
                                                                 onClick={() => setFormData({ ...formData, specialization: spec.label })}
                                                                 className={clsx(
-                                                                    "group relative flex flex-col items-start gap-2 p-2.5 sm:p-3 rounded-[6px] border text-left transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.98]",
+                                                                    "group relative flex flex-col items-start gap-2 p-2.5 sm:p-3 rounded-[6px] border text-left transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-blue-900/30 focus-visible:ring-offset-2 focus-visible:ring-offset-white",
                                                                     isSelected
                                                                         ? "bg-white border-blue-900 text-slate-900 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-10px_rgba(30,58,138,0.18)] z-10"
                                                                         : "bg-white border-slate-200 text-slate-500 hover:border-slate-400 hover:bg-slate-50"
@@ -1052,12 +1130,17 @@ function LegacyRegister() {
                                                             transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
                                                             className="mt-3"
                                                         >
+                                                            <label htmlFor="field-custom-role" className="sr-only">Custom role</label>
                                                             <input
+                                                                id="field-custom-role"
                                                                 type="text"
+                                                                autoComplete="organization-title"
                                                                 placeholder="Specify your role..."
                                                                 value={formData.customRole}
                                                                 onChange={(e) => setFormData({ ...formData, customRole: e.target.value })}
-                                                                className="w-full px-4 py-3 rounded-[6px] border-2 border-blue-100 bg-blue-50/30 text-base font-bold focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                                                                aria-invalid={!!(error && formData.role === 'Other' && !formData.customRole.trim())}
+                                                                aria-describedby={error ? 'register-form-error' : undefined}
+                                                                className="w-full px-4 py-3 rounded-[6px] border-2 border-blue-100 bg-blue-50/30 text-base font-bold focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.998]"
                                                             />
                                                         </motion.div>
                                                     )}
@@ -1207,18 +1290,21 @@ function LegacyRegister() {
 
                                         <div className="flex flex-col gap-5">
                                             <div className="flex items-center justify-between">
-                                                <label className="text-sm font-bold text-slate-900 tracking-tight">Add Skills</label>
+                                                <label htmlFor="field-skill-search" className="text-sm font-bold text-slate-900 tracking-tight">Add Skills</label>
                                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Optional</span>
                                             </div>
                                             <div className="flex flex-col gap-4">
                                                 <div className="relative group">
                                                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 transition-colors group-focus-within:text-blue-700" />
                                                     <input
+                                                        id="field-skill-search"
                                                         type="text"
                                                         placeholder="Search skills..."
                                                         value={skillSearch}
                                                         onChange={(e) => setSkillSearch(e.target.value)}
-                                                        className="w-full pl-11 pr-4 py-3 rounded-[6px] border-2 border-slate-200 text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-200 ease-out bg-white" />
+                                                        aria-invalid={!!(error && (formData.skills.length === 0 || !(formData.skills.every(s => s.level))))}
+                                                        aria-describedby={error ? 'register-form-error' : undefined}
+                                                        className="w-full pl-11 pr-4 py-3 rounded-[6px] border-2 border-slate-200 text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-200 ease-out bg-white active:scale-[0.998]" />
                                                 </div>
 
                                                 <div
@@ -1631,7 +1717,7 @@ function LegacyRegister() {
                                     </div>
 
                                     <button
-                                        onClick={() => navigate('/dashboard')}
+                                        onClick={() => { clearDraft(); navigate('/dashboard'); }}
                                         className="w-full py-4 bg-blue-900 text-white rounded-[6px] text-xs font-black uppercase tracking-[0.2em] shadow-lg shadow-blue-900/20 hover:bg-blue-800 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.98]"
                                     >
                                         Go to Portal
