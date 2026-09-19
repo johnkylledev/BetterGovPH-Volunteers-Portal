@@ -8,6 +8,21 @@ export default function DiscordCallback() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
+    const target = String(import.meta.env.VITE_DISCORD_CALLBACK_URL || '').trim();
+    if (!target || typeof window === 'undefined') return;
+    try {
+      const want = new URL(target);
+      if (!want.origin || want.origin === window.location.origin) return;
+      const here = new URL(window.location.href);
+      const next = new URL(want.origin + want.pathname);
+      Array.from(here.searchParams.entries()).forEach(([k, v]) => next.searchParams.append(k, v));
+      next.hash = here.hash;
+      window.location.replace(next.toString());
+      return;
+    } catch { return; }
+  }, []);
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const error = params.get('error');
 

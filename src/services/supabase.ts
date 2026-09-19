@@ -115,11 +115,14 @@ const apiRequest = async <T = any>(path: string, init?: RequestInit): Promise<T>
       payload && typeof payload === 'object' && 'missing' in payload && Array.isArray((payload as any).missing)
         ? (payload as any).missing.filter((x: any) => typeof x === 'string').join(', ')
         : '';
+    const upstream =
+      payload && typeof payload === 'object' && 'upstream_message' in payload && typeof (payload as any).upstream_message === 'string'
+        ? String((payload as any).upstream_message)
+        : '';
+    const concat = [payloadDetails, payloadMissing, upstream].filter(Boolean).join(' | ');
     const message = payloadError
-      ? [payloadError, payloadDetails || payloadMissing ? `(${[payloadDetails, payloadMissing].filter(Boolean).join(' | ')})` : '']
-          .filter(Boolean)
-          .join(' ')
-      : `Request failed (${res.status})`;
+      ? concat ? `${payloadError} (${concat})` : payloadError
+      : upstream || `Request failed (${res.status})`;
     throw new Error(message);
   }
 
