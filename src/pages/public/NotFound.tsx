@@ -83,7 +83,7 @@ export default function NotFound() {
           <div className="absolute bottom-[12%] left-[5%] w-[280px] h-[280px] rounded-[6px] bg-blue-900/[0.035] -rotate-3" />
         </div>
 
-        <div className="relative max-w-6xl mx-auto px-3 sm:px-5 lg:px-6 pt-16 sm:pt-24 pb-14 sm:pb-20">
+        <div className="relative max-w-6xl mx-auto px-3 sm:px-6 pt-16 sm:pt-24 pb-14 sm:pb-20">
           <motion.section
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
@@ -286,7 +286,7 @@ export default function NotFound() {
       </main>
 
       <footer className="bg-white border-t border-slate-200 shrink-0">
-        <div className="max-w-6xl mx-auto px-3 sm:px-5 lg:px-6 py-5 sm:py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] sm:text-xs font-semibold text-slate-400">
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 py-5 sm:py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] sm:text-xs font-semibold text-slate-400">
           <span>© {new Date().getFullYear()} BetterGovPH. Civic-first, open source.</span>
           <div className="flex items-center gap-4 sm:gap-6">
             <Link to="/privacy" className="hover:text-slate-600 transition-colors">Privacy</Link>

@@ -194,8 +194,8 @@ const Landing: React.FC = () => {
 
       <section className="relative min-h-screen flex items-center bg-white overflow-hidden">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(15,23,42,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.04)_1px,transparent_1px)] bg-[size:56px_56px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_40%,transparent_100%)] pointer-events-none" />
-        <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-6 relative pt-28 pb-20 sm:pt-32 sm:pb-28">
-          <div className="grid lg:grid-cols-[1.05fr_1fr] gap-10 lg:gap-16 items-center">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 relative pt-24 pb-16 sm:pt-32 sm:pb-24">
+          <div className="grid lg:grid-cols-[1.05fr_1fr] gap-8 lg:gap-12 xl:gap-16 items-center">
             <motion.div
               initial={reduce ? { opacity: 0 } : { opacity: 0, transform: "translate3d(0px, 16px, 0)" }}
               animate={{ opacity: 1, transform: "translate3d(0px, 0px, 0)" }}
@@ -329,7 +329,7 @@ const Landing: React.FC = () => {
             </h2>
           </motion.div>
 
-          <div className="grid md:grid-cols-2 gap-4 sm:gap-5 items-stretch">
+          <div className="grid sm:grid-cols-2 gap-3 sm:gap-4 items-stretch">
             <motion.div
               initial={vpCard("left")}
               whileInView={vpTo}
@@ -423,7 +423,7 @@ const Landing: React.FC = () => {
             </h2>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-200/70 border-y border-slate-200/70">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-200/70 border-y border-slate-200/70">
             {[
               { icon: <Flag size={16} />, title: "Filipino-First", desc: "Built by Filipinos, for Filipinos" },
               { icon: <Lightbulb size={16} />, title: "Open by Default", desc: "Code, data, and process are public" },
@@ -481,7 +481,7 @@ const Landing: React.FC = () => {
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {roles.map((role, index) => (
               <motion.a
                 key={index}
@@ -492,7 +492,7 @@ const Landing: React.FC = () => {
                 whileInView={vpTo}
                 viewport={VIEWPORT}
                 transition={t(index * 0.06)}
-                className="bg-white rounded-[6px] border border-slate-200 hover:border-blue-300 hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_10px_28px_-10px_rgba(15,23,42,0.12)] hover:-translate-y-0.5 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out group p-5 flex flex-col cursor-pointer"
+                className="bg-white rounded-[6px] border border-slate-200 hover:border-blue-300 hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_10px_28px_-10px_rgba(15,23,42,0.12)] hover:-translate-y-0.5 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out group p-4 sm:p-5 flex flex-col cursor-pointer"
               >
                 <div className="flex items-start justify-between mb-3 sm:mb-4">
                   <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-[6px] bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-700 group-hover:bg-blue-900 group-hover:border-blue-900 group-hover:text-white transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out">
@@ -624,7 +624,7 @@ const Landing: React.FC = () => {
             </h2>
           </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-4 items-stretch relative">
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 items-stretch relative">
             {[
               {
                 title: "Join Discord",
@@ -688,9 +688,9 @@ const Landing: React.FC = () => {
         </div>
       </section>
 
-      <section className="relative py-16 sm:py-20 lg:py-24 bg-slate-900 text-white overflow-hidden">
+      <section className="relative py-14 sm:py-20 lg:py-24 bg-slate-900 text-white overflow-hidden">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:56px_56px] [mask-image:radial-gradient(ellipse_80%_60%_at_50%_50%,#000_40%,transparent_100%)]" />
-        <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-6 relative z-10">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 relative z-10">
           <motion.div
             initial={vpCard("bottom", 18)}
             whileInView={vpTo}
@@ -732,9 +732,9 @@ const Landing: React.FC = () => {
         </div>
       </section>
 
-      <footer className="bg-slate-900 text-slate-300 py-10 sm:py-12">
-        <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-6">
-          <div className="grid md:grid-cols-3 gap-8 sm:gap-10 mb-8 sm:mb-10">
+      <footer className="bg-slate-900 text-slate-300 py-8 sm:py-12">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6">
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8 mb-6 sm:mb-10">
             <div>
               <div className="flex items-center gap-2 mb-3 sm:mb-4">
                 <img src="/logo.svg" onError={(e)=>{const t=e.currentTarget;t.onerror=null;t.src='https://assets.bettergov.ph/logos/webp/icon-white.webp';}} alt="BetterGovPH" className="h-8 sm:h-9 w-auto drop-shadow-[0_1px_0_rgba(255,255,255,0.08)]" style={{ filter: 'brightness(0) saturate(100%) invert(100%) sepia(100%) saturate(0) hue-rotate(115deg) brightness(104%) contrast(100%)' }} />
