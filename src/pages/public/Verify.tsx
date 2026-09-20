@@ -165,7 +165,7 @@ export default function Verify() {
   return (
     <div className="min-h-screen bg-white font-sans selection:bg-blue-900/15">
       <nav className="bg-white border-b border-slate-200 sticky top-0 z-30">
-        <div className="max-w-5xl mx-auto px-4 sm:px-5 lg:px-6 py-3 sm:py-4 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
           <Link
             to="/"
             className="flex items-center gap-2.5 sm:gap-3"
@@ -191,7 +191,7 @@ export default function Verify() {
         </div>
       </nav>
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-5 lg:px-6 py-8 sm:py-10 lg:py-14 flex flex-col items-center">
+      <main className="max-w-5xl mx-auto px-3 sm:px-6 py-8 sm:py-10 lg:py-14 flex flex-col items-center">
         {loading ? (
           <div className="py-16 sm:py-24 flex flex-col items-center">
             <div className="w-52 h-[2px] rounded-full bg-slate-200 overflow-hidden mb-4">

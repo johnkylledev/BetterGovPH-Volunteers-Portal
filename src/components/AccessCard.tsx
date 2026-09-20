@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useNavigate } from 'react-router-dom';
 import { motion, useMotionTemplate, useMotionValue, useSpring, useReducedMotion } from 'framer-motion';
@@ -35,6 +35,14 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
 
   const transform = useMotionTemplate`rotateX(${mouseY}deg) rotateY(${mouseX}deg)`;
 
+  const glossX = useMotionTemplate`calc(50% + ${mouseX} * 14px)`;
+  const glossY = useMotionTemplate`calc(40% + ${mouseY} * -10px)`;
+  const specularSweep = useMotionTemplate`radial-gradient(120% 80% at ${glossX} ${glossY}, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.05) 22%, rgba(255,255,255,0) 55%)`;
+
+  const spotlight = useMotionTemplate`radial-gradient(160% 100% at ${glossX} ${glossY}, rgba(147,197,253,0.10) 0%, rgba(10,61,145,0) 60%)`;
+
+  const nameText = (user.fullName || '').trim();
+
   const publicUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/verify/${user.memberId || user.id}`
     : `/verify/${user.memberId || user.id}`;
@@ -59,24 +67,23 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
         whileTap={reduceMotion ? { scale: 0.99 } : { scale: 0.98 }}
         onClick={() => !isDemo && navigate(`/verify/${user.memberId || user.id}`)}
         className={clsx(
-          "relative w-[300px] aspect-[1/1.5] rounded-[6px] p-5 flex flex-col items-center overflow-hidden shadow-2xl shadow-blue-900/40 border border-blue-400/20 transition-[filter,box-shadow] duration-200 ease-out",
+          "relative w-[300px] aspect-[1/1.5] rounded-[6px] p-5 flex flex-col items-center overflow-hidden transition-[filter,box-shadow] duration-200 ease-out",
+          "shadow-[0_0_0_1px_rgba(191,219,254,0.08),0_1px_0_0_rgba(255,255,255,0.06)_inset,0_10px_30px_-10px_rgba(30,58,138,0.6),0_30px_60px_-20px_rgba(30,64,175,0.45)]",
+          "border border-blue-400/20",
           !isDemo ? "cursor-pointer" : "cursor-default"
         )}
       >
-        {/* Subtle Noise Texture */}
         <div className="absolute inset-0 opacity-[0.04] mix-blend-overlay pointer-events-none"
           style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")' }}>
         </div>
 
-        {/* Advanced Security Pattern (High-Density Banknote Guilloche) */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.35]" xmlns="http://www.w3.org/2000/svg">
+        <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.28]" xmlns="http://www.w3.org/2000/svg">
           <defs>
             <linearGradient id="guillocheGradient" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#94a3b8" stopOpacity="0.9" />
               <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.9" />
             </linearGradient>
 
-            {/* Wavy Background Pattern */}
             <pattern id="wavyGuilloche" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
               {Array.from({ length: 25 }).map((_, i) => (
                 <path
@@ -98,7 +105,6 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
               ))}
             </pattern>
 
-            {/* Wavy Border Pattern */}
             <pattern id="wavyBorder" x="0" y="0" width="10" height="450" patternUnits="userSpaceOnUse">
               {Array.from({ length: 5 }).map((_, i) => (
                 <path
@@ -115,7 +121,6 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
 
           <rect width="100%" height="100%" fill="url(#wavyGuilloche)" />
 
-          {/* Wavy Inner Frame */}
           <rect x="10" y="10" width="280" height="430" rx="6" fill="none" stroke="url(#guillocheGradient)" strokeWidth="0.5" strokeDasharray="2,2" opacity="0.2" />
           {Array.from({ length: 3 }).map((_, i) => (
             <rect
@@ -125,20 +130,18 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
             />
           ))}
 
-          {/* High-Complexity Wavy Rosettes (Exact Reference Style) */}
           {[
             { cx: '15%', cy: '12%', scale: 0.4 },
             { cx: '85%', cy: '12%', scale: 0.4 },
             { cx: '15%', cy: '88%', scale: 0.4 },
             { cx: '85%', cy: '88%', scale: 0.4 },
-            { cx: '50%', cy: '48%', scale: 1.4 } // Large central rosette
+            { cx: '50%', cy: '48%', scale: 1.4 }
           ].map((pos, idx) => (
             <g
               key={`rosette-${idx}`}
               transform={`translate(${parseFloat(pos.cx) * 3}, ${parseFloat(pos.cy) * 4.5}) scale(${pos.scale})`}
-              opacity={pos.scale > 1 ? "0.12" : "0.4"}
+              opacity={pos.scale > 1 ? "0.06" : "0.22"}
             >
-              {/* Concentric Wavy Layers (Cog Style) */}
               {Array.from({ length: 12 }).map((_, layer) => (
                 <path
                   key={`layer-${layer}`}
@@ -159,7 +162,6 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
                   strokeWidth="0.2"
                 />
               ))}
-              {/* Internal Star/Spiro Pattern */}
               {Array.from({ length: 16 }).map((_, i) => (
                 <path
                   key={`spiro-${i}`}
@@ -170,13 +172,11 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
                   transform={`rotate(${i * 22.5})`}
                 />
               ))}
-              {/* Core Detail */}
               <circle cx="0" cy="0" r="5" fill="none" stroke="url(#guillocheGradient)" strokeWidth="0.1" opacity="0.5" />
             </g>
           ))}
         </svg>
 
-        {/* Microtext Border Wrap */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.12] z-10" viewBox="0 0 300 450">
           <defs>
             <path id="borderPath" d="M 20 8 H 280 A 12 12 0 0 1 292 20 V 430 A 12 12 0 0 1 280 442 H 20 A 12 12 0 0 1 8 430 V 20 A 12 12 0 0 1 20 8 Z" fill="transparent" />
@@ -188,13 +188,24 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
           </text>
         </svg>
 
-        {/* Hologram Effect - Bottom Right */}
+        {!reduceMotion && (
+          <motion.div
+            className="absolute inset-0 pointer-events-none z-20"
+            style={{ backgroundImage: specularSweep, mixBlendMode: 'screen' }}
+          />
+        )}
+
+        {!reduceMotion && (
+          <motion.div
+            className="absolute inset-0 pointer-events-none z-[15]"
+            style={{ backgroundImage: spotlight }}
+          />
+        )}
+
         <div className="absolute bottom-6 right-6 w-12 h-12 rounded-full overflow-hidden pointer-events-none z-30 shadow-[0_0_10px_rgba(255,255,255,0.05)] border border-white/20"
           style={{ transform: reduceMotion ? undefined : 'translateZ(40px)' }}>
-          {/* Base silver layer - More transparent */}
           <div className="absolute inset-0 rounded-full bg-gradient-to-br from-gray-100/40 via-gray-300/20 to-gray-500/40 backdrop-blur-[1px]" />
 
-          {/* Rainbow shimmer animation - More subtle (single animated layer) */}
           {!reduceMotion && (
             <div className="absolute inset-0 rounded-full opacity-30 animate-spin-slow"
               style={{
@@ -205,7 +216,6 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
             />
           )}
 
-          {/* Micro-Interference Mesh (Synced with Background) */}
           <div className="absolute inset-0 opacity-[0.3]">
             <svg viewBox="0 0 100 100" className="w-full h-full">
               <defs>
@@ -234,7 +244,6 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
             </svg>
           </div>
 
-          {/* Centered Logo from logo.svg - More transparent */}
           <div className="absolute inset-0 flex items-center justify-center p-2.5">
             <img
               src="/logo.svg" onError={(e)=>{const t=e.currentTarget;t.onerror=null;t.src='https://assets.bettergov.ph/logos/webp/icon-primary.webp';}}
@@ -243,28 +252,28 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
             />
           </div>
 
-          {/* High-gloss shine effect */}
           <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/30 to-transparent rotate-12 opacity-60" />
         </div>
 
-        {/* Header - Government Format */}
         <div className="relative z-10 flex flex-col items-center w-full" style={{ transform: reduceMotion ? undefined : 'translateZ(10px)' }}>
           <div className="h-12 w-12 mb-2">
-            <svg id="Design" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" className="w-full h-full fill-white" preserveAspectRatio="xMidYMid meet">
-              <path d="M156,730.55a14.49,14.49,0,0,0,6.12-4.75,13.69,13.69,0,0,0,2.56-6.55,14.34,14.34,0,0,0-.92-6.94l.53-.24a14.79,14.79,0,0,0,7.34,5.61,12.19,12.19,0,0,0,9.09-.58,13.48,13.48,0,0,0,8-9.16q1.76-6.42-2.32-15.68l-10.09-22.9-54.93,24.18,10.85,24.65a26.49,26.49,0,0,0,6.56,9.47,16.56,16.56,0,0,0,8.34,4.11A15.6,15.6,0,0,0,156,730.55Zm15.6-43.28,3.32,7.57a8.89,8.89,0,0,1,.74,6,5.78,5.78,0,0,1-3.47,3.87,5.87,5.87,0,0,1-5.43-.11,9.33,9.33,0,0,1-4-4.66l-3.24-7.35Zm-30.08,23-3.61-8.21L151,696.34l3.72,8.45a9.83,9.83,0,0,1,.77,6.82,6.87,6.87,0,0,1-4.06,4.4,6,6,0,0,1-5.47,0Q143.46,714.63,141.55,710.31Z" />
-              <polygon points="174.59 747.51 187.76 768.99 197.83 762.82 184.65 741.34 195.14 734.9 209.44 758.21 219.49 752.05 197.6 716.37 146.44 747.76 168.32 783.43 178.37 777.27 164.07 753.96 174.59 747.51" />
-              <polygon points="244.62 802.1 253.72 794.62 221.51 755.43 212.41 762.91 223.98 776.99 186.72 807.62 195.8 818.67 233.06 788.04 244.62 802.1" />
-              <polygon points="284.54 838.75 292.47 830.04 254.94 795.9 247.01 804.62 260.5 816.88 228.04 852.57 238.62 862.19 271.08 826.51 284.54 838.75" />
-              <polygon points="308.28 884.26 314.94 874.51 294.13 860.3 301.07 850.13 323.65 865.55 330.3 855.82 295.73 832.22 261.89 881.79 296.45 905.39 303.09 895.66 280.51 880.24 287.47 870.05 308.28 884.26" />
-              <path d="M366.82,877.36a26,26,0,0,0-9.33-7.38L335.3,858.9l-26.81,53.7,13,6.48,9.17-18.38,6.67,3.32.62,23.28,14.16,7.07-.93-26a16.93,16.93,0,0,0,9.81-2.47,19.57,19.57,0,0,0,7.17-8.24,20.43,20.43,0,0,0,2.37-10.72A17.81,17.81,0,0,0,366.82,877.36Zm-12.13,13.56q-1.86,3.72-5,4.33t-7.53-1.58l-6.4-3.2,7.31-14.63,6.4,3.2Q358.4,883.5,354.69,890.92Z" />
-              <path d="M419,895.85a31.1,31.1,0,0,0-26.07-7.39,26.45,26.45,0,0,0-13.1,6.84Q374.05,900.69,371,910a34.64,34.64,0,0,0-1.6,16.7A25.93,25.93,0,0,0,375.78,940,32.27,32.27,0,0,0,403,949.5,22.7,22.7,0,0,0,414.62,944a26.71,26.71,0,0,0,7.5-12.09l2.45-7.55-24.61-8-3.27,10.06L408,930.11a9.86,9.86,0,0,1-5.48,6.15q-3.9,1.68-9.51-.14-6.4-2.08-8.47-7.78t.6-13.91q2.66-8.17,7.75-11.47a12.6,12.6,0,0,1,11.31-1.29,12.23,12.23,0,0,1,6.25,4.15,9.79,9.79,0,0,1,1.88,6.59l14,4.54a21.36,21.36,0,0,0-.79-11.4A24.14,24.14,0,0,0,419,895.85Z" />
-              <path d="M479.26,908.64a31.43,31.43,0,0,0-28.82-4.3,25.88,25.88,0,0,0-11.7,8.81q-4.74,6.24-6.22,16.07t1.27,17.14a25.87,25.87,0,0,0,8.61,11.88,31.4,31.4,0,0,0,28.81,4.31,26,26,0,0,0,11.73-8.83q4.79-6.24,6.25-16t-1.29-17.19A26,26,0,0,0,479.26,908.64Zm-4.74,26.85q-1.31,8.73-5.61,12.77a13.43,13.43,0,0,1-20.1-3q-3-5.14-1.65-13.87t5.63-12.77a13.43,13.43,0,0,1,20.1,3Q475.83,926.76,474.52,935.49Z" />
-              <polygon points="524.26 951.64 523.77 951.65 509.75 907.87 493.52 908.09 514.58 967.83 533.89 967.57 553.33 907.28 537.09 907.5 524.26 951.64" />
-              <path d="M568,952.68a7.61,7.61,0,0,0-10.65,1.15,7.06,7.06,0,0,0-1.62,5.54,7.19,7.19,0,0,0,2.77,5.12,7.67,7.67,0,0,0,12.37-6.76A7.19,7.19,0,0,0,568,952.68Z" />
-              <path d="M617.43,904.94a18.65,18.65,0,0,0-8.93-5.56,24.32,24.32,0,0,0-11.94-.14l-24.25,5.16,12.5,58.7,14.18-3-3.88-18.23,9.64-2.05a25.87,25.87,0,0,0,11.09-5,18.48,18.48,0,0,0,6-8.65A21.12,21.12,0,0,0,622.3,915,21.53,21.53,0,0,0,617.43,904.94Zm-10.94,20.25c-1.32,2-3.57,3.32-6.76,4l-7,1.48-3.8-17.85,7-1.49c3.2-.68,5.79-.4,7.8.84a8.76,8.76,0,0,1,3.87,6A9,9,0,0,1,606.49,925.19Z" />
-              <polygon points="657.28 880.42 665.72 902.99 643.56 911.27 635.13 888.71 621.54 893.79 642.56 950.01 656.15 944.92 647.7 922.33 669.85 914.05 678.3 936.64 691.86 931.57 670.84 875.35 657.28 880.42" />
-              <path d="M970.43,644.2l28-26.82-28-26.8L727.76,608.05a233.2,233.2,0,0,0-3-29.86L941.2,562.61l-27.47-26.27L721.44,562.17a232.84,232.84,0,0,0-27.8-67.08L847.88,377.37l.84-38-164.05,142a240,240,0,0,0-18.95-23.25L849.63,298.92l.86-38.77-38.77.87L652.5,444.93a238.54,238.54,0,0,0-23.27-19l142-164-38,.84L615.55,417a233.55,233.55,0,0,0-67.07-27.82L574.3,196.91,548,169.45,532.43,385.92a234.14,234.14,0,0,0-29.84-3.05l17.47-242.66-26.82-28-26.8,28,17.47,242.66a235,235,0,0,0-29.86,3.05L438.47,169.45,412.2,196.91,438,389.18A233.44,233.44,0,0,0,371,417L253.22,262.77l-38-.84L357.25,426c-3,2.1-5.86,4.3-8.72,6.55-7.77.46-15.58,1.19-23.42,2.14L174.78,261,136,260.15l.86,38.77L298.08,438.49h0c-12.79,2-25.6,4.25-38.44,6.38h0L137.76,339.37l.87,38,93.93,71.69c-52.71,7.38-104.51,8.36-151-22.12,53.17,68.09,127.1,51,201.31,38.06,12.3-2.15,24.63-4.19,36.86-5.7,33.27-4.08,65.93-4.3,96,7.58,17,6.69,31.3,24.71,39.35,40.39,6.75,13.13,17.66,40.3,7.33,53.85a8.5,8.5,0,0,1-3.2,2.73c-3.68,1.61-7.75-.88-11.06-3.14-34.08-23.22-71.71-29.51-112.07-28.28,20.9,5.69,42,9.67,61.35,19.89a186.34,186.34,0,0,1,30.73,20.3c8.46,6.89,15.49,16.44,25,21.48,23.7,12.54,47.75,9.93,73.3,6.6,153.57-16,201.58,126,213.75,251.43-.55-5.69-32.23-14-37.31-15.34a205.75,205.75,0,0,0-42.52-6.41c-28.68-1.54-57.39,1.61-85.8,5.26-53.76,6.89-113.79,24.75-164.11-5-10.78-6.36-20.9-17-17.64-30.39,43,27,103.22-7.09,102.18-57.82-6.47,20.77-34.88,33.71-55.63,33.27-45.27-5.5,12.11-89.34,17.69-110.41,22.4-87.49-105.37-127.51-172.28-132.46-75.29-7.35-129.66,82.55-203.29,50.24,7.14,83.08,331.24,144.12,315.93,44.56-13.08,18-48.38,11.12-66.66,4.21-10.43-5.76-17.73-19.27-26.22-27.77-50.45-74.19,140.12-7,122.86,49-5.62,18.21-7.35,33.74-17.6,50.89-10.56,17.66-23.67,33.64-34.63,51-24,38.06-25.37,77.76,14.1,107.14,15.38,11.44,35.14,15.05,54.23,16.77,55.8,5,108.06-15.13,164-18.34,26-1.49,52.23-2.46,77.83,2.17,38.83,7,61.15,25.72,84,55.93-2.75-54.27-5.56-108.93-18.88-161.6a267.35,267.35,0,0,0-30.42-79.35s0-.08-.07-.13c.44-1.67,1-3.31,1.38-5l192.29,25.82,27.47-26.26L724.72,656.6a233.2,233.2,0,0,0,3-29.86ZM207.38,633a311.71,311.71,0,0,1-53-16.09c19-8.75,38.2-21,57.29-30.81C210.19,598.83,208.44,615.7,207.38,633Z" />
-            </svg>
+            <div className="relative w-full h-full drop-shadow-[0_1px_0_rgba(255,255,255,0.15)] drop-shadow-[0_0_8px_rgba(191,219,254,0.10)]">
+              <svg id="Design" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" className="w-full h-full fill-white" preserveAspectRatio="xMidYMid meet">
+                <path d="M156,730.55a14.49,14.49,0,0,0,6.12-4.75,13.69,13.69,0,0,0,2.56-6.55,14.34,14.34,0,0,0-.92-6.94l.53-.24a14.79,14.79,0,0,0,7.34,5.61,12.19,12.19,0,0,0,9.09-.58,13.48,13.48,0,0,0,8-9.16q1.76-6.42-2.32-15.68l-10.09-22.9-54.93,24.18,10.85,24.65a26.49,26.49,0,0,0,6.56,9.47,16.56,16.56,0,0,0,8.34,4.11A15.6,15.6,0,0,0,156,730.55Zm15.6-43.28,3.32,7.57a8.89,8.89,0,0,1,.74,6,5.78,5.78,0,0,1-3.47,3.87,5.87,5.87,0,0,1-5.43-.11,9.33,9.33,0,0,1-4-4.66l-3.24-7.35Zm-30.08,23-3.61-8.21L151,696.34l3.72,8.45a9.83,9.83,0,0,1,.77,6.82,6.87,6.87,0,0,1-4.06,4.4,6,6,0,0,1-5.47,0Q143.46,714.63,141.55,710.31Z" />
+                <polygon points="174.59 747.51 187.76 768.99 197.83 762.82 184.65 741.34 195.14 734.9 209.44 758.21 219.49 752.05 197.6 716.37 146.44 747.76 168.32 783.43 178.37 777.27 164.07 753.96 174.59 747.51" />
+                <polygon points="244.62 802.1 253.72 794.62 221.51 755.43 212.41 762.91 223.98 776.99 186.72 807.62 195.8 818.67 233.06 788.04 244.62 802.1" />
+                <polygon points="284.54 838.75 292.47 830.04 254.94 795.9 247.01 804.62 260.5 816.88 228.04 852.57 238.62 862.19 271.08 826.51 284.54 838.75" />
+                <polygon points="308.28 884.26 314.94 874.51 294.13 860.3 301.07 850.13 323.65 865.55 330.3 855.82 295.73 832.22 261.89 881.79 296.45 905.39 303.09 895.66 280.51 880.24 287.47 870.05 308.28 884.26" />
+                <path d="M366.82,877.36a26,26,0,0,0-9.33-7.38L335.3,858.9l-26.81,53.7,13,6.48,9.17-18.38,6.67,3.32.62,23.28,14.16,7.07-.93-26a16.93,16.93,0,0,0,9.81-2.47,19.57,19.57,0,0,0,7.17-8.24,20.43,20.43,0,0,0,2.37-10.72A17.81,17.81,0,0,0,366.82,877.36Zm-12.13,13.56q-1.86,3.72-5,4.33t-7.53-1.58l-6.4-3.2,7.31-14.63,6.4,3.2Q358.4,883.5,354.69,890.92Z" />
+                <path d="M419,895.85a31.1,31.1,0,0,0-26.07-7.39,26.45,26.45,0,0,0-13.1,6.84Q374.05,900.69,371,910a34.64,34.64,0,0,0-1.6,16.7A25.93,25.93,0,0,0,375.78,940,32.27,32.27,0,0,0,403,949.5,22.7,22.7,0,0,0,414.62,944a26.71,26.71,0,0,0,7.5-12.09l2.45-7.55-24.61-8-3.27,10.06L408,930.11a9.86,9.86,0,0,1-5.48,6.15q-3.9,1.68-9.51-.14-6.4-2.08-8.47-7.78t.6-13.91q2.66-8.17,7.75-11.47a12.6,12.6,0,0,1,11.31-1.29,12.23,12.23,0,0,1,6.25,4.15,9.79,9.79,0,0,1,1.88,6.59l14,4.54a21.36,21.36,0,0,0-.79-11.4A24.14,24.14,0,0,0,419,895.85Z" />
+                <path d="M479.26,908.64a31.43,31.43,0,0,0-28.82-4.3,25.88,25.88,0,0,0-11.7,8.81q-4.74,6.24-6.22,16.07t1.27,17.14a25.87,25.87,0,0,0,8.61,11.88,31.4,31.4,0,0,0,28.81,4.31,26,26,0,0,0,11.73-8.83q4.79-6.24,6.25-16t-1.29-17.19A26,26,0,0,0,479.26,908.64Zm-4.74,26.85q-1.31,8.73-5.61,12.77a13.43,13.43,0,0,1-20.1-3q-3-5.14-1.65-13.87t5.63-12.77a13.43,13.43,0,0,1,20.1,3Q475.83,926.76,474.52,935.49Z" />
+                <polygon points="524.26 951.64 523.77 951.65 509.75 907.87 493.52 908.09 514.58 967.83 533.89 967.57 553.33 907.28 537.09 907.5 524.26 951.64" />
+                <path d="M568,952.68a7.61,7.61,0,0,0-10.65,1.15,7.06,7.06,0,0,0-1.62,5.54,7.19,7.19,0,0,0,2.77,5.12,7.67,7.67,0,0,0,12.37-6.76A7.19,7.19,0,0,0,568,952.68Z" />
+                <path d="M617.43,904.94a18.65,18.65,0,0,0-8.93-5.56,24.32,24.32,0,0,0-11.94-.14l-24.25,5.16,12.5,58.7,14.18-3-3.88-18.23,9.64-2.05a25.87,25.87,0,0,0,11.09-5,18.48,18.48,0,0,0,6-8.65A21.12,21.12,0,0,0,622.3,915,21.53,21.53,0,0,0,617.43,904.94Zm-10.94,20.25c-1.32,2-3.57,3.32-6.76,4l-7,1.48-3.8-17.85,7-1.49c3.2-.68,5.79-.4,7.8.84a8.76,8.76,0,0,1,3.87,6A9,9,0,0,1,606.49,925.19Z" />
+                <polygon points="657.28 880.42 665.72 902.99 643.56 911.27 635.13 888.71 621.54 893.79 642.56 950.01 656.15 944.92 647.7 922.33 669.85 914.05 678.3 936.64 691.86 931.57 670.84 875.35 657.28 880.42" />
+                <path d="M970.43,644.2l28-26.82-28-26.8L727.76,608.05a233.2,233.2,0,0,0-3-29.86L941.2,562.61l-27.47-26.27L721.44,562.17a232.84,232.84,0,0,0-27.8-67.08L847.88,377.37l.84-38-164.05,142a240,240,0,0,0-18.95-23.25L849.63,298.92l.86-38.77-38.77.87L652.5,444.93a238.54,238.54,0,0,0-23.27-19l142-164-38,.84L615.55,417a233.55,233.55,0,0,0-67.07-27.82L574.3,196.91,548,169.45,532.43,385.92a234.14,234.14,0,0,0-29.84-3.05l17.47-242.66-26.82-28-26.8,28,17.47,242.66a235,235,0,0,0-29.86,3.05L438.47,169.45,412.2,196.91,438,389.18A233.44,233.44,0,0,0,371,417L253.22,262.77l-38-.84L357.25,426c-3,2.1-5.86,4.3-8.72,6.55-7.77.46-15.58,1.19-23.42,2.14L174.78,261,136,260.15l.86,38.77L298.08,438.49h0c-12.79,2-25.6,4.25-38.44,6.38h0L137.76,339.37l.87,38,93.93,71.69c-52.71,7.38-104.51,8.36-151-22.12,53.17,68.09,127.1,51,201.31,38.06,12.3-2.15,24.63-4.19,36.86-5.7,33.27-4.08,65.93-4.3,96,7.58,17,6.69,31.3,24.71,39.35,40.39,6.75,13.13,17.66,40.3,7.33,53.85a8.5,8.5,0,0,1-3.2,2.73c-3.68,1.61-7.75-.88-11.06-3.14-34.08-23.22-71.71-29.51-112.07-28.28,20.9,5.69,42,9.67,61.35,19.89a186.34,186.34,0,0,1,30.73,20.3c8.46,6.89,15.49,16.44,25,21.48,23.7,12.54,47.75,9.93,73.3,6.6,153.57-16,201.58,126,213.75,251.43-.55-5.69-32.23-14-37.31-15.34a205.75,205.75,0,0,0-42.52-6.41c-28.68-1.54-57.39,1.61-85.8,5.26-53.76,6.89-113.79,24.75-164.11-5-10.78-6.36-20.9-17-17.64-30.39,43,27,103.22-7.09,102.18-57.82-6.47,20.77-34.88,33.71-55.63,33.27-45.27-5.5,12.11-89.34,17.69-110.41,22.4-87.49-105.37-127.51-172.28-132.46-75.29-7.35-129.66,82.55-203.29,50.24,7.14,83.08,331.24,144.12,315.93,44.56-13.08,18-48.38,11.12-66.66,4.21-10.43-5.76-17.73-19.27-26.22-27.77-50.45-74.19,140.12-7,122.86,49-5.62,18.21-7.35,33.74-17.6,50.89-10.56,17.66-23.67,33.64-34.63,51-24,38.06-25.37,77.76,14.1,107.14,15.38,11.44,35.14,15.05,54.23,16.77,55.8,5,108.06-15.13,164-18.34,26-1.49,52.23-2.46,77.83,2.17,38.83,7,61.15,25.72,84,55.93-2.75-54.27-5.56-108.93-18.88-161.6a267.35,267.35,0,0,0-30.42-79.35s0-.08-.07-.13c.44-1.67,1-3.31,1.38-5l192.29,25.82,27.47-26.26L724.72,656.6a233.2,233.2,0,0,0,3-29.86ZM207.38,633a311.71,311.71,0,0,1-53-16.09c19-8.75,38.2-21,57.29-30.81C210.19,598.83,208.44,615.7,207.38,633Z" />
+              </svg>
+            </div>
           </div>
 
           <div className="text-center">
@@ -272,54 +281,80 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
           </div>
         </div>
 
-        {/* Decorative Divider */}
-        <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-blue-300/30 to-transparent my-2 relative z-10" style={{ transform: reduceMotion ? undefined : 'translateZ(5px)' }} />
+        <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-blue-200/20 via-blue-300/28 to-transparent my-2 relative z-10" style={{ transform: reduceMotion ? undefined : 'translateZ(5px)' }} />
 
-        {/* Identity Details */}
-        <div className="relative z-10 flex flex-col items-center w-full text-center px-4" style={{ transform: reduceMotion ? undefined : 'translateZ(15px)' }}>
-          <div className="px-3 py-1 bg-blue-400/10 border border-blue-400/20 rounded-full text-blue-200 text-[8px] font-bold tracking-[0.2em] uppercase mb-2 backdrop-blur-sm shadow-sm">
+        <div className="relative z-10 flex flex-col items-center w-full text-center px-2" style={{ transform: reduceMotion ? undefined : 'translateZ(15px)' }}>
+          <div className="px-3 py-1 bg-blue-400/10 border border-blue-400/20 rounded-[4px] text-blue-200 text-[8px] font-bold tracking-[0.2em] uppercase mb-1 backdrop-blur-sm shadow-sm">
             VOLUNTEERS COMMUNITY CARD
           </div>
 
-          <div className="h-[64px] flex items-center justify-center w-full">
-            <h1
-              className="text-white font-bold tracking-tight uppercase leading-none text-center w-full px-2"
-              style={{
-                fontSize: '20px',
-                lineHeight: '1.1'
-              }}
-            >
-              {user.fullName}
-            </h1>
+          <div
+            className="min-h-[56px] max-h-[80px] w-full overflow-hidden"
+            style={{ containerType: 'inline-size', contain: 'inline-size layout style' }}
+          >
+            <div className="h-full w-full flex items-center justify-center px-1">
+              <h1
+                className="text-white font-bold tracking-tight uppercase text-center leading-[1.03]"
+                style={{
+                  wordBreak: 'break-word',
+                  textWrap: 'balance'
+                }}
+              >
+                {nameText}
+              </h1>
+            </div>
+            <style>{`
+              @container (min-width: 0px) {
+                h1 {
+                  font-size: clamp(14px, 8.8cqi, 30px);
+                  line-height: 1.03;
+                  white-space: nowrap;
+                }
+              }
+              @container (max-width: 240px) {
+                h1 {
+                  white-space: normal;
+                  font-size: clamp(12.5px, 5.4cqi, 15.5px);
+                  line-height: 1.02;
+                }
+              }
+            `}</style>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mt-0.5">
             <div className="h-[1px] w-6 bg-blue-400/20" />
-            <p className="text-blue-100/90 text-[10px] font-mono tracking-[0.2em] uppercase bg-blue-900/30 px-2 py-0.5 rounded border border-white/5">
+            <p className="text-blue-100/90 text-[10px] font-mono tracking-[0.2em] uppercase bg-blue-900/30 px-2 py-0.5 rounded-[4px] border border-white/5">
               ID: {user.memberId || 'PENDING'}
             </p>
             <div className="h-[1px] w-6 bg-blue-400/20" />
           </div>
         </div>
 
-        {/* Data Grid / Information Box */}
-        <div className="relative z-10 w-full mt-auto mb-2 bg-blue-900/40 backdrop-blur-md rounded-[6px] p-3 border border-blue-400/10 shadow-inner" style={{ transform: reduceMotion ? undefined : 'translateZ(10px)' }}>
-          <div className="flex flex-col space-y-2">
-            <div className="flex justify-between items-center border-b border-blue-400/10 pb-1.5">
-              <span className="text-blue-200/80 text-[9px] font-mono tracking-widest uppercase">Specialization</span>
+        <div
+          className="relative z-10 w-full mt-auto mb-2 rounded-[6px] p-2 border shadow-inner"
+          style={{
+            transform: reduceMotion ? undefined : 'translateZ(10px)',
+            background: 'linear-gradient(180deg, rgba(30,58,138,0.22) 0%, rgba(30,58,138,0.12) 100%)',
+            backdropFilter: 'blur(10px) saturate(140%)',
+            borderColor: 'rgba(147,197,253,0.09)',
+            boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.04)'
+          }}
+        >
+          <div className="flex flex-col space-y-1.5">
+            <div className="flex justify-between items-center border-b border-blue-400/10 pb-1">
+              <span className="text-blue-100/95 text-[9px] font-mono tracking-widest uppercase">Specialization</span>
               <span className="text-white text-[11px] font-sans font-bold text-right">{user.specialization}</span>
             </div>
-            <div className="flex justify-between items-center border-b border-blue-400/10 pb-1.5">
-              <span className="text-blue-200/80 text-[9px] font-mono tracking-widest uppercase">Role / Position</span>
+            <div className="flex justify-between items-center border-b border-blue-400/10 pb-1">
+              <span className="text-blue-100/95 text-[9px] font-mono tracking-widest uppercase">Role / Position</span>
               <span className="text-white text-[11px] font-sans font-bold text-right">{user.role}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-blue-200/80 text-[9px] font-mono tracking-widest uppercase">Member Since</span>
+              <span className="text-blue-100/95 text-[9px] font-mono tracking-widest uppercase">Member Since</span>
               <span className="text-white text-[11px] font-sans font-bold text-right">{user.yearJoined || '-'}</span>
             </div>
           </div>
         </div>
 
-        {/* Footer / QR Code */}
         <div className="relative z-10 mt-auto flex flex-col items-center w-full" style={{ transform: reduceMotion ? undefined : 'translateZ(20px)' }}>
           <div className="mb-1">
             <QRCodeSVG

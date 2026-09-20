@@ -55,7 +55,7 @@ const Privacy: React.FC = () => {
     <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-900">
       <Navbar />
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-14 sm:pt-32 sm:pb-20">
+      <main className="max-w-5xl mx-auto px-3 sm:px-6 pt-28 pb-14 sm:pt-32 sm:pb-20">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}

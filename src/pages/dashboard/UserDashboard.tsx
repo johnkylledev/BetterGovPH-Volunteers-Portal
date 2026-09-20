@@ -479,35 +479,39 @@ export default function UserDashboard() {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 pb-12 sm:pb-0">
         {/* Navbar */}
         <nav className="bg-white/80 backdrop-blur-xl border-b border-slate-200/60 sticky top-0 z-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between h-16 sm:h-20">
-              <div className="flex items-center space-x-2 sm:space-x-3">
-                <img src="/logo.svg" onError={(e) => { const t = e.currentTarget; t.onerror = null; t.src = 'https://assets.bettergov.ph/logos/webp/icon-primary.webp'; }} alt="BetterGovPH Logo" className="w-7 h-7 sm:w-8 sm:h-8 object-contain brightness-0" />
-                <span className="text-lg sm:text-xl font-display font-bold text-slate-900 truncate">BetterGovPH Volunteers</span>
+          <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-14 sm:h-16 lg:h-20 gap-2 sm:gap-3">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                <img src="/logo.svg" onError={(e) => { const t = e.currentTarget; t.onerror = null; t.src = 'https://assets.bettergov.ph/logos/webp/icon-primary.webp'; }} alt="BetterGovPH Logo" className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 object-contain brightness-0 flex-shrink-0" />
+                <div className="flex flex-col leading-none min-w-0 hidden sm:flex">
+                  <span className="font-display font-bold text-slate-900 text-base lg:text-xl truncate">BetterGovPH</span>
+                  <span className="text-[9px] lg:text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 mt-0.5">Volunteers</span>
+                </div>
+                <span className="sm:hidden font-display font-bold text-slate-900 text-sm truncate min-w-0">BetterGovPH</span>
               </div>
-              <div className="flex items-center space-x-2 sm:space-x-4">
-                <div className="h-6 w-[1px] bg-slate-200" />
-                <div className="flex flex-col items-end">
-                  <span className="text-xs sm:text-sm font-semibold text-slate-900 leading-none truncate max-w-[100px] sm:max-w-none">
+              <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 flex-shrink-0">
+                <div className="hidden sm:block h-6 w-[1px] bg-slate-200" />
+                <div className="flex flex-col items-end min-w-0">
+                  <span className="text-xs sm:text-sm font-semibold text-slate-900 leading-none truncate max-w-[80px] sm:max-w-[120px] lg:max-w-none">
                     {currentUser.fullName.split(' ')[0]}
                   </span>
-                  <span className="text-[9px] sm:text-[10px] font-medium text-slate-400 uppercase tracking-wider mt-1">{currentUser.role}</span>
+                  <span className="hidden sm:block text-[9px] lg:text-[10px] font-medium text-slate-400 uppercase tracking-wider mt-1 whitespace-nowrap">{currentUser.role}</span>
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-[6px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                  className="p-2 sm:p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-[6px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.98]"
                   title="Logout"
                 >
-                  <LogOut className="w-5 h-5" />
+                  <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </div>
             </div>
           </div>
         </nav>
 
-        <div className="bg-white/80 backdrop-blur-xl border-b border-slate-200/60 sticky top-[64px] sm:top-[80px] z-40 overflow-x-auto no-scrollbar">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-w-max sm:min-w-0">
-            <div className="flex space-x-4 sm:space-x-8">
+        <div className="bg-white/80 backdrop-blur-xl border-b border-slate-200/60 sticky top-[56px] sm:top-[64px] lg:top-[80px] z-40 overflow-x-auto no-scrollbar">
+          <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 min-w-max sm:min-w-0">
+            <div className="flex space-x-6 sm:space-x-8">
               <button
                 onClick={() => setActiveTab('dashboard')}
                 className={clsx(
@@ -744,19 +748,19 @@ export default function UserDashboard() {
                   <div className="space-y-6">
                     <div>
                       <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-4">Core Skills</p>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {currentUser.skills && currentUser.skills.length > 0 ? (
                           currentUser.skills.map((skill, index) => (
                             <div
                               key={index}
-                              className="flex items-center gap-1.5 pl-1.5 pr-3 py-1 bg-white border border-slate-100/80 rounded-[6px] shadow-sm group"
+                              className="flex items-center gap-1.5 pl-1.5 pr-3 py-1.5 bg-white border border-slate-100/80 rounded-[6px] shadow-sm group min-w-0"
                             >
                               <div className="w-6 h-6 rounded-[6px] bg-slate-50/80 flex items-center justify-center flex-shrink-0 border border-slate-100/60">
                                 <SkillIcon skillName={skill.name} size={12} />
                               </div>
-                              <span className="text-xs font-semibold text-slate-800">{skill.name}</span>
+                              <span className="text-xs font-semibold text-slate-800 truncate min-w-0">{skill.name}</span>
                               <span className={clsx(
-                                "text-[9px] font-semibold uppercase tracking-widest",
+                                "text-[9px] font-semibold uppercase tracking-widest ml-auto flex-shrink-0",
                                 skill.level === 'Expert' ? "text-blue-900" :
                                   skill.level === 'Practitioner' ? "text-blue-700" : "text-slate-400"
                               )}>
@@ -765,7 +769,7 @@ export default function UserDashboard() {
                             </div>
                           ))
                         ) : (
-                          <p className="text-sm text-slate-500 italic">No skills listed</p>
+                          <p className="text-sm text-slate-500 italic sm:col-span-2">No skills listed</p>
                         )}
                       </div>
                     </div>
@@ -1171,7 +1175,7 @@ export default function UserDashboard() {
                       <button
                         onClick={() => setVolunteerFilter('all')}
                         className={clsx(
-                          'px-4 py-2 text-xs font-semibold rounded-full transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out',
+                          'px-4 py-2 text-xs font-semibold rounded-[6px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out',
                           volunteerFilter === 'all'
                             ? 'bg-blue-900 text-white shadow-sm'
                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -1182,7 +1186,7 @@ export default function UserDashboard() {
                       <button
                         onClick={() => setVolunteerFilter('mine')}
                         className={clsx(
-                          'px-4 py-2 text-xs font-semibold rounded-full transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out',
+                          'px-4 py-2 text-xs font-semibold rounded-[6px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out',
                           volunteerFilter === 'mine'
                             ? 'bg-blue-900 text-white shadow-sm'
                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200'

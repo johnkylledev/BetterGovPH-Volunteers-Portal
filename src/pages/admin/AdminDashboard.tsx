@@ -370,7 +370,7 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-white font-sans">
       <nav className="bg-white border-b border-slate-200 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-5 lg:px-6">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6">
           <div className="flex justify-between h-14 sm:h-16">
             <div className="flex items-center gap-2.5 sm:gap-3">
               <img
@@ -410,7 +410,7 @@ export default function AdminDashboard() {
       </nav>
 
       <div className="bg-white border-b border-slate-200 sticky top-[56px] sm:top-[64px] z-20 overflow-x-auto no-scrollbar">
-        <div className="max-w-7xl mx-auto px-4 sm:px-5 lg:px-6 min-w-max sm:min-w-0">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 min-w-max sm:min-w-0">
           <div className="flex gap-6 sm:gap-8">
             <button
               onClick={() => setActiveTab('applications')}
@@ -424,7 +424,7 @@ export default function AdminDashboard() {
               <div className="flex items-center gap-2">
                 <span>Applications</span>
                 <span className={clsx(
-                  "px-2 py-0.5 text-[10px] rounded-full font-bold",
+                  "px-2 py-0.5 text-[10px] rounded-[4px] font-bold",
                   activeTab === 'applications' ? "bg-blue-900 text-white" : "bg-slate-100 text-slate-500"
                 )}>
                   {stats.pending}
@@ -443,7 +443,7 @@ export default function AdminDashboard() {
               <div className="flex items-center gap-2">
                 <span>Members</span>
                 <span className={clsx(
-                  "px-2 py-0.5 text-[10px] rounded-full font-bold",
+                  "px-2 py-0.5 text-[10px] rounded-[4px] font-bold",
                   activeTab === 'members' ? "bg-blue-900 text-white" : "bg-slate-100 text-slate-500"
                 )}>
                   {stats.approved}
@@ -462,7 +462,7 @@ export default function AdminDashboard() {
               <div className="flex items-center gap-2">
                 <span>Projects</span>
                 <span className={clsx(
-                  "px-2 py-0.5 text-[10px] rounded-full font-bold",
+                  "px-2 py-0.5 text-[10px] rounded-[4px] font-bold",
                   activeTab === 'projects' ? "bg-blue-900 text-white" : "bg-slate-100 text-slate-500"
                 )}>
                   {projectSubmissionsTotal}
@@ -473,7 +473,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-5 lg:px-6 py-5 sm:py-7 lg:py-8 flex flex-col gap-5 sm:gap-6">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 py-5 sm:py-7 lg:py-8 flex flex-col gap-5 sm:gap-6">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <div className="bg-white border border-slate-200 rounded-[6px] p-4 sm:p-5 flex items-center gap-3 sm:gap-4 shadow-[0_2px_8px_-4px_rgba(15,23,42,0.08)] [@media(hover:hover){&:hover}]:shadow-[0_8px_24px_-12px_rgba(15,23,42,0.15)] transition-[box-shadow] duration-200 ease-out">
             <div className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-[6px] bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-900">

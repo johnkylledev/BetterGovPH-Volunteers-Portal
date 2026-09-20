@@ -74,18 +74,19 @@ export const Navbar: React.FC = () => {
 
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-[backdrop-filter,box-shadow,background-color] duration-200 ease-out ${isScrolled ? 'bg-white/95 backdrop-blur-md shadow-lg shadow-black/5' : 'bg-white'}`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="flex justify-between h-16 items-center">
-          <Link to="/" className="flex items-center gap-2 group">
-            <img src="/logo.svg" onError={(e) => { const t = e.currentTarget; t.onerror = null; t.src = 'https://assets.bettergov.ph/logos/webp/icon-primary.webp'; }} alt="BetterGovPH" className="h-7 w-auto" />
-            <div className="flex flex-col leading-none">
-              <span className="font-display font-bold text-base tracking-tight text-blue-900">BetterGovPH</span>
-              <span className="font-display font-bold text-[9px] uppercase tracking-[0.2em] text-blue-900/60 leading-tight">Volunteers Community</span>
+      <div className="max-w-7xl mx-auto px-3 sm:px-6">
+        <div className="flex justify-between h-14 sm:h-16 items-center gap-2">
+          <Link to="/" className="flex items-center gap-2 sm:gap-2.5 group min-w-0 flex-1">
+            <img src="/logo.svg" onError={(e) => { const t = e.currentTarget; t.onerror = null; t.src = 'https://assets.bettergov.ph/logos/webp/icon-primary.webp'; }} alt="BetterGovPH" className="h-6 w-6 sm:h-7 sm:w-auto flex-shrink-0 object-contain" />
+            <div className="flex flex-col leading-none min-w-0 hidden sm:flex">
+              <span className="font-display font-bold text-base tracking-tight text-blue-900 truncate">BetterGovPH</span>
+              <span className="font-display font-bold text-[9px] uppercase tracking-[0.2em] text-blue-900/60 leading-tight whitespace-nowrap">Volunteers</span>
             </div>
+            <span className="sm:hidden font-display font-bold text-sm tracking-tight text-blue-900 truncate min-w-0">BetterGovPH</span>
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-6">
+          <div className="hidden md:flex items-center gap-4 lg:gap-6 flex-shrink-0">
             {navLinks.map((link) => {
               const isActive = location.pathname === link.path || (link.path === '/#open-roles' && location.pathname === '/' && location.hash === '#open-roles');
               if (link.isExternal) {
@@ -95,7 +96,7 @@ export const Navbar: React.FC = () => {
                     href={link.path}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm font-semibold text-slate-600 hover:text-blue-900 transition-[color,opacity] duration-200 ease-out relative group flex items-center gap-1"
+                    className="text-xs lg:text-sm font-semibold text-slate-600 hover:text-blue-900 transition-[color,opacity] duration-200 ease-out relative group flex items-center gap-1"
                   >
                     {link.label}
                     <ExternalLink size={14} className="opacity-60 group-hover:opacity-100 transition-opacity duration-200 ease-out" />
@@ -108,7 +109,7 @@ export const Navbar: React.FC = () => {
                   key={link.label}
                   to={link.path}
                   onClick={link.onClick}
-                  className={`text-sm font-semibold transition-[color] duration-200 ease-out relative group ${isActive ? 'text-blue-900' : 'text-slate-600 hover:text-blue-900'}`}
+                  className={`text-xs lg:text-sm font-semibold transition-[color] duration-200 ease-out relative group ${isActive ? 'text-blue-900' : 'text-slate-600 hover:text-blue-900'}`}
                 >
                   {link.label}
                   <span className={`absolute -bottom-1 left-0 h-0.5 bg-blue-900 transition-[width] duration-200 ease-out ${isActive ? 'w-full' : 'w-0 group-hover:w-full'}`} />
@@ -120,7 +121,7 @@ export const Navbar: React.FC = () => {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.97 }}
               onClick={handleCtaClick}
-              className="text-sm font-bold px-5 py-2 rounded-[6px] border-2 border-blue-900 text-blue-900 hover:bg-blue-900 hover:text-white transition-[color,transform,box-shadow,background-color,border-color] duration-200 ease-out shadow-sm"
+              className="text-xs md:text-sm font-bold px-4 md:px-5 py-1.5 md:py-2 rounded-[6px] border-2 border-blue-900 text-blue-900 hover:bg-blue-900 hover:text-white transition-[color,transform,box-shadow,background-color,border-color] duration-200 ease-out shadow-sm active:scale-[0.98]"
             >
               {getCtaLabel()}
             </motion.button>
