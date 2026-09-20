@@ -315,15 +315,98 @@ export default function UserDashboard() {
     }
   }
   const heatmapScrollerRef = useRef<HTMLDivElement | null>(null);
+  const heatmapDragState = useRef<{
+    down: boolean; moved: boolean; startX: number; startY: number; scrollStart: number;
+  }>({ down: false, moved: false, startX: 0, startY: 0, scrollStart: 0 });
+  const [heatmapScrollEdge, setHeatmapScrollEdge] = useState<{ l: boolean; r: boolean }>({ l: false, r: false });
   useEffect(() => {
     const el = heatmapScrollerRef.current;
     if (!el) return;
-    const raf = window.requestAnimationFrame(() => {
-      try {
-        el.scrollLeft = Math.max(0, (el.scrollWidth ?? 0) - (el.clientWidth ?? 0));
-      } catch {}
-    });
-    return () => window.cancelAnimationFrame(raf);
+
+    const edge = () => {
+      const maxLeft = el.scrollWidth - el.clientWidth;
+      setHeatmapScrollEdge({ l: el.scrollLeft > 4, r: el.scrollLeft < maxLeft - 4 });
+    };
+
+    let settledAt = 0;
+    let rafA = 0;
+    let rafB = 0;
+    const toEnd = () => {
+      cancelAnimationFrame(rafA);
+      cancelAnimationFrame(rafB);
+      rafA = requestAnimationFrame(() => {
+        rafB = requestAnimationFrame(() => {
+          try {
+            const maxLeft = el.scrollWidth - el.clientWidth;
+            if (maxLeft <= 0) {
+              settledAt++;
+              if (settledAt < 8) setTimeout(toEnd, 40);
+              else edge();
+              return;
+            }
+            el.scrollTo({ left: maxLeft, behavior: 'auto' });
+            edge();
+          } catch {}
+        });
+      });
+    };
+
+    toEnd();
+
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => {
+        settledAt = 0;
+        toEnd();
+      });
+      ro.observe(el);
+      const inner = el.firstElementChild as Element | null;
+      if (inner) ro.observe(inner);
+    }
+
+    el.addEventListener('scroll', edge, { passive: true });
+
+    const onDown = (e: PointerEvent) => {
+      if (e.button !== 0) return;
+      const st = heatmapDragState.current;
+      st.down = true;
+      st.moved = false;
+      st.startX = e.clientX;
+      st.startY = e.clientY;
+      st.scrollStart = el.scrollLeft;
+      try { el.setPointerCapture(e.pointerId); } catch {}
+    };
+    const onMove = (e: PointerEvent) => {
+      const st = heatmapDragState.current;
+      if (!st.down) return;
+      const dx = e.clientX - st.startX;
+      const dy = e.clientY - st.startY;
+      if (st.moved || Math.abs(dx) > 4 || (Math.abs(dx) > Math.abs(dy))) {
+        if (!st.moved) st.moved = true;
+        e.preventDefault();
+        el.scrollLeft = st.scrollStart - dx;
+      }
+    };
+    const onUp = (e: PointerEvent) => {
+      const st = heatmapDragState.current;
+      st.down = false;
+      try { el.releasePointerCapture(e.pointerId); } catch {}
+    };
+    el.addEventListener('pointerdown', onDown);
+    el.addEventListener('pointermove', onMove);
+    el.addEventListener('pointerup', onUp);
+    el.addEventListener('pointercancel', onUp);
+
+    return () => {
+      cancelAnimationFrame(rafA);
+      cancelAnimationFrame(rafB);
+      if (ro) ro.disconnect();
+      el.removeEventListener('scroll', edge);
+      el.removeEventListener('pointerdown', onDown);
+      el.removeEventListener('pointermove', onMove);
+      el.removeEventListener('pointerup', onUp);
+      el.removeEventListener('pointercancel', onUp);
+    };
   }, []);
 
   const loadMySubmissions = async (showLoading = true) => {
@@ -617,8 +700,31 @@ export default function UserDashboard() {
                     </div>
                   </div>
 
-                  <div ref={heatmapScrollerRef} className="min-w-0 w-full overflow-x-auto no-scrollbar pr-1 pb-1" dir="ltr">
-                    <div className="inline-flex flex-col gap-2 pr-2" style={{ width: `calc(16px + ${WEEKS} * (11px + 3px) + 8px)` }}>
+                  <div className="relative">
+                    <div
+                      className={clsx(
+                        "pointer-events-none absolute inset-y-0 left-0 z-10 w-8 rounded-l-[6px] transition-opacity duration-200 ease-out",
+                        heatmapScrollEdge.l ? "opacity-100" : "opacity-0"
+                      )}
+                      style={{ background: 'linear-gradient(to right, #ffffff 0%, rgba(255,255,255,0.6) 45%, rgba(255,255,255,0) 100%)' }}
+                    />
+                    <div
+                      className={clsx(
+                        "pointer-events-none absolute inset-y-0 right-0 z-10 w-8 rounded-r-[6px] transition-opacity duration-200 ease-out",
+                        heatmapScrollEdge.r ? "opacity-100" : "opacity-0"
+                      )}
+                      style={{ background: 'linear-gradient(to left, #ffffff 0%, rgba(255,255,255,0.6) 45%, rgba(255,255,255,0) 100%)' }}
+                    />
+                    <div
+                      ref={heatmapScrollerRef}
+                      className={clsx(
+                        "min-w-0 w-full overflow-x-auto no-scrollbar pr-1 pb-1 select-none",
+                        "cursor-[grab] active:cursor-[grabbing]"
+                      )}
+                      dir="ltr"
+                      style={{ touchAction: 'pan-y pinch-zoom' }}
+                    >
+                      <div className="inline-flex flex-col gap-2 pr-2" style={{ width: `calc(16px + ${WEEKS} * (11px + 3px) + 8px)` }}>
                       <div className="flex gap-[3px] pl-4 pr-2">
                         {Array.from({ length: WEEKS }, (_, w) => {
                           const ml = monthLabels.find(m => m.i === w);
@@ -670,6 +776,7 @@ export default function UserDashboard() {
                       </div>
                     </div>
                   </div>
+                </div>
 
                   <div className="flex items-center justify-end gap-2 mt-3 pl-4 pr-1 text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                     <span className="whitespace-nowrap flex-shrink-0">Less</span>
