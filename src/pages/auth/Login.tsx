@@ -23,7 +23,7 @@ export default function Login() {
       </div>
 
       <div className="relative z-10 flex-1 flex flex-col">
-        <div className="w-full flex items-center justify-between px-4 sm:px-5 lg:px-6 py-4 sm:py-5 max-w-7xl mx-auto">
+        <div className="w-full flex items-center justify-between px-3 sm:px-6 py-4 sm:py-5 max-w-7xl mx-auto">
           <Link
             to="/"
             className="flex items-center gap-2 text-slate-500 hover:text-blue-900 transition-colors text-xs sm:text-sm font-semibold group"
@@ -44,7 +44,7 @@ export default function Login() {
           </Link>
         </div>
 
-        <div className="flex-1 flex items-center w-full px-4 sm:px-5 lg:px-6 py-8 sm:py-10 max-w-7xl mx-auto">
+        <div className="flex-1 flex items-center w-full px-3 sm:px-6 py-8 sm:py-10 max-w-7xl mx-auto">
           <div className="w-full grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
             <motion.div
               initial={{ opacity: 0, y: 16 }}
@@ -236,7 +236,7 @@ export default function Login() {
           </div>
         </div>
 
-        <div className="w-full px-4 sm:px-5 lg:px-6 py-4 sm:py-5 max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] sm:text-xs text-slate-400 font-semibold">
+        <div className="w-full px-3 sm:px-6 py-4 sm:py-5 max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] sm:text-xs text-slate-400 font-semibold">
           <span>© {new Date().getFullYear()} BetterGovPH. Open source, civic-first.</span>
           <div className="flex items-center gap-4 sm:gap-6">
             <Link to="/privacy" className="hover:text-slate-600 transition-colors">Privacy</Link>

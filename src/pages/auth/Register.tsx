@@ -286,7 +286,7 @@ function LegacyRegister() {
                 </div>
 
                 <div className="relative z-10 flex-1 flex flex-col">
-                    <div className="w-full flex items-center justify-between px-4 sm:px-5 lg:px-6 py-4 sm:py-5 max-w-7xl mx-auto">
+                    <div className="w-full flex items-center justify-between px-3 sm:px-6 py-4 sm:py-5 max-w-7xl mx-auto">
                         <Link
                             to="/"
                             className="flex items-center gap-2 text-slate-500 hover:text-blue-900 transition-colors text-xs sm:text-sm font-semibold group"
@@ -307,7 +307,7 @@ function LegacyRegister() {
                         </Link>
                     </div>
 
-                    <div className="flex-1 flex items-center w-full px-4 sm:px-5 lg:px-6 py-8 sm:py-10 max-w-7xl mx-auto">
+                    <div className="flex-1 flex items-center w-full px-3 sm:px-6 py-8 sm:py-10 max-w-7xl mx-auto">
                         <div className="w-full grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
                             <motion.div
                                 initial={{ opacity: 0, y: 16 }}
@@ -757,7 +757,7 @@ function LegacyRegister() {
 
     return (
         <div className="min-h-screen bg-white flex flex-col font-sans selection:bg-blue-900/15 relative">
-            <div className="w-full flex items-center justify-between px-4 sm:px-5 lg:px-6 py-4 sm:py-5 max-w-7xl mx-auto">
+            <div className="w-full flex items-center justify-between px-3 sm:px-6 py-4 sm:py-5 max-w-7xl mx-auto">
                 <Link
                     to="/"
                     className="flex items-center gap-2 text-slate-500 hover:text-blue-900 transition-colors text-xs sm:text-sm font-semibold group"
@@ -773,7 +773,7 @@ function LegacyRegister() {
                 </div>
             </div>
 
-            <div className="flex-1 w-full px-4 sm:px-5 lg:px-6 py-4 sm:py-6 max-w-4xl mx-auto">
+            <div className="flex-1 w-full px-3 sm:px-6 py-4 sm:py-6 max-w-4xl mx-auto">
                 <motion.div
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -1280,7 +1280,7 @@ function LegacyRegister() {
                                                     <p className="text-[11px] text-slate-500 leading-tight">Tap to validate these skills</p>
                                                 </div>
 
-                                                <div className="grid grid-cols-1 gap-2.5">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                                                     {SPECIALIZATIONS.find(s => s.label === formData.specialization)?.suggestedSkills.map(skill => (
                                                         renderSkillItem(skill, 'recommended')
                                                     ))}
@@ -1354,7 +1354,7 @@ function LegacyRegister() {
                                                         animate={{ opacity: 1, transform: "translate3d(0px,0,0)" }}
                                                         exit={{ opacity: 0, transform: "translate3d(-10px,0,0)" }}
                                                         transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
-                                                        className="grid grid-cols-1 gap-2.5"
+                                                        className="grid grid-cols-1 sm:grid-cols-2 gap-2.5"
                                                     >
                                                         {SKILL_CATEGORIES[activeSkillCategory as keyof typeof SKILL_CATEGORIES]
                                                             .filter(skill => skill.toLowerCase().includes(skillSearch.toLowerCase()))

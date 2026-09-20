@@ -95,7 +95,7 @@ const Contribute: React.FC = () => {
 
       <section className="relative bg-white overflow-hidden">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(15,23,42,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.04)_1px,transparent_1px)] bg-[size:56px_56px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_40%,transparent_100%)] pointer-events-none" />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative pt-28 pb-16 sm:pt-32 sm:pb-22">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 relative pt-24 pb-14 sm:pt-32 sm:pb-20">
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
@@ -159,13 +159,13 @@ const Contribute: React.FC = () => {
         </div>
       </section>
 
-      <section className="py-12 sm:py-16 bg-slate-50 border-y border-slate-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="py-10 sm:py-16 bg-slate-50 border-y border-slate-100">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6">
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="max-w-2xl mb-8 sm:mb-10"
+            className="max-w-2xl mb-6 sm:mb-10"
           >
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-[6px] bg-white border border-slate-200 text-slate-700 text-xs font-semibold mb-4">
               <Users size={14} />
@@ -176,7 +176,7 @@ const Contribute: React.FC = () => {
             </h2>
           </motion.div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {roles.map((role, i) => (
               <motion.a
                 key={i}
@@ -231,9 +231,9 @@ const Contribute: React.FC = () => {
         </div>
       </section>
 
-      <section className="py-12 sm:py-18 lg:py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-[1fr_1.1fr] gap-6 lg:gap-10 items-start">
+      <section className="py-10 sm:py-16 lg:py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6">
+          <div className="grid lg:grid-cols-[1fr_1.1fr] gap-5 lg:gap-10 items-start">
             <motion.div
               initial={{ opacity: 0, x: -12 }}
               whileInView={{ opacity: 1, x: 0 }}
@@ -288,9 +288,9 @@ const Contribute: React.FC = () => {
         </div>
       </section>
 
-      <section className="relative py-16 sm:py-20 lg:py-24 bg-slate-900 text-white overflow-hidden">
+      <section className="relative py-14 sm:py-20 lg:py-24 bg-slate-900 text-white overflow-hidden">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:56px_56px] [mask-image:radial-gradient(ellipse_80%_60%_at_50%_50%,#000_40%,transparent_100%)]" />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -341,9 +341,9 @@ const Contribute: React.FC = () => {
         </div>
       </section>
 
-      <footer className="bg-slate-900 text-slate-300 py-10 sm:py-12 border-t border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-3 gap-8 sm:gap-10 mb-8 sm:mb-10">
+      <footer className="bg-slate-900 text-slate-300 py-8 sm:py-12 border-t border-slate-800">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6">
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8 mb-6 sm:mb-10">
             <div>
               <div className="flex items-center gap-2 mb-3 sm:mb-4">
                 <img src="/logo.svg" onError={(e)=>{const t=e.currentTarget;t.onerror=null;t.src='https://assets.bettergov.ph/logos/webp/icon-white.webp';}} alt="BetterGovPH" className="h-8 sm:h-9 w-auto" style={{ filter: 'brightness(0) saturate(100%) invert(100%) sepia(100%) saturate(0) hue-rotate(115deg) brightness(104%) contrast(100%)' }} />

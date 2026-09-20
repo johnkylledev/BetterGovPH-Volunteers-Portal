@@ -74,8 +74,8 @@ export default function Projects() {
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-900">
       <Navbar />
 
-      <main className="max-w-6xl mx-auto px-3 sm:px-5 lg:px-6 pt-20 pb-12 sm:pt-24 sm:pb-16">
-        <div className="flex flex-col gap-4 sm:gap-5 mb-6 sm:mb-8">
+      <main className="max-w-6xl mx-auto px-3 sm:px-6 pt-20 pb-10 sm:pt-24 sm:pb-14">
+        <div className="flex flex-col gap-3 sm:gap-5 mb-5 sm:mb-8">
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 sm:gap-4">
             <div className="max-w-2xl">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-[6px] bg-white border border-slate-200 mb-3.5 sm:mb-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
