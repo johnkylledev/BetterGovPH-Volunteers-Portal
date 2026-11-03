@@ -1,12 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
-import { ShieldCheck, XCircle, Copy, Code, Check, Search, Loader2, Home, ArrowRight, BadgeCheck, Clock } from 'lucide-react';
+import { Copy, Code, Check, Search, Loader2, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { getUserByMemberIdOrId } from '../../services/supabase';
 import { AccessCard } from '../../components/AccessCard';
+import { SiteLayout } from '../../components/site/SiteLayout';
+import { DISCORD_INVITE } from '../../components/site/links';
 
 export default function Verify() {
   const { id } = useParams<{ id: string }>();
@@ -24,6 +26,50 @@ export default function Verify() {
   const [searchResult, setSearchResult] = useState<any>(null);
   const isEmbed = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('embed') === 'true';
   const cardRef = useRef<HTMLDivElement>(null);
+  const reduceMotion = useReducedMotion();
+  const [checkedAt, setCheckedAt] = useState<number | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [rechecking, setRechecking] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+
+  // Each time a record arrives, show a short registry check before the verdict.
+  useEffect(() => {
+    if (loading || !userData) return;
+    setCheckedAt(Date.now());
+    if (reduceMotion) return;
+    setChecking(true);
+    const t = setTimeout(() => setChecking(false), 750);
+    return () => clearTimeout(t);
+  }, [loading, userData, reduceMotion]);
+
+  // Keeps the "checked … ago" label honest while the page stays open.
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 5000);
+    return () => clearInterval(t);
+  }, []);
+
+  const checkedAgo = (() => {
+    if (checkedAt == null) return '';
+    const sec = Math.max(0, Math.round((now - checkedAt) / 1000));
+    if (sec < 10) return 'just now';
+    if (sec < 60) return `${sec}s ago`;
+    return `${Math.floor(sec / 60)} min ago`;
+  })();
+
+  const recheck = async () => {
+    if (!id || rechecking) return;
+    setRechecking(true);
+    try {
+      const fresh = await getUserByMemberIdOrId(id);
+      if (fresh) setUserData(fresh);
+      setCheckedAt(Date.now());
+      setNow(Date.now());
+    } catch {
+      setCheckedAt(Date.now());
+    } finally {
+      setRechecking(false);
+    }
+  };
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -126,284 +172,238 @@ export default function Verify() {
     );
   }
 
-  const statusMeta = (() => {
-    if (isValid) return {
-      tone: 'emerald',
-      label: 'Verified Member',
-      eyebrow: 'Issued & Active',
-      icon: BadgeCheck,
-      bg: 'bg-emerald-50',
-      border: 'border-emerald-200',
-      text: 'text-emerald-700',
-      iconBg: 'bg-emerald-900/10 text-emerald-700',
-      copy: 'This record exists in the official BetterGovPH membership registry.',
-    };
-    if (isPending) return {
-      tone: 'amber',
-      label: 'Under Review',
-      eyebrow: 'Pending',
-      icon: Clock,
-      bg: 'bg-amber-50',
-      border: 'border-amber-200',
-      text: 'text-amber-700',
-      iconBg: 'bg-amber-900/10 text-amber-700',
-      copy: 'This application is being reviewed and is not yet an active membership.',
-    };
-    return {
-      tone: 'red',
-      label: 'Not Valid',
-      eyebrow: 'Revoked',
-      icon: XCircle,
-      bg: 'bg-red-50',
-      border: 'border-red-200',
-      text: 'text-red-700',
-      iconBg: 'bg-red-900/10 text-red-700',
-      copy: userData ? 'This access card has been declined or revoked.' : 'No official record exists for this ID.',
-    };
-  })();
+  const status = isValid
+    ? { dot: 'bg-emerald-500', word: 'Verified member', title: userData?.fullName || 'Verified member', copy: 'This card is active and matches a record in the BetterGovPH membership registry.' }
+    : isPending
+      ? { dot: 'bg-amber-500', word: 'Under review', title: 'Not active yet', copy: 'This application is still being reviewed. It isn’t a valid membership until it’s approved.' }
+      : { dot: 'bg-red-500', word: 'Not valid', title: 'This card isn’t valid', copy: 'This card has been declined or revoked. If you think that’s a mistake, ask the team on Discord.' };
+
+  const showRecord = !!id && (isValid || isPending || isDeclined);
 
   return (
-    <div className="min-h-screen bg-white font-sans selection:bg-blue-900/15">
-      <nav className="bg-white border-b border-slate-200 sticky top-0 z-30">
-        <div className="max-w-5xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
-          <Link
-            to="/"
-            className="flex items-center gap-2.5 sm:gap-3"
-          >
-            <img
-              src="/logo.svg" onError={(e)=>{const t=e.currentTarget;t.onerror=null;t.src='https://assets.bettergov.ph/logos/webp/icon-primary.webp';}}
-              alt="BetterGovPH"
-              className="w-7 h-7 sm:w-8 sm:h-8 object-contain drop-shadow-[0_6px_18px_rgba(30,58,138,0.12)]"
-            />
-            <div className="flex flex-col leading-none">
-              <span className="text-sm sm:text-base font-display font-bold text-slate-900">BetterGovPH</span>
-              <span className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-blue-900 font-semibold mt-0.5">Verify</span>
-            </div>
-          </Link>
-          <Link
-            to="/"
-            className="inline-flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-semibold text-slate-500 hover:text-blue-900 transition-colors group"
-          >
-            <Home size={13} className="sm:hidden group-hover:-translate-x-0.5 transition-transform" />
-            <Home size={14} className="hidden sm:inline-flex group-hover:-translate-x-0.5 transition-transform" />
-            <span className="hidden sm:inline">Home</span>
-          </Link>
-        </div>
-      </nav>
-
-      <main className="max-w-5xl mx-auto px-3 sm:px-6 py-8 sm:py-10 lg:py-14 flex flex-col items-center">
+    <SiteLayout>
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 pt-14 pb-20 sm:pt-20">
         {loading ? (
-          <div className="py-16 sm:py-24 flex flex-col items-center">
-            <div className="w-52 h-[2px] rounded-full bg-slate-200 overflow-hidden mb-4">
-              <motion.div
-                className="h-full w-full bg-blue-900 rounded-full origin-left"
-                initial={{ scaleX: 0.1 }}
-                animate={{ scaleX: 1 }}
-                transition={{ duration: 2, ease: [0.77, 0, 0.175, 1], repeat: Infinity }}
-              />
+          <div className="grid items-center gap-12 md:grid-cols-[1fr_auto]" aria-busy="true">
+            <div>
+              <div className="h-3 w-28 rounded bg-slate-200/70" />
+              <div className="mt-5 h-9 w-64 rounded bg-slate-200/70" />
+              <div className="mt-4 h-3 w-80 max-w-full rounded bg-slate-200/70" />
             </div>
-            <p className="text-xs sm:text-sm font-semibold text-slate-500 uppercase tracking-[0.18em]">
-              Verifying
-            </p>
+            <div className="mx-auto aspect-[1/1.5] w-[300px] rounded-[14px] bg-slate-200/70" />
+            <p className="sr-only">Checking the registry…</p>
           </div>
-        ) : id && (isValid || isPending || isDeclined) ? (
-          <div className="w-full flex flex-col items-center gap-6 sm:gap-8 lg:gap-10">
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45, ease: [0.23, 1, 0.32, 1] }}
-              className={`w-full inline-flex items-start sm:items-center gap-3 sm:gap-4 p-4 sm:p-5 rounded-[6px] border ${statusMeta.border} ${statusMeta.bg}`}
-            >
-              <div className={`w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-[6px] flex items-center justify-center ${statusMeta.iconBg}`}>
-                {(() => {
-                  const Ico = statusMeta.icon;
-                  return <><Ico size={18} className="sm:hidden" /><Ico size={20} className="hidden sm:inline-flex" /></>;
-                })()}
-              </div>
-              <div className="min-w-0 flex-1 pt-0.5">
-                <p className={`text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.2em] ${statusMeta.text} mb-1`}>
-                  {statusMeta.eyebrow}
-                </p>
-                <h1 className="text-xl sm:text-2xl lg:text-3xl font-display font-bold text-slate-900 leading-[1.05] tracking-tight mb-1.5">
-                  {statusMeta.label}
-                </h1>
-                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                  {statusMeta.copy}
-                </p>
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.06, duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
-              className="w-full max-w-md mx-auto flex flex-col gap-6"
-            >
-              <div className="w-full flex justify-center px-2 sm:px-4">
-                <div ref={cardRef} className={clsx(
-                  "transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out",
-                  !isValid && "opacity-50 grayscale blur-[1px] pointer-events-none"
-                )}>
-                  <AccessCard user={userData} />
-                </div>
-              </div>
-
-              {isValid && (
-                <div className="w-full flex flex-col gap-2.5 sm:gap-3 px-2 sm:px-0">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
-                    <button
-                      onClick={handleCopyLink}
-                      className="group relative flex w-full items-center justify-center gap-2 rounded-[6px] bg-blue-900 px-4 py-3 sm:py-3.5 text-xs sm:text-sm font-bold text-white shadow-[0_10px_24px_-14px_rgba(30,58,138,0.5)] [@media(hover:hover){&:hover}]:bg-blue-800 [@media(hover:hover){&:hover}]:shadow-[0_14px_30px_-14px_rgba(30,58,138,0.55)] focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 transition-[transform,box-shadow,background-color] duration-200 ease-out active:scale-[0.98]"
-                    >
-                      {copyStatus === 'copied' ? (
-                        <><Check size={14} /><span>Link Copied</span></>
-                      ) : (
-                        <><Copy size={14} className="group-hover:scale-110 transition-transform" /><span>Copy Public Link</span></>
-                      )}
-                    </button>
-                    <button
-                      onClick={handleCopyEmbed}
-                      className="inline-flex items-center justify-center gap-2 w-full rounded-[6px] border border-slate-200 bg-white px-4 py-3 sm:py-3.5 text-xs sm:text-sm font-bold text-slate-700 [@media(hover:hover){&:hover}]:border-slate-300 [@media(hover:hover){&:hover}]:bg-slate-50 transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out active:scale-[0.98]"
-                    >
-                      {copyStatus === 'embed-copied' ? (
-                        <><Check size={14} /><span>Embed Copied</span></>
-                      ) : (
-                        <><Code size={14} /><span>Embed Code</span></>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {!isValid && (
-                <div className="w-full flex flex-col gap-3 px-2 sm:px-0">
-                  <div className={`rounded-[6px] border p-4 sm:p-5 ${statusMeta.border} ${statusMeta.bg}`}>
-                    <p className="text-sm sm:text-[15px] font-bold text-slate-900 mb-1.5 leading-tight">
-                      {isPending ? 'Application is being reviewed' : 'Card not active'}
-                    </p>
-                    <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                      {isPending
-                        ? 'We review applications on a rolling basis. The applicant will be notified by email once a decision is made.'
-                        : 'If you believe this is in error, reach out to our team on Discord.'}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setUserData(null);
-                      navigate('/verify');
-                    }}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-[6px] border border-slate-200 bg-white px-4 py-3 sm:py-3.5 text-xs sm:text-sm font-bold text-slate-700 [@media(hover:hover){&:hover}]:border-slate-300 [@media(hover:hover){&:hover}]:bg-slate-50 transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out active:scale-[0.98]"
-                  >
-                    <Search size={14} />
-                    <span>Verify Another ID</span>
-                  </button>
-                </div>
-              )}
-            </motion.div>
-          </div>
-        ) : (
+        ) : showRecord ? (
           <motion.div
-            initial={{ opacity: 0, y: 14 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.45, ease: [0.23, 1, 0.32, 1] }}
-            className="w-full max-w-xl flex flex-col items-center gap-5 sm:gap-7"
+            className="grid items-center gap-12 md:grid-cols-[1fr_auto] md:gap-16"
           >
-            <div className="text-center">
-              <div className="inline-flex w-11 h-11 sm:w-12 sm:h-12 mb-4 rounded-[6px] bg-blue-50 border border-blue-100 items-center justify-center text-blue-900">
-                <ShieldCheck size={20} className="sm:hidden" />
-                <ShieldCheck size={22} className="hidden sm:inline-flex" />
+            <div className="order-2 md:order-1">
+              <div className="h-5" aria-live="polite">
+                <AnimatePresence mode="wait" initial={false}>
+                  {checking ? (
+                    <motion.p
+                      key="checking"
+                      initial={{ opacity: 0, filter: 'blur(4px)' }}
+                      animate={{ opacity: 1, filter: 'blur(0px)' }}
+                      exit={{ opacity: 0, filter: 'blur(4px)' }}
+                      transition={{ duration: 0.18 }}
+                      className="inline-flex items-center gap-2 text-[13px] font-medium text-[var(--fg-3)]"
+                    >
+                      <Loader2 size={14} className="animate-spin" aria-hidden />
+                      Checking the registry…
+                    </motion.p>
+                  ) : (
+                    <motion.p
+                      key="verdict"
+                      initial={reduceMotion ? { opacity: 0 } : { opacity: 0, filter: 'blur(4px)' }}
+                      animate={{ opacity: 1, filter: 'blur(0px)' }}
+                      transition={{ duration: 0.22 }}
+                      className="inline-flex items-center gap-2 text-[13px] font-medium text-[var(--fg-2)]"
+                    >
+                      {isValid ? (
+                        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden className="text-emerald-600">
+                          <motion.circle
+                            cx="8" cy="8" r="7" fill="none" stroke="currentColor" strokeWidth="1.5"
+                            initial={{ pathLength: reduceMotion ? 1 : 0 }}
+                            animate={{ pathLength: 1 }}
+                            transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+                          />
+                          <motion.path
+                            d="M5 8.2 7.1 10.3 11 6"
+                            fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"
+                            initial={{ pathLength: reduceMotion ? 1 : 0 }}
+                            animate={{ pathLength: 1 }}
+                            transition={{ duration: 0.3, delay: 0.3, ease: [0.23, 1, 0.32, 1] }}
+                          />
+                        </svg>
+                      ) : (
+                        <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} aria-hidden />
+                      )}
+                      {status.word}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
               </div>
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-slate-900 leading-[1.05] tracking-tight mb-2.5">
-                {id ? 'Invalid card' : 'Verify credentials'}
-              </h1>
-              <p className="text-xs sm:text-sm text-slate-500 leading-relaxed max-w-md mx-auto">
-                {id
-                  ? 'This digital access card could not be verified. It may be pending, revoked, or fake.'
-                  : 'Enter a Member ID below to verify its authenticity against our official membership registry.'}
+
+              <motion.h1
+                initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+                animate={checking ? { opacity: 0.25, y: 0 } : { opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+                className="mt-3 text-[32px] sm:text-[40px]"
+              >
+                {status.title}
+              </motion.h1>
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: checking ? 0.25 : 1 }}
+                transition={{ duration: 0.4, delay: 0.05 }}
+                className="mt-3 max-w-md text-[16px] leading-relaxed text-[var(--fg-2)]"
+              >
+                {status.copy}
+              </motion.p>
+
+              {userData?.memberId && (
+                <dl className="mt-8 max-w-md border-t border-[var(--line)] text-[14px]">
+                  {[
+                    { label: 'Member ID', value: <span className="num font-mono text-[13px]">{userData.memberId}</span> },
+                    ...(userData.specialization ? [{ label: 'Role', value: userData.specialization }] : []),
+                    ...(userData.yearJoined ? [{ label: 'Member since', value: <span className="num">{userData.yearJoined}</span> }] : []),
+                  ].map((row, i) => (
+                    <motion.div
+                      key={row.label}
+                      initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -6 }}
+                      animate={checking ? { opacity: 0 } : { opacity: 1, x: 0 }}
+                      transition={{ duration: 0.35, delay: checking ? 0 : 0.1 + i * 0.06, ease: [0.23, 1, 0.32, 1] }}
+                      className="flex items-baseline justify-between gap-6 border-b border-[var(--line)] py-3"
+                    >
+                      <dt className="text-[var(--fg-3)]">{row.label}</dt>
+                      <dd className="text-right">{row.value}</dd>
+                    </motion.div>
+                  ))}
+                </dl>
+              )}
+
+              <p className="mt-4 flex items-center gap-2 text-[13px] text-[var(--fg-3)]">
+                <span>
+                  Checked against the registry <span className="num">{checking ? 'now' : checkedAgo}</span>
+                </span>
+                <span className="text-slate-300" aria-hidden>·</span>
+                <button
+                  type="button"
+                  onClick={recheck}
+                  disabled={rechecking || checking}
+                  className="s-link disabled:opacity-50"
+                >
+                  {rechecking ? 'Checking…' : 'Check again'}
+                </button>
               </p>
+
+              <div className="mt-8 flex flex-col gap-2.5 sm:flex-row">
+                {isValid ? (
+                  <>
+                    <button onClick={handleCopyLink} className="s-btn s-btn-plain min-w-[150px]">
+                      {copyStatus === 'copied' ? <Check size={16} strokeWidth={1.75} /> : <Copy size={16} strokeWidth={1.75} />}
+                      {copyStatus === 'copied' ? 'Link copied' : 'Copy link'}
+                    </button>
+                    <button onClick={handleCopyEmbed} className="s-btn s-btn-plain min-w-[170px]">
+                      {copyStatus === 'embed-copied' ? <Check size={16} strokeWidth={1.75} /> : <Code size={16} strokeWidth={1.75} />}
+                      {copyStatus === 'embed-copied' ? 'Embed copied' : 'Copy embed code'}
+                    </button>
+                  </>
+                ) : (
+                  <a href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer" className="s-btn s-btn-plain">
+                    Ask on Discord
+                  </a>
+                )}
+                <button
+                  onClick={() => {
+                    setUserData(null);
+                    navigate('/verify');
+                  }}
+                  className="s-btn text-[var(--fg-2)] hover:text-[var(--fg)]"
+                >
+                  <Search size={16} strokeWidth={1.75} />
+                  Check another ID
+                </button>
+              </div>
             </div>
 
-            <form onSubmit={(e) => { e.preventDefault(); performSearchNow(); }} className="w-full space-y-3 sm:space-y-4">
-              <div className="relative">
-                <Search size={14} className="sm:hidden text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <Search size={15} className="hidden sm:inline-flex text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <div className="order-1 mx-auto md:order-2" style={{ perspective: '1200px' }}>
+              <motion.div
+                ref={cardRef}
+                initial={reduceMotion ? { opacity: 0 } : { opacity: 0, rotateY: -18, y: 16 }}
+                animate={{ opacity: 1, rotateY: 0, y: 0 }}
+                transition={{ duration: 0.8, ease: [0.23, 1, 0.32, 1] }}
+                className={clsx(!isValid && 'opacity-50 grayscale pointer-events-none')}
+              >
+                <AccessCard user={userData} />
+              </motion.div>
+            </div>
+          </motion.div>
+        ) : (
+          <div className="mx-auto max-w-xl">
+            <h1 className="text-[32px] sm:text-[40px]">{id ? 'No record for this card' : 'Check a member card'}</h1>
+            <p className="mt-3 text-[16px] leading-relaxed text-[var(--fg-2)]">
+              {id ? (
+                <>
+                  We couldn’t find <span className="font-mono text-[14px] text-[var(--fg)]">{id}</span> in the membership registry. It may be mistyped, pending, or not a real card.
+                </>
+              ) : (
+                'Enter the Member ID printed on the card. We’ll look it up in the official registry.'
+              )}
+            </p>
+
+            <form onSubmit={(e) => { e.preventDefault(); performSearchNow(); }} className="mt-8">
+              <label htmlFor="member-id" className="text-[13px] font-medium">Member ID</label>
+              <div className="relative mt-2">
                 <input
+                  id="member-id"
                   type="text"
-                  placeholder="Enter Member ID (e.g. BGPH-2026-001)"
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder="BGPH-2026-001"
                   value={searchId}
                   onChange={(e) => setSearchId(e.target.value.toUpperCase())}
-                  className="w-full pl-9 sm:pl-11 pr-10 sm:pr-11 py-3 sm:py-3.5 bg-white border border-slate-200 rounded-[6px] text-xs sm:text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out uppercase placeholder:normal-case font-semibold shadow-[0_2px_8px_-4px_rgba(15,23,42,0.06)]"
+                  className="s-field h-11 pr-10 font-mono text-[14px] tracking-wide"
                 />
-                <div className="absolute right-3 sm:right-3.5 top-1/2 -translate-y-1/2">
-                  {isSearching && <Loader2 size={14} className="text-blue-900 animate-spin" />}
-                </div>
+                {isSearching && (
+                  <Loader2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-slate-400" aria-label="Searching" />
+                )}
               </div>
 
-              <AnimatePresence mode="wait">
+              <div className="mt-4 min-h-[76px]" aria-live="polite">
                 {searchResult ? (
-                  <motion.div
-                    key="found"
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
-                    className="rounded-[6px] border border-emerald-200 bg-emerald-50/60 p-4 sm:p-5 flex items-center gap-3 sm:gap-4 group"
-                  >
-                    <div className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-[6px] bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700">
-                      <BadgeCheck size={18} className="sm:hidden" />
-                      <BadgeCheck size={20} className="hidden sm:inline-flex" />
-                    </div>
-                    <div className="text-left overflow-hidden flex-1 min-w-0 pt-0.5">
-                      <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-700 mb-1">Official record found</p>
-                      <p className="text-sm sm:text-[15px] font-bold text-slate-900 leading-tight truncate">{searchResult.fullName}</p>
-                      <p className="text-[11px] sm:text-xs text-slate-600 font-mono truncate">{searchResult.memberId}</p>
+                  <div className="s-card flex items-center gap-4 p-4">
+                    <div className="min-w-0 flex-1">
+                      <p className="inline-flex items-center gap-2 text-[12px] font-medium text-[var(--fg-3)]">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
+                        Record found
+                      </p>
+                      <p className="mt-0.5 truncate text-[15px] font-semibold">{searchResult.fullName}</p>
+                      <p className="truncate font-mono text-[12px] text-[var(--fg-3)]">{searchResult.memberId}</p>
                     </div>
                     <button
                       type="button"
                       onClick={() => navigate(`/verify/${searchResult.memberId}`)}
-                      className="inline-flex items-center gap-1.5 rounded-[6px] bg-slate-900 px-3 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-xs font-bold text-white shadow-[0_8px_20px_-10px_rgba(15,23,42,0.5)] [@media(hover:hover){&:hover}]:bg-slate-800 transition-[color,background-color,border-color] duration-200 ease-out active:scale-[0.98] ml-2 shrink-0"
+                      className="s-btn s-btn-accent h-9 shrink-0 px-3.5"
                     >
-                      <span className="hidden sm:inline">View card</span>
-                      <span className="sm:hidden">View</span>
-                      <ArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
+                      View card
+                      <ArrowRight size={14} strokeWidth={1.75} />
                     </button>
-                  </motion.div>
+                  </div>
                 ) : searchId.trim().length >= 3 && !isSearching ? (
-                  <motion.div
-                    key="missing"
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
-                    className="rounded-[6px] border border-red-200 bg-red-50/60 p-4 flex items-start gap-3"
-                  >
-                    <div className="w-9 h-9 shrink-0 rounded-[6px] bg-red-100/60 border border-red-200 flex items-center justify-center text-red-700">
-                      <XCircle size={16} />
-                    </div>
-                    <div className="min-w-0 flex-1 pt-0.5">
-                      <p className="text-xs font-bold text-red-800 mb-1 leading-tight">No official record</p>
-                      <p className="text-[11px] sm:text-xs text-red-700/80 leading-relaxed">
-                        No verified BetterGovPH member exists for this ID. Double-check the formatting.
-                      </p>
-                    </div>
-                  </motion.div>
+                  <p className="text-[14px] text-[var(--fg-2)]">
+                    <span className="font-medium text-[var(--fg)]">No member with that ID.</span> Check the format — it looks like BGPH-2026-001.
+                  </p>
                 ) : null}
-              </AnimatePresence>
+              </div>
             </form>
-
-            <div className="w-full pt-4 sm:pt-6 mt-1 sm:mt-2 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <Link
-                to="/"
-                className="inline-flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-semibold text-slate-500 hover:text-blue-900 transition-colors group"
-              >
-                <Home size={13} className="sm:hidden group-hover:-translate-x-0.5 transition-transform" />
-                <Home size={14} className="hidden sm:inline-flex group-hover:-translate-x-0.5 transition-transform" />
-                <span>Return to home</span>
-              </Link>
-            </div>
-          </motion.div>
+          </div>
         )}
-      </main>
-    </div>
+      </div>
+    </SiteLayout>
   );
 }

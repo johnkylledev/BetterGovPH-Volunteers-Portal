@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, CheckCircle2, XCircle, LogOut, Filter, Users, Key, CreditCard, Copy, Code, Check, Clock, Zap, Briefcase, ChevronLeft, ChevronRight, Trash2, UserX } from 'lucide-react';
+import { Search, CheckCircle2, XCircle, LogOut, CreditCard, Copy, Code, Check, Briefcase, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { AccessCard } from '../../components/AccessCard';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
 import clsx from 'clsx';
@@ -367,162 +367,119 @@ export default function AdminDashboard() {
     return (users || []).filter(u => u && !u.isAdmin && u.status === 'Approved');
   }, [users]);
 
+  const adminTabs = [
+    { id: 'applications' as const, label: 'Applications', count: stats.pending },
+    { id: 'members' as const, label: 'Members', count: stats.approved },
+    { id: 'projects' as const, label: 'Projects', count: projectSubmissionsTotal },
+  ];
+  const statTiles = activeTab === 'projects'
+    ? [
+        { label: 'Submissions', value: projectStats.total },
+        { label: 'Waiting for review', value: projectStats.pending, dot: 'bg-amber-500' },
+        { label: 'Approved', value: projectStats.approved, dot: 'bg-emerald-500' },
+      ]
+    : [
+        { label: 'All records', value: stats.total },
+        { label: 'Waiting for review', value: stats.pending, dot: 'bg-amber-500' },
+        { label: 'Cards issued', value: stats.approved, dot: 'bg-emerald-500' },
+      ];
+
   return (
-    <div className="min-h-screen bg-white font-sans">
-      <nav className="bg-white border-b border-slate-200 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6">
-          <div className="flex justify-between h-14 sm:h-16">
-            <div className="flex items-center gap-2.5 sm:gap-3">
-              <img
-                src="/logo.svg" onError={(e)=>{const t=e.currentTarget;t.onerror=null;t.src='https://assets.bettergov.ph/logos/webp/icon-primary.webp';}}
-                alt="BetterGovPH Logo"
-                className="w-7 h-7 sm:w-8 sm:h-8 object-contain drop-shadow-[0_6px_18px_rgba(30,58,138,0.12)]"
-              />
-              <div className="flex flex-col leading-none">
-                <span className="text-base sm:text-lg font-display font-bold text-slate-900">Admin</span>
-                <span className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-blue-900 font-semibold mt-0.5">Portal</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 sm:gap-3">
+    <div className="site min-h-screen pb-16">
+      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl backdrop-saturate-150 shadow-[0_1px_0_rgb(15_23_42/0.08)]">
+        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <img
+              src="/logo.svg" onError={(e)=>{const t=e.currentTarget;t.onerror=null;t.src='https://assets.bettergov.ph/logos/webp/icon-primary.webp';}}
+              alt=""
+              className="h-6 w-6 shrink-0 object-contain"
+            />
+            <span className="truncate text-[15px] font-semibold tracking-[-0.015em] text-slate-900">
+              BetterGovPH <span className="font-normal text-slate-500">Admin</span>
+            </span>
+          </div>
+
+          <nav aria-label="Admin sections" className="hidden items-center gap-1 md:flex">
+            {adminTabs.map((t) => (
               <button
-                onClick={() => setShowMyCard(true)}
-                className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs sm:text-sm font-bold text-blue-900 bg-blue-50 border border-blue-100 hover:bg-blue-100 hover:border-blue-200 rounded-[6px] transition-[color,background-color,border-color] duration-200 ease-out active:scale-[0.98]"
+                key={t.id}
+                onClick={() => setActiveTab(t.id)}
+                aria-current={activeTab === t.id ? 'page' : undefined}
+                className={clsx(
+                  'inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-[14px] transition-colors duration-150',
+                  activeTab === t.id ? 'bg-slate-900/[0.05] font-medium text-slate-900' : 'text-slate-500 hover:text-slate-900'
+                )}
               >
-                <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline">My Card</span>
+                {t.label}
+                <span className="num text-[12px] text-slate-400">{t.count}</span>
               </button>
-              <div className="h-5 sm:h-6 w-[1px] bg-slate-200 hidden sm:block" />
-              <div className="hidden sm:flex flex-col items-end leading-none">
-                <span className="text-sm font-bold text-slate-900">{currentUser.fullName}</span>
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mt-1">Administrator</span>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs sm:text-sm font-bold text-slate-500 hover:text-red-600 border border-slate-200 hover:border-red-100 hover:bg-red-50 rounded-[6px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.98]"
-                title="Logout"
-              >
-                <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline">Logout</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
+            ))}
+          </nav>
 
-      <div className="bg-white border-b border-slate-200 sticky top-[56px] sm:top-[64px] z-20 overflow-x-auto no-scrollbar">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 min-w-max sm:min-w-0">
-          <div className="flex gap-6 sm:gap-8">
-            <button
-              onClick={() => setActiveTab('applications')}
-              className={clsx(
-                "py-3.5 sm:py-4 text-xs sm:text-sm font-bold border-b-2 transition-colors px-1 whitespace-nowrap",
-                activeTab === 'applications'
-                  ? "border-blue-900 text-blue-900"
-                  : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <span>Applications</span>
-                <span className={clsx(
-                  "px-2 py-0.5 text-[10px] rounded-[4px] font-bold",
-                  activeTab === 'applications' ? "bg-blue-900 text-white" : "bg-slate-100 text-slate-500"
-                )}>
-                  {stats.pending}
-                </span>
-              </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="mr-1 hidden text-right leading-tight lg:block">
+              <span className="block max-w-[180px] truncate text-[13px] font-medium text-slate-900">{currentUser.fullName}</span>
+              <span className="block text-[12px] text-slate-500">Administrator</span>
+            </span>
+            <button onClick={() => setShowMyCard(true)} className="s-btn s-btn-plain h-8 px-3 text-[13px]">
+              <CreditCard size={14} strokeWidth={1.75} />
+              <span className="hidden sm:inline">My card</span>
             </button>
-            <button
-              onClick={() => setActiveTab('members')}
-              className={clsx(
-                "py-3.5 sm:py-4 text-xs sm:text-sm font-bold border-b-2 transition-colors px-1 whitespace-nowrap",
-                activeTab === 'members'
-                  ? "border-blue-900 text-blue-900"
-                  : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <span>Members</span>
-                <span className={clsx(
-                  "px-2 py-0.5 text-[10px] rounded-[4px] font-bold",
-                  activeTab === 'members' ? "bg-blue-900 text-white" : "bg-slate-100 text-slate-500"
-                )}>
-                  {stats.approved}
-                </span>
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab('projects')}
-              className={clsx(
-                "py-3.5 sm:py-4 text-xs sm:text-sm font-bold border-b-2 transition-colors px-1 whitespace-nowrap",
-                activeTab === 'projects'
-                  ? "border-blue-900 text-blue-900"
-                  : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <span>Projects</span>
-                <span className={clsx(
-                  "px-2 py-0.5 text-[10px] rounded-[4px] font-bold",
-                  activeTab === 'projects' ? "bg-blue-900 text-white" : "bg-slate-100 text-slate-500"
-                )}>
-                  {projectSubmissionsTotal}
-                </span>
-              </div>
+            <button onClick={handleLogout} className="s-btn s-btn-plain h-8 px-3 text-[13px]" title="Sign out">
+              <LogOut size={14} strokeWidth={1.75} />
+              <span className="hidden sm:inline">Sign out</span>
             </button>
           </div>
         </div>
-      </div>
 
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 py-5 sm:py-7 lg:py-8 flex flex-col gap-5 sm:gap-6">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-          <div className="bg-white border border-slate-200 rounded-[6px] p-4 sm:p-5 flex items-center gap-3 sm:gap-4 shadow-[0_2px_8px_-4px_rgba(15,23,42,0.08)] [@media(hover:hover){&:hover}]:shadow-[0_8px_24px_-12px_rgba(15,23,42,0.15)] transition-[box-shadow] duration-200 ease-out">
-            <div className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-[6px] bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-900">
-              <Users size={18} className="sm:hidden" />
-              <Users size={20} className="hidden sm:inline-flex" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.2em] text-slate-400 font-semibold">
-                {activeTab === 'projects' ? 'Total Submissions' : 'Total Records'}
-              </p>
-              <p className="mt-1 sm:mt-1.5 text-xl sm:text-2xl font-bold text-slate-900 leading-none">
-                {activeTab === 'projects' ? projectStats.total : stats.total}
-              </p>
-            </div>
-          </div>
-          <div className="bg-white border border-slate-200 rounded-[6px] p-4 sm:p-5 flex items-center gap-3 sm:gap-4 shadow-[0_2px_8px_-4px_rgba(15,23,42,0.08)] [@media(hover:hover){&:hover}]:shadow-[0_8px_24px_-12px_rgba(15,23,42,0.15)] transition-[box-shadow] duration-200 ease-out">
-            <div className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-[6px] bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-700">
-              <Clock size={18} className="sm:hidden" />
-              <Clock size={20} className="hidden sm:inline-flex" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.2em] text-slate-400 font-semibold">Pending</p>
-              <p className="mt-1 sm:mt-1.5 text-xl sm:text-2xl font-bold text-slate-900 leading-none">
-                {activeTab === 'projects' ? projectStats.pending : stats.pending}
-              </p>
-            </div>
-          </div>
-          <div className="bg-white border border-slate-200 rounded-[6px] p-4 sm:p-5 flex items-center gap-3 sm:gap-4 shadow-[0_2px_8px_-4px_rgba(15,23,42,0.08)] [@media(hover:hover){&:hover}]:shadow-[0_8px_24px_-12px_rgba(15,23,42,0.15)] transition-[box-shadow] duration-200 ease-out">
-            <div className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-[6px] bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700">
-              <CheckCircle2 size={18} className="sm:hidden" />
-              <CheckCircle2 size={20} className="hidden sm:inline-flex" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.2em] text-slate-400 font-semibold">
-                {activeTab === 'projects' ? 'Approved' : 'IDs Issued'}
-              </p>
-              <p className="mt-1 sm:mt-1.5 text-xl sm:text-2xl font-bold text-slate-900 leading-none">
-                {activeTab === 'projects' ? projectStats.approved : stats.approved}
-              </p>
-            </div>
-          </div>
+        <nav aria-label="Admin sections" className="no-scrollbar flex gap-1 overflow-x-auto border-t border-slate-200/70 px-3 py-1.5 md:hidden">
+          {adminTabs.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              aria-current={activeTab === t.id ? 'page' : undefined}
+              className={clsx(
+                'inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[14px]',
+                activeTab === t.id ? 'bg-slate-900/[0.06] font-medium text-slate-900' : 'text-slate-500'
+              )}
+            >
+              {t.label}
+              <span className="num text-[12px] text-slate-400">{t.count}</span>
+            </button>
+          ))}
+        </nav>
+      </header>
+
+      <main className="mx-auto flex max-w-7xl flex-col gap-6 px-4 sm:px-6 pt-8 sm:pt-10">
+        <div>
+          <h1 className="text-[28px] sm:text-[32px]">{adminTabs.find((t) => t.id === activeTab)?.label}</h1>
+          <p className="mt-1 text-[15px] text-slate-600">
+            {activeTab === 'applications'
+              ? 'Review new membership applications and issue cards.'
+              : activeTab === 'members'
+                ? 'Everyone with an active card.'
+                : 'Moderate project submissions before they appear on the public list.'}
+          </p>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-[6px] shadow-sm overflow-hidden">
+        <dl className="s-card grid grid-cols-3 divide-x divide-slate-200/80">
+          {statTiles.map((s) => (
+            <div key={s.label} className="px-4 py-4 sm:px-6 sm:py-5">
+              <dt className="flex items-center gap-1.5 text-[12px] text-slate-500">
+                {s.dot && <span className={clsx('h-1.5 w-1.5 rounded-full', s.dot)} aria-hidden />}
+                {s.label}
+              </dt>
+              <dd className="num mt-1 text-[24px] font-semibold tracking-[-0.02em] text-slate-900 sm:text-[28px]">{s.value}</dd>
+            </div>
+          ))}
+        </dl>
+
+        <div className="s-card overflow-hidden">
           {activeTab === 'applications' ? (
             <>
               <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4 sm:gap-6">
                 <div>
-                  <h2 className="text-base sm:text-lg font-bold text-slate-900">Applications</h2>
+                  <h2 className="text-base sm:text-lg font-semibold text-slate-900">Applications</h2>
                   <p className="text-xs sm:text-sm text-slate-500 mt-1">Review and approve membership applications.</p>
                 </div>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full xl:w-auto">
@@ -533,7 +490,7 @@ export default function AdminDashboard() {
                       placeholder="Search applicants..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                      className="s-field pl-10 pr-4"
                     />
                   </div>
                   <div className="grid grid-cols-2 sm:flex sm:items-center gap-3 w-full sm:w-auto">
@@ -542,7 +499,7 @@ export default function AdminDashboard() {
                       <select
                         value={roleFilter}
                         onChange={(e) => setRoleFilter(e.target.value)}
-                        className="w-full sm:w-44 pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out appearance-none cursor-pointer"
+                        className="s-field sm:w-44 pl-10 pr-8 appearance-none cursor-pointer"
                       >
                         <option value="All">All Roles</option>
                         {SPECIALIZATIONS.map(spec => (
@@ -556,7 +513,7 @@ export default function AdminDashboard() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                    <tr className="text-slate-500 text-[12px] border-b border-slate-200">
                       <th className="p-4 pl-6 font-semibold">Applicant</th>
                       <th className="p-4 font-semibold">Discord / Role</th>
                       <th className="p-4 font-semibold">Status</th>
@@ -567,7 +524,7 @@ export default function AdminDashboard() {
                   <tbody className="divide-y divide-slate-100 text-sm">
                     {isDataLoading ? (
                       Array.from({ length: 5 }).map((_, idx) => (
-                        <tr key={`skel-${idx}`} className="animate-pulse">
+                        <tr key={`skel-${idx}`}>
                           <td className="p-4 pl-6">
                             <div className="h-4 bg-slate-200 rounded w-32 mb-1.5" />
                             <div className="h-3 bg-slate-100 rounded w-40" />
@@ -583,7 +540,7 @@ export default function AdminDashboard() {
                             <div className="h-4 bg-slate-100 rounded w-20" />
                           </td>
                           <td className="p-4 pr-6 text-right">
-                            <div className="h-8 bg-slate-200 rounded-[6px] w-16 ml-auto" />
+                            <div className="h-8 bg-slate-200 rounded-[10px] w-16 ml-auto" />
                           </td>
                         </tr>
                       ))
@@ -602,7 +559,7 @@ export default function AdminDashboard() {
                           className="hover:bg-slate-50/50 transition-colors"
                         >
                           <td className="p-4 pl-6">
-                            <div className="font-bold text-slate-900">{user.fullName}</div>
+                            <div className="font-semibold text-slate-900">{user.fullName}</div>
                             <div className="text-xs text-slate-500">{user.email}</div>
                           </td>
                           <td className="p-4">
@@ -627,10 +584,10 @@ export default function AdminDashboard() {
                           </td>
                           <td className="p-4">
                             <span className={clsx(
-                              'inline-flex items-center px-2.5 py-1 text-[10px] sm:text-[11px] font-bold rounded-[6px] uppercase tracking-wide border',
-                              user.status === 'Approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                                user.status === 'Declined' ? 'bg-red-50 text-red-700 border-red-200' :
-                                  'bg-amber-50 text-amber-700 border-amber-200'
+                              'inline-flex items-center px-2 py-0.5 text-[12px] font-medium rounded-full border',
+                              user.status === 'Approved' ? 'text-emerald-700 border-emerald-200' :
+                                user.status === 'Declined' ? 'text-red-700 border-red-200' :
+                                  'text-amber-700 border-amber-200'
                             )}>
                               {user.status}
                             </span>
@@ -639,7 +596,7 @@ export default function AdminDashboard() {
                           <td className="p-4 pr-6 text-right">
                             <button
                               onClick={() => setSelectedUser(user)}
-                              className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-[6px] hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-sm"
+                              className="s-btn s-btn-plain h-8 px-3 text-[13px]"
                             >
                               Review
                             </button>
@@ -652,27 +609,27 @@ export default function AdminDashboard() {
               </div>
 
               {/* Pagination Controls */}
-              <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <div className="px-4 sm:px-6 py-3 border-t border-slate-200/80 flex items-center justify-between gap-3">
+                <p className="num text-[13px] text-slate-500">
                   Showing <span className="text-slate-900">{filteredUsers.length}</span> of <span className="text-slate-900">{totalCount}</span> records
                 </p>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 0 || isDataLoading}
-                    className="p-2 rounded-[6px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                    className="p-2 rounded-[10px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </button>
-                  <div className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-[6px]">
-                    <span className="text-sm font-bold text-slate-900">Page {currentPage + 1}</span>
+                  <div className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-[10px]">
+                    <span className="text-sm font-semibold text-slate-900">Page {currentPage + 1}</span>
                     <span className="text-slate-400 mx-1">of</span>
-                    <span className="text-sm font-bold text-slate-900">{Math.ceil(totalCount / pageSize)}</span>
+                    <span className="text-sm font-semibold text-slate-900">{Math.ceil(totalCount / pageSize)}</span>
                   </div>
                   <button
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={(currentPage + 1) * pageSize >= totalCount || isDataLoading}
-                    className="p-2 rounded-[6px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                    className="p-2 rounded-[10px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
                   >
                     <ChevronRight className="w-5 h-5" />
                   </button>
@@ -683,17 +640,17 @@ export default function AdminDashboard() {
             <>
               <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4 sm:gap-6">
                 <div>
-                  <h2 className="text-base sm:text-lg font-bold text-slate-900">Projects</h2>
+                  <h2 className="text-base sm:text-lg font-semibold text-slate-900">Projects</h2>
                   <p className="text-xs sm:text-sm text-slate-500 mt-1">Review and moderate project submissions.</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="flex gap-1 bg-slate-100 rounded-[6px] p-1">
+                  <div className="flex gap-1 bg-slate-100 rounded-[10px] p-1">
                     {(['All', 'pending', 'approved', 'rejected'] as const).map((f) => (
                       <button
                         key={f}
                         onClick={() => setProjectStatusFilter(f)}
                         className={clsx(
-                          "px-3 py-1.5 text-xs font-bold rounded-[6px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out capitalize",
+                          "px-3 py-1.5 text-xs font-semibold rounded-[10px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out capitalize",
                           projectStatusFilter === f
                             ? "bg-white text-slate-900 shadow-sm"
                             : "text-slate-500 hover:text-slate-700"
@@ -708,7 +665,7 @@ export default function AdminDashboard() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                    <tr className="text-slate-500 text-[12px] border-b border-slate-200">
                       <th className="p-4 pl-6 font-semibold">Project</th>
                       <th className="p-4 font-semibold">Submitted By</th>
                       <th className="p-4 font-semibold">Status</th>
@@ -719,7 +676,7 @@ export default function AdminDashboard() {
                   <tbody className="divide-y divide-slate-100 text-sm">
                     {projectSubmissionsLoading ? (
                       Array.from({ length: 4 }).map((_, idx) => (
-                        <tr key={`pskel-${idx}`} className="animate-pulse">
+                        <tr key={`pskel-${idx}`}>
                           <td className="p-4 pl-6 align-top">
                             <div className="h-4 bg-slate-200 rounded w-36 mb-1.5" />
                             <div className="h-3 bg-slate-100 rounded w-48" />
@@ -735,7 +692,7 @@ export default function AdminDashboard() {
                             <div className="h-4 bg-slate-100 rounded w-40" />
                           </td>
                           <td className="p-4 pr-6 align-top text-right">
-                            <div className="h-8 bg-slate-200 rounded-[6px] w-20 ml-auto" />
+                            <div className="h-8 bg-slate-200 rounded-[10px] w-20 ml-auto" />
                           </td>
                         </tr>
                       ))
@@ -749,7 +706,7 @@ export default function AdminDashboard() {
                       projectSubmissions.map((submission) => (
                         <tr key={submission.id} className="hover:bg-slate-50/60 transition-colors">
                           <td className="p-4 pl-6 align-top">
-                            <div className="font-bold text-slate-900">{submission.projectName}</div>
+                            <div className="font-semibold text-slate-900">{submission.projectName}</div>
                             <a
                               href={submission.projectUrl}
                               target="_blank"
@@ -763,7 +720,7 @@ export default function AdminDashboard() {
                             )}
                           </td>
                           <td className="p-4 align-top">
-                            <div className="font-bold text-slate-900">
+                            <div className="font-semibold text-slate-900">
                               {submission.submittedBy?.fullName || submission.submittedBy?.email || submission.userId}
                             </div>
                             {submission.submittedBy?.email && submission.submittedBy?.fullName && (
@@ -772,7 +729,7 @@ export default function AdminDashboard() {
                           </td>
                           <td className="p-4 align-top">
                             <span className={clsx(
-                              "inline-flex items-center px-2.5 py-1 rounded-[6px] text-[10px] sm:text-[11px] font-bold uppercase tracking-wide border",
+                              "inline-flex items-center px-2.5 py-1 rounded-[10px] text-[12px] sm:text-[11px] font-semibold border",
                               submission.status === 'approved' && "bg-emerald-50 text-emerald-700 border-emerald-200",
                               submission.status === 'rejected' && "bg-red-50 text-red-700 border-red-200",
                               submission.status === 'pending' && "bg-amber-50 text-amber-700 border-amber-200"
@@ -788,7 +745,7 @@ export default function AdminDashboard() {
                               <button
                                 onClick={() => handleEditClick(submission)}
                                 disabled={projectActionLoadingId === submission.id}
-                                className="inline-flex items-center gap-2 px-3 py-2 rounded-[6px] bg-white border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                                className="inline-flex items-center gap-2 px-3 py-2 rounded-[10px] bg-white border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
                               >
                                 Edit
                               </button>
@@ -797,7 +754,7 @@ export default function AdminDashboard() {
                                   <button
                                     onClick={() => handleProjectAction(submission.id, 'approve')}
                                     disabled={projectActionLoadingId === submission.id}
-                                    className="inline-flex items-center gap-2 px-3 py-2 rounded-[6px] bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                                    className="inline-flex items-center gap-2 px-3 py-2 rounded-[10px] bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
                                   >
                                     <CheckCircle2 className="w-4 h-4" />
                                     Approve
@@ -805,7 +762,7 @@ export default function AdminDashboard() {
                                   <button
                                     onClick={() => handleProjectAction(submission.id, 'reject')}
                                     disabled={projectActionLoadingId === submission.id}
-                                    className="inline-flex items-center gap-2 px-3 py-2 rounded-[6px] bg-red-600 text-white text-xs font-bold hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                                    className="inline-flex items-center gap-2 px-3 py-2 rounded-[10px] bg-red-600 text-white text-xs font-semibold hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
                                   >
                                     <XCircle className="w-4 h-4" />
                                     Reject
@@ -815,7 +772,7 @@ export default function AdminDashboard() {
                               <button
                                 onClick={() => handleProjectDelete(submission.id)}
                                 disabled={projectActionLoadingId === submission.id}
-                                className="inline-flex items-center gap-2 px-3 py-2 rounded-[6px] bg-white border border-red-200 text-red-700 text-xs font-bold hover:bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                                className="inline-flex items-center gap-2 px-3 py-2 rounded-[10px] bg-white border border-red-200 text-red-700 text-xs font-semibold hover:bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
                               >
                                 <Trash2 className="w-4 h-4" />
                                 Delete
@@ -829,27 +786,27 @@ export default function AdminDashboard() {
                   </table>
                 </div>
               {projectTotalCount > projectPageSize && (
-                <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                <div className="px-4 sm:px-6 py-3 border-t border-slate-200/80 flex items-center justify-between gap-3">
+                  <p className="text-xs font-semibold text-slate-500">
                     Showing <span className="text-slate-900">{projectSubmissions.length}</span> of <span className="text-slate-900">{projectTotalCount}</span> records
                   </p>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setProjectPage(projectPage - 1)}
                       disabled={projectPage === 0 || projectSubmissionsLoading}
-                      className="p-2 rounded-[6px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                      className="p-2 rounded-[10px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
                     >
                       <ChevronLeft className="w-5 h-5" />
                     </button>
-                    <div className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-[6px]">
-                      <span className="text-sm font-bold text-slate-900">Page {projectPage + 1}</span>
+                    <div className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-[10px]">
+                      <span className="text-sm font-semibold text-slate-900">Page {projectPage + 1}</span>
                       <span className="text-slate-400 mx-1">of</span>
-                      <span className="text-sm font-bold text-slate-900">{Math.ceil(projectTotalCount / projectPageSize)}</span>
+                      <span className="text-sm font-semibold text-slate-900">{Math.ceil(projectTotalCount / projectPageSize)}</span>
                     </div>
                     <button
                       onClick={() => setProjectPage(projectPage + 1)}
                       disabled={(projectPage + 1) * projectPageSize >= projectTotalCount || projectSubmissionsLoading}
-                      className="p-2 rounded-[6px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                      className="p-2 rounded-[10px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
                     >
                       <ChevronRight className="w-5 h-5" />
                     </button>
@@ -861,7 +818,7 @@ export default function AdminDashboard() {
             <>
               <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4 sm:gap-6">
                 <div>
-                  <h2 className="text-base sm:text-lg font-bold text-slate-900">Members</h2>
+                  <h2 className="text-base sm:text-lg font-semibold text-slate-900">Members</h2>
                   <p className="text-xs sm:text-sm text-slate-500 mt-1">Approved members and their issued IDs.</p>
                 </div>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full xl:w-auto">
@@ -872,7 +829,7 @@ export default function AdminDashboard() {
                       placeholder="Search members..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                      className="s-field pl-10 pr-4"
                     />
                   </div>
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
@@ -881,7 +838,7 @@ export default function AdminDashboard() {
                       <select
                         value={roleFilter}
                         onChange={(e) => setRoleFilter(e.target.value)}
-                        className="w-full sm:w-44 pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out appearance-none cursor-pointer"
+                        className="s-field sm:w-44 pl-10 pr-8 appearance-none cursor-pointer"
                       >
                         <option value="All">All Roles</option>
                         {SPECIALIZATIONS.map(spec => (
@@ -892,7 +849,7 @@ export default function AdminDashboard() {
                     {users.filter(u => u && !u.isAdmin && u.status === 'Approved').length > 0 && (
                       <button
                         onClick={exportToExcel}
-                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-xs sm:text-sm font-bold rounded-[6px] hover:bg-blue-700 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out shadow-md shadow-blue-900/10 active:scale-[0.98]"
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-xs sm:text-sm font-semibold rounded-[10px] hover:bg-blue-700 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out shadow-md active:scale-[0.98]"
                       >
                         <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -915,7 +872,7 @@ export default function AdminDashboard() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                        <tr className="text-slate-500 text-[12px] border-b border-slate-200">
                           <th className="p-4 pl-6 font-semibold">Member Name</th>
                           <th className="p-4 font-semibold">Primary Role</th>
                           <th className="p-4 font-semibold">Community Role</th>
@@ -932,16 +889,16 @@ export default function AdminDashboard() {
                             className="hover:bg-slate-50/50 transition-colors"
                           >
                             <td className="p-4 pl-6">
-                              <div className="font-bold text-slate-900">{member.fullName}</div>
+                              <div className="font-semibold text-slate-900">{member.fullName}</div>
                               <div className="text-xs text-slate-500">{member.email}</div>
                             </td>
                             <td className="p-4 font-semibold text-slate-700">{member.specialization}</td>
                             <td className="p-4 font-semibold text-slate-700">{member.role}</td>
-                            <td className="p-4 font-mono font-bold text-blue-700">{member.memberId}</td>
+                            <td className="p-4 font-mono font-semibold text-blue-700">{member.memberId}</td>
                             <td className="p-4 pr-6 text-right">
                               <button
                                 onClick={() => setSelectedMember(member)}
-                                className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-[6px] hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-sm"
+                                className="s-btn s-btn-plain h-8 px-3 text-[13px]"
                               >
                                 View Card
                               </button>
@@ -953,27 +910,27 @@ export default function AdminDashboard() {
                   </div>
 
                   {/* Pagination Controls for Members Tab */}
-                  <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  <div className="px-4 sm:px-6 py-3 border-t border-slate-200/80 flex items-center justify-between gap-3">
+                    <p className="text-xs font-semibold text-slate-500">
                       Showing <span className="text-slate-900">{filteredApprovedMembers.length}</span> of <span className="text-slate-900">{totalCount}</span> records
                     </p>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handlePageChange(currentPage - 1)}
                         disabled={currentPage === 0 || isDataLoading}
-                        className="p-2 rounded-[6px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                        className="p-2 rounded-[10px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
                       >
                         <ChevronLeft className="w-5 h-5" />
                       </button>
-                      <div className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-[6px]">
-                        <span className="text-sm font-bold text-slate-900">Page {currentPage + 1}</span>
+                      <div className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-[10px]">
+                        <span className="text-sm font-semibold text-slate-900">Page {currentPage + 1}</span>
                         <span className="text-slate-400 mx-1">of</span>
-                        <span className="text-sm font-bold text-slate-900">{Math.ceil(totalCount / pageSize)}</span>
+                        <span className="text-sm font-semibold text-slate-900">{Math.ceil(totalCount / pageSize)}</span>
                       </div>
                       <button
                         onClick={() => handlePageChange(currentPage + 1)}
                         disabled={(currentPage + 1) * pageSize >= totalCount || isDataLoading}
-                        className="p-2 rounded-[6px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                        className="p-2 rounded-[10px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
                       >
                         <ChevronRight className="w-5 h-5" />
                       </button>
@@ -1006,14 +963,14 @@ export default function AdminDashboard() {
             >
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-lg bg-white rounded-[6px] shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]"
+                className="w-full max-w-lg bg-white rounded-[10px] shadow-[var(--e2)] border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]"
               >
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                   <div>
-                    <h3 className="text-lg font-bold text-slate-900">Review Application</h3>
+                    <h3 className="text-lg font-semibold text-slate-900">Review Application</h3>
                     {selectedUser.status === 'Approved' && selectedUser.memberId && (
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-[6px] uppercase tracking-wider">
+                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[12px] font-semibold rounded-[10px]">
                           Official ID: {selectedUser.memberId}
                         </span>
                       </div>
@@ -1027,15 +984,15 @@ export default function AdminDashboard() {
                 <div className="p-4 sm:p-6 overflow-y-auto flex-1 no-scrollbar">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8 mb-10 px-2">
                     <div>
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Applicant Name</p>
-                      <p className="text-base font-bold text-slate-900">{selectedUser.fullName}</p>
+                      <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Applicant Name</p>
+                      <p className="text-base font-semibold text-slate-900">{selectedUser.fullName}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Email Address</p>
+                      <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Email Address</p>
                       <p className="text-sm font-semibold text-slate-600 break-all">{selectedUser.email}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Discord</p>
+                      <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Discord</p>
                       <div className="flex items-center gap-2">
                         {selectedUser.discordAvatar && selectedUser.discordId ? (
                           <img
@@ -1045,7 +1002,7 @@ export default function AdminDashboard() {
                           />
                         ) : null}
                         <div>
-                          <p className="text-sm font-bold text-blue-600">
+                          <p className="text-sm font-semibold text-blue-600">
                             {selectedUser.discordDisplayName || selectedUser.discordUsername || 'N/A'}
                           </p>
                           {selectedUser.discordDisplayName && selectedUser.discordUsername && (
@@ -1055,46 +1012,46 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     <div>
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Date Applied</p>
-                      <p className="text-sm font-bold text-slate-900">
+                      <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Date Applied</p>
+                      <p className="text-sm font-semibold text-slate-900">
                         {selectedUser.createdAt ? new Date(selectedUser.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) : 'N/A'}
                       </p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Primary Role</p>
-                      <p className="text-sm font-bold text-slate-900">{selectedUser.specialization || 'N/A'}</p>
+                      <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Primary Role</p>
+                      <p className="text-sm font-semibold text-slate-900">{selectedUser.specialization || 'N/A'}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Community Role</p>
-                      <span className="inline-flex px-2 py-0.5 rounded-[6px] bg-slate-100 text-[10px] font-semibold text-slate-600 uppercase tracking-widest">
+                      <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Community Role</p>
+                      <span className="inline-flex px-2 py-0.5 rounded-[10px] bg-slate-100 text-[12px] font-semibold text-slate-600">
                         {selectedUser.role}
                       </span>
                     </div>
                     <div>
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Member Since</p>
-                      <p className="text-sm font-bold text-slate-900">{selectedUser.yearJoined || 'N/A'}</p>
+                      <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Member Since</p>
+                      <p className="text-sm font-semibold text-slate-900">{selectedUser.yearJoined || 'N/A'}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Prof. Level</p>
-                      <p className="text-sm font-bold text-slate-900">{selectedUser.experienceLevel || 'Beginner'}</p>
+                      <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Prof. Level</p>
+                      <p className="text-sm font-semibold text-slate-900">{selectedUser.experienceLevel || 'Beginner'}</p>
                     </div>
                   </div>
 
                   <div className="mb-6 space-y-4">
                     <div>
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-2">Selected Skills</p>
+                      <p className="text-[12px] font-semibold text-slate-400 mb-2">Selected Skills</p>
                       <div className="flex flex-wrap gap-1.5">
                         {Array.isArray(selectedUser.skills) && selectedUser.skills.length > 0 ? (
                           selectedUser.skills.map((skill, i) => (
                             <div
                               key={i}
-                              className="flex items-center gap-1.5 pl-1.5 pr-3 py-1 bg-white border border-slate-200 rounded-[6px] shadow-sm group"
+                              className="flex items-center gap-1.5 pl-1.5 pr-3 py-1 bg-white border border-slate-200 rounded-[10px] shadow-sm group"
                             >
-                              <div className="w-5 h-5 rounded-[6px] bg-slate-50 flex items-center justify-center border border-slate-100 shrink-0">
+                              <div className="w-5 h-5 rounded-[10px] bg-slate-50 flex items-center justify-center border border-slate-100 shrink-0">
                                 <SkillIcon skillName={skill.name} size={12} />
                               </div>
                               <span className="text-xs font-semibold text-slate-800">{skill.name}</span>
-                              <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-400">
+                              <span className="text-[11px] font-semibold text-slate-400">
                                 {skill.level}
                               </span>
                             </div>
@@ -1105,25 +1062,25 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     <div>
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Experience Level</p>
-                      <p className="text-sm font-bold text-slate-900">{selectedUser.experienceLevel || '-'}</p>
+                      <p className="text-[12px] font-semibold text-slate-400 mb-1">Experience Level</p>
+                      <p className="text-sm font-semibold text-slate-900">{selectedUser.experienceLevel || '-'}</p>
                     </div>
                   </div>
 
                   <div className="mb-2">
-                    <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-2">Admin Notes (Optional)</label>
+                    <label className="block text-[12px] font-semibold text-slate-400 mb-2">Admin Notes (Optional)</label>
                     <textarea
                       value={adminNote}
                       onChange={(e) => setAdminNote(e.target.value)}
                       placeholder="Add notes for the applicant..."
-                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 resize-none h-24 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-[10px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 resize-none h-24 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
                     />
                   </div>
                 </div>
 
                 <div className="p-6 border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row justify-end gap-3">
                   {selectedUser.status === 'Approved' ? (
-                    <div className="flex items-center gap-2 text-sm font-bold text-blue-600 px-4 py-2.5 bg-blue-50 rounded-[6px] border border-blue-100">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-blue-600 px-4 py-2.5 bg-blue-50 rounded-[10px] border border-blue-100">
                       <CheckCircle2 className="w-4 h-4" />
                       <span>Member Approved</span>
                     </div>
@@ -1132,7 +1089,7 @@ export default function AdminDashboard() {
                       {selectedUser.status !== 'Declined' && (
                         <button
                           onClick={() => handleStatusUpdate(selectedUser.id, 'Declined')}
-                          className="px-6 py-2.5 bg-white border border-red-200 text-red-600 text-sm font-bold rounded-[6px] hover:bg-red-50 hover:border-red-300 transition-colors shadow-sm"
+                          className="px-6 py-2.5 bg-white border border-red-200 text-red-600 text-sm font-semibold rounded-[10px] hover:bg-red-50 hover:border-red-300 transition-colors shadow-sm"
                         >
                           Decline
                         </button>
@@ -1140,10 +1097,10 @@ export default function AdminDashboard() {
                       <button
                         onClick={() => handleStatusUpdate(selectedUser.id, 'Approved')}
                         className={clsx(
-                          "px-6 py-2.5 text-white text-sm font-bold rounded-[6px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out shadow-md flex items-center justify-center space-x-2",
+                          "px-6 py-2.5 text-white text-sm font-semibold rounded-[10px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out shadow-md flex items-center justify-center space-x-2",
                           selectedUser.status === 'Declined'
-                            ? "bg-blue-600 hover:bg-blue-700 shadow-blue-900/10"
-                            : "bg-blue-900 hover:bg-blue-800 shadow-blue-900/10"
+                            ? "bg-blue-600 hover:bg-blue-700 "
+                            : "bg-blue-900 hover:bg-blue-800 "
                         )}
                       >
                         <CheckCircle2 className="w-4 h-4" />
@@ -1174,15 +1131,15 @@ export default function AdminDashboard() {
             >
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-lg bg-white rounded-[6px] shadow-2xl border border-slate-200 flex flex-col max-h-[95vh] sm:max-h-[90vh]"
+                className="w-full max-w-lg bg-white rounded-[10px] shadow-[var(--e2)] border border-slate-200 flex flex-col max-h-[95vh] sm:max-h-[90vh]"
               >
                 <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 flex-shrink-0">
                   <div>
-                    <h3 className="text-base sm:text-lg font-bold text-slate-900">My Volunteer Card</h3>
+                    <h3 className="text-base sm:text-lg font-semibold text-slate-900">My Volunteer Card</h3>
                   </div>
                   <button
                     onClick={() => setShowMyCard(false)}
-                    className="p-1.5 sm:p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-[6px] transition-colors"
+                    className="p-1.5 sm:p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-[10px] transition-colors"
                   >
                     <XCircle className="w-5 h-5 sm:w-6 sm:h-6" />
                   </button>
@@ -1195,14 +1152,14 @@ export default function AdminDashboard() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                       <button
                         onClick={() => handleCopyLink(currentUser)}
-                        className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 bg-blue-900 text-white rounded-[6px] font-bold text-xs sm:text-sm hover:bg-blue-800 transition-[transform,box-shadow,background-color] duration-200 ease-out shadow-[0_10px_24px_-14px_rgba(30,58,138,0.5)] active:scale-[0.98]"
+                        className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 bg-blue-900 text-white rounded-[10px] font-semibold text-xs sm:text-sm hover:bg-blue-800 transition-[transform,box-shadow,background-color] duration-200 ease-out shadow-[0_10px_24px_-14px_rgba(30,58,138,0.5)] active:scale-[0.98]"
                       >
                         {copyStatus === 'copied' ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                         {copyStatus === 'copied' ? 'Link Copied' : 'Copy Public Link'}
                       </button>
                       <button
                         onClick={() => handleCopyEmbed(currentUser)}
-                        className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 bg-white border border-slate-200 text-slate-700 rounded-[6px] font-bold text-xs sm:text-sm [@media(hover:hover){&:hover}]:bg-slate-50 [@media(hover:hover){&:hover}]:border-slate-300 transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out active:scale-[0.98]"
+                        className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 bg-white border border-slate-200 text-slate-700 rounded-[10px] font-semibold text-xs sm:text-sm [@media(hover:hover){&:hover}]:bg-slate-50 [@media(hover:hover){&:hover}]:border-slate-300 transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out active:scale-[0.98]"
                       >
                         {copyStatus === 'embed-copied' ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Code className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                         {copyStatus === 'embed-copied' ? 'Embed Copied' : 'Embed Code'}
@@ -1232,15 +1189,15 @@ export default function AdminDashboard() {
             >
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-4xl bg-white rounded-[6px] shadow-2xl border border-slate-200 flex flex-col max-h-[95vh] sm:max-h-[90vh] overflow-hidden"
+                className="w-full max-w-4xl bg-white rounded-[10px] shadow-[var(--e2)] border border-slate-200 flex flex-col max-h-[95vh] sm:max-h-[90vh] overflow-hidden"
               >
                 <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 flex-shrink-0">
                   <div>
-                    <h3 className="text-xl font-bold text-slate-900 tracking-tight">Member Profile</h3>
+                    <h3 className="text-xl font-semibold text-slate-900 tracking-tight">Member Profile</h3>
                   </div>
                   <button
                     onClick={() => setSelectedMember(null)}
-                    className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-[6px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-95"
+                    className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-[10px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-95"
                   >
                     <XCircle className="w-6 h-6" />
                   </button>
@@ -1249,21 +1206,21 @@ export default function AdminDashboard() {
                 <div className="overflow-y-auto flex-1 p-6 sm:p-8 no-scrollbar bg-slate-50/30">
                   <div className="flex flex-col lg:grid lg:grid-cols-2 gap-10">
                     <div className="flex flex-col items-center gap-8">
-                      <div className="scale-[0.85] sm:scale-100 origin-top transition-transform drop-shadow-2xl">
+                      <div className="scale-[0.85] sm:scale-100 origin-top transition-transform drop-shadow-[var(--e2)]">
                         <AccessCard user={selectedMember} />
                       </div>
                       <div className="w-full max-w-[320px] sm:max-w-none">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                           <button
                             onClick={() => handleCopyLink(selectedMember)}
-                            className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 bg-blue-900 text-white rounded-[6px] font-bold text-xs sm:text-sm hover:bg-blue-800 transition-[transform,box-shadow,background-color] duration-200 ease-out shadow-[0_10px_24px_-14px_rgba(30,58,138,0.5)] active:scale-[0.98]"
+                            className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 bg-blue-900 text-white rounded-[10px] font-semibold text-xs sm:text-sm hover:bg-blue-800 transition-[transform,box-shadow,background-color] duration-200 ease-out shadow-[0_10px_24px_-14px_rgba(30,58,138,0.5)] active:scale-[0.98]"
                           >
                             {copyStatus === 'copied' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                             {copyStatus === 'copied' ? 'Link Copied' : 'Copy Public Link'}
                           </button>
                           <button
                             onClick={() => handleCopyEmbed(selectedMember)}
-                            className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 bg-white border border-slate-200 text-slate-700 rounded-[6px] font-bold text-xs sm:text-sm [@media(hover:hover){&:hover}]:bg-slate-50 [@media(hover:hover){&:hover}]:border-slate-300 transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out active:scale-[0.98]"
+                            className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 bg-white border border-slate-200 text-slate-700 rounded-[10px] font-semibold text-xs sm:text-sm [@media(hover:hover){&:hover}]:bg-slate-50 [@media(hover:hover){&:hover}]:border-slate-300 transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out active:scale-[0.98]"
                           >
                             {copyStatus === 'embed-copied' ? <Check className="w-4 h-4" /> : <Code className="w-4 h-4" />}
                             {copyStatus === 'embed-copied' ? 'Embed Copied' : 'Embed Code'}
@@ -1275,15 +1232,15 @@ export default function AdminDashboard() {
                     <div className="space-y-8">
                       <div className="grid grid-cols-2 gap-y-6 gap-x-8 px-2">
                         <div>
-                          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Full Name</p>
-                          <p className="text-sm font-bold text-slate-900">{selectedMember.fullName}</p>
+                          <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Full Name</p>
+                          <p className="text-sm font-semibold text-slate-900">{selectedMember.fullName}</p>
                         </div>
                         <div>
-                          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Email Address</p>
+                          <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Email Address</p>
                           <p className="text-sm font-semibold text-slate-600 break-all">{selectedMember.email}</p>
                         </div>
                         <div>
-                          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Discord</p>
+                          <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Discord</p>
                           <div className="flex items-center gap-2">
                             {selectedMember.discordAvatar && selectedMember.discordId ? (
                               <img
@@ -1293,7 +1250,7 @@ export default function AdminDashboard() {
                               />
                             ) : null}
                             <div>
-                              <p className="text-sm font-bold text-blue-600">
+                              <p className="text-sm font-semibold text-blue-600">
                                 {selectedMember.discordDisplayName || selectedMember.discordUsername || 'N/A'}
                               </p>
                               {selectedMember.discordDisplayName && selectedMember.discordUsername && (
@@ -1303,36 +1260,36 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                         <div>
-                          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Primary Role</p>
-                          <p className="text-sm font-bold text-slate-900">{selectedMember.specialization || 'N/A'}</p>
+                          <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Primary Role</p>
+                          <p className="text-sm font-semibold text-slate-900">{selectedMember.specialization || 'N/A'}</p>
                         </div>
                         <div>
-                          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Community Role</p>
-                          <span className="inline-flex px-2 py-0.5 rounded-[6px] bg-blue-50 text-[10px] font-semibold text-blue-700 uppercase tracking-widest">
+                          <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Community Role</p>
+                          <span className="inline-flex px-2 py-0.5 rounded-[10px] bg-blue-50 text-[12px] font-semibold text-blue-700">
                             {selectedMember.role}
                           </span>
                         </div>
                         <div>
-                          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Member Since</p>
-                          <p className="text-sm font-bold text-slate-900">{selectedMember.yearJoined || 'N/A'}</p>
+                          <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Member Since</p>
+                          <p className="text-sm font-semibold text-slate-900">{selectedMember.yearJoined || 'N/A'}</p>
                         </div>
                         <div>
-                          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Prof. Level</p>
-                          <p className="text-sm font-bold text-slate-900">{selectedMember.experienceLevel || 'Beginner'}</p>
+                          <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Prof. Level</p>
+                          <p className="text-sm font-semibold text-slate-900">{selectedMember.experienceLevel || 'Beginner'}</p>
                         </div>
                       </div>
 
                       <div className="px-2">
-                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-4">Skills</p>
+                        <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-4">Skills</p>
                         <div className="flex flex-wrap gap-2">
                           {Array.isArray(selectedMember.skills) && selectedMember.skills.length > 0 ? (
                             selectedMember.skills.map((skill, i) => (
-                              <div key={i} className="flex items-center gap-1.5 pl-1.5 pr-3 py-1 bg-white border border-slate-200 rounded-[6px] shadow-sm group">
-                                <div className="w-6 h-6 rounded-[6px] bg-slate-50 flex items-center justify-center border border-slate-100">
+                              <div key={i} className="flex items-center gap-1.5 pl-1.5 pr-3 py-1 bg-white border border-slate-200 rounded-[10px] shadow-sm group">
+                                <div className="w-6 h-6 rounded-[10px] bg-slate-50 flex items-center justify-center border border-slate-100">
                                   <SkillIcon skillName={skill.name} size={12} />
                                 </div>
                                 <span className="text-xs font-semibold text-slate-800">{skill.name}</span>
-                                <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-400">{skill.level}</span>
+                                <span className="text-[11px] font-semibold text-slate-400">{skill.level}</span>
                               </div>
                             ))
                           ) : (
@@ -1341,14 +1298,14 @@ export default function AdminDashboard() {
                         </div>
                       </div>
 
-                      <div className="p-5 bg-white rounded-[6px] border border-slate-100 shadow-sm">
-                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Experience Level</p>
-                        <p className="text-sm font-bold text-slate-900">{selectedMember.experienceLevel || 'Professional'}</p>
+                      <div className="p-5 bg-white rounded-[10px] border border-slate-100 shadow-sm">
+                        <p className="text-[12px] font-semibold text-slate-400 mb-1.5">Experience Level</p>
+                        <p className="text-sm font-semibold text-slate-900">{selectedMember.experienceLevel || 'Professional'}</p>
                       </div>
 
                       {selectedMember.adminNotes && (
-                        <div className="p-4 sm:p-5 bg-blue-50/60 rounded-[6px] border border-blue-100">
-                          <p className="text-[10px] font-semibold text-blue-900 uppercase tracking-[0.18em] mb-2">Admin Remarks</p>
+                        <div className="p-4 sm:p-5 bg-blue-50/60 rounded-[10px] border border-blue-100">
+                          <p className="text-[12px] font-semibold text-blue-900 uppercase tracking-[0.18em] mb-2">Admin Remarks</p>
                           <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
                             "{selectedMember.adminNotes}"
                           </p>
@@ -1379,57 +1336,57 @@ export default function AdminDashboard() {
             >
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-lg bg-white rounded-[6px] shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]"
+                className="w-full max-w-lg bg-white rounded-[10px] shadow-[var(--e2)] border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]"
               >
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                  <h3 className="text-lg font-bold text-slate-900">Edit Project Submission</h3>
+                  <h3 className="text-lg font-semibold text-slate-900">Edit Project Submission</h3>
                   <button onClick={() => setEditingSubmission(null)} className="text-slate-400 hover:text-slate-600">
                     <XCircle className="w-6 h-6" />
                   </button>
                 </div>
                 <div className="p-6 overflow-y-auto flex-1 space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1">Project Name</label>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">Project Name</label>
                     <input
                       type="text"
                       value={editForm.projectName}
                       onChange={(e) => setEditForm({ ...editForm, projectName: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500"
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[10px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1">Project URL</label>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">Project URL</label>
                     <input
                       type="text"
                       value={editForm.projectUrl}
                       onChange={(e) => setEditForm({ ...editForm, projectUrl: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500"
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[10px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1">Description</label>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">Description</label>
                     <textarea
                       value={editForm.description}
                       onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                       rows={4}
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 resize-none"
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[10px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 resize-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1">Project Type</label>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">Project Type</label>
                     <input
                       type="text"
                       value={editForm.projType}
                       onChange={(e) => setEditForm({ ...editForm, projType: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500"
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[10px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1">Status</label>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">Status</label>
                     <select
                       value={editForm.status}
                       onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500"
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[10px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500"
                     >
                       <option value="pending">Pending</option>
                       <option value="approved">Approved</option>
@@ -1440,14 +1397,14 @@ export default function AdminDashboard() {
                 <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
                   <button
                     onClick={() => setEditingSubmission(null)}
-                    className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 text-sm font-bold rounded-[6px] hover:bg-slate-50 transition-colors"
+                    className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-[10px] hover:bg-slate-50 transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleEditSave}
                     disabled={editSaving}
-                    className="px-6 py-2.5 bg-blue-900 text-white text-sm font-bold rounded-[6px] hover:bg-blue-800 disabled:opacity-60 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out flex items-center gap-2"
+                    className="px-6 py-2.5 bg-blue-900 text-white text-sm font-semibold rounded-[10px] hover:bg-blue-800 disabled:opacity-60 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out flex items-center gap-2"
                   >
                     {editSaving ? 'Saving...' : 'Save Changes'}
                   </button>
