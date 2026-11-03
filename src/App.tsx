@@ -1,20 +1,22 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { useStore } from "./store/useStore";
 import { LoadingOverlay } from "./components/LoadingOverlay";
 import { getUserData, supabase, resetSupabaseClient } from "./services/supabase";
-import Login from "./pages/auth/Login";
-import Register from "./pages/auth/Register";
-import UserDashboard from "./pages/dashboard/UserDashboard";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import Verify from "./pages/public/Verify";
 import Landing from "./pages/public/Landing";
-import Privacy from "./pages/public/Privacy";
-import Terms from "./pages/public/Terms";
-import Projects from "./pages/public/Projects";
-import Contribute from "./pages/public/Contribute";
-import NotFound from "./pages/public/NotFound";
-import DiscordCallback from "./pages/auth/DiscordCallback";
+
+// Everything except the landing page loads on demand, so first visits don't pay for the dashboards.
+const Login = lazy(() => import("./pages/auth/Login"));
+const Register = lazy(() => import("./pages/auth/Register"));
+const UserDashboard = lazy(() => import("./pages/dashboard/UserDashboard"));
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const Verify = lazy(() => import("./pages/public/Verify"));
+const Privacy = lazy(() => import("./pages/public/Privacy"));
+const Terms = lazy(() => import("./pages/public/Terms"));
+const Projects = lazy(() => import("./pages/public/Projects"));
+const Contribute = lazy(() => import("./pages/public/Contribute"));
+const NotFound = lazy(() => import("./pages/public/NotFound"));
+const DiscordCallback = lazy(() => import("./pages/auth/DiscordCallback"));
 
 const isProfileComplete = (u: any) => {
   if (!u) return false;
@@ -235,6 +237,7 @@ export default function App() {
     <>
       {!authInitialized && !isEmbed && <LoadingOverlay />}
       <Router>
+        <Suspense fallback={<LoadingOverlay />}>
         <Routes>
           <Route path="/" element={<HomeRoute><Landing /></HomeRoute>} />
           <Route path="/login/*" element={<PublicRoute><Login /></PublicRoute>} />
@@ -250,6 +253,7 @@ export default function App() {
           <Route path="/discord-callback" element={<DiscordCallback />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
       </Router>
     </>
   );

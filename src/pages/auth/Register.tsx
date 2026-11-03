@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
-import { Calendar, ChevronDown, Check, MessageSquare, ArrowRight, ArrowLeft, User, Mail, Lock, Briefcase, Users, ShieldCheck, Loader2, AlertCircle, Search, Plus, X, BookOpen, Wrench, GraduationCap, Brain, Code, Palette, Database, Globe, Cpu, Layers, Server, Smartphone, Zap, Target, BadgeCheck, Link2, Github } from 'lucide-react';
+import { ChevronDown, Check, MessageSquare, ArrowRight, ArrowLeft, User, Mail, Lock, Briefcase, ShieldCheck, Loader2, AlertCircle, Search, Plus, X, BookOpen, Wrench, GraduationCap, Brain, Code, Palette, Database, Globe, Cpu, Layers, Server, Smartphone, Zap, Target, Link2, Github } from 'lucide-react';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
 import { SkillIcon } from '../../components/SkillIcon';
 import { SkillLevel, ExperienceLevel, UserSkill } from '../../types';
@@ -52,7 +52,6 @@ function LegacyRegister() {
     const [skillSearch, setSkillSearch] = useState('');
     const [otherSkill, setOtherSkill] = useState('');
     const [showOtherInput, setShowOtherInput] = useState(false);
-    const [isYearOpen, setIsYearOpen] = useState(false);
     const [activeSkillCategory, setActiveSkillCategory] = useState<SkillCategory>(Object.keys(SKILL_CATEGORIES)[0] as SkillCategory);
 
     const [error, setError] = useState('');
@@ -70,33 +69,6 @@ function LegacyRegister() {
 
     const hasSession = !!sessionUserId;
 
-    const dragContainerRef = React.useRef<HTMLDivElement>(null);
-    const dragContentRef = React.useRef<HTMLDivElement>(null);
-    const [dragConstraints, setDragConstraints] = useState({ left: 0, right: 0 });
-
-    useEffect(() => {
-        const calculateConstraints = () => {
-            if (dragContainerRef.current && dragContentRef.current) {
-                const containerWidth = dragContainerRef.current.offsetWidth;
-                const contentWidth = dragContentRef.current.scrollWidth;
-                const scrollableWidth = contentWidth - containerWidth;
-                setDragConstraints({
-                    left: scrollableWidth > 0 ? -scrollableWidth - 40 : 0,
-                    right: 0
-                });
-            }
-        };
-
-        calculateConstraints();
-        // Add a small delay for content rendering
-        const timer = setTimeout(calculateConstraints, 100);
-
-        window.addEventListener('resize', calculateConstraints);
-        return () => {
-            window.removeEventListener('resize', calculateConstraints);
-            clearTimeout(timer);
-        };
-    }, [activeSkillCategory]);
     const navigate = useNavigate();
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [roleScores, setRoleScores] = useState<Record<string, number>>({});
@@ -479,112 +451,77 @@ function LegacyRegister() {
     const renderSkillItem = (skill: string, sectionContext: string = 'default') => {
         const selectedSkill = formData.skills.find(s => s.name === skill);
         const isSelected = !!selectedSkill;
+        const toggle = () => {
+            setFormData({
+                ...formData,
+                skills: isSelected
+                    ? formData.skills.filter(s => s.name !== skill)
+                    : [...formData.skills, { name: skill, level: 'Learner' }],
+            });
+        };
+        const setLevel = (level: SkillLevel) => {
+            setFormData({
+                ...formData,
+                skills: formData.skills.map(s => (s.name === skill ? { ...s, level } : s)),
+            });
+        };
 
         return (
-            <motion.div
-                layout
-                key={skill}
+            <div
+                key={`${sectionContext}-${skill}`}
                 className={clsx(
-                    "group relative flex flex-col p-1.5 sm:p-2 rounded-[10px] border transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out",
+                    'rounded-[12px] transition-[box-shadow,background-color] duration-150',
                     isSelected
-                        ? "bg-white border-blue-900 shadow-sm"
-                        : "bg-white border-slate-100 hover:border-blue-300 hover:shadow-sm hover:bg-blue-50/30"
+                        ? 'bg-[#f4f7ff] shadow-[0_0_0_2px_var(--accent)]'
+                        : 'bg-white shadow-[0_0_0_1px_rgb(15_23_42/0.12),0_1px_2px_rgb(15_23_42/0.04)] [@media(hover:hover)]:hover:shadow-[0_0_0_1px_rgb(15_23_42/0.2),0_4px_12px_-4px_rgb(15_23_42/0.12)]'
                 )}
             >
-                <div className="flex items-center gap-2 w-full">
-                    <div className={clsx(
-                        "w-8 h-8 sm:w-9 sm:h-9 rounded-[10px] flex items-center justify-center transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out shrink-0",
-                        isSelected
-                            ? "bg-blue-900 text-white shadow-sm"
-                            : "bg-blue-50 text-blue-600 group-hover:bg-blue-100 group-hover:text-blue-700"
-                    )}>
-                        <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex items-center justify-center">
-                            <SkillIcon skillName={skill} size={14} invert={isSelected} />
-                        </div>
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                        <span className="text-xs sm:text-sm font-semibold text-slate-900 block leading-tight tracking-tight break-words">
-                            {skill}
-                        </span>
-                        {isSelected && (
-                            <span className="text-[11px] font-semibold text-blue-600 mt-0.5 block">
-                                {selectedSkill.level}
-                            </span>
-                        )}
-                    </div>
-
-                    <button
-                        type="button"
-                        onClick={() => {
-                            if (isSelected) {
-                                setFormData({
-                                    ...formData,
-                                    skills: formData.skills.filter(s => s.name !== skill)
-                                });
-                            } else {
-                                setFormData({
-                                    ...formData,
-                                    skills: [...formData.skills, { name: skill, level: 'Learner' }]
-                                });
-                            }
-                        }}
+                <button
+                    type="button"
+                    onClick={toggle}
+                    aria-pressed={isSelected}
+                    className="flex min-h-[48px] w-full items-center gap-3 px-3.5 py-2.5 text-left"
+                >
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center" aria-hidden>
+                        <SkillIcon skillName={skill} size={16} />
+                    </span>
+                    <span className="min-w-0 flex-1 break-words text-[14px] font-medium text-slate-900">{skill}</span>
+                    <span
+                        aria-hidden
                         className={clsx(
-                            "w-8 h-8 sm:w-9 sm:h-9 rounded-[10px] flex items-center justify-center transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out shrink-0",
-                            isSelected
-                                ? "bg-blue-900 text-white hover:bg-blue-800 shadow-sm"
-                                : "bg-slate-50 text-slate-400 border border-slate-100 hover:border-blue-200 hover:text-blue-600 hover:bg-blue-50"
+                            'flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] transition-[background-color,box-shadow] duration-150',
+                            isSelected ? 'bg-[var(--accent)] text-white' : 'shadow-[inset_0_0_0_1.5px_rgb(148_163_184)]'
                         )}
                     >
-                        {isSelected ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" strokeWidth={2.25} /> : <Plus className="w-4 h-4 sm:w-5 sm:h-5" strokeWidth={2.25} />}
-                    </button>
-                </div>
+                        {isSelected && <Check size={12} strokeWidth={2.5} />}
+                    </span>
+                </button>
 
                 {isSelected && (
-                    <motion.div
-                        initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                        animate={{ opacity: 1, height: 'auto', marginTop: 10 }}
-                        className="overflow-hidden w-full"
-                    >
-                        <div className="grid grid-cols-3 gap-0.5 p-0.5 bg-slate-100 rounded-[10px]">
+                    <div className="px-3.5 pb-3">
+                        <div role="radiogroup" aria-label={`${skill} level`} className="grid grid-cols-[1fr_1.35fr_1fr] gap-1 rounded-[9px] bg-white p-1 shadow-[inset_0_0_0_1px_rgb(15_23_42/0.08)]">
                             {SKILL_LEVELS.map((level) => {
                                 const isActive = selectedSkill?.level === level;
-
                                 return (
                                     <button
                                         key={level}
                                         type="button"
-                                        onClick={() => {
-                                            const newSkills = [...formData.skills];
-                                            const index = newSkills.findIndex(s => s.name === skill);
-                                            if (index !== -1) {
-                                                newSkills[index] = { ...newSkills[index], level };
-                                                setFormData({ ...formData, skills: newSkills });
-                                            }
-                                        }}
+                                        role="radio"
+                                        aria-checked={isActive}
+                                        onClick={() => setLevel(level)}
                                         className={clsx(
-                                            "relative flex items-center justify-center rounded-[10px] text-[11px] sm:text-[12px] font-semibold transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out py-1.5 sm:py-2 px-1",
-                                            isActive
-                                                ? "text-white"
-                                                : "text-slate-400 hover:text-slate-700"
+                                            'min-h-[34px] min-w-0 whitespace-nowrap rounded-[7px] px-1.5 text-[12px] transition-[background-color,color] duration-150 focus-visible:outline-offset-0',
+                                            isActive ? 'bg-[var(--accent)] font-medium text-white' : 'text-slate-500 hover:text-slate-900'
                                         )}
                                     >
-                                        {isActive && (
-                                            <motion.div
-                                                layoutId={`activeLevel-${sectionContext}-${skill}`}
-                                                className="absolute inset-0 bg-blue-900 rounded-[10px] shadow-sm"
-                                                initial={false}
-                                                transition={{ type: "spring", bounce: 0.1, duration: 0.5 }}
-                                            />
-                                        )}
-                                        <span className="relative z-10 whitespace-nowrap">{level}</span>
+                                        {level}
                                     </button>
                                 );
                             })}
                         </div>
-                    </motion.div>
+                    </div>
                 )}
-            </motion.div>
+            </div>
         );
     };
 
@@ -648,10 +585,10 @@ function LegacyRegister() {
     };
 
     const steps = [
-        { id: 1, name: 'Account', icon: <User size={16} strokeWidth={1.75} /> },
-        { id: 2, name: 'Profile', icon: <Users size={18} /> },
-        { id: 3, name: 'Skills', icon: <Briefcase size={18} /> },
-        { id: 4, name: 'Connect', icon: <Link2 size={18} /> },
+        { id: 1, name: 'Account', icon: <User size={15} strokeWidth={2} /> },
+        { id: 2, name: 'Profile', icon: <Briefcase size={15} strokeWidth={2} /> },
+        { id: 3, name: 'Skills', icon: <Wrench size={15} strokeWidth={2} /> },
+        { id: 4, name: 'Connect', icon: <Link2 size={15} strokeWidth={2} /> },
     ];
 
 
@@ -665,7 +602,7 @@ function LegacyRegister() {
                 <span className="num text-[13px] text-[var(--fg-3)]">Step {currentStep} of 4</span>
             </header>
 
-            <div className="mx-auto w-full max-w-xl flex-1 px-4 sm:px-6 pt-6 pb-16">
+            <div className="mx-auto w-full max-w-2xl flex-1 px-4 sm:px-6 pt-6 pb-16">
                 <div className="mb-8">
                     <h1 className="mt-2 text-[28px] sm:text-[32px]">
                         {['Tell us who you are', 'Your role', 'Your skills', 'Connect your accounts'][currentStep - 1] || 'Membership application'}
@@ -681,12 +618,24 @@ function LegacyRegister() {
                 </div>
 
                 <nav aria-label="Application steps" className="mb-8">
-                    <ol className="grid grid-cols-4 gap-2">
-                        {steps.map((step) => {
+                    <ol className="grid grid-cols-4">
+                        {steps.map((step, i) => {
                             const done = currentStep > step.id;
                             const current = currentStep === step.id;
+                            const desc = ['Name & year', 'Role & experience', 'What you know', 'Link Discord'][i];
                             return (
-                                <li key={step.id}>
+                                <li key={step.id} className="relative">
+                                    {i > 0 && (
+                                        <span
+                                            aria-hidden
+                                            className="absolute left-[calc(-50%+24px)] right-[calc(50%+24px)] top-[17px] h-[2px] overflow-hidden rounded-full bg-slate-200"
+                                        >
+                                            <span
+                                                className="block h-full origin-left bg-[var(--accent)] transition-transform duration-500 ease-[cubic-bezier(.23,1,.32,1)]"
+                                                style={{ transform: `scaleX(${currentStep >= step.id ? 1 : 0})` }}
+                                            />
+                                        </span>
+                                    )}
                                     <button
                                         type="button"
                                         onClick={() => {
@@ -697,23 +646,27 @@ function LegacyRegister() {
                                         }}
                                         aria-current={current ? 'step' : undefined}
                                         aria-label={`Step ${step.id}: ${step.name}${done ? ', done' : current ? ', current' : ''}`}
-                                        className="group block w-full text-left"
+                                        className="group mx-auto flex w-full flex-col items-center text-center"
                                     >
-                                        <span className="block h-1 overflow-hidden rounded-full bg-slate-200">
-                                            <span
-                                                className="block h-full rounded-full bg-[var(--accent)] transition-transform duration-300 ease-[cubic-bezier(.23,1,.32,1)] origin-left"
-                                                style={{ transform: `scaleX(${done || current ? 1 : 0})` }}
-                                            />
+                                        <span
+                                            className={clsx(
+                                                'relative z-10 flex h-9 w-9 items-center justify-center rounded-full text-[13px] font-semibold transition-[background-color,box-shadow,color] duration-200',
+                                                done && 'bg-[var(--accent)] text-white shadow-[0_1px_2px_rgb(15_23_42/0.2)]',
+                                                current && 'bg-white text-[var(--accent)] shadow-[0_0_0_2px_var(--accent),0_0_0_6px_rgb(30_58_138/0.12)]',
+                                                !done && !current && 'bg-white text-slate-400 shadow-[inset_0_0_0_1.5px_rgb(203_213_225)] group-hover:text-slate-600'
+                                            )}
+                                        >
+                                            {done ? <Check size={15} strokeWidth={2.5} /> : step.icon}
                                         </span>
                                         <span
                                             className={clsx(
-                                                'mt-2 flex items-center gap-1 text-[12px] transition-colors',
-                                                current ? 'font-medium text-[var(--fg)]' : done ? 'text-[var(--fg-2)]' : 'text-[var(--fg-3)] group-hover:text-[var(--fg-2)]'
+                                                'mt-2.5 text-[13px] leading-tight transition-colors',
+                                                current ? 'font-semibold text-slate-900' : done ? 'font-medium text-slate-700' : 'text-slate-400 group-hover:text-slate-600'
                                             )}
                                         >
-                                            {done && <Check size={12} strokeWidth={2} className="text-[var(--accent)]" />}
                                             {step.name}
                                         </span>
+                                        <span className="mt-0.5 hidden text-[12px] leading-tight text-slate-400 sm:block">{desc}</span>
                                     </button>
                                 </li>
                             );
@@ -757,109 +710,55 @@ function LegacyRegister() {
                                 {currentStep === 1 && (
                                     <motion.div
                                         key="step1"
-                                        initial={{ opacity: 0, x: 20 }}
+                                        initial={{ opacity: 0, x: 12 }}
                                         animate={{ opacity: 1, x: 0 }}
-                                        exit={{ opacity: 0, x: -20 }}
-                                        transition={{ duration: 0.3 }}
-                                        className="space-y-5 sm:space-y-6"
+                                        exit={{ opacity: 0, x: -12 }}
+                                        transition={{ duration: 0.28, ease: [0.23, 1, 0.32, 1] }}
+                                        className="space-y-6"
                                     >
-                                        <div className="space-y-4">
-                                            <div className="space-y-5">
-                                                <div className="rounded-[10px] bg-slate-50 px-4 py-3 shadow-[inset_0_0_0_1px_rgb(15_23_42/0.06)]">
-                                                    <div className="flex items-center justify-between gap-4">
-                                                        <div className="min-w-0">
-                                                            <p className="text-[12px] text-slate-500">Signed in as</p>
-                                                            <p className="mt-0.5 text-[14px] font-medium text-slate-900 truncate">{userEmail || 'Loading...'}</p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div>
-                                                    <label htmlFor="field-full-name" className="block text-[14px] font-medium text-slate-900 mb-2">Full Name</label>
-                                                    <div className="relative group">
-                                                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-900 transition-colors">
-                                                            <User size={16} strokeWidth={1.75} />
-                                                        </div>
-                                                        <input
-                                                            id="field-full-name"
-                                                            name="fullName"
-                                                            type="text"
-                                                            autoComplete="name"
-                                                            value={formData.fullName}
-                                                            onChange={handleChange}
-                                                            aria-invalid={!!(error && !formData.fullName.trim())}
-                                                            aria-describedby={error ? 'register-form-error' : undefined}
-                                                            className="s-field h-11 pl-10 text-[15px]"
-                                                            placeholder="Juan Dela Cruz"
-                                                        />
-                                                    </div>
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-[14px] font-medium text-slate-900 mb-2">Member since</label>
-                                                    <div className="relative">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setIsYearOpen(!isYearOpen)}
-                                                            className={clsx(
-                                                                "relative w-full flex items-center justify-between rounded-[10px] border px-4 py-3 text-left transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30",
-                                                                isYearOpen ? "border-blue-500 ring-4 ring-blue-500/10 bg-white shadow-sm" : "border-slate-200 bg-white hover:border-slate-300"
-                                                            )}
-                                                        >
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="text-blue-900">
-                                                                    <Calendar className="w-4 h-4" />
-                                                                </div>
-                                                                <span className="text-sm font-semibold text-slate-900">{formData.yearJoined}</span>
-                                                            </div>
-                                                            <ChevronDown className={clsx("w-4 h-4 text-slate-400 transition-transform duration-300", isYearOpen && "rotate-180")} />
-                                                        </button>
-
-                                                        <AnimatePresence>
-                                                            {isYearOpen && (
-                                                                <>
-                                                                    <motion.div
-                                                                        initial={{ opacity: 0 }}
-                                                                        animate={{ opacity: 1 }}
-                                                                        exit={{ opacity: 0 }}
-                                                                        onClick={() => setIsYearOpen(false)}
-                                                                        className="fixed inset-0 z-10"
-                                                                    />
-                                                                    <motion.div
-                                                                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                                                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                                                                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                                                        transition={{ duration: 0.2, ease: "easeOut" }}
-                                                                        className="absolute left-0 right-0 mt-2 z-20 bg-white border border-slate-100 rounded-[10px] shadow-[0_8px_24px_-6px_rgb(15_23_42/0.15),0_0_0_1px_rgb(15_23_42/0.06)] overflow-hidden max-h-[200px] overflow-y-auto no-scrollbar"
-                                                                    >
-                                                                        <div className="p-2 grid grid-cols-1 gap-1">
-                                                                            {Array.from({ length: new Date().getFullYear() - 2024 }, (_, i) => new Date().getFullYear() - i).map((year) => (
-                                                                                <button
-                                                                                    key={year}
-                                                                                    type="button"
-                                                                                    onClick={() => {
-                                                                                        setFormData({ ...formData, yearJoined: year });
-                                                                                        setIsYearOpen(false);
-                                                                                    }}
-                                                                                    className={clsx(
-                                                                                        "flex items-center justify-between w-full px-4 py-3 rounded-[10px] text-sm font-semibold transition-colors",
-                                                                                        formData.yearJoined === year
-                                                                                            ? "bg-blue-50 text-blue-900"
-                                                                                            : "text-slate-600 hover:bg-slate-50"
-                                                                                    )}
-                                                                                >
-                                                                                    <span>{year}</span>
-                                                                                    {formData.yearJoined === year && <Check className="w-4 h-4 text-blue-900" />}
-                                                                                </button>
-                                                                            ))}
-                                                                        </div>
-                                                                    </motion.div>
-                                                                </>
-                                                            )}
-                                                        </AnimatePresence>
-                                                    </div>
-                                                </div>
+                                        <div className="flex items-center gap-3 rounded-[12px] bg-slate-50 px-4 py-3 shadow-[inset_0_0_0_1px_rgb(15_23_42/0.06)]">
+                                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[14px] font-semibold text-[var(--accent)] shadow-[var(--e1)]">
+                                                {(formData.fullName.trim()[0] || userEmail?.[0] || '?').toUpperCase()}
+                                            </span>
+                                            <div className="min-w-0">
+                                                <p className="text-[12px] text-slate-500">Signed in with Google</p>
+                                                <p className="truncate text-[14px] font-medium text-slate-900">{userEmail || 'Loading…'}</p>
                                             </div>
+                                        </div>
+
+                                        <div>
+                                            <label htmlFor="field-full-name" className="mb-1.5 block text-[14px] font-medium text-slate-900">Full name</label>
+                                            <input
+                                                id="field-full-name"
+                                                name="fullName"
+                                                type="text"
+                                                autoComplete="name"
+                                                value={formData.fullName}
+                                                onChange={handleChange}
+                                                aria-invalid={!!(error && !formData.fullName.trim())}
+                                                aria-describedby={error ? 'register-form-error' : 'hint-full-name'}
+                                                className="s-field h-11 text-[15px]"
+                                                placeholder="Juan Dela Cruz"
+                                            />
+                                            <p id="hint-full-name" className="mt-1.5 text-[12px] text-slate-500">This is printed on your member card exactly as typed.</p>
+                                        </div>
+
+                                        <div>
+                                            <label htmlFor="field-year" className="mb-1.5 block text-[14px] font-medium text-slate-900">Member since</label>
+                                            <div className="relative">
+                                                <select
+                                                    id="field-year"
+                                                    value={formData.yearJoined}
+                                                    onChange={(e) => setFormData({ ...formData, yearJoined: Number(e.target.value) })}
+                                                    className="s-field h-11 cursor-pointer appearance-none pr-10 text-[15px]"
+                                                >
+                                                    {Array.from({ length: new Date().getFullYear() - 2024 }, (_, i) => new Date().getFullYear() - i).map((year) => (
+                                                        <option key={year} value={year}>{year}</option>
+                                                    ))}
+                                                </select>
+                                                <ChevronDown size={16} strokeWidth={1.75} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                                            </div>
+                                            <p className="mt-1.5 text-[12px] text-slate-500">The year you first joined the community.</p>
                                         </div>
                                     </motion.div>
                                 )}
@@ -867,563 +766,471 @@ function LegacyRegister() {
                                 {currentStep === 2 && (
                                     <motion.div
                                         key="step2"
-                                        initial={{ opacity: 0, transform: "translate3d(20px,0,0)" }}
-                                        animate={{ opacity: 1, transform: "translate3d(0px,0,0)" }}
-                                        exit={{ opacity: 0, transform: "translate3d(-20px,0,0)" }}
-                                        transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
-                                        className="space-y-6"
+                                        initial={{ opacity: 0, x: 12 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -12 }}
+                                        transition={{ duration: 0.28, ease: [0.23, 1, 0.32, 1] }}
+                                        className="space-y-9"
                                     >
-                                        <div className="space-y-7">
-                                            <div>
-                                                <div className="flex flex-col gap-1 mb-4">
-                                                    <div className="flex items-center justify-between">
-                                                        <label id="label-specialization" className="block text-[14px] font-medium text-slate-900">Primary role <span className="font-normal text-slate-500">· required</span></label>
-                                                    </div>
-                                                    <p className="text-[13px] text-slate-500 leading-relaxed">Pick the closest match. You'll validate this with your skills on the next step.</p>
-                                                </div>
-                                                <div
-                                                    id="field-specialization"
-                                                    role="radiogroup"
-                                                    aria-labelledby="label-specialization"
-                                                    aria-invalid={!!(error && !formData.specialization)}
-                                                    aria-describedby={error ? 'register-form-error' : undefined}
-                                                    tabIndex={-1}
-                                                    className="grid grid-cols-2 gap-2 sm:gap-2.5"
-                                                >
-                                                    {SPECIALIZATIONS.map((spec) => {
-                                                        const Icon = spec.icon;
-                                                        const isSelected = formData.specialization === spec.label;
-                                                        const hints = spec.suggestedSkills.slice(0, 3);
-
-                                                        return (
-                                                            <button
-                                                                key={spec.id}
-                                                                type="button"
-                                                                role="radio"
-                                                                aria-checked={isSelected}
-                                                                onClick={() => setFormData({ ...formData, specialization: spec.label })}
-                                                                className={clsx(
-                                                                    "group relative flex flex-col items-start gap-2 p-2.5 sm:p-3 rounded-[10px] border text-left transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-blue-900/30 focus-visible:ring-offset-2 focus-visible:ring-offset-white",
-                                                                    isSelected
-                                                                        ? "bg-white border-blue-900 text-slate-900 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-10px_rgba(30,58,138,0.18)] z-10"
-                                                                        : "bg-white border-slate-200 text-slate-500 hover:border-slate-400 hover:bg-slate-50"
-                                                                )}
-                                                            >
-                                                                <div className="flex items-center justify-between w-full gap-2">
-                                                                    <div className={clsx(
-                                                                        "w-8 h-8 sm:w-9 sm:h-9 rounded-[10px] flex items-center justify-center shrink-0 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out",
-                                                                        isSelected
-                                                                            ? "bg-blue-900 text-white"
-                                                                            : "bg-slate-50 text-blue-900 group-hover:bg-blue-50"
-                                                                    )}>
-                                                                        <Icon size={16} className="sm:hidden" />
-                                                                        <Icon size={18} className="hidden sm:inline-block" />
-                                                                    </div>
-                                                                    {isSelected && (
-                                                                        <motion.div
-                                                                            layoutId="spec-check"
-                                                                            initial={false}
-                                                                            transition={{ type: "spring", bounce: 0.1, duration: 0.42 }}
-                                                                            className="w-5 h-5 sm:w-6 sm:h-6 bg-blue-900 text-white rounded-[6px] flex items-center justify-center shadow-sm border border-blue-900"
-                                                                        >
-                                                                            <Check size={11} strokeWidth={2.25} className="sm:hidden" />
-                                                                            <Check size={13} strokeWidth={2.25} className="hidden sm:inline-block" />
-                                                                        </motion.div>
-                                                                    )}
-                                                                </div>
-                                                                <div className="min-w-0 w-full">
-                                                                    <span className={clsx(
-                                                                        "text-[13px] sm:text-[13px] font-semibold uppercase tracking-[0.13em] leading-tight block mb-1",
-                                                                        isSelected ? "text-slate-900" : "text-slate-800"
-                                                                    )}>
-                                                                        {spec.label}
-                                                                    </span>
-                                                                    <div className={clsx(
-                                                                        "flex flex-wrap gap-1",
-                                                                        isSelected ? "" : "opacity-90"
-                                                                    )}>
-                                                                        {hints.map((h, i) => (
-                                                                            <span key={i} className={clsx(
-                                                                                "text-[11px] sm:text-[12px] font-semibold px-1.5 py-0.5 rounded-[6px] whitespace-nowrap",
-                                                                                isSelected
-                                                                                    ? "bg-blue-50 text-blue-800 border border-blue-100"
-                                                                                    : "bg-slate-50 text-slate-500 border border-slate-100"
-                                                                            )}>
-                                                                                {h}
-                                                                            </span>
-                                                                        ))}
-                                                                    </div>
-                                                                </div>
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-
-                                            <div className="pt-1 border-t border-slate-100">
-                                                <div className="flex flex-col gap-1 mb-4">
-                                                    <label className="block text-[14px] font-medium text-slate-900">Community role</label>
-                                                    <p className="text-[13px] text-slate-500 leading-relaxed">Most new members start as Member. Fellow and Contributor are earned tracks.</p>
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    {ROLES.map((role) => {
-                                                        const isSelected = formData.role === role;
-                                                        const locked = role === 'Fellow' || role === 'Contributor';
-                                                        return (
-                                                            <button
-                                                                key={role}
-                                                                type="button"
-                                                                onClick={() => setFormData({ ...formData, role: role })}
-                                                                className={clsx(
-                                                                    "relative px-3 py-2.5 rounded-[10px] text-xs font-semibold transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out border active:scale-[0.975]",
-                                                                    isSelected
-                                                                        ? "bg-blue-900 border-blue-900 text-white shadow-sm"
-                                                                        : locked
-                                                                            ? "bg-white border-slate-100 text-slate-400 hover:border-slate-200 hover:text-slate-500"
-                                                                            : "bg-white border-slate-200 text-slate-600 hover:border-blue-300 hover:text-slate-800 hover:bg-blue-50/30"
-                                                                )}
-                                                            >
-                                                                <span className="flex items-center justify-center gap-1.5">
-                                                                    {role}
-                                                                    {locked && <BadgeCheck size={13} className="opacity-60" />}
-                                                                </span>
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-
-                                                <AnimatePresence>
-                                                    {formData.role === 'Other' && (
-                                                        <motion.div
-                                                            initial={{ opacity: 0, height: 0 }}
-                                                            animate={{ opacity: 1, height: 'auto' }}
-                                                            exit={{ opacity: 0, height: 0 }}
-                                                            transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
-                                                            className="mt-3"
+                                        <fieldset>
+                                            <legend id="label-specialization" className="text-[15px] font-semibold text-slate-900">
+                                                Primary role
+                                            </legend>
+                                            <p className="mt-1 text-[13px] text-slate-500">Pick the closest match — you’ll back it up with skills next.</p>
+                                            <div
+                                                id="field-specialization"
+                                                role="radiogroup"
+                                                aria-labelledby="label-specialization"
+                                                aria-invalid={!!(error && !formData.specialization)}
+                                                aria-describedby={error ? 'register-form-error' : undefined}
+                                                tabIndex={-1}
+                                                className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2"
+                                            >
+                                                {SPECIALIZATIONS.map((spec) => {
+                                                    const Icon = spec.icon;
+                                                    const isSelected = formData.specialization === spec.label;
+                                                    return (
+                                                        <button
+                                                            key={spec.id}
+                                                            type="button"
+                                                            role="radio"
+                                                            aria-checked={isSelected}
+                                                            onClick={() => setFormData({ ...formData, specialization: spec.label })}
+                                                            className={clsx(
+                                                                'group relative flex min-h-[64px] items-start gap-3 rounded-[12px] p-3.5 text-left transition-[box-shadow,background-color,transform] duration-150 active:scale-[0.99]',
+                                                                isSelected
+                                                                    ? 'bg-[#f4f7ff] shadow-[0_0_0_2px_var(--accent),0_6px_16px_-8px_rgb(30_58_138/0.35)]'
+                                                                    : 'bg-white shadow-[0_0_0_1px_rgb(15_23_42/0.12),0_1px_2px_rgb(15_23_42/0.04)] [@media(hover:hover)]:hover:shadow-[0_0_0_1px_rgb(15_23_42/0.2),0_4px_12px_-4px_rgb(15_23_42/0.12)]'
+                                                            )}
                                                         >
-                                                            <label htmlFor="field-custom-role" className="sr-only">Custom role</label>
-                                                            <input
-                                                                id="field-custom-role"
-                                                                type="text"
-                                                                autoComplete="organization-title"
-                                                                placeholder="Your role"
-                                                                value={formData.customRole}
-                                                                onChange={(e) => setFormData({ ...formData, customRole: e.target.value })}
-                                                                aria-invalid={!!(error && formData.role === 'Other' && !formData.customRole.trim())}
-                                                                aria-describedby={error ? 'register-form-error' : undefined}
-                                                                className="s-field h-11 text-[15px]"
+                                                            <Icon
+                                                                size={20}
+                                                                strokeWidth={1.75}
+                                                                className={clsx('mt-0.5 shrink-0 transition-colors', isSelected ? 'text-[var(--accent)]' : 'text-slate-400 group-hover:text-slate-600')}
+                                                                aria-hidden
                                                             />
-                                                        </motion.div>
-                                                    )}
-                                                </AnimatePresence>
-                                            </div>
-
-                                            <div className="pt-1 border-t border-slate-100">
-                                                <div className="flex flex-col gap-1 mb-4">
-                                                    <label className="block text-[14px] font-medium text-slate-900">Experience</label>
-                                                    <p className="text-[13px] text-slate-500 leading-relaxed">How much hands-on experience do you have in your field?</p>
-                                                </div>
-                                                <div className="bg-slate-100 p-1.5 rounded-[10px] grid grid-cols-2 sm:grid-cols-4 gap-1.5 border border-slate-200/60">
-                                                    {EXPERIENCE_LEVELS.map((level, li) => {
-                                                        const isSelected = formData.experienceLevel === level;
-                                                        const descs = [
-                                                            '< 1 year',
-                                                            '1–3 years',
-                                                            '3–6 years',
-                                                            '6+ years'
-                                                        ];
-                                                        return (
-                                                            <button
-                                                                key={level}
-                                                                type="button"
-                                                                onClick={() => setFormData({ ...formData, experienceLevel: level })}
+                                                            <span className="min-w-0 flex-1">
+                                                                <span className="block text-[15px] font-semibold leading-snug text-slate-900">{spec.label}</span>
+                                                                <span className="mt-1 block text-[13px] leading-snug text-slate-500">
+                                                                    {spec.suggestedSkills.slice(0, 3).join(' · ')}
+                                                                </span>
+                                                            </span>
+                                                            <span
+                                                                aria-hidden
                                                                 className={clsx(
-                                                                    "py-2 rounded-[10px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out px-1.5 flex flex-col items-center gap-0.5 active:scale-[0.975]",
-                                                                    isSelected
-                                                                        ? "bg-white text-blue-900 border border-slate-200/80 shadow-sm"
-                                                                        : "text-slate-500 hover:text-slate-800 hover:bg-white/40"
+                                                                    'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-[background-color,box-shadow] duration-150',
+                                                                    isSelected ? 'bg-[var(--accent)] text-white' : 'shadow-[inset_0_0_0_1.5px_rgb(148_163_184)]'
                                                                 )}
                                                             >
-                                                                <span className="text-[12px] sm:text-[13px] font-semibold leading-none">{level}</span>
-                                                                <span className={clsx(
-                                                                    "text-[11px] font-semibold leading-none",
-                                                                    isSelected ? "text-blue-700" : "text-slate-400"
-                                                                )}>{descs[li] || ''}</span>
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
+                                                                {isSelected && <Check size={12} strokeWidth={2.5} />}
+                                                            </span>
+                                                        </button>
+                                                    );
+                                                })}
                                             </div>
-                                        </div>
+                                        </fieldset>
+
+                                        <fieldset>
+                                            <legend className="text-[15px] font-semibold text-slate-900">Community role</legend>
+                                            <p className="mt-1 text-[13px] text-slate-500">Most people start as Member. Fellow and Contributor are earned over time.</p>
+                                            <div role="radiogroup" className="mt-4 grid grid-cols-2 gap-2.5">
+                                                {ROLES.map((role) => {
+                                                    const isSelected = formData.role === role;
+                                                    const sub: Record<string, string> = {
+                                                        Member: 'Start here',
+                                                        Fellow: 'Earned track',
+                                                        Contributor: 'Earned track',
+                                                        Other: 'Describe it',
+                                                    };
+                                                    return (
+                                                        <button
+                                                            key={role}
+                                                            type="button"
+                                                            role="radio"
+                                                            aria-checked={isSelected}
+                                                            onClick={() => setFormData({ ...formData, role })}
+                                                            className={clsx(
+                                                                'flex min-h-[56px] items-center justify-between gap-2 rounded-[12px] px-3.5 py-2.5 text-left transition-[box-shadow,background-color,transform] duration-150 active:scale-[0.99]',
+                                                                isSelected
+                                                                    ? 'bg-[#f4f7ff] shadow-[0_0_0_2px_var(--accent)]'
+                                                                    : 'bg-white shadow-[0_0_0_1px_rgb(15_23_42/0.12),0_1px_2px_rgb(15_23_42/0.04)] [@media(hover:hover)]:hover:shadow-[0_0_0_1px_rgb(15_23_42/0.2),0_4px_12px_-4px_rgb(15_23_42/0.12)]'
+                                                            )}
+                                                        >
+                                                            <span className="min-w-0">
+                                                                <span className="block text-[14px] font-semibold text-slate-900">{role}</span>
+                                                                <span className="block text-[12px] text-slate-500">{sub[role]}</span>
+                                                            </span>
+                                                            <span
+                                                                aria-hidden
+                                                                className={clsx(
+                                                                    'flex h-5 w-5 shrink-0 items-center justify-center rounded-full',
+                                                                    isSelected ? 'bg-[var(--accent)] text-white' : 'shadow-[inset_0_0_0_1.5px_rgb(148_163_184)]'
+                                                                )}
+                                                            >
+                                                                {isSelected && <Check size={12} strokeWidth={2.5} />}
+                                                            </span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            <AnimatePresence initial={false}>
+                                                {formData.role === 'Other' && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, y: -4 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        exit={{ opacity: 0, y: -4 }}
+                                                        transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+                                                        className="mt-3"
+                                                    >
+                                                        <label htmlFor="field-custom-role" className="mb-1.5 block text-[13px] font-medium text-slate-900">Your role</label>
+                                                        <input
+                                                            id="field-custom-role"
+                                                            type="text"
+                                                            autoComplete="organization-title"
+                                                            placeholder="e.g. Mentor, Translator"
+                                                            value={formData.customRole}
+                                                            onChange={(e) => setFormData({ ...formData, customRole: e.target.value })}
+                                                            aria-invalid={!!(error && formData.role === 'Other' && !formData.customRole.trim())}
+                                                            aria-describedby={error ? 'register-form-error' : undefined}
+                                                            className="s-field h-11 text-[15px]"
+                                                        />
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+                                        </fieldset>
+
+                                        <fieldset>
+                                            <legend className="text-[15px] font-semibold text-slate-900">Experience</legend>
+                                            <p className="mt-1 text-[13px] text-slate-500">Hands-on years in your field.</p>
+                                            <div role="radiogroup" className="mt-4 grid grid-cols-2 gap-1 rounded-[12px] bg-slate-100 p-1 sm:grid-cols-4">
+                                                {EXPERIENCE_LEVELS.map((level, li) => {
+                                                    const isSelected = formData.experienceLevel === level;
+                                                    const years = ['Under 1 year', '1–3 years', '3–6 years', '6+ years'][li] || '';
+                                                    return (
+                                                        <button
+                                                            key={level}
+                                                            type="button"
+                                                            role="radio"
+                                                            aria-checked={isSelected}
+                                                            onClick={() => setFormData({ ...formData, experienceLevel: level })}
+                                                            className={clsx(
+                                                                'flex min-h-[52px] flex-col items-center justify-center rounded-[9px] px-2 py-2 transition-[background-color,box-shadow,color] duration-150',
+                                                                isSelected ? 'bg-white shadow-[var(--e1)]' : '[@media(hover:hover)]:hover:bg-white/60'
+                                                            )}
+                                                        >
+                                                            <span className={clsx('text-[13px] font-semibold', isSelected ? 'text-[var(--accent)]' : 'text-slate-700')}>{level}</span>
+                                                            <span className="num mt-0.5 text-[12px] text-slate-500">{years}</span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </fieldset>
                                     </motion.div>
                                 )}
 
                                 {currentStep === 3 && (
                                     <motion.div
                                         key="step3"
-                                        initial={{ opacity: 0, transform: "translate3d(20px,0,0)" }}
-                                        animate={{ opacity: 1, transform: "translate3d(0px,0,0)" }}
-                                        exit={{ opacity: 0, transform: "translate3d(-20px,0,0)" }}
-                                        transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
-                                        className="space-y-6"
+                                        initial={{ opacity: 0, x: 12 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -12 }}
+                                        transition={{ duration: 0.28, ease: [0.23, 1, 0.32, 1] }}
+                                        className="space-y-9"
                                     >
-                                        {formData.specialization && Object.keys(roleScores).length > 0 && (
-                                            <div className="space-y-2">
-                                                {(() => {
-                                                    const spec = SPECIALIZATIONS.find(s => s.label === formData.specialization);
-                                                    const SpecIcon = spec?.icon || Target;
-                                                    const score = roleScores[formData.specialization] || 0;
-                                                    return (
-                                                        <div className="flex items-center gap-2 p-1.5 sm:p-2 rounded-[10px] border border-slate-200 bg-slate-50 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out hover:border-slate-300 hover:shadow-sm">
-                                                            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-[10px] bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
-                                                                <SpecIcon size={16} />
-                                                            </div>
-                                                            <div className="flex-1 min-w-0">
-                                                                <div className="flex items-center justify-between gap-2">
-                                                                    <p className="text-[12px] font-semibold uppercase tracking-[0.15em] text-slate-500 leading-tight">
-                                                                        Role match
-                                                                    </p>
-                                                                    <span className={clsx(
-                                                                        "text-[12px] font-semibold shrink-0",
-                                                                        score >= 70 ? "text-emerald-600" :
-                                                                            score >= 40 ? "text-blue-700" : "text-amber-600"
-                                                                    )}>
-                                                                        {score}%
-                                                                    </span>
-                                                                </div>
-                                                                <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden mt-1.5">
-                                                                    <motion.div
-                                                                        initial={{ width: 0 }}
-                                                                        animate={{ width: `${score}%` }}
-                                                                        className={clsx(
-                                                                            "h-full rounded-full",
-                                                                            score >= 70 ? "bg-emerald-500" :
-                                                                                score >= 40 ? "bg-blue-700" : "bg-amber-500"
-                                                                        )}
-                                                                    />
-                                                                </div>
-                                                            </div>
+                                        {formData.specialization && (() => {
+                                            const spec = SPECIALIZATIONS.find(s => s.label === formData.specialization);
+                                            const SpecIcon = spec?.icon || Target;
+                                            const score = roleScores[formData.specialization] || 0;
+                                            const verdict = score >= 70 ? 'Strong match' : score >= 40 ? 'Good start' : 'Add a few more';
+                                            return (
+                                                <div className="rounded-[12px] bg-slate-50 p-4 shadow-[inset_0_0_0_1px_rgb(15_23_42/0.06)]">
+                                                    <div className="flex items-center gap-3">
+                                                        <SpecIcon size={18} strokeWidth={1.75} className="shrink-0 text-[var(--accent)]" aria-hidden />
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="truncate text-[14px] font-medium text-slate-900">{formData.specialization}</p>
+                                                            <p className="text-[12px] text-slate-500">{verdict} — based on the skills you pick below</p>
                                                         </div>
-                                                    );
-                                                })()}
-
-                                                <AnimatePresence>
-                                                    {betterRoleSuggestion && (() => {
-                                                        const suggestedSpec = SPECIALIZATIONS.find(s => s.label === betterRoleSuggestion);
-                                                        const SuggestedIcon = suggestedSpec?.icon || BadgeCheck;
-                                                        return (
+                                                        <span className="num shrink-0 text-[15px] font-semibold text-slate-900">{score}%</span>
+                                                    </div>
+                                                    <div className="mt-3 h-1 overflow-hidden rounded-full bg-slate-200" role="meter" aria-label="Role match" aria-valuemin={0} aria-valuemax={100} aria-valuenow={score}>
+                                                        <div className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-500" style={{ width: `${score}%` }} />
+                                                    </div>
+                                                    <AnimatePresence initial={false}>
+                                                        {betterRoleSuggestion && (
                                                             <motion.div
-                                                                initial={{ opacity: 0, transform: "translate3d(0px,-8px,0)" }}
-                                                                animate={{ opacity: 1, transform: "translate3d(0px,0px,0)" }}
-                                                                exit={{ opacity: 0, transform: "translate3d(0px,-8px,0)" }}
-                                                                transition={{ duration: 0.28, ease: [0.23, 1, 0.32, 1] }}
-                                                                className="group flex items-center gap-2 p-1.5 sm:p-2 rounded-[10px] border border-amber-200 bg-amber-50 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out hover:border-amber-300 hover:shadow-sm"
+                                                                initial={{ opacity: 0, y: -4 }}
+                                                                animate={{ opacity: 1, y: 0 }}
+                                                                exit={{ opacity: 0, y: -4 }}
+                                                                transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+                                                                className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-3"
                                                             >
-                                                                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-[10px] bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
-                                                                    <SuggestedIcon size={16} />
-                                                                </div>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <p className="text-[12px] font-semibold uppercase tracking-[0.15em] text-amber-900 leading-tight">
-                                                                        Try {betterRoleSuggestion}
-                                                                    </p>
-                                                                    <p className="text-[11px] text-amber-700 font-medium leading-tight mt-0.5 truncate">
-                                                                        Better match for your skills
-                                                                    </p>
-                                                                </div>
+                                                                <p className="text-[13px] text-slate-600">
+                                                                    Your skills fit <span className="font-medium text-slate-900">{betterRoleSuggestion}</span> better.
+                                                                </p>
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => setFormData({ ...formData, specialization: betterRoleSuggestion })}
-                                                                    className="shrink-0 flex items-center px-3 py-1.5 rounded-[10px] text-[12px] font-semibold text-amber-900 bg-amber-200/60 hover:bg-amber-200 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.96]"
+                                                                    className="s-btn s-btn-plain h-8 px-3 text-[13px]"
                                                                 >
-                                                                    Switch
+                                                                    Switch role
                                                                 </button>
                                                             </motion.div>
-                                                        );
-                                                    })()}
-                                                </AnimatePresence>
-                                            </div>
-                                        )}
+                                                        )}
+                                                    </AnimatePresence>
+                                                </div>
+                                            );
+                                        })()}
 
                                         {formData.specialization && (
-                                            <div className="bg-white rounded-[10px] p-4 sm:p-5 border border-slate-200">
-                                                <div className="flex flex-col gap-1 mb-4">
-                                                    <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-blue-900">Recommended</p>
-                                                    <p className="text-[11px] text-slate-500 leading-tight">Tap to validate these skills</p>
-                                                </div>
-
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                            <section aria-labelledby="rec-title">
+                                                <h3 id="rec-title" className="text-[15px] font-semibold text-slate-900">Recommended for {formData.specialization}</h3>
+                                                <p className="mt-1 text-[13px] text-slate-500">Tap the ones you use, then set how comfortable you are.</p>
+                                                <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                                                     {SPECIALIZATIONS.find(s => s.label === formData.specialization)?.suggestedSkills.map(skill => (
                                                         renderSkillItem(skill, 'recommended')
                                                     ))}
                                                 </div>
-                                            </div>
+                                            </section>
                                         )}
 
-                                        <div className="flex flex-col gap-5">
-                                            <div className="flex items-center justify-between">
-                                                <label htmlFor="field-skill-search" className="text-[14px] font-medium text-slate-900">Add skills</label>
-                                                <span className="text-[12px] font-semibold text-slate-400">Optional</span>
+                                        <section aria-labelledby="browse-title">
+                                            <div className="flex items-baseline justify-between gap-3">
+                                                <h3 id="browse-title" className="text-[15px] font-semibold text-slate-900">Browse all skills</h3>
+                                                <span className="text-[12px] text-slate-400">optional</span>
                                             </div>
-                                            <div className="flex flex-col gap-4">
-                                                <div className="relative group">
-                                                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 transition-colors group-focus-within:text-blue-700" />
-                                                    <input
-                                                        id="field-skill-search"
-                                                        type="text"
-                                                        placeholder="Search skills"
-                                                        value={skillSearch}
-                                                        onChange={(e) => setSkillSearch(e.target.value)}
-                                                        aria-invalid={!!(error && (formData.skills.length === 0 || !(formData.skills.every(s => s.level))))}
-                                                        aria-describedby={error ? 'register-form-error' : undefined}
-                                                        className="s-field pl-10" />
-                                                </div>
+                                            <div className="relative mt-4">
+                                                <label htmlFor="field-skill-search" className="sr-only">Search skills</label>
+                                                <Search size={16} strokeWidth={1.75} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                                                <input
+                                                    id="field-skill-search"
+                                                    type="search"
+                                                    placeholder="Search skills"
+                                                    value={skillSearch}
+                                                    onChange={(e) => setSkillSearch(e.target.value)}
+                                                    aria-invalid={!!(error && (formData.skills.length === 0 || !(formData.skills.every(s => s.level))))}
+                                                    aria-describedby={error ? 'register-form-error' : undefined}
+                                                    className="s-field h-11 pl-10 text-[15px]"
+                                                />
+                                            </div>
 
-                                                <div
-                                                    ref={dragContainerRef}
-                                                    className="overflow-hidden bg-slate-50 p-1 rounded-[10px] border border-slate-200/80 cursor-grab active:cursor-grabbing relative"
-                                                >
-                                                    <motion.div
-                                                        ref={dragContentRef}
-                                                        drag="x"
-                                                        dragConstraints={dragConstraints}
-                                                        dragElastic={0.1}
-                                                        className="flex gap-1"
-                                                        style={{ touchAction: "pan-y", willChange: "transform" }}
-                                                    >
-                                                        {Object.keys(SKILL_CATEGORIES).map((category) => {
-                                                            const isActive = activeSkillCategory === category;
-                                                            return (
-                                                                <button
-                                                                    key={category}
-                                                                    type="button"
-                                                                    onClick={() => setActiveSkillCategory(category as SkillCategory)}
-                                                                    className={clsx(
-                                                                        "relative px-4 py-2 rounded-[10px] text-[12px] sm:text-[13px] font-semibold uppercase tracking-[0.15em] whitespace-nowrap transition-colors duration-200 ease-out flex-shrink-0 z-10",
-                                                                        isActive ? "text-blue-900" : "text-slate-500 hover:text-slate-800"
-                                                                    )}
-                                                                >
-                                                                    {isActive && (
-                                                                        <motion.div
-                                                                            layoutId="activeCategory"
-                                                                            className="absolute inset-0 bg-white rounded-[10px] shadow-sm border border-slate-200/80 -z-10"
-                                                                            transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
-                                                                        />
-                                                                    )}
-                                                                    {categoryLabels[category] || category}
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </motion.div>
+                                            <div
+                                                className="no-scrollbar -mx-1 mt-3 overflow-x-auto px-1 pb-1"
+                                                role="tablist"
+                                                aria-label="Skill categories"
+                                            >
+                                                <div className="flex w-max gap-1.5">
+                                                    {Object.keys(SKILL_CATEGORIES).map((category) => {
+                                                        const isActive = activeSkillCategory === category;
+                                                        return (
+                                                            <button
+                                                                key={category}
+                                                                type="button"
+                                                                role="tab"
+                                                                aria-selected={isActive}
+                                                                onClick={() => setActiveSkillCategory(category as SkillCategory)}
+                                                                className={clsx(
+                                                                    'min-h-[36px] shrink-0 whitespace-nowrap rounded-full px-3.5 text-[13px] transition-[background-color,color,box-shadow] duration-150',
+                                                                    isActive
+                                                                        ? 'bg-slate-900 font-medium text-white'
+                                                                        : 'bg-white text-slate-600 shadow-[inset_0_0_0_1px_rgb(15_23_42/0.1)] hover:text-slate-900'
+                                                                )}
+                                                            >
+                                                                {categoryLabels[category] || category}
+                                                            </button>
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
 
-                                            <div className="min-h-[380px]">
-                                                <AnimatePresence mode="wait">
-                                                    <motion.div
-                                                        key={activeSkillCategory + skillSearch}
-                                                        initial={{ opacity: 0, transform: "translate3d(10px,0,0)" }}
-                                                        animate={{ opacity: 1, transform: "translate3d(0px,0,0)" }}
-                                                        exit={{ opacity: 0, transform: "translate3d(-10px,0,0)" }}
-                                                        transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
-                                                        className="grid grid-cols-1 sm:grid-cols-2 gap-2.5"
-                                                    >
-                                                        {SKILL_CATEGORIES[activeSkillCategory as keyof typeof SKILL_CATEGORIES]
-                                                            .filter(skill => skill.toLowerCase().includes(skillSearch.toLowerCase()))
-                                                            .map((skill) => renderSkillItem(skill, 'explore'))}
-                                                    </motion.div>
-                                                </AnimatePresence>
-                                            </div>
-                                        </div>
-
-                                        <div className="pt-5 border-t border-slate-100">
-                                            {!showOtherInput ? (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowOtherInput(true)}
-                                                    className="flex items-center justify-center gap-2 py-3.5 rounded-[10px] border border-dashed border-slate-200 text-slate-500 text-[11px] font-semibold hover:border-blue-300 hover:text-blue-700 hover:bg-blue-50/30 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out w-full group active:scale-[0.99]"
-                                                >
-                                                    <Plus size={14} strokeWidth={2.25} className="group-hover:scale-110 transition-transform" />
-                                                    <span>Add custom skill</span>
-                                                </button>
-                                            ) : (
-                                                <motion.div
-                                                    initial={{ opacity: 0, transform: "scale(0.98)" }}
-                                                    animate={{ opacity: 1, transform: "scale(1)" }}
-                                                    transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
-                                                    className="flex gap-2"
-                                                >
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Skill name"
-                                                        autoFocus
-                                                        value={otherSkill}
-                                                        onChange={(e) => setOtherSkill(e.target.value)}
-                                                        className="s-field flex-1"
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') {
-                                                                e.preventDefault();
-                                                                if (otherSkill.trim()) {
-                                                                    if (!formData.skills.some(s => s.name.toLowerCase() === otherSkill.trim().toLowerCase())) {
-                                                                        setFormData({
-                                                                            ...formData,
-                                                                            skills: [...formData.skills, { name: otherSkill.trim(), level: 'Learner' }]
-                                                                        });
-                                                                        setOtherSkill('');
-                                                                        setShowOtherInput(false);
-                                                                    }
-                                                                }
-                                                            }
-                                                            if (e.key === 'Escape') setShowOtherInput(false);
-                                                        }}
-                                                    />
-                                                    <div className="flex gap-1">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                                if (otherSkill.trim()) {
-                                                                    if (!formData.skills.some(s => s.name.toLowerCase() === otherSkill.trim().toLowerCase())) {
-                                                                        setFormData({
-                                                                            ...formData,
-                                                                            skills: [...formData.skills, { name: otherSkill.trim(), level: 'Learner' }]
-                                                                        });
-                                                                        setOtherSkill('');
-                                                                        setShowOtherInput(false);
-                                                                    }
-                                                                }
-                                                            }}
-                                                            className="p-2 bg-blue-700 text-white rounded-[10px] hover:bg-blue-800 transition-colors active:scale-[0.96]"
-                                                        >
-                                                            <Check size={18} strokeWidth={2.25} />
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setShowOtherInput(false)}
-                                                            className="p-2.5 bg-white text-slate-500 border border-slate-200 rounded-[10px] hover:text-red-600 hover:border-red-100 hover:bg-red-50 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.96]"
-                                                        >
-                                                            <X size={18} strokeWidth={2.25} />
-                                                        </button>
+                                            {(() => {
+                                                const list = SKILL_CATEGORIES[activeSkillCategory as keyof typeof SKILL_CATEGORIES]
+                                                    .filter(skill => skill.toLowerCase().includes(skillSearch.toLowerCase()));
+                                                return list.length > 0 ? (
+                                                    <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                                                        {list.map((skill) => renderSkillItem(skill, 'explore'))}
                                                     </div>
-                                                </motion.div>
-                                            )}
-                                        </div>
+                                                ) : (
+                                                    <p className="mt-4 rounded-[12px] bg-slate-50 px-4 py-6 text-center text-[14px] text-slate-500">
+                                                        No “{skillSearch}” in {categoryLabels[activeSkillCategory] || activeSkillCategory}. Try another category or add it below.
+                                                    </p>
+                                                );
+                                            })()}
 
-                                        <div className="pt-5 border-t border-slate-100">
-                                            <div className="flex items-center justify-between mb-3">
-                                                <div className="flex items-center gap-2">
-                                                    <p className="text-[12px] font-semibold uppercase tracking-[0.15em] text-slate-400">Selected skills</p>
-                                                    <span className="px-1.5 py-0.5 bg-blue-900 text-white text-[11px] font-semibold rounded-[6px]">
-                                                        {formData.skills.length}
-                                                    </span>
-                                                </div>
+                                            <div className="mt-4">
+                                                {!showOtherInput ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowOtherInput(true)}
+                                                        className="inline-flex min-h-[40px] items-center gap-1.5 text-[14px] font-medium text-[var(--accent)]"
+                                                    >
+                                                        <Plus size={16} strokeWidth={1.75} />
+                                                        Add a skill that isn’t listed
+                                                    </button>
+                                                ) : (
+                                                    <div className="flex flex-col gap-2 sm:flex-row">
+                                                        <label htmlFor="field-other-skill" className="sr-only">Skill name</label>
+                                                        <input
+                                                            id="field-other-skill"
+                                                            type="text"
+                                                            placeholder="Skill name"
+                                                            autoFocus
+                                                            value={otherSkill}
+                                                            onChange={(e) => setOtherSkill(e.target.value)}
+                                                            className="s-field h-11 flex-1 text-[15px]"
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    e.preventDefault();
+                                                                    if (otherSkill.trim() && !formData.skills.some(s => s.name.toLowerCase() === otherSkill.trim().toLowerCase())) {
+                                                                        setFormData({ ...formData, skills: [...formData.skills, { name: otherSkill.trim(), level: 'Learner' }] });
+                                                                        setOtherSkill('');
+                                                                        setShowOtherInput(false);
+                                                                    }
+                                                                }
+                                                                if (e.key === 'Escape') setShowOtherInput(false);
+                                                            }}
+                                                        />
+                                                        <div className="grid grid-cols-2 gap-2 sm:flex">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    if (otherSkill.trim() && !formData.skills.some(s => s.name.toLowerCase() === otherSkill.trim().toLowerCase())) {
+                                                                        setFormData({ ...formData, skills: [...formData.skills, { name: otherSkill.trim(), level: 'Learner' }] });
+                                                                        setOtherSkill('');
+                                                                        setShowOtherInput(false);
+                                                                    }
+                                                                }}
+                                                                className="s-btn s-btn-accent h-11"
+                                                            >
+                                                                Add
+                                                            </button>
+                                                            <button type="button" onClick={() => setShowOtherInput(false)} className="s-btn s-btn-plain h-11">
+                                                                Cancel
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </section>
+
+                                        <section aria-labelledby="picked-title" className="border-t border-slate-200/80 pt-6">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <h3 id="picked-title" className="text-[15px] font-semibold text-slate-900">
+                                                    Your skills <span className="num font-normal text-slate-400">{formData.skills.length}</span>
+                                                </h3>
                                                 {formData.skills.length > 0 && (
                                                     <button
                                                         type="button"
                                                         onClick={() => setFormData({ ...formData, skills: [] })}
-                                                        className="text-[12px] font-semibold text-red-500 hover:text-red-600 transition-colors"
+                                                        className="min-h-[36px] text-[13px] text-slate-500 hover:text-red-600"
                                                     >
                                                         Clear all
                                                     </button>
                                                 )}
                                             </div>
-                                            <div className="flex flex-wrap gap-1.5">
-                                                {formData.skills.length === 0 ? (
-                                                    <div className="w-full py-4 rounded-[10px] bg-slate-50 border border-dashed border-slate-200 flex items-center justify-center gap-2 opacity-70">
-                                                        <Code size={15} className="text-slate-400" />
-                                                        <p className="text-[12px] font-semibold text-slate-400">Nothing selected yet</p>
-                                                    </div>
-                                                ) : (
-                                                    <AnimatePresence mode="popLayout">
-                                                        {formData.skills.map((skill) => (
-                                                            <motion.div
-                                                                key={skill.name}
-                                                                layout
-                                                                initial={{ opacity: 0, transform: "scale(0.85)" }}
-                                                                animate={{ opacity: 1, transform: "scale(1)" }}
-                                                                exit={{ opacity: 0, transform: "scale(0.85)" }}
-                                                                transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
-                                                                className="flex items-center gap-1.5 pl-2 pr-1 py-1.5 bg-white border border-slate-200 rounded-[10px] shadow-sm hover:border-blue-300 hover:shadow transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out group"
+                                            {formData.skills.length === 0 ? (
+                                                <p className="mt-3 text-[14px] text-slate-500">Nothing picked yet. Choose at least one skill to continue.</p>
+                                            ) : (
+                                                <ul className="mt-3 flex flex-wrap gap-2">
+                                                    {formData.skills.map((skill) => (
+                                                        <li
+                                                            key={skill.name}
+                                                            className="inline-flex items-center gap-2 rounded-full bg-white py-1 pl-2.5 pr-1 text-[13px] shadow-[inset_0_0_0_1px_rgb(15_23_42/0.1)]"
+                                                        >
+                                                            <SkillIcon skillName={skill.name} size={13} />
+                                                            <span className="font-medium text-slate-800">{skill.name}</span>
+                                                            <span className="text-[12px] text-slate-400">{skill.level}</span>
+                                                            <button
+                                                                type="button"
+                                                                aria-label={`Remove ${skill.name}`}
+                                                                onClick={() => setFormData({ ...formData, skills: formData.skills.filter(s => s.name !== skill.name) })}
+                                                                className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                                                             >
-                                                                <div className="w-5 h-5 rounded-[10px] bg-blue-50 flex items-center justify-center shrink-0">
-                                                                    <div className="w-3 h-3 flex items-center justify-center">
-                                                                        <SkillIcon skillName={skill.name} size={12} />
-                                                                    </div>
-                                                                </div>
-                                                                <span className="text-xs font-semibold text-slate-700">{skill.name}</span>
-                                                                <div className={clsx(
-                                                                    "px-1.5 py-0.5 rounded-[6px] text-[11px] font-semibold",
-                                                                    skill.level === 'Expert' ? "bg-blue-900 text-white" :
-                                                                        skill.level === 'Practitioner' ? "bg-blue-100 text-blue-800" :
-                                                                            "bg-slate-100 text-slate-500"
-                                                                )}>
-                                                                    {skill.level}
-                                                                </div>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        setFormData({
-                                                                            ...formData,
-                                                                            skills: formData.skills.filter(s => s.name !== skill.name)
-                                                                        });
-                                                                    }}
-                                                                    className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-[10px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.96]"
-                                                                >
-                                                                    <X size={11} strokeWidth={2.25} />
-                                                                </button>
-                                                            </motion.div>
-                                                        ))}
-                                                    </AnimatePresence>
-                                                )}
-                                            </div>
-                                        </div>
+                                                                <X size={13} strokeWidth={2} />
+                                                            </button>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                        </section>
                                     </motion.div>
                                 )}
 
                                 {currentStep === 4 && (
                                     <motion.div
                                         key="step4"
-                                        initial={{ opacity: 0, transform: "translate3d(12px,0,0)" }}
-                                        animate={{ opacity: 1, transform: "translate3d(0px,0,0)" }}
-                                        exit={{ opacity: 0, transform: "translate3d(-12px,0,0)" }}
-                                        transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
-                                        className="w-full"
+                                        initial={{ opacity: 0, x: 12 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -12 }}
+                                        transition={{ duration: 0.28, ease: [0.23, 1, 0.32, 1] }}
+                                        className="space-y-3"
                                     >
-                                        <ul className="divide-y divide-[var(--line)] border-y border-[var(--line)]">
-                                            <li className="flex items-center gap-4 py-4">
-                                                <svg width="22" height="22" viewBox="0 0 24 24" fill="#5865F2" aria-hidden="true" className="shrink-0">
-                                                    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
-                                                </svg>
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="text-[15px] font-medium">Discord <span className="text-[13px] font-normal text-[var(--fg-3)]">· required</span></p>
-                                                    <p className="truncate text-[13px] text-[var(--fg-3)]">
-                                                        {discordConnected ? (
-                                                            <span className="inline-flex items-center gap-1.5 text-[var(--fg-2)]">
-                                                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
-                                                                {discordUsername ? `Connected as @${discordUsername}` : 'Connected'}
-                                                            </span>
-                                                        ) : (
-                                                            'Confirms you’re in the community server. No extra permissions.'
-                                                        )}
-                                                    </p>
+                                        {/* Discord — required */}
+                                        <div
+                                            className={clsx(
+                                                'rounded-[14px] p-4 transition-[box-shadow,background-color] duration-200 sm:p-5',
+                                                discordConnected
+                                                    ? 'bg-[#f3fbf7] shadow-[0_0_0_1.5px_rgb(16_185_129/0.45)]'
+                                                    : 'bg-white shadow-[0_0_0_1px_rgb(15_23_42/0.12),0_2px_6px_-2px_rgb(15_23_42/0.08)]'
+                                            )}
+                                        >
+                                            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                                                <div className="flex min-w-0 flex-1 items-center gap-3.5">
+                                                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-[#5865F2] text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.2),0_1px_2px_rgb(15_23_42/0.2)]">
+                                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                                            <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
+                                                        </svg>
+                                                    </span>
+                                                    <div className="min-w-0">
+                                                        <p className="flex flex-wrap items-center gap-x-2 text-[15px] font-semibold text-slate-900">
+                                                            Discord
+                                                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">Required</span>
+                                                        </p>
+                                                        <p className="mt-0.5 text-[13px] leading-snug text-slate-500">
+                                                            {discordConnected ? (
+                                                                <span className="inline-flex items-center gap-1.5 font-medium text-emerald-700">
+                                                                    <Check size={14} strokeWidth={2.5} />
+                                                                    {discordUsername ? `Connected as @${discordUsername}` : 'Connected'}
+                                                                </span>
+                                                            ) : (
+                                                                'Confirms you’re in the community server. We only read your username.'
+                                                            )}
+                                                        </p>
+                                                    </div>
                                                 </div>
                                                 {!discordConnected && (
                                                     <button
                                                         type="button"
                                                         onClick={handleConnectDiscord}
                                                         disabled={discordConnecting}
-                                                        className="s-btn s-btn-plain h-9 shrink-0 px-3.5"
+                                                        className="s-btn h-10 shrink-0 bg-[#5865F2] px-4 text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.2),0_1px_2px_rgb(15_23_42/0.25)] [@media(hover:hover)]:hover:bg-[#4752C4]"
                                                     >
-                                                        {discordConnecting ? <><Loader2 size={14} className="animate-spin" />Connecting</> : 'Connect'}
+                                                        {discordConnecting ? <><Loader2 size={15} className="animate-spin" />Connecting…</> : 'Connect Discord'}
                                                     </button>
                                                 )}
-                                            </li>
-                                            <li className="flex items-center gap-4 py-4 opacity-60">
-                                                <Github size={22} strokeWidth={1.5} className="shrink-0" />
+                                            </div>
+                                        </div>
+
+                                        {/* GitHub — later */}
+                                        <div className="rounded-[14px] p-4 shadow-[inset_0_0_0_1.5px_rgb(203_213_225)] [background-image:repeating-linear-gradient(135deg,transparent_0_10px,rgb(241_245_249)_10px_11px)] sm:p-5">
+                                            <div className="flex items-center gap-3.5">
+                                                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-white text-slate-700 shadow-[0_0_0_1px_rgb(15_23_42/0.1)]">
+                                                    <Github size={20} strokeWidth={1.75} />
+                                                </span>
                                                 <div className="min-w-0 flex-1">
-                                                    <p className="text-[15px] font-medium">GitHub <span className="text-[13px] font-normal text-[var(--fg-3)]">· optional</span></p>
-                                                    <p className="text-[13px] text-[var(--fg-3)]">Coming soon.</p>
+                                                    <p className="flex flex-wrap items-center gap-x-2 text-[15px] font-semibold text-slate-700">
+                                                        GitHub
+                                                        <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-slate-500 shadow-[0_0_0_1px_rgb(15_23_42/0.08)]">Coming soon</span>
+                                                    </p>
+                                                    <p className="mt-0.5 text-[13px] leading-snug text-slate-500">Link your contributions to your profile automatically.</p>
                                                 </div>
-                                            </li>
-                                        </ul>
+                                            </div>
+                                        </div>
+
+                                        <p className="flex items-start gap-2 px-1 pt-1 text-[12px] leading-relaxed text-slate-500">
+                                            <ShieldCheck size={14} strokeWidth={1.75} className="mt-0.5 shrink-0 text-slate-400" />
+                                            We never post for you or read your messages. You can disconnect anytime from Discord settings.
+                                        </p>
                                     </motion.div>
                                 )}
                             </AnimatePresence>

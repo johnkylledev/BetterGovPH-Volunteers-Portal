@@ -22,10 +22,9 @@ export default defineConfig(({ mode }) => {
               if (id.includes('@supabase') || id.includes('supabase')) {
                 return 'vendor-supabase';
               }
-              if (id.includes('xlsx')) {
-                return 'vendor-xlsx';
+              if (/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler)\//.test(id)) {
+                return 'vendor-react';
               }
-              return 'vendor';
             }
           },
         },

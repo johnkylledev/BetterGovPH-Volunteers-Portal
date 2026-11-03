@@ -1,3 +1,6 @@
+import type { LucideIcon } from 'lucide-react';
+import { Code2, Server, Database, FileSearch, PenTool, Megaphone } from 'lucide-react';
+
 export const DISCORD_INVITE = 'https://discord.com/invite/mHtThpN8bT';
 export const GITHUB_ORG = 'https://github.com/BetterGovPH';
 /** The repository for this portal; contributors are loaded from it. */
@@ -11,11 +14,13 @@ export interface Role {
   skills: string[];
   commitment: string;
   href: string;
+  icon: LucideIcon;
 }
 
 export const ROLES: Role[] = [
   {
     title: 'Frontend developer',
+    icon: Code2,
     description: 'Build fast, accessible interfaces that put public data in front of people who need it.',
     skills: ['React', 'TypeScript', 'Tailwind CSS', 'Accessibility'],
     commitment: '5–10 hrs/week',
@@ -23,6 +28,7 @@ export const ROLES: Role[] = [
   },
   {
     title: 'Backend developer',
+    icon: Server,
     description: 'Design APIs and the infrastructure behind them. Keep the data honest and the services up.',
     skills: ['Node.js or Python', 'PostgreSQL', 'API design'],
     commitment: '5–10 hrs/week',
@@ -30,6 +36,7 @@ export const ROLES: Role[] = [
   },
   {
     title: 'Data engineer',
+    icon: Database,
     description: 'Turn PDFs and spreadsheets from government sites into clean, usable datasets.',
     skills: ['Python', 'Pipelines', 'Scraping', 'SQL'],
     commitment: '5–10 hrs/week',
@@ -37,6 +44,7 @@ export const ROLES: Role[] = [
   },
   {
     title: 'Researcher',
+    icon: FileSearch,
     description: 'Read budgets, track procurement, check sources. Find what the numbers actually say.',
     skills: ['Budget analysis', 'Verification', 'Writing'],
     commitment: '3–5 hrs/week',
@@ -44,6 +52,7 @@ export const ROLES: Role[] = [
   },
   {
     title: 'Designer',
+    icon: PenTool,
     description: 'Make complex public information readable on a cheap phone over a slow connection.',
     skills: ['UI/UX', 'Information design', 'Figma'],
     commitment: '3–5 hrs/week',
@@ -51,6 +60,7 @@ export const ROLES: Role[] = [
   },
   {
     title: 'Community advocate',
+    icon: Megaphone,
     description: 'Write about the work, share it, and bring more people in. Transparency needs an audience.',
     skills: ['Writing', 'Social media', 'Organizing'],
     commitment: '2–3 hrs/week',

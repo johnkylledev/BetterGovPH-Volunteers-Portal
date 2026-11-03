@@ -19,7 +19,10 @@ export const RoleList: React.FC = () => (
               className="s-card group flex h-full flex-col p-6 transition-[box-shadow,transform] duration-200 [@media(hover:hover)]:hover:-translate-y-px [@media(hover:hover)]:hover:shadow-[var(--e2)] active:scale-[0.99]"
             >
               <div className="flex items-start justify-between gap-3">
-                <h3 className="text-[17px] font-semibold">{role.title}</h3>
+                <h3 className="inline-flex items-center gap-2 text-[17px] font-semibold">
+                  <role.icon size={18} strokeWidth={1.75} className="shrink-0 text-[var(--accent)]" aria-hidden />
+                  {role.title}
+                </h3>
                 <span className="num shrink-0 rounded-full px-2 py-0.5 text-[12px] text-[var(--fg-3)] shadow-[inset_0_0_0_1px_var(--line)]">
                   {role.commitment}
                 </span>
