@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useNavigate } from 'react-router-dom';
 import { motion, useMotionTemplate, useMotionValue, useSpring, useReducedMotion } from 'framer-motion';
@@ -40,6 +40,17 @@ const BrandMark: React.FC<{ className?: string }> = ({ className }) => (
 export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
   const navigate = useNavigate();
   const boundingRef = useRef<HTMLDivElement>(null);
+  // The card is designed at 300px. When its container is narrower (small phones), scale it
+  // down uniformly instead of letting it push the page wider than the screen.
+  const fitRef = useRef<HTMLDivElement>(null);
+  const [fit, setFit] = useState(1);
+  useEffect(() => {
+    const el = fitRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(([entry]) => setFit(Math.min(1, entry.contentRect.width / 300)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const reduceMotion = useReducedMotion();
   const rawX = useMotionValue(0);
   const rawY = useMotionValue(0);
@@ -76,7 +87,7 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
   ];
 
   return (
-    <div style={{ perspective: '1000px' }}>
+    <div ref={fitRef} className="w-full max-w-[300px]" style={{ perspective: '1000px' }}>
       <motion.div
         id="access-card-container"
         ref={boundingRef}
@@ -92,6 +103,7 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
         style={{
           transform: reduceMotion ? undefined : transform,
           transformStyle: 'preserve-3d',
+          zoom: fit < 1 ? fit : undefined,
           background: 'linear-gradient(165deg, #1d4ea8 0%, #143c8c 42%, #0d2c6e 100%)',
           fontFamily: '"Open Runde", Inter, system-ui, sans-serif',
         }}

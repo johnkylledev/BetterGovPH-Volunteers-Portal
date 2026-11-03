@@ -7,7 +7,7 @@ const sections: LegalSection[] = [
     title: "Information We Collect",
     body: (
       <p>
-        When you apply for a BetterGovPH Community Access Card, we collect information you provide: full name, email address, Discord username, and professional background. We also verify your membership in our Discord community.
+        When you apply for a BetterGovPH Community Volunteer Card, we collect information you provide: full name, email address, Discord username, and professional background. We also verify your membership in our Discord community.
       </p>
     )
   },
@@ -17,7 +17,7 @@ const sections: LegalSection[] = [
     body: (
       <ul className="space-y-2.5 mt-1">
         <li>Verifying your identity within the BetterGovPH community</li>
-        <li>Generating and maintaining your digital access card</li>
+        <li>Generating and maintaining your digital Volunteer Card</li>
         <li>Communicating project and event updates</li>
         <li>Administering recognition and contributor badges</li>
       </ul>
@@ -46,7 +46,7 @@ const sections: LegalSection[] = [
 const Privacy: React.FC = () => (
   <LegalPage
     title="Privacy policy"
-    lede="How we collect, use, and protect your information in the BetterGovPH Community Access Card portal."
+    lede="How we collect, use, and protect your information in the BetterGovPH Community Volunteer Card portal."
     updated="April 26, 2026"
     sections={sections}
   />

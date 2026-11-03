@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, AlertCircle, ArrowLeft, ExternalLink } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ExternalLink, Link2 } from 'lucide-react';
 import { syncDiscord } from '../../services/supabase';
 
 const CANONICAL = 'https://volunteers.bettergov.ph/discord-callback';
@@ -102,7 +102,7 @@ export default function DiscordCallback() {
         ) : bouncing ? (
           <>
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-blue-50 text-blue-900 mb-2">
-              <Loader2 size={28} className="animate-spin" />
+              <ExternalLink size={24} strokeWidth={1.75} />
             </div>
             <p className="text-sm font-bold text-slate-800">Redirecting…</p>
             <p className="text-xs text-slate-500">
@@ -111,7 +111,7 @@ export default function DiscordCallback() {
           </>
         ) : (
           <>
-            <Loader2 size={32} className="animate-spin text-blue-900 mx-auto" />
+            <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#5865F2]/10 text-[#5865F2]"><Link2 size={24} strokeWidth={1.75} /></span>
             <p className="text-sm font-semibold text-slate-700">Connecting your Discord…</p>
           </>
         )}

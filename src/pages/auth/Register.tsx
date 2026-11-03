@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
-import { ChevronDown, Check, MessageSquare, ArrowRight, ArrowLeft, User, Mail, Lock, Briefcase, ShieldCheck, Loader2, AlertCircle, Search, Plus, X, BookOpen, Wrench, GraduationCap, Brain, Code, Palette, Database, Globe, Cpu, Layers, Server, Smartphone, Zap, Target, Link2, Github } from 'lucide-react';
+import { ChevronDown, Check, MessageSquare, ArrowRight, ArrowLeft, User, Mail, Lock, Briefcase, ShieldCheck, AlertCircle, Search, Plus, X, BookOpen, Wrench, GraduationCap, Brain, Code, Palette, Database, Globe, Cpu, Layers, Server, Smartphone, Zap, Target, Link2, Github } from 'lucide-react';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
 import { SkillIcon } from '../../components/SkillIcon';
 import { SkillLevel, ExperienceLevel, UserSkill } from '../../types';
@@ -273,7 +273,7 @@ function LegacyRegister() {
                             <span className="block text-[var(--fg-3)]">Tayo ang gumagawa.</span>
                         </h2>
                         <p className="mt-4 max-w-md text-[16px] leading-relaxed text-[var(--fg-2)]">
-                            Four short steps, about five minutes. Once approved you get a verified member card and access to the project channels.
+                            Four short steps, about five minutes. Once approved you get a verified Volunteer Card and access to the project channels.
                         </p>
                         <ol className="mt-8 max-w-md border-t border-[var(--line)]">
                             {[
@@ -609,7 +609,7 @@ function LegacyRegister() {
                     </h1>
                     <p className="mt-2 text-[15px] text-[var(--fg-2)]">
                         {[
-                            'The name here goes on your member card.',
+                            'The name here goes on your Volunteer Card.',
                             'This helps us match you with the right projects.',
                             'Pick what you can help with and how comfortable you are.',
                             'Link Discord so the team can reach you and give you access.',
@@ -740,7 +740,7 @@ function LegacyRegister() {
                                                 className="s-field h-11 text-[15px]"
                                                 placeholder="Juan Dela Cruz"
                                             />
-                                            <p id="hint-full-name" className="mt-1.5 text-[12px] text-slate-500">This is printed on your member card exactly as typed.</p>
+                                            <p id="hint-full-name" className="mt-1.5 text-[12px] text-slate-500">This is printed on your Volunteer Card exactly as typed.</p>
                                         </div>
 
                                         <div>
@@ -1205,7 +1205,7 @@ function LegacyRegister() {
                                                         disabled={discordConnecting}
                                                         className="s-btn h-10 shrink-0 bg-[#5865F2] px-4 text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.2),0_1px_2px_rgb(15_23_42/0.25)] [@media(hover:hover)]:hover:bg-[#4752C4]"
                                                     >
-                                                        {discordConnecting ? <><Loader2 size={15} className="animate-spin" />Connecting…</> : 'Connect Discord'}
+                                                        {discordConnecting ? <>Connecting…</> : 'Connect Discord'}
                                                     </button>
                                                 )}
                                             </div>
@@ -1251,7 +1251,7 @@ function LegacyRegister() {
                                         </button>
                                     ) : currentStep === 3 ? (
                                         <button key="submit-step" type="submit" disabled={loading} className="s-btn s-btn-accent min-w-[140px]">
-                                            {loading ? <><Loader2 size={16} className="animate-spin" />Saving…</> : <>Continue<ArrowRight size={16} strokeWidth={1.75} /></>}
+                                            {loading ? <>Saving…</> : <>Continue<ArrowRight size={16} strokeWidth={1.75} /></>}
                                         </button>
                                     ) : (
                                         <div className="flex flex-col items-stretch gap-2 sm:items-end">
@@ -1305,7 +1305,7 @@ function LegacyRegister() {
                                 </p>
                                 <h2 id="reg-success-title" className="mt-3 text-[22px]">Application sent</h2>
                                 <p className="mt-2 text-[15px] leading-relaxed text-slate-600">
-                                    Thanks for applying. An admin will review it, and your member card goes live once it’s approved.
+                                    Thanks for applying. An admin will review it, and your Volunteer Card goes live once it’s approved.
                                 </p>
                                 <button
                                     onClick={() => { clearDraft(); navigate('/dashboard'); }}

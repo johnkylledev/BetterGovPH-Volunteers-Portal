@@ -66,15 +66,11 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 }
 
 function HomeRoute({ children }: { children: React.ReactNode }) {
-  const { currentUser, authInitialized } = useStore();
-  const { sessionUserId } = useStore();
+  const { authInitialized } = useStore();
 
+  // The home page is public for everyone, signed in or not. Signed-in people reach their
+  // dashboard (or registration) from the navbar's Dashboard button.
   if (!authInitialized) return <LoadingOverlay />;
-  if (sessionUserId && currentUser) {
-    if (currentUser?.isAdmin) return <GatedRedirect to="/admin" />;
-    return <GatedRedirect to={isProfileComplete(currentUser) ? "/dashboard" : "/register"} />;
-  }
-
   return <>{children}</>;
 }
 
