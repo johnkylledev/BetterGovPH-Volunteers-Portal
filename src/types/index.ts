@@ -9,6 +9,8 @@ export type VolunteerCallStatus = 'open' | 'closed';
 export interface UserSkill {
   name: string;
   level: SkillLevel;
+  /** Pinned by the member; shown first on their profile. */
+  featured?: boolean;
 }
 
 export interface ProjectSubmission {

@@ -2,13 +2,14 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, CheckCircle2, XCircle, LogOut, CreditCard, Copy, Code, Check, Briefcase, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { Search, CheckCircle2, XCircle, CreditCard, Copy, Code, Check, Briefcase, ChevronLeft, ChevronRight, Trash2, Inbox, FolderKanban, Clock, BadgeCheck } from 'lucide-react';
 import { AccessCard } from '../../components/AccessCard';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
 import clsx from 'clsx';
+import { StatTile } from '../../components/StatTile';
+import { UserChip } from '../../components/UserChip';
 import { User, ApplicationStatus, ProjectSubmission } from '../../types';
 import { deleteProjectSubmission, editProjectSubmission, getAllUsers, getAdminStats, getProjectSubmissions, updateProjectSubmission, supabase } from '../../services/supabase';
-import * as XLSX from 'xlsx-js-style';
 import { SkillIcon } from '../../components/SkillIcon';
 import { SPECIALIZATIONS } from '../../constants/specializations';
 
@@ -314,7 +315,8 @@ export default function AdminDashboard() {
     setTimeout(() => setCopyStatus('idle'), 2000);
   };
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
+    const XLSX = await import('xlsx-js-style');
     const listToExport = filteredApprovedMembers;
 
     const data = listToExport.map(member => ({
@@ -372,17 +374,14 @@ export default function AdminDashboard() {
     { id: 'members' as const, label: 'Members', count: stats.approved },
     { id: 'projects' as const, label: 'Projects', count: projectSubmissionsTotal },
   ];
-  const statTiles = activeTab === 'projects'
-    ? [
-        { label: 'Submissions', value: projectStats.total },
-        { label: 'Waiting for review', value: projectStats.pending, dot: 'bg-amber-500' },
-        { label: 'Approved', value: projectStats.approved, dot: 'bg-emerald-500' },
-      ]
-    : [
-        { label: 'All records', value: stats.total },
-        { label: 'Waiting for review', value: stats.pending, dot: 'bg-amber-500' },
-        { label: 'Cards issued', value: stats.approved, dot: 'bg-emerald-500' },
-      ];
+  const tileSource = activeTab === 'projects' ? projectStats : stats;
+  const isProjects = activeTab === 'projects';
+  const pctApproved = tileSource.total > 0 ? Math.round((tileSource.approved / tileSource.total) * 100) : 0;
+  const statTiles = [
+    { label: 'Total', value: tileSource.total, icon: isProjects ? FolderKanban : Inbox, hint: isProjects ? 'submissions' : 'applications' },
+    { label: 'Pending', value: tileSource.pending, icon: Clock, hint: tileSource.pending > 0 ? 'need review' : 'all caught up' },
+    { label: 'Approved', value: tileSource.approved, icon: BadgeCheck, hint: `${pctApproved}% of total` },
+  ];
 
   return (
     <div className="site min-h-screen pb-16">
@@ -416,20 +415,15 @@ export default function AdminDashboard() {
             ))}
           </nav>
 
-          <div className="flex shrink-0 items-center gap-2">
-            <span className="mr-1 hidden text-right leading-tight lg:block">
-              <span className="block max-w-[180px] truncate text-[13px] font-medium text-slate-900">{currentUser.fullName}</span>
-              <span className="block text-[12px] text-slate-500">Administrator</span>
-            </span>
-            <button onClick={() => setShowMyCard(true)} className="s-btn s-btn-plain h-8 px-3 text-[13px]">
-              <CreditCard size={14} strokeWidth={1.75} />
-              <span className="hidden sm:inline">My card</span>
-            </button>
-            <button onClick={handleLogout} className="s-btn s-btn-plain h-8 px-3 text-[13px]" title="Sign out">
-              <LogOut size={14} strokeWidth={1.75} />
-              <span className="hidden sm:inline">Sign out</span>
-            </button>
-          </div>
+          <UserChip
+            name={currentUser.fullName}
+            subtitle="Administrator"
+            discordId={currentUser.discordId}
+            discordAvatar={currentUser.discordAvatar}
+            onOpen={() => setShowMyCard(true)}
+            openLabel="View my card"
+            onSignOut={handleLogout}
+          />
         </div>
 
         <nav aria-label="Admin sections" className="no-scrollbar flex gap-1 overflow-x-auto border-t border-slate-200/70 px-3 py-1.5 md:hidden">
@@ -450,7 +444,7 @@ export default function AdminDashboard() {
         </nav>
       </header>
 
-      <main className="mx-auto flex max-w-7xl flex-col gap-6 px-4 sm:px-6 pt-8 sm:pt-10">
+      <main className="mx-auto flex min-w-0 max-w-7xl flex-col gap-6 px-4 sm:px-6 pt-8 sm:pt-10">
         <div>
           <h1 className="text-[28px] sm:text-[32px]">{adminTabs.find((t) => t.id === activeTab)?.label}</h1>
           <p className="mt-1 text-[15px] text-slate-600">
@@ -462,17 +456,11 @@ export default function AdminDashboard() {
           </p>
         </div>
 
-        <dl className="s-card grid grid-cols-3 divide-x divide-slate-200/80">
-          {statTiles.map((s) => (
-            <div key={s.label} className="px-4 py-4 sm:px-6 sm:py-5">
-              <dt className="flex items-center gap-1.5 text-[12px] text-slate-500">
-                {s.dot && <span className={clsx('h-1.5 w-1.5 rounded-full', s.dot)} aria-hidden />}
-                {s.label}
-              </dt>
-              <dd className="num mt-1 text-[24px] font-semibold tracking-[-0.02em] text-slate-900 sm:text-[28px]">{s.value}</dd>
-            </div>
+        <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
+          {statTiles.map((t) => (
+            <StatTile key={t.label} label={t.label} value={t.value} hint={t.hint} icon={t.icon} />
           ))}
-        </dl>
+        </div>
 
         <div className="s-card overflow-hidden">
           {activeTab === 'applications' ? (
@@ -617,7 +605,7 @@ export default function AdminDashboard() {
                   <button
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 0 || isDataLoading}
-                    className="p-2 rounded-[10px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                    className="s-btn s-btn-plain h-9 w-9 px-0"
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </button>
@@ -629,7 +617,7 @@ export default function AdminDashboard() {
                   <button
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={(currentPage + 1) * pageSize >= totalCount || isDataLoading}
-                    className="p-2 rounded-[10px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                    className="s-btn s-btn-plain h-9 w-9 px-0"
                   >
                     <ChevronRight className="w-5 h-5" />
                   </button>
@@ -745,7 +733,7 @@ export default function AdminDashboard() {
                               <button
                                 onClick={() => handleEditClick(submission)}
                                 disabled={projectActionLoadingId === submission.id}
-                                className="inline-flex items-center gap-2 px-3 py-2 rounded-[10px] bg-white border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                                className="s-btn s-btn-plain"
                               >
                                 Edit
                               </button>
@@ -754,7 +742,7 @@ export default function AdminDashboard() {
                                   <button
                                     onClick={() => handleProjectAction(submission.id, 'approve')}
                                     disabled={projectActionLoadingId === submission.id}
-                                    className="inline-flex items-center gap-2 px-3 py-2 rounded-[10px] bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                                    className="s-btn s-btn-accent"
                                   >
                                     <CheckCircle2 className="w-4 h-4" />
                                     Approve
@@ -762,7 +750,7 @@ export default function AdminDashboard() {
                                   <button
                                     onClick={() => handleProjectAction(submission.id, 'reject')}
                                     disabled={projectActionLoadingId === submission.id}
-                                    className="inline-flex items-center gap-2 px-3 py-2 rounded-[10px] bg-red-600 text-white text-xs font-semibold hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                                    className="s-btn bg-red-600 text-white [@media(hover:hover)]:hover:bg-red-700"
                                   >
                                     <XCircle className="w-4 h-4" />
                                     Reject
@@ -772,7 +760,7 @@ export default function AdminDashboard() {
                               <button
                                 onClick={() => handleProjectDelete(submission.id)}
                                 disabled={projectActionLoadingId === submission.id}
-                                className="inline-flex items-center gap-2 px-3 py-2 rounded-[10px] bg-white border border-red-200 text-red-700 text-xs font-semibold hover:bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                                className="s-btn s-btn-plain text-red-700"
                               >
                                 <Trash2 className="w-4 h-4" />
                                 Delete
@@ -794,7 +782,7 @@ export default function AdminDashboard() {
                     <button
                       onClick={() => setProjectPage(projectPage - 1)}
                       disabled={projectPage === 0 || projectSubmissionsLoading}
-                      className="p-2 rounded-[10px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                      className="s-btn s-btn-plain h-9 w-9 px-0"
                     >
                       <ChevronLeft className="w-5 h-5" />
                     </button>
@@ -806,7 +794,7 @@ export default function AdminDashboard() {
                     <button
                       onClick={() => setProjectPage(projectPage + 1)}
                       disabled={(projectPage + 1) * projectPageSize >= projectTotalCount || projectSubmissionsLoading}
-                      className="p-2 rounded-[10px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                      className="s-btn s-btn-plain h-9 w-9 px-0"
                     >
                       <ChevronRight className="w-5 h-5" />
                     </button>
@@ -849,7 +837,7 @@ export default function AdminDashboard() {
                     {users.filter(u => u && !u.isAdmin && u.status === 'Approved').length > 0 && (
                       <button
                         onClick={exportToExcel}
-                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-xs sm:text-sm font-semibold rounded-[10px] hover:bg-blue-700 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out shadow-md active:scale-[0.98]"
+                        className="s-btn s-btn-accent justify-center"
                       >
                         <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -918,7 +906,7 @@ export default function AdminDashboard() {
                       <button
                         onClick={() => handlePageChange(currentPage - 1)}
                         disabled={currentPage === 0 || isDataLoading}
-                        className="p-2 rounded-[10px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                        className="s-btn s-btn-plain h-9 w-9 px-0"
                       >
                         <ChevronLeft className="w-5 h-5" />
                       </button>
@@ -930,7 +918,7 @@ export default function AdminDashboard() {
                       <button
                         onClick={() => handlePageChange(currentPage + 1)}
                         disabled={(currentPage + 1) * pageSize >= totalCount || isDataLoading}
-                        className="p-2 rounded-[10px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                        className="s-btn s-btn-plain h-9 w-9 px-0"
                       >
                         <ChevronRight className="w-5 h-5" />
                       </button>
@@ -984,15 +972,15 @@ export default function AdminDashboard() {
                 <div className="p-4 sm:p-6 overflow-y-auto flex-1 no-scrollbar">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8 mb-10 px-2">
                     <div>
-                      <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Applicant Name</p>
+                      <p className="text-[12px] font-semibold text-slate-400 mb-1">Applicant Name</p>
                       <p className="text-base font-semibold text-slate-900">{selectedUser.fullName}</p>
                     </div>
                     <div>
-                      <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Email Address</p>
+                      <p className="text-[12px] font-semibold text-slate-400 mb-1">Email Address</p>
                       <p className="text-sm font-semibold text-slate-600 break-all">{selectedUser.email}</p>
                     </div>
                     <div>
-                      <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Discord</p>
+                      <p className="text-[12px] font-semibold text-slate-400 mb-1">Discord</p>
                       <div className="flex items-center gap-2">
                         {selectedUser.discordAvatar && selectedUser.discordId ? (
                           <img
@@ -1012,27 +1000,27 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     <div>
-                      <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Date Applied</p>
+                      <p className="text-[12px] font-semibold text-slate-400 mb-1">Date Applied</p>
                       <p className="text-sm font-semibold text-slate-900">
                         {selectedUser.createdAt ? new Date(selectedUser.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) : 'N/A'}
                       </p>
                     </div>
                     <div>
-                      <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Primary Role</p>
+                      <p className="text-[12px] font-semibold text-slate-400 mb-1">Primary Role</p>
                       <p className="text-sm font-semibold text-slate-900">{selectedUser.specialization || 'N/A'}</p>
                     </div>
                     <div>
-                      <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Community Role</p>
+                      <p className="text-[12px] font-semibold text-slate-400 mb-1">Community Role</p>
                       <span className="inline-flex px-2 py-0.5 rounded-[10px] bg-slate-100 text-[12px] font-semibold text-slate-600">
                         {selectedUser.role}
                       </span>
                     </div>
                     <div>
-                      <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Member Since</p>
+                      <p className="text-[12px] font-semibold text-slate-400 mb-1">Member Since</p>
                       <p className="text-sm font-semibold text-slate-900">{selectedUser.yearJoined || 'N/A'}</p>
                     </div>
                     <div>
-                      <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Prof. Level</p>
+                      <p className="text-[12px] font-semibold text-slate-400 mb-1">Prof. Level</p>
                       <p className="text-sm font-semibold text-slate-900">{selectedUser.experienceLevel || 'Beginner'}</p>
                     </div>
                   </div>
@@ -1073,12 +1061,12 @@ export default function AdminDashboard() {
                       value={adminNote}
                       onChange={(e) => setAdminNote(e.target.value)}
                       placeholder="Add notes for the applicant..."
-                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-[10px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 resize-none h-24 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                      className="s-field h-24 resize-none py-2.5"
                     />
                   </div>
                 </div>
 
-                <div className="p-6 border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row justify-end gap-3">
+                <div className="p-4 sm:p-6 border-t border-slate-100 bg-slate-50 flex flex-col-reverse sm:flex-row justify-end gap-2.5">
                   {selectedUser.status === 'Approved' ? (
                     <div className="flex items-center gap-2 text-sm font-semibold text-blue-600 px-4 py-2.5 bg-blue-50 rounded-[10px] border border-blue-100">
                       <CheckCircle2 className="w-4 h-4" />
@@ -1089,7 +1077,7 @@ export default function AdminDashboard() {
                       {selectedUser.status !== 'Declined' && (
                         <button
                           onClick={() => handleStatusUpdate(selectedUser.id, 'Declined')}
-                          className="px-6 py-2.5 bg-white border border-red-200 text-red-600 text-sm font-semibold rounded-[10px] hover:bg-red-50 hover:border-red-300 transition-colors shadow-sm"
+                          className="s-btn s-btn-plain text-red-700"
                         >
                           Decline
                         </button>
@@ -1097,10 +1085,7 @@ export default function AdminDashboard() {
                       <button
                         onClick={() => handleStatusUpdate(selectedUser.id, 'Approved')}
                         className={clsx(
-                          "px-6 py-2.5 text-white text-sm font-semibold rounded-[10px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out shadow-md flex items-center justify-center space-x-2",
-                          selectedUser.status === 'Declined'
-                            ? "bg-blue-600 hover:bg-blue-700 "
-                            : "bg-blue-900 hover:bg-blue-800 "
+                          "s-btn s-btn-accent"
                         )}
                       >
                         <CheckCircle2 className="w-4 h-4" />
@@ -1152,14 +1137,14 @@ export default function AdminDashboard() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                       <button
                         onClick={() => handleCopyLink(currentUser)}
-                        className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 bg-blue-900 text-white rounded-[10px] font-semibold text-xs sm:text-sm hover:bg-blue-800 transition-[transform,box-shadow,background-color] duration-200 ease-out shadow-[0_10px_24px_-14px_rgba(30,58,138,0.5)] active:scale-[0.98]"
+                        className="s-btn s-btn-accent justify-center w-full"
                       >
                         {copyStatus === 'copied' ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                         {copyStatus === 'copied' ? 'Link Copied' : 'Copy Public Link'}
                       </button>
                       <button
                         onClick={() => handleCopyEmbed(currentUser)}
-                        className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 bg-white border border-slate-200 text-slate-700 rounded-[10px] font-semibold text-xs sm:text-sm [@media(hover:hover){&:hover}]:bg-slate-50 [@media(hover:hover){&:hover}]:border-slate-300 transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out active:scale-[0.98]"
+                        className="s-btn s-btn-plain justify-center w-full"
                       >
                         {copyStatus === 'embed-copied' ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Code className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                         {copyStatus === 'embed-copied' ? 'Embed Copied' : 'Embed Code'}
@@ -1213,14 +1198,14 @@ export default function AdminDashboard() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                           <button
                             onClick={() => handleCopyLink(selectedMember)}
-                            className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 bg-blue-900 text-white rounded-[10px] font-semibold text-xs sm:text-sm hover:bg-blue-800 transition-[transform,box-shadow,background-color] duration-200 ease-out shadow-[0_10px_24px_-14px_rgba(30,58,138,0.5)] active:scale-[0.98]"
+                            className="s-btn s-btn-accent justify-center w-full"
                           >
                             {copyStatus === 'copied' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                             {copyStatus === 'copied' ? 'Link Copied' : 'Copy Public Link'}
                           </button>
                           <button
                             onClick={() => handleCopyEmbed(selectedMember)}
-                            className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 bg-white border border-slate-200 text-slate-700 rounded-[10px] font-semibold text-xs sm:text-sm [@media(hover:hover){&:hover}]:bg-slate-50 [@media(hover:hover){&:hover}]:border-slate-300 transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out active:scale-[0.98]"
+                            className="s-btn s-btn-plain justify-center w-full"
                           >
                             {copyStatus === 'embed-copied' ? <Check className="w-4 h-4" /> : <Code className="w-4 h-4" />}
                             {copyStatus === 'embed-copied' ? 'Embed Copied' : 'Embed Code'}
@@ -1232,15 +1217,15 @@ export default function AdminDashboard() {
                     <div className="space-y-8">
                       <div className="grid grid-cols-2 gap-y-6 gap-x-8 px-2">
                         <div>
-                          <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Full Name</p>
+                          <p className="text-[12px] font-semibold text-slate-400 mb-1">Full Name</p>
                           <p className="text-sm font-semibold text-slate-900">{selectedMember.fullName}</p>
                         </div>
                         <div>
-                          <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Email Address</p>
+                          <p className="text-[12px] font-semibold text-slate-400 mb-1">Email Address</p>
                           <p className="text-sm font-semibold text-slate-600 break-all">{selectedMember.email}</p>
                         </div>
                         <div>
-                          <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Discord</p>
+                          <p className="text-[12px] font-semibold text-slate-400 mb-1">Discord</p>
                           <div className="flex items-center gap-2">
                             {selectedMember.discordAvatar && selectedMember.discordId ? (
                               <img
@@ -1260,27 +1245,27 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                         <div>
-                          <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Primary Role</p>
+                          <p className="text-[12px] font-semibold text-slate-400 mb-1">Primary Role</p>
                           <p className="text-sm font-semibold text-slate-900">{selectedMember.specialization || 'N/A'}</p>
                         </div>
                         <div>
-                          <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Community Role</p>
+                          <p className="text-[12px] font-semibold text-slate-400 mb-1">Community Role</p>
                           <span className="inline-flex px-2 py-0.5 rounded-[10px] bg-blue-50 text-[12px] font-semibold text-blue-700">
                             {selectedMember.role}
                           </span>
                         </div>
                         <div>
-                          <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Member Since</p>
+                          <p className="text-[12px] font-semibold text-slate-400 mb-1">Member Since</p>
                           <p className="text-sm font-semibold text-slate-900">{selectedMember.yearJoined || 'N/A'}</p>
                         </div>
                         <div>
-                          <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1">Prof. Level</p>
+                          <p className="text-[12px] font-semibold text-slate-400 mb-1">Prof. Level</p>
                           <p className="text-sm font-semibold text-slate-900">{selectedMember.experienceLevel || 'Beginner'}</p>
                         </div>
                       </div>
 
                       <div className="px-2">
-                        <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-4">Skills</p>
+                        <p className="text-[12px] font-semibold text-slate-400 mb-4">Skills</p>
                         <div className="flex flex-wrap gap-2">
                           {Array.isArray(selectedMember.skills) && selectedMember.skills.length > 0 ? (
                             selectedMember.skills.map((skill, i) => (
@@ -1305,7 +1290,7 @@ export default function AdminDashboard() {
 
                       {selectedMember.adminNotes && (
                         <div className="p-4 sm:p-5 bg-blue-50/60 rounded-[10px] border border-blue-100">
-                          <p className="text-[12px] font-semibold text-blue-900 uppercase tracking-[0.18em] mb-2">Admin Remarks</p>
+                          <p className="text-[12px] font-semibold text-blue-900 mb-2">Admin Remarks</p>
                           <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
                             "{selectedMember.adminNotes}"
                           </p>
@@ -1394,17 +1379,17 @@ export default function AdminDashboard() {
                     </select>
                   </div>
                 </div>
-                <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+                <div className="p-4 sm:p-6 border-t border-slate-100 bg-slate-50 flex flex-col-reverse sm:flex-row justify-end gap-2.5">
                   <button
                     onClick={() => setEditingSubmission(null)}
-                    className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-[10px] hover:bg-slate-50 transition-colors"
+                    className="s-btn s-btn-plain"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleEditSave}
                     disabled={editSaving}
-                    className="px-6 py-2.5 bg-blue-900 text-white text-sm font-semibold rounded-[10px] hover:bg-blue-800 disabled:opacity-60 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out flex items-center gap-2"
+                    className="s-btn s-btn-accent"
                   >
                     {editSaving ? 'Saving...' : 'Save Changes'}
                   </button>

@@ -1361,7 +1361,7 @@ const handler_discord: H = async (req, res) => {
     const serviceRoleKey = cfg.serviceKey;
     const bettygoKey = process.env.BETTYGO_API_KEY || '';
     const bettygoBaseUrl = (process.env.BETTYGO_BASE_URL || '').replace(/\/$/, '');
-    const callbackUrl = process.env.DISCORD_CALLBACK_URL || 'http://localhost:3000/discord-callback';
+    const callbackUrl = (process.env.DISCORD_CALLBACK_URL || '').trim();
     const discordBotToken = process.env.DISCORD_BOT_TOKEN || '';
     if (!supabaseUrl || !serviceRoleKey) { sendError(res, 500, 'Server not configured'); return; }
     if (!bettygoBaseUrl) { sendError(res, 500, 'BETTYGO_BASE_URL is not configured'); return; }
@@ -1418,19 +1418,19 @@ const handler_discord: H = async (req, res) => {
       if (action === 'login') {
         if (!bettygoKey) { sendError(res, 500, 'Discord integration not configured'); return; }
         if (!uid) { sendError(res, 401, 'Invalid token'); return; }
-        const payload = JSON.stringify({ user_id: uid });
-        let bettygoRes = await fetch(`${bettygoBaseUrl}/auth/login`, {
-          method: 'POST',
-          headers: {
-            'X-Api-Key': bettygoKey,
-            'Content-Type': 'application/json',
-            'Content-Length': String(new TextEncoder().encode(payload).length),
-          },
-          body: payload,
-        });
-        if (bettygoRes.status === 404 || bettygoRes.status === 405) {
-          const params = new URLSearchParams({ user_id: uid });
-          bettygoRes = await fetch(`${bettygoBaseUrl}/auth/login?${params.toString()}`, { headers: { 'X-Api-Key': bettygoKey } });
+        // bettygo's /auth/login is GET-only. Always tell it where to send the browser back:
+        // the configured callback, else this site's own /discord-callback. If bettygo rejects
+        // that address (not in its allowlist), retry without it and let bettygo use its default.
+        const origin = String(req.headers?.origin || '').replace(/\/$/, '');
+        const redirectUri = callbackUrl || (origin ? `${origin}/discord-callback` : '');
+        const loginUrl = (withRedirect: boolean) => {
+          const params = new URLSearchParams({ user_id: uid as string });
+          if (withRedirect && redirectUri) params.set('redirect_uri', redirectUri);
+          return `${bettygoBaseUrl}/auth/login?${params.toString()}`;
+        };
+        let bettygoRes = await fetch(loginUrl(true), { headers: { 'X-Api-Key': bettygoKey } });
+        if (bettygoRes.status === 400 && redirectUri) {
+          bettygoRes = await fetch(loginUrl(false), { headers: { 'X-Api-Key': bettygoKey } });
         }
         if (!bettygoRes.ok) {
           const bt = await bettygoRes.text().catch(() => '');

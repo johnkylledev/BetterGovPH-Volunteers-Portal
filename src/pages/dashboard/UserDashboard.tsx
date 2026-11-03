@@ -4,8 +4,15 @@ import { useStore } from '../../store/useStore';
 import { AccessCard } from '../../components/AccessCard';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
 import { motion } from 'framer-motion';
-import { ShieldAlert, CheckCircle2, Clock, LogOut, Copy, Code, Check, User, ExternalLink, Edit3, Trash2, X, Lock, Unlock, FolderPlus, Users, AlertCircle, RefreshCw } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, Clock, Copy, Code, Check, ExternalLink, Edit3, Trash2, X, Lock, Unlock, RefreshCw, CalendarDays, Wrench, FolderGit2, BadgeCheck, Pencil, SlidersHorizontal, Star, Flame, Trophy } from 'lucide-react';
 import clsx from 'clsx';
+import { StatTile } from '../../components/StatTile';
+import { UserChip } from '../../components/UserChip';
+import { EditProfileSheet } from '../../components/EditProfileSheet';
+import { MerchTab } from '../../components/merch/MerchTab';
+import { Medal } from '../../components/awards/Medal';
+import { AwardCard } from '../../components/awards/AwardCard';
+import { evaluateAwards } from '../../components/awards/awards';
 import { toast } from 'sonner';
 import { SkillIcon } from '../../components/SkillIcon';
 import { createVolunteerCall, deleteVolunteerCall, updateVolunteerCall, getMyProjectSubmissions, getVolunteerCalls, submitProjectSubmission, supabase } from '../../services/supabase';
@@ -26,7 +33,7 @@ export default function UserDashboard() {
   const logout = useStore((s) => s.logout);
   const navigate = useNavigate();
   const [copyStatus, setCopyStatus] = React.useState<'idle' | 'copied' | 'embed-copied'>('idle');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'submit-project' | 'volunteer'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'submit-project' | 'volunteer' | 'merch'>('dashboard');
   const [projectName, setProjectName] = useState('');
   const [projectUrl, setProjectUrl] = useState('');
   const [projectDescription, setProjectDescription] = useState('');
@@ -45,6 +52,7 @@ export default function UserDashboard() {
   const [volunteerCallsLoading, setVolunteerCallsLoading] = useState(false);
   const [volunteerCallsError, setVolunteerCallsError] = useState('');
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   const resetVolunteerForm = () => {
     setVolunteerTitle('');
@@ -207,26 +215,22 @@ export default function UserDashboard() {
   const MS_PER_DAY = 86_400_000;
   const daysSinceJoin = Math.max(1, Math.floor((today.getTime() - new Date(joinDate.getFullYear(), joinDate.getMonth(), joinDate.getDate()).getTime()) / MS_PER_DAY) + 1);
 
-  const earnedBadges: Array<{ id: string; label: string; tone: 'emerald' | 'blue' | 'amber' | 'slate' }> = [];
-  if (currentUser.isAdmin) earnedBadges.push({ id: 'admin', label: 'Admin', tone: 'amber' });
-  if (currentUser.status === 'Approved') earnedBadges.push({ id: 'verified', label: 'Verified', tone: 'emerald' });
-  if (currentUser.discordConnected || currentUser.discordId) earnedBadges.push({ id: 'discord', label: 'Discord Linked', tone: 'blue' });
   const totalSkills = Array.isArray(currentUser.skills) ? currentUser.skills.length : 0;
-  if (totalSkills >= 8) earnedBadges.push({ id: 'stacked', label: 'Stacked', tone: 'blue' });
-  else if (totalSkills >= 4) earnedBadges.push({ id: 'building', label: 'Building Stack', tone: 'slate' });
   const approvedCount = mySubmissions.filter(s => s.status === 'approved').length;
   const submittedCount = mySubmissions.length;
-  if (approvedCount >= 3) earnedBadges.push({ id: 'guru', label: 'Guru', tone: 'emerald' });
-  else if (approvedCount >= 1) earnedBadges.push({ id: 'ship', label: 'Shipped', tone: 'emerald' });
-  else if (submittedCount >= 1) earnedBadges.push({ id: 'first-pr', label: 'First Submission', tone: 'slate' });
-  if (currentUser.role === 'Fellow' || currentUser.role === 'Contributor') {
-    earnedBadges.push({ id: currentUser.role.toLowerCase(), label: currentUser.role, tone: 'amber' });
-  }
-  if (currentUser.experienceLevel === 'Professional' || currentUser.experienceLevel === 'Advanced') {
-    earnedBadges.push({ id: 'lvl-up', label: `${currentUser.experienceLevel} LVL`, tone: 'blue' });
-  }
-  const earliest = Number.isFinite(currentUser.yearJoined) ? (currentUser.yearJoined as number) : new Date().getFullYear();
-  if (earliest <= new Date().getFullYear() - 1) earnedBadges.push({ id: 'early', label: 'Early Bird', tone: 'slate' });
+  const myCalls = volunteerCalls.filter(c => c.userId === currentUser.id || c.userId === currentUser.uid);
+  const awards = evaluateAwards({
+    verified: currentUser.status === 'Approved' || !!currentUser.isAdmin,
+    discordLinked: !!(currentUser.discordConnected || currentUser.discordId),
+    recognized: currentUser.role === 'Fellow' || currentUser.role === 'Contributor',
+    projectsShipped: approvedCount,
+    callsPosted: myCalls.length,
+    callsFilled: myCalls.filter(c => c.status === 'closed').length,
+    skills: totalSkills,
+    days: daysSinceJoin,
+  });
+  const earnedAwards = awards.filter(a => a.earned);
+  const awardById = (id: string) => awards.find(a => a.def.id === id)!;
 
   const activityDayKeys = new Set<string>();
   const activityCountPerDay = new Map<string, number>();
@@ -244,15 +248,6 @@ export default function UserDashboard() {
   addDay(currentUser.updatedAt, 1);
   volunteerCalls.forEach(v => addDay(v.createdAt, v.userId === currentUser.id || v.userId === currentUser.uid ? 2 : 0));
 
-  const toneClass = (tone: 'emerald' | 'blue' | 'amber' | 'slate') => {
-    switch (tone) {
-      case 'emerald':
-      case 'blue':
-      case 'amber':   return 'text-slate-700 bg-white shadow-[inset_0_0_0_1px_rgb(15_23_42/0.1)]';
-      case 'slate':
-      default:        return 'text-slate-500 bg-slate-100';
-    }
-  };
 
   const WEEKS = 53;
   const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -287,6 +282,23 @@ export default function UserDashboard() {
     'bg-blue-700',
     'bg-blue-900',
   ];
+
+  // Activity summary for the heatmap header.
+  const pastCells = grid.flat().filter(c => c.date <= todayMid);
+  const activityTotal = pastCells.reduce((n, c) => n + c.count, 0);
+  const activeDays = pastCells.filter(c => c.count > 0).length;
+  let longestStreak = 0;
+  let run = 0;
+  pastCells.forEach(c => {
+    run = c.count > 0 ? run + 1 : 0;
+    longestStreak = Math.max(longestStreak, run);
+  });
+  let currentStreak = 0;
+  for (let i = pastCells.length - 1; i >= 0; i--) {
+    if (pastCells[i].count > 0) currentStreak++;
+    else if (i === pastCells.length - 1) continue; // today with no activity doesn't break the streak yet
+    else break;
+  }
 
   const monthShort = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const LABEL_INDICES = new Set<number>([0, 9, 18, 26, 35, 44, 52]);
@@ -430,6 +442,7 @@ export default function UserDashboard() {
       loadMySubmissions(true);
     } else if (activeTab === 'dashboard') {
       loadMySubmissions(false);
+      loadVolunteerCalls(false);
     } else if (activeTab === 'volunteer') {
       loadVolunteerCalls(true);
     }
@@ -543,15 +556,19 @@ export default function UserDashboard() {
 
   const firstName = (currentUser.fullName || '').trim().split(' ')[0] || 'there';
   const statusMeta = currentUser.status === 'Approved'
-    ? { dot: 'bg-emerald-500', word: 'Approved', note: 'Your card is active and publicly verifiable.' }
+    ? { dot: 'bg-emerald-500', word: 'Approved', note: 'Your card is active and publicly verifiable.', icon: BadgeCheck, tone: 'text-emerald-700 bg-emerald-50 shadow-[inset_0_0_0_1px_rgb(16_185_129/0.25)]' }
     : currentUser.status === 'Declined'
-      ? { dot: 'bg-red-500', word: 'Declined', note: 'See the note from the admins below.' }
-      : { dot: 'bg-amber-500', word: 'Under review', note: 'An admin is reviewing your application.' };
+      ? { dot: 'bg-red-500', word: 'Declined', note: 'See the note from the admins below.', icon: ShieldAlert, tone: 'text-red-700 bg-red-50 shadow-[inset_0_0_0_1px_rgb(239_68_68/0.25)]' }
+      : { dot: 'bg-amber-500', word: 'Under review', note: 'An admin is reviewing your application.', icon: Clock, tone: 'text-amber-800 bg-amber-50 shadow-[inset_0_0_0_1px_rgb(217_119_6/0.25)]' };
+  const StatusIcon = statusMeta.icon;
+  const featuredSkills = (currentUser.skills || []).filter((s) => s.featured);
+  const otherSkills = (currentUser.skills || []).filter((s) => !s.featured);
 
-  const tabs: { id: typeof activeTab; label: string }[] = [
+  const tabs: { id: typeof activeTab; label: string; soon?: boolean }[] = [
     { id: 'dashboard', label: 'Overview' },
     { id: 'submit-project', label: 'Projects' },
     { id: 'volunteer', label: 'Volunteer calls' },
+    { id: 'merch', label: 'Merch', soon: true },
   ];
 
   const sectionTitle = 'text-[15px] font-semibold tracking-[-0.01em] text-slate-900';
@@ -581,20 +598,23 @@ export default function UserDashboard() {
                   )}
                 >
                   {t.label}
+                {t.soon && <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-px text-[10.5px] font-medium text-amber-800">Soon</span>}
                 </button>
               ))}
             </nav>
 
-            <div className="flex shrink-0 items-center gap-3">
-              <span className="hidden text-right leading-tight sm:block">
-                <span className="block max-w-[160px] truncate text-[13px] font-medium text-slate-900">{currentUser.fullName}</span>
-                <span className="block text-[12px] text-slate-500">{currentUser.role}</span>
-              </span>
-              <button onClick={handleLogout} className="s-btn s-btn-plain h-8 px-3 text-[13px]" title="Sign out">
-                <LogOut size={14} strokeWidth={1.75} />
-                <span className="hidden sm:inline">Sign out</span>
-              </button>
-            </div>
+            <UserChip
+              name={currentUser.fullName}
+              subtitle={currentUser.role || 'Member'}
+              discordId={currentUser.discordId}
+              discordAvatar={currentUser.discordAvatar}
+              onOpen={() => {
+                setActiveTab('dashboard');
+                setTimeout(() => document.getElementById('digital-card-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+              }}
+              openLabel="View my card"
+              onSignOut={handleLogout}
+            />
           </div>
 
           <nav aria-label="Dashboard sections" className="no-scrollbar flex gap-1 overflow-x-auto border-t border-slate-200/70 px-3 py-1.5 md:hidden">
@@ -609,6 +629,7 @@ export default function UserDashboard() {
                 )}
               >
                 {t.label}
+                {t.soon && <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-px text-[10.5px] font-medium text-amber-800">Soon</span>}
               </button>
             ))}
           </nav>
@@ -622,25 +643,31 @@ export default function UserDashboard() {
               transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
               className="mb-10"
             >
-              <p className="inline-flex items-center gap-2 text-[13px] text-slate-500">
-                <span className={clsx('h-1.5 w-1.5 rounded-full', statusMeta.dot)} aria-hidden />
-                {statusMeta.word}
-                <span className="text-slate-300">·</span>
-                <span className="num">Day {daysSinceJoin.toLocaleString()}</span>
+              <p className="flex flex-wrap items-center gap-2 text-[13px] text-slate-500">
+                {currentUser.status !== 'Approved' && (
+                  <span className={clsx('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium', statusMeta.tone)}>
+                    <StatusIcon size={14} strokeWidth={2} aria-hidden />
+                    {statusMeta.word}
+                  </span>
+                )}
+                <span className="num">Day {daysSinceJoin.toLocaleString()} as a member</span>
               </p>
               <h1 className="mt-3 text-[32px] sm:text-[40px]">Welcome back, {firstName}.</h1>
               <p className="mt-2 text-[16px] text-slate-600">
                 {statusMeta.note}
                 {displayName.startsWith('@') && <span className="text-slate-400"> Signed in as {displayName}.</span>}
               </p>
-              {earnedBadges.length > 0 && (
-                <ul className="mt-5 flex flex-wrap gap-1.5" aria-label="Badges">
-                  {earnedBadges.map((b) => (
-                    <li key={b.id} className={clsx('rounded-md px-2 py-1 text-[12px] font-medium', toneClass(b.tone))}>
-                      {b.label}
-                    </li>
-                  ))}
-                </ul>
+              {earnedAwards.length > 0 && (
+                <a href="#awards" className="group mt-5 inline-flex items-center gap-3" aria-label={`${earnedAwards.length} awards earned — see all`}>
+                  <span className="flex -space-x-2">
+                    {earnedAwards.slice(0, 6).map((a) => (
+                      <Medal key={a.def.id} icon={a.def.icon} tier={a.tier} pips={a.def.kind === 'tiered'} size={36} title={a.def.name} />
+                    ))}
+                  </span>
+                  <span className="num text-[13px] text-slate-500 group-hover:text-slate-900">
+                    {earnedAwards.length} of {awards.length} awards
+                  </span>
+                </a>
               )}
             </motion.div>
 
@@ -651,30 +678,58 @@ export default function UserDashboard() {
               </div>
             )}
 
-            <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-10">
-              <div className="order-2 space-y-6 lg:order-1">
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-10">
+              <div className="order-2 min-w-0 space-y-6 lg:order-1">
                 {/* Stats */}
-                <dl className="s-card grid grid-cols-3 divide-x divide-slate-200/80">
-                  {[
-                    { label: 'Days as member', value: daysSinceJoin.toLocaleString() },
-                    { label: 'Skills listed', value: totalSkills },
-                    { label: 'Projects approved', value: submittedCount > 0 ? <>{approvedCount}<span className="text-[16px] font-normal text-slate-400"> / {submittedCount}</span></> : approvedCount },
-                  ].map((s) => (
-                    <div key={s.label} className="px-4 py-4 sm:px-6 sm:py-5">
-                      <dt className="text-[12px] text-slate-500">{s.label}</dt>
-                      <dd className="num mt-1 text-[24px] font-semibold tracking-[-0.02em] text-slate-900 sm:text-[28px]">{s.value}</dd>
-                    </div>
-                  ))}
-                </dl>
+                <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
+                  <StatTile
+                    label="Days in"
+                    icon={CalendarDays}
+                    value={daysSinceJoin.toLocaleString()}
+                    hint={`since ${joinDate.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}`}
+                  />
+                  <StatTile
+                    label="Skills"
+                    icon={Wrench}
+                    value={totalSkills}
+                    hint={currentUser.experienceLevel ? currentUser.experienceLevel : 'listed'}
+                  />
+                  <StatTile
+                    label="Projects"
+                    icon={FolderGit2}
+                    value={submittedCount > 0 ? <>{approvedCount}<span className="text-[15px] font-normal text-slate-400"> / {submittedCount}</span></> : approvedCount}
+                    hint={submittedCount > 0 ? 'approved' : 'none yet'}
+                  />
+                </div>
 
                 {/* Activity */}
                 <section className="s-card p-5 sm:p-6" aria-labelledby="activity-title">
-                  <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2">
-                    <h2 id="activity-title" className={sectionTitle}>Contribution activity</h2>
-                    <p className="text-[12px] text-slate-500">Projects, volunteer calls, and profile updates over the past year</p>
+                  <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-1">
+                    <div>
+                      <h2 id="activity-title" className={sectionTitle}>Contribution activity</h2>
+                      <p className="mt-0.5 text-[13px] text-slate-500">
+                        <span className="num font-medium text-slate-900">{activityTotal}</span> contributions in the last year
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="relative">
+                  <dl className="mt-4 grid grid-cols-3 divide-x divide-slate-200/80 rounded-[12px] bg-slate-50 py-3 shadow-[inset_0_0_0_1px_rgb(15_23_42/0.05)]">
+                    {[
+                      { label: 'Active days', value: activeDays, icon: CalendarDays },
+                      { label: 'Current streak', value: `${currentStreak}d`, icon: Flame },
+                      { label: 'Longest streak', value: `${longestStreak}d`, icon: Trophy },
+                    ].map((st) => (
+                      <div key={st.label} className="min-w-0 px-3 text-center sm:px-4">
+                        <dt className="flex items-center justify-center gap-1.5 truncate text-[12px] text-slate-500">
+                          <st.icon size={13} strokeWidth={1.75} className="shrink-0 text-slate-400" aria-hidden />
+                          {st.label}
+                        </dt>
+                        <dd className="num mt-0.5 text-[18px] font-semibold text-slate-900">{st.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+
+                  <div className="relative mt-5">
                     <div
                       className={clsx('pointer-events-none absolute inset-y-0 left-0 z-10 w-8 transition-opacity duration-200', heatmapScrollEdge.l ? 'opacity-100' : 'opacity-0')}
                       style={{ background: 'linear-gradient(to right, #ffffff 0%, rgba(255,255,255,0))' }}
@@ -685,12 +740,12 @@ export default function UserDashboard() {
                     />
                     <div
                       ref={heatmapScrollerRef}
-                      className="no-scrollbar w-full min-w-0 cursor-[grab] select-none overflow-x-auto pb-1 pr-1 active:cursor-[grabbing]"
+                      className="no-scrollbar w-full min-w-0 cursor-[grab] select-none overflow-x-auto pb-1 active:cursor-[grabbing] lg:cursor-default"
                       dir="ltr"
                       style={{ touchAction: 'pan-y pinch-zoom' }}
                     >
-                      <div className="inline-flex flex-col gap-2 pr-2" style={{ width: `calc(16px + ${WEEKS} * (11px + 3px) + 8px)` }}>
-                        <div className="flex gap-[3px] pl-4 pr-2">
+                      <div className="inline-flex flex-col gap-1.5" style={{ width: `calc(22px + ${WEEKS} * (11px + 2px))` }}>
+                        <div className="flex gap-[2px] pl-[22px]">
                           {Array.from({ length: WEEKS }, (_, w) => {
                             const ml = monthLabels.find(m => m.i === w);
                             return (
@@ -705,23 +760,31 @@ export default function UserDashboard() {
                           })}
                         </div>
                         <div className="flex items-start">
-                          <div className="flex flex-col gap-[3px] pr-2">
-                            {['', 'M', '', 'W', '', 'F', ''].map((d, i) => (
-                              <span key={i} className="flex h-[11px] w-2 items-center text-[10px] leading-[11px] text-slate-400">{d}</span>
+                          <div className="flex w-[22px] shrink-0 flex-col gap-[2px]">
+                            {['', 'Mon', '', 'Wed', '', 'Fri', ''].map((d, i) => (
+                              <span key={i} className="flex h-[11px] items-center text-[9.5px] leading-none text-slate-400">{d}</span>
                             ))}
                           </div>
-                          <div className="flex gap-[3px] pr-2">
+                          <div className="flex gap-[2px]">
                             {grid.map((weekCol, wi) => (
-                              <div key={wi} className="flex flex-col gap-[3px]" style={{ width: '11px' }}>
-                                {weekCol.map((cell, di) => (
-                                  <div
-                                    key={di}
-                                    title={cell.count > 0
-                                      ? `${toYmd(cell.date)} — ${cell.count} contribution${cell.count === 1 ? '' : 's'}`
-                                      : toYmd(cell.date)}
-                                    className={clsx('h-[11px] w-[11px] flex-shrink-0 rounded-[3px]', levelBg[levelForCount(cell.count)])}
-                                  />
-                                ))}
+                              <div key={wi} className="flex flex-col gap-[2px]" style={{ width: '11px' }}>
+                                {weekCol.map((cell, di) => {
+                                  const future = cell.date > todayMid;
+                                  const isToday = cell.date.getTime() === todayMid.getTime();
+                                  return (
+                                    <div
+                                      key={di}
+                                      title={future ? undefined : cell.count > 0
+                                        ? `${cell.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} — ${cell.count} contribution${cell.count === 1 ? '' : 's'}`
+                                        : `${cell.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} — no activity`}
+                                      className={clsx(
+                                        'h-[11px] w-[11px] flex-shrink-0 rounded-[3px]',
+                                        future ? 'bg-transparent' : levelBg[levelForCount(cell.count)],
+                                        isToday && 'ring-1 ring-slate-900/40 ring-offset-1 ring-offset-white'
+                                      )}
+                                    />
+                                  );
+                                })}
                               </div>
                             ))}
                           </div>
@@ -730,18 +793,40 @@ export default function UserDashboard() {
                     </div>
                   </div>
 
-                  <div className="mt-3 flex items-center justify-end gap-1.5 text-[11px] text-slate-500">
-                    <span>Less</span>
-                    {levelBg.map((cls, i) => (
-                      <div key={i} className={clsx(cls, 'h-[11px] w-[11px] flex-shrink-0 rounded-[3px]')} />
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-[12px] text-slate-500">
+                    <p>Counts approved projects, volunteer calls and profile updates.</p>
+                    <div className="flex items-center gap-1.5">
+                      <span>Less</span>
+                      {levelBg.map((cls, i) => (
+                        <div key={i} className={clsx(cls, 'h-[11px] w-[11px] flex-shrink-0 rounded-[3px]')} />
+                      ))}
+                      <span>More</span>
+                    </div>
+                  </div>
+                </section>
+
+                {/* Awards */}
+                <section id="awards" className="scroll-mt-24" aria-labelledby="awards-title">
+                  <div className="mb-3 flex items-baseline justify-between gap-3">
+                    <h2 id="awards-title" className={sectionTitle}>Awards</h2>
+                    <span className="num text-[12px] text-slate-500">{earnedAwards.length} of {awards.length} earned</span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {[...awards].sort((x, y) => Number(y.earned) - Number(x.earned)).map((a) => (
+                      <AwardCard key={a.def.id} award={a} />
                     ))}
-                    <span>More</span>
                   </div>
                 </section>
 
                 {/* Profile */}
                 <section className="s-card p-5 sm:p-6" aria-labelledby="profile-title">
-                  <h2 id="profile-title" className={sectionTitle}>Profile</h2>
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 id="profile-title" className={sectionTitle}>Profile</h2>
+                    <button type="button" onClick={() => setEditOpen(true)} className="s-btn s-btn-plain h-8 px-3 text-[13px]">
+                      <Pencil size={14} strokeWidth={1.75} />
+                      Edit
+                    </button>
+                  </div>
                   <dl className="mt-4 grid border-t border-slate-200/80 sm:grid-cols-2 sm:gap-x-8">
                     {[
                       { label: 'Full name', value: currentUser.fullName },
@@ -778,43 +863,75 @@ export default function UserDashboard() {
 
                 {/* Skills */}
                 <section className="s-card p-5 sm:p-6" aria-labelledby="skills-title">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <h2 id="skills-title" className={sectionTitle}>Skills</h2>
-                    <span className="num text-[12px] text-slate-500">{totalSkills} listed</span>
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 id="skills-title" className={sectionTitle}>
+                      Skills <span className="num font-normal text-slate-400">{totalSkills}</span>
+                    </h2>
+                    <button type="button" onClick={() => setEditOpen(true)} className="s-btn s-btn-plain h-8 px-3 text-[13px]">
+                      <SlidersHorizontal size={14} strokeWidth={1.75} />
+                      Customize
+                    </button>
                   </div>
-                  {currentUser.skills && currentUser.skills.length > 0 ? (
-                    <ul className="mt-4 flex flex-wrap gap-2">
-                      {currentUser.skills.map((skill, index) => (
-                        <li
-                          key={index}
-                          className="inline-flex items-center gap-2 rounded-lg bg-white py-1.5 pl-2 pr-2.5 text-[13px] shadow-[inset_0_0_0_1px_rgb(15_23_42/0.1)]"
-                        >
-                          <SkillIcon skillName={skill.name} size={13} />
-                          <span className="font-medium text-slate-800">{skill.name}</span>
-                          <span className={clsx('text-[12px]', skill.level === 'Expert' ? 'text-[var(--accent)]' : 'text-slate-400')}>
-                            {skill.level}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
+
+                  {totalSkills === 0 ? (
+                    <div className="mt-4 rounded-[12px] bg-slate-50 px-4 py-6 text-center">
+                      <p className="text-[14px] text-slate-600">No skills listed yet.</p>
+                      <button type="button" onClick={() => setEditOpen(true)} className="s-btn s-btn-accent mt-3">Add your skills</button>
+                    </div>
                   ) : (
-                    <p className="mt-3 text-[14px] text-slate-500">No skills listed yet.</p>
+                    <>
+                      {featuredSkills.length > 0 && (
+                        <ul className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3" aria-label="Featured skills">
+                          {featuredSkills.map((skill) => (
+                            <li key={skill.name} className="flex items-center gap-2.5 rounded-[12px] bg-[#fffbeb] px-3 py-2.5 shadow-[inset_0_0_0_1px_rgb(217_119_6/0.25)]">
+                              <SkillIcon skillName={skill.name} size={18} />
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-[14px] font-semibold text-slate-900">{skill.name}</span>
+                                <span className="block text-[12px] text-slate-500">{skill.level}</span>
+                              </span>
+                              <Star size={14} strokeWidth={1.75} className="shrink-0 fill-amber-400 text-amber-500" aria-label="Featured" />
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {otherSkills.length > 0 && (
+                        <ul className="mt-3 flex flex-wrap gap-2">
+                          {otherSkills.map((skill) => (
+                            <li
+                              key={skill.name}
+                              className="inline-flex items-center gap-2 rounded-lg bg-white py-1.5 pl-2 pr-2.5 text-[13px] shadow-[inset_0_0_0_1px_rgb(15_23_42/0.1)]"
+                            >
+                              <SkillIcon skillName={skill.name} size={13} />
+                              <span className="font-medium text-slate-800">{skill.name}</span>
+                              <span className={clsx('text-[12px]', skill.level === 'Expert' ? 'text-[var(--accent)]' : 'text-slate-400')}>
+                                {skill.level}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {featuredSkills.length === 0 && (
+                        <p className="mt-3 text-[12px] text-slate-400">Tip: star up to 3 skills in Customize to feature them here.</p>
+                      )}
+                    </>
                   )}
                 </section>
               </div>
 
               {/* Access card */}
-              <aside id="digital-card-section" className="order-1 lg:order-2">
+              <aside id="digital-card-section" className="order-1 min-w-0 lg:order-2">
                 <div className="lg:sticky lg:top-24">
                   <div className="mb-4 flex items-baseline justify-between gap-3">
                     <h2 className={sectionTitle}>Your access card</h2>
-                    <span className="inline-flex items-center gap-1.5 text-[12px] text-slate-500">
-                      <span className={clsx('h-1.5 w-1.5 rounded-full', statusMeta.dot)} aria-hidden />
-                      {statusMeta.word}
-                    </span>
+                    {currentUser.status !== 'Approved' && (
+                      <span className={clsx('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium', statusMeta.tone)}>
+                        <StatusIcon size={13} strokeWidth={2} aria-hidden />
+                        {statusMeta.word}
+                      </span>
+                    )}
                   </div>
 
-                  <div className="relative flex justify-center rounded-[22px] bg-[#eef1f5] px-4 py-8 shadow-[inset_0_1px_2px_rgb(15_23_42/0.06),inset_0_0_0_1px_rgb(15_23_42/0.04)]">
+                  <div className="relative flex justify-center overflow-hidden rounded-[22px] bg-[#eef1f5] px-2 py-6 sm:px-4 sm:py-8 shadow-[inset_0_1px_2px_rgb(15_23_42/0.06),inset_0_0_0_1px_rgb(15_23_42/0.04)]">
                     <div className={clsx(currentUser.status !== 'Approved' && 'pointer-events-none opacity-40 grayscale')}>
                       <AccessCard user={currentUser} />
                     </div>
@@ -859,71 +976,75 @@ export default function UserDashboard() {
               </aside>
             </div>
           </main>
+        ) : activeTab === 'merch' ? (
+          <MerchTab />
         ) : activeTab === 'submit-project' ? (
-          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-            <div className="bg-white rounded-[10px] shadow-sm border border-slate-100/80 overflow-hidden">
-              <div className="p-6 sm:p-8 border-b border-slate-100">
-                <h2 className="text-base sm:text-lg font-semibold text-slate-900">Submit a New Project</h2>
-                <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                  Submit your project for admin review. Approved projects will appear in the main projects list.
+          <main className="mx-auto max-w-6xl px-4 sm:px-6 pt-10 sm:pt-14">
+            <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div className="max-w-xl">
+                <h1 className="text-[28px] sm:text-[32px]">Projects</h1>
+                <p className="mt-1.5 text-[15px] text-slate-600">
+                  Share something you built for the community. An admin reviews it before it appears on the public projects page.
                 </p>
               </div>
+              <a href="/projects" target="_blank" rel="noopener noreferrer" className="group inline-flex shrink-0 items-center gap-1 text-[14px] font-medium text-[var(--accent)]">
+                View public projects
+                <ExternalLink size={13} strokeWidth={1.75} />
+              </a>
+            </div>
 
-              <div className="p-6 sm:p-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <form onSubmit={handleProjectSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-[380px_minmax(0,1fr)] lg:gap-10">
+              <section className="min-w-0" aria-labelledby="submit-title">
+                <div className="s-card p-5 sm:p-6 lg:sticky lg:top-24">
+                  <h2 id="submit-title" className="text-[16px] font-semibold">Submit a project</h2>
+                  <form onSubmit={handleProjectSubmit} className="mt-5 space-y-4">
                     <div>
-                      <label className="block text-[13px] font-medium text-slate-900 mb-1.5">
-                        Project Name
-                      </label>
+                      <label htmlFor="proj-name" className="mb-1.5 block text-[13px] font-medium text-slate-900">Project name</label>
                       <input
+                        id="proj-name"
                         type="text"
                         value={projectName}
                         onChange={(e) => setProjectName(e.target.value)}
                         className="s-field"
-                        placeholder="e.g., BetterGovPH Tracker"
+                        placeholder="BetterGovPH Tracker"
                         disabled={projectSubmitStatus === 'loading'}
                       />
                     </div>
-
                     <div>
-                      <label className="block text-[13px] font-medium text-slate-900 mb-1.5">
-                        Project URL (GitHub / Demo / Docs)
-                      </label>
+                      <label htmlFor="proj-url" className="mb-1.5 block text-[13px] font-medium text-slate-900">Link</label>
                       <input
-                        type="text"
+                        id="proj-url"
+                        type="url"
+                        inputMode="url"
                         value={projectUrl}
                         onChange={(e) => setProjectUrl(e.target.value)}
                         className="s-field"
-                        placeholder="https://github.com/..."
+                        placeholder="https://github.com/…"
                         disabled={projectSubmitStatus === 'loading'}
                       />
+                      <p className="mt-1.5 text-[12px] text-slate-500">GitHub repo, live demo, or docs.</p>
                     </div>
-
                     <div>
-                      <label className="block text-[13px] font-medium text-slate-900 mb-1.5">
-                        Description
-                      </label>
+                      <label htmlFor="proj-desc" className="mb-1.5 block text-[13px] font-medium text-slate-900">Description</label>
                       <textarea
+                        id="proj-desc"
                         value={projectDescription}
                         onChange={(e) => setProjectDescription(e.target.value)}
-                        className="s-field h-auto py-2.5 min-h-[140px] resize-none"
-                        placeholder="What is this project about?"
+                        className="s-field h-auto min-h-[120px] resize-y py-2.5"
+                        placeholder="What does it do, and who is it for?"
                         disabled={projectSubmitStatus === 'loading'}
                       />
                     </div>
-
                     <div>
-                      <label className="block text-[13px] font-medium text-slate-900 mb-1.5">
-                        Project Type
-                      </label>
+                      <label htmlFor="proj-type" className="mb-1.5 block text-[13px] font-medium text-slate-900">Type</label>
                       <select
+                        id="proj-type"
                         value={projectProjType}
                         onChange={(e) => setProjectProjType(e.target.value)}
-                        className="s-field appearance-none cursor-pointer"
+                        className="s-field cursor-pointer"
                         disabled={projectSubmitStatus === 'loading'}
                       >
-                        <option value="">Select type</option>
+                        <option value="">Select a type</option>
                         <option value="web">Web</option>
                         <option value="api">API</option>
                         <option value="mobile">Mobile</option>
@@ -933,356 +1054,314 @@ export default function UserDashboard() {
                         <option value="other">Other</option>
                       </select>
                     </div>
-
-                    <button
-                      type="submit"
-                      disabled={projectSubmitStatus === 'loading'}
-                      className={clsx(
-                        'relative w-full py-4 rounded-[10px] font-semibold text-sm transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out shadow-sm active:scale-[0.98] overflow-hidden',
-                        projectSubmitStatus === 'loading'
-                          ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
-                          : 'bg-blue-900 text-white hover:bg-blue-800'
-                      )}
-                    >
-                      {projectSubmitStatus === 'loading' ? 'Submitting...' : 'Submit'}
+                    <button type="submit" disabled={projectSubmitStatus === 'loading'} className="s-btn s-btn-accent h-11 w-full">
+                      {projectSubmitStatus === 'loading' ? 'Submitting…' : 'Submit for review'}
                     </button>
                   </form>
                 </div>
+              </section>
 
-                <div className="bg-slate-50 border border-slate-200/70 rounded-[10px] overflow-hidden">
-                  <div className="px-5 py-4 bg-white border-b border-slate-200/70 flex items-center justify-between">
-                    <div>
-                      <p className="text-[12px] tracking-[0.2em] text-blue-900 font-semibold uppercase mb-1">Submissions</p>
-                      <p className="text-sm font-semibold text-slate-900">My Submitted Projects</p>
-                    </div>
-                    <button
-                      onClick={() => loadMySubmissions(true)}
-                      disabled={mySubmissionsLoading}
-                      className="px-3 py-2 rounded-[10px] bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out flex items-center gap-1.5"
-                    >
-                      <RefreshCw className={clsx('w-3.5 h-3.5', mySubmissionsLoading && 'animate-spin')} />
-                      Refresh
-                    </button>
-                  </div>
-
-                  <div className="p-5 h-[60vh] lg:h-[70vh] overflow-y-auto overscroll-contain">
-                    {mySubmissionsLoading ? (
-                      <SkeletonBars />
-                    ) : mySubmissionsError ? (
-                      <div className="flex flex-col items-center justify-center h-full text-center py-12">
-                        <AlertCircle className="w-10 h-10 text-red-400 mb-3" />
-                        <p className="text-[12px] tracking-[0.2em] text-red-600 font-semibold uppercase mb-1">Error</p>
-                        <p className="text-sm text-slate-600">{mySubmissionsError}</p>
-                      </div>
-                    ) : mySubmissions.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center h-full text-center py-12">
-                        <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-4">
-                          <FolderPlus className="w-8 h-8 text-slate-400" />
-                        </div>
-                        <p className="text-[12px] tracking-[0.2em] text-slate-500 font-semibold uppercase mb-2">No Projects Yet</p>
-                        <p className="text-sm text-slate-600 max-w-xs">Submit your first project to see it listed here for admin review.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {mySubmissions.map((s) => (
-                          <div key={s.id} className="bg-white border border-slate-200/70 rounded-[10px] p-4 hover:shadow-md hover:border-slate-300 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out">
-                            {s.projType && (
-                              <div className="mb-2">
-                                <span className="inline-block px-2 py-1 rounded-[10px] bg-slate-100 text-slate-600 text-[12px] font-semibold">
-                                  {s.projType}
-                                </span>
-                              </div>
-                            )}
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <p className="text-sm font-semibold text-slate-900 truncate">{s.projectName}</p>
-                                <a
-                                  href={formatExternalUrl(s.projectUrl)}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="text-xs text-blue-700 hover:underline break-all"
-                                >
-                                  {s.projectUrl}
-                                </a>
-                              </div>
-                              <span
-                                className={clsx(
-                                  'px-2 py-1 rounded-[10px] text-[12px] font-semibold border flex-shrink-0',
-                                  s.status === 'approved'
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                    : s.status === 'rejected'
-                                      ? 'bg-red-50 text-red-700 border-red-200'
-                                      : 'bg-amber-50 text-amber-700 border-amber-200'
-                                )}
-                              >
-                                {s.status}
-                              </span>
-                            </div>
-
-                            <p className="mt-3 text-xs text-slate-600 whitespace-pre-wrap break-words">{s.description}</p>
-
-                            <div className="mt-3 flex flex-wrap items-center gap-2 text-[12px] text-slate-500">
-                              <span className="font-semibold">
-                                {s.createdAt ? new Date(s.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) : ''}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+              <section className="min-w-0" aria-labelledby="mine-title">
+                <div className="mb-6">
+                  <AwardCard award={awardById('builder')} />
                 </div>
-              </div>
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <h2 id="mine-title" className="text-[16px] font-semibold">
+                    Your submissions <span className="num font-normal text-slate-400">{mySubmissions.length}</span>
+                  </h2>
+                  <button
+                    onClick={() => loadMySubmissions(true)}
+                    disabled={mySubmissionsLoading}
+                    className="s-btn s-btn-plain h-9 px-3 text-[13px]"
+                  >
+                    <RefreshCw size={14} strokeWidth={1.75} />
+                    Refresh
+                  </button>
+                </div>
+
+                {mySubmissionsLoading ? (
+                  <SkeletonBars />
+                ) : mySubmissionsError ? (
+                  <div className="s-card px-5 py-8 text-center">
+                    <p className="text-[15px] font-semibold">Couldn’t load your submissions</p>
+                    <p className="mt-1 text-[14px] text-slate-500">{mySubmissionsError}</p>
+                    <button onClick={() => loadMySubmissions(true)} className="s-btn s-btn-plain mt-4">Try again</button>
+                  </div>
+                ) : mySubmissions.length === 0 ? (
+                  <div className="s-card px-5 py-10 text-center">
+                    <p className="text-[15px] font-semibold">Nothing submitted yet</p>
+                    <p className="mx-auto mt-1 max-w-xs text-[14px] text-slate-500">Projects you submit show up here while they’re reviewed.</p>
+                  </div>
+                ) : (
+                  <ul className="space-y-3">
+                    {mySubmissions.map((s) => (
+                      <li key={s.id} className="s-card p-4 sm:p-5">
+                        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
+                          <h3 className="min-w-0 break-words text-[15px] font-semibold">{s.projectName}</h3>
+                          <span className="inline-flex shrink-0 items-center gap-1.5 text-[13px] capitalize text-slate-600">
+                            <span
+                              className={clsx(
+                                'h-1.5 w-1.5 rounded-full',
+                                s.status === 'approved' ? 'bg-emerald-500' : s.status === 'rejected' ? 'bg-red-500' : 'bg-amber-500'
+                              )}
+                              aria-hidden
+                            />
+                            {s.status === 'pending' ? 'In review' : s.status}
+                          </span>
+                        </div>
+                        <a
+                          href={formatExternalUrl(s.projectUrl)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-0.5 block break-all text-[13px] text-[var(--accent)] hover:underline"
+                        >
+                          {s.projectUrl}
+                        </a>
+                        {s.description && (
+                          <p className="mt-3 whitespace-pre-wrap break-words text-[14px] leading-relaxed text-slate-600">{s.description}</p>
+                        )}
+                        <p className="mt-3 flex flex-wrap items-center gap-x-2 text-[12px] text-slate-500">
+                          {s.projType && <span className="capitalize">{s.projType}</span>}
+                          {s.projType && s.createdAt && <span aria-hidden>·</span>}
+                          {s.createdAt && (
+                            <time className="num" dateTime={s.createdAt}>
+                              {new Date(s.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                            </time>
+                          )}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
             </div>
           </main>
         ) : (
-          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-            <div className="bg-white rounded-[10px] shadow-sm border border-slate-100/80 overflow-hidden">
-              <div className="p-6 sm:p-8 border-b border-slate-100 flex items-center justify-between">
-                <div>
-                  <h2 className="text-base sm:text-lg font-semibold text-slate-900">
-                    Volunteer Hub
-                  </h2>
-                  <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                    Post a volunteer call for your project and browse open volunteer opportunities.
-                  </p>
-                </div>
-              </div>
+          <main className="mx-auto max-w-6xl px-4 sm:px-6 pt-10 sm:pt-14">
+            <div className="mb-8 max-w-xl">
+              <h1 className="text-[28px] sm:text-[32px]">Volunteer calls</h1>
+              <p className="mt-1.5 text-[15px] text-slate-600">
+                Find a project that needs your skills, or post a call for help on your own.
+              </p>
+            </div>
 
-              <div className="p-6 sm:p-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <form onSubmit={handleVolunteerSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-[380px_minmax(0,1fr)] lg:gap-10">
+              <section className="order-2 min-w-0 lg:order-1" aria-labelledby="post-title">
+                <div className="s-card p-5 sm:p-6 lg:sticky lg:top-24">
+                  <h2 id="post-title" className="text-[16px] font-semibold">Post a call</h2>
+                  <form onSubmit={handleVolunteerSubmit} className="mt-5 space-y-4">
                     <div>
-                      <label className="block text-[13px] font-medium text-slate-900 mb-1.5">
-                        Project / Role Title
-                      </label>
+                      <label htmlFor="vc-title" className="mb-1.5 block text-[13px] font-medium text-slate-900">Title</label>
                       <input
+                        id="vc-title"
                         type="text"
                         value={volunteerTitle}
                         onChange={(e) => setVolunteerTitle(e.target.value)}
                         className="s-field"
-                        placeholder="e.g., Need Frontend Dev for Civic App"
+                        placeholder="Frontend developer for a budget tracker"
                         disabled={volunteerSubmitStatus === 'loading'}
                       />
                     </div>
-
                     <div>
-                      <label className="block text-[13px] font-medium text-slate-900 mb-1.5">
-                        Project URL
-                      </label>
+                      <label htmlFor="vc-url" className="mb-1.5 block text-[13px] font-medium text-slate-900">Project link</label>
                       <input
-                        type="text"
+                        id="vc-url"
+                        type="url"
+                        inputMode="url"
                         value={volunteerProjectUrl}
                         onChange={(e) => setVolunteerProjectUrl(e.target.value)}
                         className="s-field"
-                        placeholder="https://github.com/..."
+                        placeholder="https://github.com/…"
                         disabled={volunteerSubmitStatus === 'loading'}
                       />
                     </div>
-
                     <div>
-                      <label className="block text-[13px] font-medium text-slate-900 mb-1.5">
-                        Details
-                      </label>
+                      <label htmlFor="vc-desc" className="mb-1.5 block text-[13px] font-medium text-slate-900">Details</label>
                       <textarea
+                        id="vc-desc"
                         value={volunteerDescription}
                         onChange={(e) => setVolunteerDescription(e.target.value)}
-                        className="s-field h-auto py-2.5 min-h-[140px] resize-none"
-                        placeholder="What help do you need? Scope, timeline, requirements..."
+                        className="s-field h-auto min-h-[120px] resize-y py-2.5"
+                        placeholder="What needs doing, how long it takes, what someone should know."
                         disabled={volunteerSubmitStatus === 'loading'}
                       />
                     </div>
-
-                    <div>
-                      <label className="block text-[13px] font-medium text-slate-900 mb-1.5">
-                        (Optional) Roles Needed
-                      </label>
-                      <input
-                        type="text"
-                        value={volunteerRolesNeeded}
-                        onChange={(e) => setVolunteerRolesNeeded(e.target.value)}
-                        className="s-field"
-                        placeholder="Frontend, Backend, UI/UX..."
-                        disabled={volunteerSubmitStatus === 'loading'}
-                      />
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-1">
+                      <div>
+                        <label htmlFor="vc-roles" className="mb-1.5 block text-[13px] font-medium text-slate-900">
+                          Roles needed <span className="font-normal text-slate-400">optional</span>
+                        </label>
+                        <input
+                          id="vc-roles"
+                          type="text"
+                          value={volunteerRolesNeeded}
+                          onChange={(e) => setVolunteerRolesNeeded(e.target.value)}
+                          className="s-field"
+                          placeholder="Frontend, UI/UX"
+                          disabled={volunteerSubmitStatus === 'loading'}
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="vc-contact" className="mb-1.5 block text-[13px] font-medium text-slate-900">
+                          Contact <span className="font-normal text-slate-400">optional</span>
+                        </label>
+                        <input
+                          id="vc-contact"
+                          type="text"
+                          value={volunteerContact}
+                          onChange={(e) => setVolunteerContact(e.target.value)}
+                          className="s-field"
+                          placeholder="Discord handle or email"
+                          disabled={volunteerSubmitStatus === 'loading'}
+                        />
+                      </div>
                     </div>
-
-                    <div>
-                      <label className="block text-[13px] font-medium text-slate-900 mb-1.5">
-                        (Optional) Contact
-                      </label>
-                      <input
-                        type="text"
-                        value={volunteerContact}
-                        onChange={(e) => setVolunteerContact(e.target.value)}
-                        className="s-field"
-                        placeholder="Discord / Email / Link"
-                        disabled={volunteerSubmitStatus === 'loading'}
-                      />
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={volunteerSubmitStatus === 'loading'}
-                      className={clsx(
-                        'relative w-full py-4 rounded-[10px] font-semibold text-sm transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out shadow-sm active:scale-[0.98] overflow-hidden',
-                        volunteerSubmitStatus === 'loading'
-                          ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
-                          : 'bg-blue-900 text-white hover:bg-blue-800'
-                      )}
-                    >
-                      {volunteerSubmitStatus === 'loading' ? 'Posting...' : 'Post Volunteer Call'}
+                    <button type="submit" disabled={volunteerSubmitStatus === 'loading'} className="s-btn s-btn-accent h-11 w-full">
+                      {volunteerSubmitStatus === 'loading' ? 'Posting…' : 'Post call'}
                     </button>
                   </form>
                 </div>
+              </section>
 
-                <div className="bg-slate-50 border border-slate-200/70 rounded-[10px] overflow-hidden">
-                  <div className="px-5 py-4 bg-white border-b border-slate-200/70">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-[12px] tracking-[0.2em] text-blue-900 font-semibold uppercase mb-1">Community Board</p>
-                        <p className="text-sm font-semibold text-slate-900">Open Volunteer Calls</p>
-                      </div>
+              <section className="order-1 min-w-0 lg:order-2" aria-labelledby="calls-title">
+                <div className="s-card mb-6 grid grid-cols-1 gap-5 p-4 sm:grid-cols-2 sm:p-5">
+                  <AwardCard award={awardById('bayanihan')} compact />
+                  <AwardCard award={awardById('team-assembled')} compact />
+                </div>
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <h2 id="calls-title" className="sr-only">Calls</h2>
+                  <div className="inline-flex rounded-[10px] bg-slate-200/60 p-1" role="tablist" aria-label="Filter calls">
+                    {(['all', 'mine'] as const).map((f) => (
                       <button
-                        onClick={() => loadVolunteerCalls(true)}
-                        disabled={volunteerCallsLoading}
-                        className="px-3 py-2 rounded-[10px] bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out flex items-center gap-1.5"
-                      >
-                        <RefreshCw className={clsx('w-3.5 h-3.5', volunteerCallsLoading && 'animate-spin')} />
-                        Refresh
-                      </button>
-                    </div>
-
-                    <div className="mt-4 flex items-center gap-1">
-                      <button
-                        onClick={() => setVolunteerFilter('all')}
+                        key={f}
+                        role="tab"
+                        aria-selected={volunteerFilter === f}
+                        onClick={() => setVolunteerFilter(f)}
                         className={clsx(
-                          'px-4 py-2 text-xs font-semibold rounded-[10px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out',
-                          volunteerFilter === 'all'
-                            ? 'bg-blue-900 text-white shadow-sm'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          'min-h-[36px] rounded-[8px] px-3.5 text-[13px] transition-[background-color,color,box-shadow] duration-150',
+                          volunteerFilter === f ? 'bg-white font-medium text-slate-900 shadow-[var(--e1)]' : 'text-slate-500 hover:text-slate-900'
                         )}
                       >
-                        All Calls
+                        {f === 'all' ? 'All calls' : 'My calls'}
                       </button>
-                      <button
-                        onClick={() => setVolunteerFilter('mine')}
-                        className={clsx(
-                          'px-4 py-2 text-xs font-semibold rounded-[10px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out',
-                          volunteerFilter === 'mine'
-                            ? 'bg-blue-900 text-white shadow-sm'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        )}
-                      >
-                        My Calls
-                      </button>
-                    </div>
+                    ))}
                   </div>
+                  <button
+                    onClick={() => loadVolunteerCalls(true)}
+                    disabled={volunteerCallsLoading}
+                    className="s-btn s-btn-plain h-9 px-3 text-[13px]"
+                  >
+                    <RefreshCw size={14} strokeWidth={1.75} />
+                    Refresh
+                  </button>
+                </div>
 
-                  <div className="p-5 h-[60vh] lg:h-[70vh] overflow-y-auto overscroll-contain">
-                    {volunteerCallsLoading ? (
-                      <SkeletonBars />
-                    ) : volunteerCallsError ? (
-                      <div className="flex flex-col items-center justify-center h-full text-center py-12">
-                        <AlertCircle className="w-10 h-10 text-red-400 mb-3" />
-                        <p className="text-[12px] tracking-[0.2em] text-red-600 font-semibold uppercase mb-1">Error</p>
-                        <p className="text-sm text-slate-600">{volunteerCallsError}</p>
-                      </div>
-                    ) : filteredVolunteerCalls.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center h-full text-center py-12">
-                        <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-4">
-                          <Users className="w-8 h-8 text-slate-400" />
-                        </div>
-                        <p className="text-[12px] tracking-[0.2em] text-slate-500 font-semibold uppercase mb-2">
-                          {volunteerFilter === 'mine' ? 'No Calls Posted' : 'No Volunteer Calls'}
-                        </p>
-                        <p className="text-sm text-slate-600 max-w-xs">
-                          {volunteerFilter === 'mine'
-                            ? 'You haven\'t posted any volunteer calls yet. Create your first one using the form.'
-                            : 'No volunteer calls available yet. Be the first to post an opportunity!'}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {filteredVolunteerCalls.map((c) => {
-                          const isOwner = c.userId === currentUser.id || c.userId === currentUser.uid || !!currentUser.isAdmin;
-                          const isClosed = c.status === 'closed';
-                          return (
-                            <div key={c.id} className="bg-white border border-slate-200/70 rounded-[10px] p-4 relative group hover:shadow-md hover:border-slate-300 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out">
+                {volunteerCallsLoading ? (
+                  <SkeletonBars />
+                ) : volunteerCallsError ? (
+                  <div className="s-card px-5 py-8 text-center">
+                    <p className="text-[15px] font-semibold">Couldn’t load volunteer calls</p>
+                    <p className="mt-1 text-[14px] text-slate-500">{volunteerCallsError}</p>
+                    <button onClick={() => loadVolunteerCalls(true)} className="s-btn s-btn-plain mt-4">Try again</button>
+                  </div>
+                ) : filteredVolunteerCalls.length === 0 ? (
+                  <div className="s-card px-5 py-10 text-center">
+                    <p className="text-[15px] font-semibold">
+                      {volunteerFilter === 'mine' ? 'You haven’t posted a call yet' : 'No open calls right now'}
+                    </p>
+                    <p className="mx-auto mt-1 max-w-xs text-[14px] text-slate-500">
+                      {volunteerFilter === 'mine' ? 'Use the form to ask the community for help.' : 'Check back soon, or post the first one.'}
+                    </p>
+                  </div>
+                ) : (
+                  <ul className="space-y-3">
+                    {filteredVolunteerCalls.map((c) => {
+                      const isOwner = c.userId === currentUser.id || c.userId === currentUser.uid || !!currentUser.isAdmin;
+                      const isClosed = c.status === 'closed';
+                      return (
+                        <li key={c.id} className={clsx('s-card p-4 sm:p-5', isClosed && 'opacity-75')}>
+                          <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+                            <div className="min-w-0 flex-1 basis-56">
+                              <h3 className="break-words text-[15px] font-semibold">{c.title}</h3>
                               {c.postedBy?.fullName && (
-                                <div className="mb-2">
-                                  <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-[10px] bg-blue-50 text-blue-700 text-[12px] font-semibold">
-                                    <User className="w-3 h-3" />
-                                    Posted by {c.postedBy.fullName}
-                                  </span>
+                                <p className="mt-0.5 text-[13px] text-slate-500">Posted by {c.postedBy.fullName}</p>
+                              )}
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2">
+                              {isOwner ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleCallStatus(c)}
+                                  className="s-btn s-btn-plain h-8 px-2.5 text-[12px]"
+                                  title={isClosed ? 'Reopen this call' : 'Close this call'}
+                                >
+                                  <span className={clsx('h-1.5 w-1.5 rounded-full', isClosed ? 'bg-slate-400' : 'bg-emerald-500')} aria-hidden />
+                                  {isClosed ? 'Closed' : 'Open'}
+                                </button>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 text-[12px] text-slate-600">
+                                  <span className={clsx('h-1.5 w-1.5 rounded-full', isClosed ? 'bg-slate-400' : 'bg-emerald-500')} aria-hidden />
+                                  {isClosed ? 'Closed' : 'Open'}
+                                </span>
+                              )}
+                              {isOwner && (
+                                <button
+                                  onClick={() => openManageModal(c)}
+                                  className="s-btn s-btn-plain h-8 px-2.5 text-[12px]"
+                                  aria-label={`Edit ${c.title}`}
+                                >
+                                  <Edit3 size={13} strokeWidth={1.75} />
+                                  Edit
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {c.projectUrl && (
+                            <a
+                              href={formatExternalUrl(c.projectUrl)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="mt-2 block break-all text-[13px] text-[var(--accent)] hover:underline"
+                            >
+                              {c.projectUrl}
+                            </a>
+                          )}
+
+                          {c.description && (
+                            <p className="mt-3 whitespace-pre-wrap break-words text-[14px] leading-relaxed text-slate-600">{c.description}</p>
+                          )}
+
+                          {(c.rolesNeeded || c.contact || c.createdAt) && (
+                            <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-2 border-t border-slate-200/80 pt-3 text-[13px] sm:grid-cols-3">
+                              {c.rolesNeeded && (
+                                <div className="min-w-0">
+                                  <dt className="text-[12px] text-slate-500">Roles</dt>
+                                  <dd className="break-words text-slate-800">{c.rolesNeeded}</dd>
                                 </div>
                               )}
-                              <div className="flex items-start justify-between gap-3">
+                              {c.contact && (
                                 <div className="min-w-0">
-                                  <p className="text-sm font-semibold text-slate-900">{c.title}</p>
-                                  <a
-                                    href={formatExternalUrl(c.projectUrl)}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-xs text-blue-700 hover:underline break-all"
-                                  >
-                                    {c.projectUrl}
-                                  </a>
+                                  <dt className="text-[12px] text-slate-500">Contact</dt>
+                                  <dd className="break-all text-slate-800">{c.contact}</dd>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => isOwner && handleToggleCallStatus(c)}
-                                    disabled={!isOwner}
-                                    className={clsx(
-                                      'px-2.5 py-1 rounded-[10px] text-[12px] font-semibold border flex-shrink-0 flex items-center gap-1.5 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out',
-                                      isClosed
-                                        ? 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200'
-                                        : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100',
-                                      !isOwner && 'cursor-default'
-                                    )}
-                                    title={isOwner ? `Click to toggle status (Currently ${c.status || 'open'})` : undefined}
-                                  >
-                                    {isClosed ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
-                                    {c.status || 'open'}
-                                  </button>
-                                  {isOwner && (
-                                    <button
-                                      onClick={() => openManageModal(c)}
-                                      className="p-1.5 rounded-[10px] text-slate-500 hover:text-blue-900 hover:bg-slate-100 transition-colors"
-                                      title="Edit / Manage Call"
-                                    >
-                                      <Edit3 className="w-4 h-4" />
-                                    </button>
-                                  )}
+                              )}
+                              {c.createdAt && (
+                                <div className="min-w-0">
+                                  <dt className="text-[12px] text-slate-500">Posted</dt>
+                                  <dd className="num text-slate-800">
+                                    {new Date(c.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                                  </dd>
                                 </div>
-                              </div>
-
-                              <p className="mt-3 text-xs text-slate-600 whitespace-pre-wrap break-words">{c.description}</p>
-
-                              <div className="mt-3 flex flex-wrap items-center gap-2 text-[12px] text-slate-500">
-                                <span className="font-semibold">
-                                  {c.createdAt ? new Date(c.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) : ''}
-                                </span>
-                                {c.rolesNeeded && (
-                                  <span className="px-2 py-1 rounded-[10px] bg-slate-100 text-slate-600 font-semibold">
-                                    {c.rolesNeeded}
-                                  </span>
-                                )}
-                                {c.contact && (
-                                  <span className="px-2 py-1 rounded-[10px] bg-blue-50 text-blue-700 font-semibold">
-                                    {c.contact}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+                              )}
+                            </dl>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </section>
             </div>
           </main>
         )}
@@ -1293,7 +1372,6 @@ export default function UserDashboard() {
             <div className="bg-white rounded-[10px] shadow-[var(--e2)] border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
               <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <div>
-                  <p className="text-[12px] tracking-[0.2em] text-blue-900 font-semibold uppercase mb-1">Call Management</p>
                   <h3 className="font-semibold text-slate-900 text-base">Manage Volunteer Call</h3>
                   <p className="text-xs text-slate-500 mt-0.5">Edit post details, change status to closed/open, or delete.</p>
                 </div>
@@ -1404,30 +1482,28 @@ export default function UserDashboard() {
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
+                <div className="pt-4 border-t border-slate-100 flex flex-col-reverse gap-2.5 sm:flex-row sm:items-center sm:justify-between">
                   <button
                     type="button"
                     onClick={() => setConfirmDeleteCallId(selectedCallForModal.id)}
-                    className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-[10px] text-xs font-semibold transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out flex items-center gap-1.5"
+                    className="s-btn h-9 px-3 text-red-600 hover:bg-red-50"
                   >
                     <Trash2 className="w-4 h-4" />
                     Delete Call
                   </button>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center">
                     <button
                       type="button"
                       onClick={closeManageModal}
-                      className="px-4 py-2.5 border border-slate-200 text-slate-700 rounded-[10px] text-xs font-semibold hover:bg-slate-50 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                      className="s-btn s-btn-plain"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={modalActionStatus === 'loading'}
-                      className={clsx(
-                        'relative px-5 py-2.5 bg-blue-900 text-white rounded-[10px] text-xs font-semibold hover:bg-blue-800 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out disabled:opacity-50 overflow-hidden'
-                      )}
+                      className="s-btn s-btn-accent"
                     >
                       {modalActionStatus === 'loading' ? 'Saving...' : 'Save Changes'}
                     </button>
@@ -1462,12 +1538,12 @@ export default function UserDashboard() {
                   </div>
                 </div>
 
-                <div className="mt-5 flex items-center gap-2 justify-end">
+                <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
                   <button
                     type="button"
                     onClick={() => setConfirmDeleteCallId(null)}
                     disabled={modalActionStatus === 'loading'}
-                    className="px-4 py-2 border border-slate-200 text-slate-700 rounded-[10px] text-xs font-semibold hover:bg-slate-50 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out disabled:opacity-50"
+                    className="s-btn s-btn-plain"
                   >
                     Cancel
                   </button>
@@ -1475,12 +1551,7 @@ export default function UserDashboard() {
                     type="button"
                     onClick={() => handleDeleteCall(confirmDeleteCallId)}
                     disabled={modalActionStatus === 'loading'}
-                    className={clsx(
-                      'relative px-4 py-2 rounded-[10px] text-xs font-semibold transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out overflow-hidden disabled:opacity-50',
-                      modalActionStatus === 'loading'
-                        ? 'bg-red-400 text-white cursor-not-allowed'
-                        : 'bg-red-600 text-white hover:bg-red-700 active:scale-[0.98] shadow-sm'
-                    )}
+                    className="s-btn bg-red-600 text-white [@media(hover:hover)]:hover:bg-red-700"
                   >
                     {modalActionStatus === 'loading' ? 'Deleting...' : 'Delete'}
                   </button>
@@ -1490,6 +1561,7 @@ export default function UserDashboard() {
           </div>
         )}
       </div>
+      <EditProfileSheet open={editOpen} user={currentUser} onClose={() => setEditOpen(false)} />
     </>
   );
 }
