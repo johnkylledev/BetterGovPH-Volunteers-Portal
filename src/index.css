@@ -215,11 +215,6 @@ body {
 }
 }
 
-/* The access card is a fixed 300px object; shrink it uniformly on very narrow phones. */
-@media (max-width: 359px) {
-  #access-card-container { zoom: 0.86; }
-}
-
 .perspective-1000 {
   perspective: 1000px;
 }

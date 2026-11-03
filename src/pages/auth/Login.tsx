@@ -52,7 +52,7 @@ export default function Login() {
           />
           <h1 className="mt-6 text-[28px]">Sign in</h1>
           <p className="mt-2 text-[15px] leading-relaxed text-[var(--fg-2)]">
-            Use the Google account you applied with to reach your member dashboard and access card.
+            Use the Google account you applied with to reach your member dashboard and Volunteer Card.
           </p>
 
           {error && (

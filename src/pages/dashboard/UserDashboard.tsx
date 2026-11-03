@@ -4,10 +4,11 @@ import { useStore } from '../../store/useStore';
 import { AccessCard } from '../../components/AccessCard';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
 import { motion } from 'framer-motion';
-import { ShieldAlert, CheckCircle2, Clock, Copy, Code, Check, ExternalLink, Edit3, Trash2, X, Lock, Unlock, RefreshCw, CalendarDays, Wrench, FolderGit2, BadgeCheck, Pencil, SlidersHorizontal, Star, Flame, Trophy } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, Clock, Copy, Code, Check, ExternalLink, Edit3, Trash2, X, Lock, Unlock, CalendarDays, Wrench, FolderGit2, BadgeCheck, Pencil, SlidersHorizontal, Star, Flame, Trophy } from 'lucide-react';
 import clsx from 'clsx';
 import { StatTile } from '../../components/StatTile';
 import { UserChip } from '../../components/UserChip';
+import { RefreshButton } from '../../components/RefreshButton';
 import { EditProfileSheet } from '../../components/EditProfileSheet';
 import { MerchTab } from '../../components/merch/MerchTab';
 import { Medal } from '../../components/awards/Medal';
@@ -918,11 +919,11 @@ export default function UserDashboard() {
                 </section>
               </div>
 
-              {/* Access card */}
+              {/* Volunteer Card */}
               <aside id="digital-card-section" className="order-1 min-w-0 lg:order-2">
                 <div className="lg:sticky lg:top-24">
                   <div className="mb-4 flex items-baseline justify-between gap-3">
-                    <h2 className={sectionTitle}>Your access card</h2>
+                    <h2 className={sectionTitle}>Your Volunteer Card</h2>
                     {currentUser.status !== 'Approved' && (
                       <span className={clsx('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium', statusMeta.tone)}>
                         <StatusIcon size={13} strokeWidth={2} aria-hidden />
@@ -1069,14 +1070,7 @@ export default function UserDashboard() {
                   <h2 id="mine-title" className="text-[16px] font-semibold">
                     Your submissions <span className="num font-normal text-slate-400">{mySubmissions.length}</span>
                   </h2>
-                  <button
-                    onClick={() => loadMySubmissions(true)}
-                    disabled={mySubmissionsLoading}
-                    className="s-btn s-btn-plain h-9 px-3 text-[13px]"
-                  >
-                    <RefreshCw size={14} strokeWidth={1.75} />
-                    Refresh
-                  </button>
+                  <RefreshButton onRefresh={() => loadMySubmissions(true)} loading={mySubmissionsLoading} />
                 </div>
 
                 {mySubmissionsLoading ? (
@@ -1246,14 +1240,7 @@ export default function UserDashboard() {
                       </button>
                     ))}
                   </div>
-                  <button
-                    onClick={() => loadVolunteerCalls(true)}
-                    disabled={volunteerCallsLoading}
-                    className="s-btn s-btn-plain h-9 px-3 text-[13px]"
-                  >
-                    <RefreshCw size={14} strokeWidth={1.75} />
-                    Refresh
-                  </button>
+                  <RefreshButton onRefresh={() => loadVolunteerCalls(true)} loading={volunteerCallsLoading} />
                 </div>
 
                 {volunteerCallsLoading ? (

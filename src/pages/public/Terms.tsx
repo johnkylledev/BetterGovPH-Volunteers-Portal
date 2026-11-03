@@ -7,7 +7,7 @@ const sections: LegalSection[] = [
     title: "Acceptance of Terms",
     body: (
       <p>
-        By applying for and using the BetterGovPH Community Access Card, you agree to comply with and be bound by these Terms of Service. If you do not agree, you should not apply for the card.
+        By applying for and using the BetterGovPH Community Volunteer Card, you agree to comply with and be bound by these Terms of Service. If you do not agree, you should not apply for the card.
       </p>
     )
   },
@@ -19,16 +19,16 @@ const sections: LegalSection[] = [
         <li>Behave professionally and respectfully towards all members</li>
         <li>Contribute constructively to community projects</li>
         <li>Follow the BetterGovPH Code of Conduct (on GitHub)</li>
-        <li>Never misrepresent yourself as a government employee via the Access Card</li>
+        <li>Never misrepresent yourself as a government employee via the Volunteer Card</li>
       </ul>
     )
   },
   {
     n: "3",
-    title: "Use of Access Card",
+    title: "Use of Volunteer Card",
     body: (
       <p>
-        The BetterGovPH Access Card is a digital-only identification for use within our community ecosystem. It grants verified status for events, project contributions, and networking. It is NOT an official government ID.
+        The BetterGovPH Volunteer Card is a digital-only identification for use within our community ecosystem. It grants verified status for events, project contributions, and networking. It is NOT an official government ID.
       </p>
     )
   },
@@ -37,7 +37,7 @@ const sections: LegalSection[] = [
     title: "Revocation of Status",
     body: (
       <p>
-        Administrators reserve the right to revoke any Access Card and community membership if a user violates community standards, provides false information during registration, or engages in harmful behavior.
+        Administrators reserve the right to revoke any Volunteer Card and community membership if a user violates community standards, provides false information during registration, or engages in harmful behavior.
       </p>
     )
   }
@@ -46,7 +46,7 @@ const sections: LegalSection[] = [
 const Terms: React.FC = () => (
   <LegalPage
     title="Terms of service"
-    lede="The rules for applying for and using a BetterGovPH Community Access Card."
+    lede="The rules for applying for and using a BetterGovPH Community Volunteer Card."
     updated="April 26, 2026"
     sections={sections}
   />

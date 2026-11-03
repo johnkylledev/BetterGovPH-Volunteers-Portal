@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
-import { Copy, Code, Check, Search, Loader2, ArrowRight } from 'lucide-react';
+import { Copy, Code, Check, Search, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
@@ -212,7 +212,7 @@ export default function Verify() {
                       transition={{ duration: 0.18 }}
                       className="inline-flex items-center gap-2 text-[13px] font-medium text-[var(--fg-3)]"
                     >
-                      <Loader2 size={14} className="animate-spin" aria-hidden />
+                      <Search size={14} strokeWidth={1.75} aria-hidden />
                       Checking the registry…
                     </motion.p>
                   ) : (
@@ -345,7 +345,7 @@ export default function Verify() {
           </motion.div>
         ) : (
           <div className="mx-auto max-w-xl">
-            <h1 className="text-[32px] sm:text-[40px]">{id ? 'No record for this card' : 'Check a member card'}</h1>
+            <h1 className="text-[32px] sm:text-[40px]">{id ? 'No record for this card' : 'Check a Volunteer Card'}</h1>
             <p className="mt-3 text-[16px] leading-relaxed text-[var(--fg-2)]">
               {id ? (
                 <>
@@ -370,7 +370,7 @@ export default function Verify() {
                   className="s-field h-11 pr-10 font-mono text-[14px] tracking-wide"
                 />
                 {isSearching && (
-                  <Loader2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-slate-400" aria-label="Searching" />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-slate-400" role="status">Searching…</span>
                 )}
               </div>
 

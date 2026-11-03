@@ -91,7 +91,7 @@ const Landing: React.FC = () => {
     <SiteLayout>
       {/* Hero */}
       <section className="mx-auto max-w-6xl px-4 sm:px-6 pt-14 pb-20 sm:pt-20 sm:pb-28">
-        <div className="grid items-center gap-14 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
+        <div className="grid grid-cols-1 items-center gap-14 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
           <div>
             <motion.h1 {...enter(0.04)} className="text-[40px] sm:text-[56px] lg:text-[60px] tracking-[-0.04em] leading-[1.02]">
               Build the public tools the Philippines deserves.
@@ -119,13 +119,13 @@ const Landing: React.FC = () => {
             initial={reduce ? { opacity: 0 } : { opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, ease: EASE, delay: 0.12 }}
-            className="mx-auto w-full max-w-[420px] lg:mr-0"
+            className="mx-auto w-full min-w-0 max-w-[420px] lg:mr-0"
           >
-            <div className="flex justify-center rounded-[22px] bg-[#eef1f5] px-6 py-10 shadow-[inset_0_1px_2px_rgb(15_23_42/0.06),inset_0_0_0_1px_rgb(15_23_42/0.04)] sm:py-12">
+            <div className="flex justify-center rounded-[22px] bg-[#eef1f5] px-4 py-8 sm:px-6 sm:py-10 shadow-[inset_0_1px_2px_rgb(15_23_42/0.06),inset_0_0_0_1px_rgb(15_23_42/0.04)] sm:py-12">
               <AccessCard user={demoUser} isDemo />
             </div>
             <figcaption className="mt-4 px-1 text-[13px] leading-relaxed text-[var(--fg-3)]">
-              <span className="font-medium text-[var(--fg)]">The access card.</span>{' '}
+              <span className="font-medium text-[var(--fg)]">The Volunteer Card.</span>{' '}
               Every approved member gets one. Its QR code opens a public page anyone can check.
             </figcaption>
           </motion.figure>

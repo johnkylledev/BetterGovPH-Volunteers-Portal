@@ -6,7 +6,7 @@ interface UserChipProps {
   subtitle: string;
   discordId?: string;
   discordAvatar?: string;
-  /** What tapping the chip does, e.g. open the member card. */
+  /** What tapping the chip does, e.g. open the Volunteer Card. */
   onOpen?: () => void;
   openLabel?: string;
   onSignOut: () => void;
