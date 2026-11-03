@@ -53,11 +53,12 @@ export default function DiscordCallback() {
     const discordUsername = params.get('discord_username') ?? undefined;
     const discordDisplayName = params.get('discord_display_name') ?? undefined;
     const discordAvatar = params.get('discord_avatar') ?? undefined;
+    const proof = { ts: params.get('ts') ?? undefined, sig: params.get('sig') ?? undefined };
 
     let cancelled = false;
     (async () => {
       try {
-        await syncDiscord(discordId, discordUsername, discordDisplayName, discordAvatar);
+        await syncDiscord(discordId, discordUsername, discordDisplayName, discordAvatar, proof);
       } catch (e: any) {
         const msg = e instanceof Error ? e.message : typeof e?.message === 'string' ? e.message : 'Discord sync failed. Please try again.';
         if (!cancelled) {

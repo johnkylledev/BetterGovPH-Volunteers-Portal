@@ -659,13 +659,26 @@ export const connectDiscord = async (): Promise<{ url: string }> => {
   });
 };
 
-export const syncDiscord = async (discordId?: string, discordUsername?: string, discordDisplayName?: string, discordAvatar?: string): Promise<any> => {
+export const syncDiscord = async (
+  discordId?: string,
+  discordUsername?: string,
+  discordDisplayName?: string,
+  discordAvatar?: string,
+  proof?: { ts?: string; sig?: string },
+): Promise<any> => {
   const token = await getAccessToken();
   if (!token) throw new Error('Not authenticated');
   return apiRequest<any>('/api/v1/discord', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ discord_id: discordId, discord_username: discordUsername, discord_display_name: discordDisplayName, discord_avatar: discordAvatar }),
+    body: JSON.stringify({
+      discord_id: discordId,
+      discord_username: discordUsername,
+      discord_display_name: discordDisplayName,
+      discord_avatar: discordAvatar,
+      ts: proof?.ts,
+      sig: proof?.sig,
+    }),
   });
 };
 
