@@ -4,7 +4,7 @@ import { useStore } from '../../store/useStore';
 import { AccessCard } from '../../components/AccessCard';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
 import { motion } from 'framer-motion';
-import { ShieldAlert, CheckCircle2, Clock, LogOut, Copy, Code, Check, Info, Zap, User, Mail, Calendar, Award, MapPin, ExternalLink, Share2, Sparkles, Edit3, Trash2, X, Lock, Unlock, FolderPlus, Users, FileText, AlertCircle, RefreshCw } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, Clock, LogOut, Copy, Code, Check, User, ExternalLink, Edit3, Trash2, X, Lock, Unlock, FolderPlus, Users, AlertCircle, RefreshCw } from 'lucide-react';
 import clsx from 'clsx';
 import { toast } from 'sonner';
 import { SkillIcon } from '../../components/SkillIcon';
@@ -14,24 +14,12 @@ import { formatExternalUrl } from '../../utils/skillUtils';
 
 const SkeletonBars = () => (
   <div className="flex flex-col gap-2">
-    <div className="bg-slate-100 animate-pulse h-10 w-full rounded-[6px]" />
-    <div className="bg-slate-100 animate-pulse h-10 w-full rounded-[6px]" />
-    <div className="bg-slate-100 animate-pulse h-10 w-full rounded-[6px]" />
+    <div className="bg-slate-100 h-10 w-full rounded-[10px]" />
+    <div className="bg-slate-100 h-10 w-full rounded-[10px]" />
+    <div className="bg-slate-100 h-10 w-full rounded-[10px]" />
   </div>
 );
 
-const ButtonProgressBar = () => (
-  <div className="absolute bottom-0 left-0 w-full h-[2px] overflow-hidden rounded-b-[6px]">
-    <div
-      className="h-full bg-blue-500 rounded-b-[6px]"
-      style={{
-        animation: 'progress 1.5s ease-in-out infinite',
-        width: '100%',
-        transformOrigin: 'left',
-      }}
-    />
-  </div>
-);
 
 export default function UserDashboard() {
   const { currentUser, authInitialized } = useStore();
@@ -258,11 +246,11 @@ export default function UserDashboard() {
 
   const toneClass = (tone: 'emerald' | 'blue' | 'amber' | 'slate') => {
     switch (tone) {
-      case 'emerald': return 'text-emerald-600 bg-emerald-50 border border-emerald-100';
-      case 'blue':    return 'text-blue-900 bg-blue-50 border border-blue-100';
-      case 'amber':   return 'text-amber-800 bg-amber-50 border border-amber-100';
+      case 'emerald':
+      case 'blue':
+      case 'amber':   return 'text-slate-700 bg-white shadow-[inset_0_0_0_1px_rgb(15_23_42/0.1)]';
       case 'slate':
-      default:        return 'text-slate-600 bg-slate-100/70 border border-slate-200';
+      default:        return 'text-slate-500 bg-slate-100';
     }
   };
 
@@ -293,11 +281,11 @@ export default function UserDashboard() {
     return 4;
   };
   const levelBg = [
-    'bg-slate-200/80',
-    'bg-emerald-200',
-    'bg-emerald-300',
-    'bg-emerald-500',
-    'bg-emerald-600',
+    'bg-slate-200/70',
+    'bg-blue-200',
+    'bg-blue-400',
+    'bg-blue-700',
+    'bg-blue-900',
   ];
 
   const monthShort = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -440,6 +428,8 @@ export default function UserDashboard() {
   useEffect(() => {
     if (activeTab === 'submit-project') {
       loadMySubmissions(true);
+    } else if (activeTab === 'dashboard') {
+      loadMySubmissions(false);
     } else if (activeTab === 'volunteer') {
       loadVolunteerCalls(true);
     }
@@ -551,440 +541,327 @@ export default function UserDashboard() {
     return true;
   });
 
+  const firstName = (currentUser.fullName || '').trim().split(' ')[0] || 'there';
+  const statusMeta = currentUser.status === 'Approved'
+    ? { dot: 'bg-emerald-500', word: 'Approved', note: 'Your card is active and publicly verifiable.' }
+    : currentUser.status === 'Declined'
+      ? { dot: 'bg-red-500', word: 'Declined', note: 'See the note from the admins below.' }
+      : { dot: 'bg-amber-500', word: 'Under review', note: 'An admin is reviewing your application.' };
+
+  const tabs: { id: typeof activeTab; label: string }[] = [
+    { id: 'dashboard', label: 'Overview' },
+    { id: 'submit-project', label: 'Projects' },
+    { id: 'volunteer', label: 'Volunteer calls' },
+  ];
+
+  const sectionTitle = 'text-[15px] font-semibold tracking-[-0.01em] text-slate-900';
+  const fieldLabel = 'text-[12px] text-slate-500';
+
   return (
     <>
-      <style>{`
-        @keyframes progress {
-          0% { transform: scaleX(0); }
-          100% { transform: scaleX(1); }
-        }
-      `}</style>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 pb-12 sm:pb-0">
-        {/* Navbar */}
-        <nav className="bg-white/80 backdrop-blur-xl border-b border-slate-200/60 sticky top-0 z-50">
-          <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-14 sm:h-16 lg:h-20 gap-2 sm:gap-3">
-              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                <img src="/logo.svg" onError={(e) => { const t = e.currentTarget; t.onerror = null; t.src = 'https://assets.bettergov.ph/logos/webp/icon-primary.webp'; }} alt="BetterGovPH Logo" className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 object-contain brightness-0 flex-shrink-0" />
-                <div className="flex flex-col leading-none min-w-0 hidden sm:flex">
-                  <span className="font-display font-bold text-slate-900 text-base lg:text-xl truncate">BetterGovPH</span>
-                  <span className="text-[9px] lg:text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 mt-0.5">Volunteers</span>
-                </div>
-                <span className="sm:hidden font-display font-bold text-slate-900 text-sm truncate min-w-0">BetterGovPH</span>
-              </div>
-              <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 flex-shrink-0">
-                <div className="hidden sm:block h-6 w-[1px] bg-slate-200" />
-                <div className="flex flex-col items-end min-w-0">
-                  <span className="text-xs sm:text-sm font-semibold text-slate-900 leading-none truncate max-w-[80px] sm:max-w-[120px] lg:max-w-none">
-                    {currentUser.fullName.split(' ')[0]}
-                  </span>
-                  <span className="hidden sm:block text-[9px] lg:text-[10px] font-medium text-slate-400 uppercase tracking-wider mt-1 whitespace-nowrap">{currentUser.role}</span>
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="p-2 sm:p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-[6px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out active:scale-[0.98]"
-                  title="Logout"
-                >
-                  <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </nav>
+      <div className="site min-h-screen pb-16">
+        <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl backdrop-saturate-150 shadow-[0_1px_0_rgb(15_23_42/0.08)]">
+          <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+            <a href="/" className="flex min-w-0 items-center gap-2.5">
+              <img src="/logo.svg" onError={(e) => { const t = e.currentTarget; t.onerror = null; t.src = 'https://assets.bettergov.ph/logos/webp/icon-primary.webp'; }} alt="" className="h-6 w-6 shrink-0 object-contain" />
+              <span className="truncate text-[15px] font-semibold tracking-[-0.015em] text-slate-900">
+                BetterGovPH <span className="hidden font-normal text-slate-500 sm:inline">Volunteers</span>
+              </span>
+            </a>
 
-        <div className="bg-white/80 backdrop-blur-xl border-b border-slate-200/60 sticky top-[56px] sm:top-[64px] lg:top-[80px] z-40 overflow-x-auto no-scrollbar">
-          <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 min-w-max sm:min-w-0">
-            <div className="flex space-x-6 sm:space-x-8">
-              <button
-                onClick={() => setActiveTab('dashboard')}
-                className={clsx(
-                  "py-4 text-sm font-bold border-b-2 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out px-1",
-                  activeTab === 'dashboard'
-                    ? "border-blue-900 text-blue-900"
-                    : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-                )}
-              >
-                Dashboard
-              </button>
-              <button
-                onClick={() => setActiveTab('submit-project')}
-                className={clsx(
-                  "py-4 text-sm font-bold border-b-2 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out px-1",
-                  activeTab === 'submit-project'
-                    ? "border-blue-900 text-blue-900"
-                    : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-                )}
-              >
-                Submit Project
-              </button>
-              <button
-                onClick={() => setActiveTab('volunteer')}
-                className={clsx(
-                  "py-4 text-sm font-bold border-b-2 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out px-1",
-                  activeTab === 'volunteer'
-                    ? "border-blue-900 text-blue-900"
-                    : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-                )}
-              >
-                Volunteers
+            <nav aria-label="Dashboard sections" className="hidden items-center gap-1 md:flex">
+              {tabs.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setActiveTab(t.id)}
+                  aria-current={activeTab === t.id ? 'page' : undefined}
+                  className={clsx(
+                    'rounded-lg px-3 py-1.5 text-[14px] transition-colors duration-150',
+                    activeTab === t.id ? 'bg-slate-900/[0.05] font-medium text-slate-900' : 'text-slate-500 hover:text-slate-900'
+                  )}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </nav>
+
+            <div className="flex shrink-0 items-center gap-3">
+              <span className="hidden text-right leading-tight sm:block">
+                <span className="block max-w-[160px] truncate text-[13px] font-medium text-slate-900">{currentUser.fullName}</span>
+                <span className="block text-[12px] text-slate-500">{currentUser.role}</span>
+              </span>
+              <button onClick={handleLogout} className="s-btn s-btn-plain h-8 px-3 text-[13px]" title="Sign out">
+                <LogOut size={14} strokeWidth={1.75} />
+                <span className="hidden sm:inline">Sign out</span>
               </button>
             </div>
           </div>
-        </div>
+
+          <nav aria-label="Dashboard sections" className="no-scrollbar flex gap-1 overflow-x-auto border-t border-slate-200/70 px-3 py-1.5 md:hidden">
+            {tabs.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setActiveTab(t.id)}
+                aria-current={activeTab === t.id ? 'page' : undefined}
+                className={clsx(
+                  'shrink-0 rounded-lg px-3 py-1.5 text-[14px] transition-colors duration-150',
+                  activeTab === t.id ? 'bg-slate-900/[0.06] font-medium text-slate-900' : 'text-slate-500'
+                )}
+              >
+                {t.label}
+              </button>
+            ))}
+          </nav>
+        </header>
 
         {activeTab === 'dashboard' ? (
-          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
+          <main className="mx-auto max-w-6xl px-4 sm:px-6 pt-10 sm:pt-14">
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+              className="mb-10"
+            >
+              <p className="inline-flex items-center gap-2 text-[13px] text-slate-500">
+                <span className={clsx('h-1.5 w-1.5 rounded-full', statusMeta.dot)} aria-hidden />
+                {statusMeta.word}
+                <span className="text-slate-300">·</span>
+                <span className="num">Day {daysSinceJoin.toLocaleString()}</span>
+              </p>
+              <h1 className="mt-3 text-[32px] sm:text-[40px]">Welcome back, {firstName}.</h1>
+              <p className="mt-2 text-[16px] text-slate-600">
+                {statusMeta.note}
+                {displayName.startsWith('@') && <span className="text-slate-400"> Signed in as {displayName}.</span>}
+              </p>
+              {earnedBadges.length > 0 && (
+                <ul className="mt-5 flex flex-wrap gap-1.5" aria-label="Badges">
+                  {earnedBadges.map((b) => (
+                    <li key={b.id} className={clsx('rounded-md px-2 py-1 text-[12px] font-medium', toneClass(b.tone))}>
+                      {b.label}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </motion.div>
 
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="lg:col-span-12 order-0"
-              >
-                <div className="space-y-4 pb-1">
-                  <div className="flex items-baseline gap-2 flex-wrap">
-                    <span className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight leading-[1.08]">Hello!</span>
-                    <span className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-[1.08] text-blue-900 break-words">{displayName}</span>
-                  </div>
-                  <p className="text-base sm:text-lg text-slate-600 leading-relaxed max-w-3xl">
-                    This is your day&nbsp;
-                    <span className="font-semibold text-slate-900 tabular-nums">{daysSinceJoin.toLocaleString()}</span>
-                    &nbsp;of contributing to BetterGovPH Volunteers.
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-1">
-                    {earnedBadges.length === 0 ? (
-                      <span className="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 px-2.5 py-1">
-                        <Sparkles size={12} /> Complete your profile & submit work to earn badges
-                      </span>
-                    ) : earnedBadges.map((b) => (
-                      <span
-                        key={b.id}
-                        className={clsx(
-                          "inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-[6px] text-[11px] sm:text-xs font-bold uppercase tracking-[0.08em] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out",
-                          toneClass(b.tone)
-                        )}
-                      >
-                        <span className="opacity-70">#</span>
-                        <span>{b.label}</span>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
+            {currentUser.adminNotes && (
+              <div className="mb-8 rounded-[14px] bg-white px-5 py-4 shadow-[var(--e1)]" role="note">
+                <p className="text-[12px] font-medium text-slate-500">Note from the admins</p>
+                <p className="mt-1 text-[15px] leading-relaxed text-slate-800">{currentUser.adminNotes}</p>
+              </div>
+            )}
 
-              {/* Left Column: Status and Info */}
-              <div className="lg:col-span-7 space-y-6 order-2 lg:order-1">
-                {currentUser.adminNotes && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="p-3.5 sm:p-4 bg-slate-50/70 rounded-[6px] border border-slate-200/70"
-                  >
-                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Admin Notes</p>
-                    <p className="text-xs sm:text-[13px] text-slate-700 leading-relaxed">{currentUser.adminNotes}</p>
-                  </motion.div>
-                )}
-
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-white rounded-[6px] border border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_10px_36px_-22px_rgba(15,23,42,0.18)] p-4 sm:p-5 lg:p-6"
-                >
-                  <div className="flex items-center gap-2 mb-4 sm:mb-5">
-                    <h3 className="font-display text-lg sm:text-xl font-bold text-slate-900 tracking-tight">BetterGovPH Contribution Days</h3>
-                    <div className="group relative">
-                      <Info size={14} className="w-4 h-4 text-slate-400 group-hover:text-slate-600 transition-colors" />
-                      <div className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-50 absolute left-6 -top-1 bg-slate-900 text-white text-[11px] font-medium px-2.5 py-1.5 rounded-[6px] shadow-lg w-56 leading-relaxed">
-                        Counts submitted & approved projects, volunteer calls posted, and profile activity over the past year.
-                      </div>
+            <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-10">
+              <div className="order-2 space-y-6 lg:order-1">
+                {/* Stats */}
+                <dl className="s-card grid grid-cols-3 divide-x divide-slate-200/80">
+                  {[
+                    { label: 'Days as member', value: daysSinceJoin.toLocaleString() },
+                    { label: 'Skills listed', value: totalSkills },
+                    { label: 'Projects approved', value: submittedCount > 0 ? <>{approvedCount}<span className="text-[16px] font-normal text-slate-400"> / {submittedCount}</span></> : approvedCount },
+                  ].map((s) => (
+                    <div key={s.label} className="px-4 py-4 sm:px-6 sm:py-5">
+                      <dt className="text-[12px] text-slate-500">{s.label}</dt>
+                      <dd className="num mt-1 text-[24px] font-semibold tracking-[-0.02em] text-slate-900 sm:text-[28px]">{s.value}</dd>
                     </div>
+                  ))}
+                </dl>
+
+                {/* Activity */}
+                <section className="s-card p-5 sm:p-6" aria-labelledby="activity-title">
+                  <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2">
+                    <h2 id="activity-title" className={sectionTitle}>Contribution activity</h2>
+                    <p className="text-[12px] text-slate-500">Projects, volunteer calls, and profile updates over the past year</p>
                   </div>
 
                   <div className="relative">
                     <div
-                      className={clsx(
-                        "pointer-events-none absolute inset-y-0 left-0 z-10 w-8 rounded-l-[6px] transition-opacity duration-200 ease-out",
-                        heatmapScrollEdge.l ? "opacity-100" : "opacity-0"
-                      )}
-                      style={{ background: 'linear-gradient(to right, #ffffff 0%, rgba(255,255,255,0.6) 45%, rgba(255,255,255,0) 100%)' }}
+                      className={clsx('pointer-events-none absolute inset-y-0 left-0 z-10 w-8 transition-opacity duration-200', heatmapScrollEdge.l ? 'opacity-100' : 'opacity-0')}
+                      style={{ background: 'linear-gradient(to right, #ffffff 0%, rgba(255,255,255,0))' }}
                     />
                     <div
-                      className={clsx(
-                        "pointer-events-none absolute inset-y-0 right-0 z-10 w-8 rounded-r-[6px] transition-opacity duration-200 ease-out",
-                        heatmapScrollEdge.r ? "opacity-100" : "opacity-0"
-                      )}
-                      style={{ background: 'linear-gradient(to left, #ffffff 0%, rgba(255,255,255,0.6) 45%, rgba(255,255,255,0) 100%)' }}
+                      className={clsx('pointer-events-none absolute inset-y-0 right-0 z-10 w-8 transition-opacity duration-200', heatmapScrollEdge.r ? 'opacity-100' : 'opacity-0')}
+                      style={{ background: 'linear-gradient(to left, #ffffff 0%, rgba(255,255,255,0))' }}
                     />
                     <div
                       ref={heatmapScrollerRef}
-                      className={clsx(
-                        "min-w-0 w-full overflow-x-auto no-scrollbar pr-1 pb-1 select-none",
-                        "cursor-[grab] active:cursor-[grabbing]"
-                      )}
+                      className="no-scrollbar w-full min-w-0 cursor-[grab] select-none overflow-x-auto pb-1 pr-1 active:cursor-[grabbing]"
                       dir="ltr"
                       style={{ touchAction: 'pan-y pinch-zoom' }}
                     >
                       <div className="inline-flex flex-col gap-2 pr-2" style={{ width: `calc(16px + ${WEEKS} * (11px + 3px) + 8px)` }}>
-                      <div className="flex gap-[3px] pl-4 pr-2">
-                        {Array.from({ length: WEEKS }, (_, w) => {
-                          const ml = monthLabels.find(m => m.i === w);
-                          return (
-                            <div key={`m-${w}`} className="flex-shrink-0" style={{ width: '11px' }}>
-                              {ml ? (
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block whitespace-nowrap leading-none h-[12px]">
-                                  {ml.label}
-                                </span>
-                              ) : (
-                                <span className="block h-[12px]" />
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      <div className="flex items-start gap-0">
-                        <div className="flex flex-col gap-[3px] pr-2 pt-0">
-                          <span className="h-[11px] w-2" />
-                          <span className="h-[11px] text-[10px] font-bold uppercase tracking-wider text-slate-400 leading-[11px] flex items-center">M</span>
-                          <span className="h-[11px] w-2" />
-                          <span className="h-[11px] text-[10px] font-bold uppercase tracking-wider text-slate-400 leading-[11px] flex items-center">W</span>
-                          <span className="h-[11px] w-2" />
-                          <span className="h-[11px] text-[10px] font-bold uppercase tracking-wider text-slate-400 leading-[11px] flex items-center">F</span>
-                          <span className="h-[11px] w-2" />
+                        <div className="flex gap-[3px] pl-4 pr-2">
+                          {Array.from({ length: WEEKS }, (_, w) => {
+                            const ml = monthLabels.find(m => m.i === w);
+                            return (
+                              <div key={`m-${w}`} className="flex-shrink-0" style={{ width: '11px' }}>
+                                {ml ? (
+                                  <span className="block h-[12px] whitespace-nowrap text-[11px] leading-none text-slate-400">{ml.label}</span>
+                                ) : (
+                                  <span className="block h-[12px]" />
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
-                        <div className="flex gap-[3px] pr-2">
-                          {grid.map((weekCol, wi) => (
-                            <div key={wi} className="flex flex-col gap-[3px]" style={{ width: '11px' }}>
-                              {weekCol.map((cell, di) => {
-                                const lvl = levelForCount(cell.count);
-                                return (
+                        <div className="flex items-start">
+                          <div className="flex flex-col gap-[3px] pr-2">
+                            {['', 'M', '', 'W', '', 'F', ''].map((d, i) => (
+                              <span key={i} className="flex h-[11px] w-2 items-center text-[10px] leading-[11px] text-slate-400">{d}</span>
+                            ))}
+                          </div>
+                          <div className="flex gap-[3px] pr-2">
+                            {grid.map((weekCol, wi) => (
+                              <div key={wi} className="flex flex-col gap-[3px]" style={{ width: '11px' }}>
+                                {weekCol.map((cell, di) => (
                                   <div
                                     key={di}
                                     title={cell.count > 0
                                       ? `${toYmd(cell.date)} — ${cell.count} contribution${cell.count === 1 ? '' : 's'}`
                                       : toYmd(cell.date)}
-                                    className={clsx(
-                                      "w-[11px] h-[11px] flex-shrink-0 rounded-[3px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-150 ease-out hover:ring-2 hover:ring-emerald-700/25 hover:ring-offset-1 hover:ring-offset-white",
-                                      levelBg[lvl]
-                                    )}
+                                    className={clsx('h-[11px] w-[11px] flex-shrink-0 rounded-[3px]', levelBg[levelForCount(cell.count)])}
                                   />
-                                );
-                              })}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                  <div className="flex items-center justify-end gap-2 mt-3 pl-4 pr-1 text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                    <span className="whitespace-nowrap flex-shrink-0">Less</span>
-                    {levelBg.map((cls, i) => (
-                      <div key={i} className={clsx(cls, "flex-shrink-0 w-[11px] h-[11px] sm:w-3 sm:h-3 rounded-[3px]")} />
-                    ))}
-                    <span className="whitespace-nowrap flex-shrink-0">More</span>
-                  </div>
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 }}
-                  className="bg-white rounded-[6px] p-6 sm:p-8 shadow-sm border border-slate-100/80"
-                >
-                  <h2 className="text-base sm:text-lg font-semibold text-slate-900 mb-4 sm:mb-6">Profile Information</h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 sm:gap-x-8">
-                    <div>
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Full Name</p>
-                      <p className="text-sm font-medium text-slate-900 truncate">{currentUser.fullName}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Email</p>
-                      <p className="text-sm font-medium text-slate-900 break-all">{currentUser.email}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Discord</p>
-                      <div className="flex items-center gap-2">
-                        {currentUser.discordAvatar && currentUser.discordId ? (
-                          <img
-                            src={`https://cdn.discordapp.com/avatars/${currentUser.discordId}/${currentUser.discordAvatar}.png?size=32`}
-                            alt=""
-                            className="w-6 h-6 rounded-full flex-shrink-0"
-                          />
-                        ) : null}
-                        <div>
-                          <p className="text-sm font-medium text-slate-900 truncate">
-                            {currentUser.discordDisplayName || currentUser.discordUsername || '—'}
-                          </p>
-                          {currentUser.discordDisplayName && currentUser.discordUsername && (
-                            <p className="text-xs text-slate-400">@{currentUser.discordUsername}</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Primary Role</p>
-                      <p className="text-sm font-medium text-slate-900">{currentUser.specialization}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Community Role</p>
-                      <p className="text-sm font-medium text-slate-900">{currentUser.role}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Member Since</p>
-                      <p className="text-sm font-medium text-slate-900">{currentUser.yearJoined || '-'}</p>
-                    </div>
-                    {currentUser.memberId && (
-                      <div>
-                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Member ID</p>
-                        <p className="text-sm font-mono font-semibold text-blue-600">{currentUser.memberId}</p>
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.15 }}
-                  className="bg-white rounded-[6px] p-6 sm:p-8 shadow-sm border border-slate-100/80"
-                >
-                  <h2 className="text-base sm:text-lg font-semibold text-slate-900 mb-6">Skills & Expertise</h2>
-
-                  <div className="space-y-6">
-                    <div>
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-4">Core Skills</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {currentUser.skills && currentUser.skills.length > 0 ? (
-                          currentUser.skills.map((skill, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center gap-1.5 pl-1.5 pr-3 py-1.5 bg-white border border-slate-100/80 rounded-[6px] shadow-sm group min-w-0"
-                            >
-                              <div className="w-6 h-6 rounded-[6px] bg-slate-50/80 flex items-center justify-center flex-shrink-0 border border-slate-100/60">
-                                <SkillIcon skillName={skill.name} size={12} />
+                                ))}
                               </div>
-                              <span className="text-xs font-semibold text-slate-800 truncate min-w-0">{skill.name}</span>
-                              <span className={clsx(
-                                "text-[9px] font-semibold uppercase tracking-widest ml-auto flex-shrink-0",
-                                skill.level === 'Expert' ? "text-blue-900" :
-                                  skill.level === 'Practitioner' ? "text-blue-700" : "text-slate-400"
-                              )}>
-                                {skill.level}
-                              </span>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-sm text-slate-500 italic sm:col-span-2">No skills listed</p>
-                        )}
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     </div>
-
-                    <div>
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Experience Level</p>
-                      <p className="text-sm font-semibold text-slate-900">{currentUser.experienceLevel || '-'}</p>
-                    </div>
                   </div>
-                </motion.div>
 
+                  <div className="mt-3 flex items-center justify-end gap-1.5 text-[11px] text-slate-500">
+                    <span>Less</span>
+                    {levelBg.map((cls, i) => (
+                      <div key={i} className={clsx(cls, 'h-[11px] w-[11px] flex-shrink-0 rounded-[3px]')} />
+                    ))}
+                    <span>More</span>
+                  </div>
+                </section>
+
+                {/* Profile */}
+                <section className="s-card p-5 sm:p-6" aria-labelledby="profile-title">
+                  <h2 id="profile-title" className={sectionTitle}>Profile</h2>
+                  <dl className="mt-4 grid border-t border-slate-200/80 sm:grid-cols-2 sm:gap-x-8">
+                    {[
+                      { label: 'Full name', value: currentUser.fullName },
+                      { label: 'Email', value: <span className="break-all">{currentUser.email}</span> },
+                      {
+                        label: 'Discord',
+                        value: (
+                          <span className="flex items-center gap-2">
+                            {currentUser.discordAvatar && currentUser.discordId && (
+                              <img src={`https://cdn.discordapp.com/avatars/${currentUser.discordId}/${currentUser.discordAvatar}.png?size=32`} alt="" className="h-5 w-5 shrink-0 rounded-full" />
+                            )}
+                            <span className="truncate">
+                              {currentUser.discordDisplayName || currentUser.discordUsername || '—'}
+                              {currentUser.discordDisplayName && currentUser.discordUsername && (
+                                <span className="text-slate-400"> @{currentUser.discordUsername}</span>
+                              )}
+                            </span>
+                          </span>
+                        ),
+                      },
+                      { label: 'Primary role', value: currentUser.specialization || '—' },
+                      { label: 'Community role', value: currentUser.role || '—' },
+                      { label: 'Experience', value: currentUser.experienceLevel || '—' },
+                      { label: 'Member since', value: <span className="num">{currentUser.yearJoined || '—'}</span> },
+                      ...(currentUser.memberId ? [{ label: 'Member ID', value: <span className="font-mono text-[13px]">{currentUser.memberId}</span> }] : []),
+                    ].map((f) => (
+                      <div key={f.label} className="flex items-baseline justify-between gap-4 border-b border-slate-200/80 py-3">
+                        <dt className={fieldLabel}>{f.label}</dt>
+                        <dd className="min-w-0 text-right text-[14px] text-slate-900">{f.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </section>
+
+                {/* Skills */}
+                <section className="s-card p-5 sm:p-6" aria-labelledby="skills-title">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <h2 id="skills-title" className={sectionTitle}>Skills</h2>
+                    <span className="num text-[12px] text-slate-500">{totalSkills} listed</span>
+                  </div>
+                  {currentUser.skills && currentUser.skills.length > 0 ? (
+                    <ul className="mt-4 flex flex-wrap gap-2">
+                      {currentUser.skills.map((skill, index) => (
+                        <li
+                          key={index}
+                          className="inline-flex items-center gap-2 rounded-lg bg-white py-1.5 pl-2 pr-2.5 text-[13px] shadow-[inset_0_0_0_1px_rgb(15_23_42/0.1)]"
+                        >
+                          <SkillIcon skillName={skill.name} size={13} />
+                          <span className="font-medium text-slate-800">{skill.name}</span>
+                          <span className={clsx('text-[12px]', skill.level === 'Expert' ? 'text-[var(--accent)]' : 'text-slate-400')}>
+                            {skill.level}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-3 text-[14px] text-slate-500">No skills listed yet.</p>
+                  )}
+                </section>
               </div>
 
-              {/* Right Column: Digital ID */}
-              <div id="digital-card-section" className="lg:col-span-5 order-1 lg:order-2">
-                <motion.div
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.2 }}
-                  className="lg:sticky lg:top-24 flex flex-col items-center"
-                >
-                  <div className="w-full flex flex-wrap items-center justify-between gap-3 mb-6 px-2">
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-base sm:text-lg font-semibold text-slate-900">Digital Access Card</h2>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 justify-end">
-                      {currentUser.status === 'Approved' ? (
-                        <>
-                          <span className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 bg-emerald-100/85 text-emerald-800 text-[10px] sm:text-xs font-bold rounded-[6px] uppercase tracking-wide ring-1 ring-emerald-700/10">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            Approved
-                          </span>
-                        </>
-                      ) : currentUser.status === 'Declined' ? (
-                        <>
-                          <span className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 bg-red-100/85 text-red-800 text-[10px] sm:text-xs font-bold rounded-[6px] uppercase tracking-wide ring-1 ring-red-700/10">
-                            <ShieldAlert className="w-3.5 h-3.5" />
-                            Declined
-                          </span>
-                          <span className="text-[11px] sm:text-xs text-slate-500">See admin notes.</span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 bg-amber-100/85 text-amber-800 text-[10px] sm:text-xs font-bold rounded-[6px] uppercase tracking-wide ring-1 ring-amber-700/10">
-                            <Clock className="w-3.5 h-3.5" />
-                            Under review
-                          </span>
-                          <span className="text-[11px] sm:text-xs text-slate-500">Admin review in progress.</span>
-                        </>
-                      )}
-                    </div>
+              {/* Access card */}
+              <aside id="digital-card-section" className="order-1 lg:order-2">
+                <div className="lg:sticky lg:top-24">
+                  <div className="mb-4 flex items-baseline justify-between gap-3">
+                    <h2 className={sectionTitle}>Your access card</h2>
+                    <span className="inline-flex items-center gap-1.5 text-[12px] text-slate-500">
+                      <span className={clsx('h-1.5 w-1.5 rounded-full', statusMeta.dot)} aria-hidden />
+                      {statusMeta.word}
+                    </span>
                   </div>
 
-                  <div className={clsx(
-                    "relative group transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out max-w-full flex justify-center",
-                    currentUser.status !== 'Approved' && "opacity-50 grayscale pointer-events-none blur-[2px]"
-                  )}>
-                    <AccessCard user={currentUser} />
-
+                  <div className="relative flex justify-center rounded-[22px] bg-[#eef1f5] px-4 py-8 shadow-[inset_0_1px_2px_rgb(15_23_42/0.06),inset_0_0_0_1px_rgb(15_23_42/0.04)]">
+                    <div className={clsx(currentUser.status !== 'Approved' && 'pointer-events-none opacity-40 grayscale')}>
+                      <AccessCard user={currentUser} />
+                    </div>
                     {currentUser.status !== 'Approved' && (
-                      <div className="absolute inset-0 z-50 flex items-center justify-center p-4">
-                        <div className="bg-white/95 backdrop-blur-sm px-8 py-5 rounded-[6px] shadow-xl border border-slate-200/80 text-center">
-                          <p className="text-sm font-semibold text-slate-800">Card Unavailable</p>
-                          <p className="text-xs text-slate-500 mt-1">Pending Approval</p>
+                      <div className="absolute inset-0 flex items-center justify-center p-6">
+                        <div className="rounded-[14px] bg-white px-5 py-4 text-center shadow-[var(--e2)]">
+                          <p className="text-[14px] font-semibold text-slate-900">
+                            {currentUser.status === 'Declined' ? 'Card not issued' : 'Not active yet'}
+                          </p>
+                          <p className="mt-0.5 text-[13px] text-slate-500">
+                            {currentUser.status === 'Declined' ? 'See the admin note.' : 'It activates once you’re approved.'}
+                          </p>
                         </div>
                       </div>
                     )}
                   </div>
 
                   {currentUser.status === 'Approved' && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.3 }}
-                      className="w-full mt-6 sm:mt-8 px-2 sm:px-0"
-                    >
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
-                        <button
-                          onClick={handleCopyLink}
-                          className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 bg-blue-900 text-white rounded-[6px] font-bold text-xs sm:text-sm hover:bg-blue-800 transition-[transform,box-shadow,background-color] duration-200 ease-out shadow-[0_10px_24px_-14px_rgba(30,58,138,0.5)] active:scale-[0.98]"
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <button onClick={handleCopyLink} className="s-btn s-btn-plain">
+                        {copyStatus === 'copied' ? <Check size={15} strokeWidth={1.75} /> : <Copy size={15} strokeWidth={1.75} />}
+                        {copyStatus === 'copied' ? 'Copied' : 'Copy link'}
+                      </button>
+                      <button onClick={handleCopyEmbed} className="s-btn s-btn-plain">
+                        {copyStatus === 'embed-copied' ? <Check size={15} strokeWidth={1.75} /> : <Code size={15} strokeWidth={1.75} />}
+                        {copyStatus === 'embed-copied' ? 'Copied' : 'Embed code'}
+                      </button>
+                      {currentUser.memberId && (
+                        <a
+                          href={`/verify/${currentUser.memberId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="group col-span-2 mt-1 inline-flex items-center justify-center gap-1 text-[13px] text-slate-500 hover:text-slate-900"
                         >
-                          {copyStatus === 'copied' ? (
-                            <><Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" /><span>Link Copied</span></>
-                          ) : (
-                            <><Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4" /><span>Copy Public Link</span></>
-                          )}
-                        </button>
-                        <button
-                          onClick={handleCopyEmbed}
-                          className="flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 bg-white border border-slate-200 text-slate-700 rounded-[6px] font-bold text-xs sm:text-sm [@media(hover:hover){&:hover}]:bg-slate-50 [@media(hover:hover){&:hover}]:border-slate-300 transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out active:scale-[0.98]"
-                        >
-                          {copyStatus === 'embed-copied' ? (
-                            <><Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" /><span>Embed Copied</span></>
-                          ) : (
-                            <><Code className="w-3.5 h-3.5 sm:w-4 sm:h-4" /><span>Embed Code</span></>
-                          )}
-                        </button>
-                      </div>
-                    </motion.div>
+                          View public verification page
+                          <ExternalLink size={12} strokeWidth={1.75} />
+                        </a>
+                      )}
+                    </div>
                   )}
-                </motion.div>
-              </div>
-
+                </div>
+              </aside>
             </div>
           </main>
         ) : activeTab === 'submit-project' ? (
           <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-            <div className="bg-white rounded-[6px] shadow-sm border border-slate-100/80 overflow-hidden">
+            <div className="bg-white rounded-[10px] shadow-sm border border-slate-100/80 overflow-hidden">
               <div className="p-6 sm:p-8 border-b border-slate-100">
                 <h2 className="text-base sm:text-lg font-semibold text-slate-900">Submit a New Project</h2>
                 <p className="text-xs sm:text-sm text-slate-500 mt-1">
@@ -996,54 +873,54 @@ export default function UserDashboard() {
                 <div className="space-y-4">
                   <form onSubmit={handleProjectSubmit} className="space-y-4">
                     <div>
-                      <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                      <label className="block text-[13px] font-medium text-slate-900 mb-1.5">
                         Project Name
                       </label>
                       <input
                         type="text"
                         value={projectName}
                         onChange={(e) => setProjectName(e.target.value)}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out"
+                        className="s-field"
                         placeholder="e.g., BetterGovPH Tracker"
                         disabled={projectSubmitStatus === 'loading'}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                      <label className="block text-[13px] font-medium text-slate-900 mb-1.5">
                         Project URL (GitHub / Demo / Docs)
                       </label>
                       <input
                         type="text"
                         value={projectUrl}
                         onChange={(e) => setProjectUrl(e.target.value)}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out"
+                        className="s-field"
                         placeholder="https://github.com/..."
                         disabled={projectSubmitStatus === 'loading'}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                      <label className="block text-[13px] font-medium text-slate-900 mb-1.5">
                         Description
                       </label>
                       <textarea
                         value={projectDescription}
                         onChange={(e) => setProjectDescription(e.target.value)}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out min-h-[140px] resize-none"
+                        className="s-field h-auto py-2.5 min-h-[140px] resize-none"
                         placeholder="What is this project about?"
                         disabled={projectSubmitStatus === 'loading'}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                      <label className="block text-[13px] font-medium text-slate-900 mb-1.5">
                         Project Type
                       </label>
                       <select
                         value={projectProjType}
                         onChange={(e) => setProjectProjType(e.target.value)}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out appearance-none cursor-pointer"
+                        className="s-field appearance-none cursor-pointer"
                         disabled={projectSubmitStatus === 'loading'}
                       >
                         <option value="">Select type</option>
@@ -1061,28 +938,27 @@ export default function UserDashboard() {
                       type="submit"
                       disabled={projectSubmitStatus === 'loading'}
                       className={clsx(
-                        'relative w-full py-4 rounded-[6px] font-semibold text-sm transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out shadow-sm active:scale-[0.98] overflow-hidden',
+                        'relative w-full py-4 rounded-[10px] font-semibold text-sm transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out shadow-sm active:scale-[0.98] overflow-hidden',
                         projectSubmitStatus === 'loading'
                           ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
                           : 'bg-blue-900 text-white hover:bg-blue-800'
                       )}
                     >
                       {projectSubmitStatus === 'loading' ? 'Submitting...' : 'Submit'}
-                      {projectSubmitStatus === 'loading' && <ButtonProgressBar />}
                     </button>
                   </form>
                 </div>
 
-                <div className="bg-slate-50 border border-slate-200/70 rounded-[6px] overflow-hidden">
+                <div className="bg-slate-50 border border-slate-200/70 rounded-[10px] overflow-hidden">
                   <div className="px-5 py-4 bg-white border-b border-slate-200/70 flex items-center justify-between">
                     <div>
-                      <p className="text-[10px] tracking-[0.2em] text-blue-900 font-semibold uppercase mb-1">Submissions</p>
-                      <p className="text-sm font-bold text-slate-900">My Submitted Projects</p>
+                      <p className="text-[12px] tracking-[0.2em] text-blue-900 font-semibold uppercase mb-1">Submissions</p>
+                      <p className="text-sm font-semibold text-slate-900">My Submitted Projects</p>
                     </div>
                     <button
                       onClick={() => loadMySubmissions(true)}
                       disabled={mySubmissionsLoading}
-                      className="px-3 py-2 rounded-[6px] bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out flex items-center gap-1.5"
+                      className="px-3 py-2 rounded-[10px] bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out flex items-center gap-1.5"
                     >
                       <RefreshCw className={clsx('w-3.5 h-3.5', mySubmissionsLoading && 'animate-spin')} />
                       Refresh
@@ -1095,7 +971,7 @@ export default function UserDashboard() {
                     ) : mySubmissionsError ? (
                       <div className="flex flex-col items-center justify-center h-full text-center py-12">
                         <AlertCircle className="w-10 h-10 text-red-400 mb-3" />
-                        <p className="text-[10px] tracking-[0.2em] text-red-600 font-semibold uppercase mb-1">Error</p>
+                        <p className="text-[12px] tracking-[0.2em] text-red-600 font-semibold uppercase mb-1">Error</p>
                         <p className="text-sm text-slate-600">{mySubmissionsError}</p>
                       </div>
                     ) : mySubmissions.length === 0 ? (
@@ -1103,23 +979,23 @@ export default function UserDashboard() {
                         <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-4">
                           <FolderPlus className="w-8 h-8 text-slate-400" />
                         </div>
-                        <p className="text-[10px] tracking-[0.2em] text-slate-500 font-semibold uppercase mb-2">No Projects Yet</p>
+                        <p className="text-[12px] tracking-[0.2em] text-slate-500 font-semibold uppercase mb-2">No Projects Yet</p>
                         <p className="text-sm text-slate-600 max-w-xs">Submit your first project to see it listed here for admin review.</p>
                       </div>
                     ) : (
                       <div className="space-y-3">
                         {mySubmissions.map((s) => (
-                          <div key={s.id} className="bg-white border border-slate-200/70 rounded-[6px] p-4 hover:shadow-md hover:border-slate-300 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out">
+                          <div key={s.id} className="bg-white border border-slate-200/70 rounded-[10px] p-4 hover:shadow-md hover:border-slate-300 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out">
                             {s.projType && (
                               <div className="mb-2">
-                                <span className="inline-block px-2 py-1 rounded-[6px] bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider">
+                                <span className="inline-block px-2 py-1 rounded-[10px] bg-slate-100 text-slate-600 text-[12px] font-semibold">
                                   {s.projType}
                                 </span>
                               </div>
                             )}
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
-                                <p className="text-sm font-bold text-slate-900 truncate">{s.projectName}</p>
+                                <p className="text-sm font-semibold text-slate-900 truncate">{s.projectName}</p>
                                 <a
                                   href={formatExternalUrl(s.projectUrl)}
                                   target="_blank"
@@ -1131,7 +1007,7 @@ export default function UserDashboard() {
                               </div>
                               <span
                                 className={clsx(
-                                  'px-2 py-1 rounded-[6px] text-[10px] font-black uppercase tracking-widest border flex-shrink-0',
+                                  'px-2 py-1 rounded-[10px] text-[12px] font-semibold border flex-shrink-0',
                                   s.status === 'approved'
                                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                     : s.status === 'rejected'
@@ -1145,8 +1021,8 @@ export default function UserDashboard() {
 
                             <p className="mt-3 text-xs text-slate-600 whitespace-pre-wrap break-words">{s.description}</p>
 
-                            <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] text-slate-500">
-                              <span className="font-semibold uppercase tracking-wider">
+                            <div className="mt-3 flex flex-wrap items-center gap-2 text-[12px] text-slate-500">
+                              <span className="font-semibold">
                                 {s.createdAt ? new Date(s.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) : ''}
                               </span>
                             </div>
@@ -1161,7 +1037,7 @@ export default function UserDashboard() {
           </main>
         ) : (
           <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-            <div className="bg-white rounded-[6px] shadow-sm border border-slate-100/80 overflow-hidden">
+            <div className="bg-white rounded-[10px] shadow-sm border border-slate-100/80 overflow-hidden">
               <div className="p-6 sm:p-8 border-b border-slate-100 flex items-center justify-between">
                 <div>
                   <h2 className="text-base sm:text-lg font-semibold text-slate-900">
@@ -1177,69 +1053,69 @@ export default function UserDashboard() {
                 <div className="space-y-4">
                   <form onSubmit={handleVolunteerSubmit} className="space-y-4">
                     <div>
-                      <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                      <label className="block text-[13px] font-medium text-slate-900 mb-1.5">
                         Project / Role Title
                       </label>
                       <input
                         type="text"
                         value={volunteerTitle}
                         onChange={(e) => setVolunteerTitle(e.target.value)}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out"
+                        className="s-field"
                         placeholder="e.g., Need Frontend Dev for Civic App"
                         disabled={volunteerSubmitStatus === 'loading'}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                      <label className="block text-[13px] font-medium text-slate-900 mb-1.5">
                         Project URL
                       </label>
                       <input
                         type="text"
                         value={volunteerProjectUrl}
                         onChange={(e) => setVolunteerProjectUrl(e.target.value)}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out"
+                        className="s-field"
                         placeholder="https://github.com/..."
                         disabled={volunteerSubmitStatus === 'loading'}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                      <label className="block text-[13px] font-medium text-slate-900 mb-1.5">
                         Details
                       </label>
                       <textarea
                         value={volunteerDescription}
                         onChange={(e) => setVolunteerDescription(e.target.value)}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out min-h-[140px] resize-none"
+                        className="s-field h-auto py-2.5 min-h-[140px] resize-none"
                         placeholder="What help do you need? Scope, timeline, requirements..."
                         disabled={volunteerSubmitStatus === 'loading'}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                      <label className="block text-[13px] font-medium text-slate-900 mb-1.5">
                         (Optional) Roles Needed
                       </label>
                       <input
                         type="text"
                         value={volunteerRolesNeeded}
                         onChange={(e) => setVolunteerRolesNeeded(e.target.value)}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out"
+                        className="s-field"
                         placeholder="Frontend, Backend, UI/UX..."
                         disabled={volunteerSubmitStatus === 'loading'}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                      <label className="block text-[13px] font-medium text-slate-900 mb-1.5">
                         (Optional) Contact
                       </label>
                       <input
                         type="text"
                         value={volunteerContact}
                         onChange={(e) => setVolunteerContact(e.target.value)}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out"
+                        className="s-field"
                         placeholder="Discord / Email / Link"
                         disabled={volunteerSubmitStatus === 'loading'}
                       />
@@ -1249,29 +1125,28 @@ export default function UserDashboard() {
                       type="submit"
                       disabled={volunteerSubmitStatus === 'loading'}
                       className={clsx(
-                        'relative w-full py-4 rounded-[6px] font-semibold text-sm transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out shadow-sm active:scale-[0.98] overflow-hidden',
+                        'relative w-full py-4 rounded-[10px] font-semibold text-sm transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out shadow-sm active:scale-[0.98] overflow-hidden',
                         volunteerSubmitStatus === 'loading'
                           ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
                           : 'bg-blue-900 text-white hover:bg-blue-800'
                       )}
                     >
                       {volunteerSubmitStatus === 'loading' ? 'Posting...' : 'Post Volunteer Call'}
-                      {volunteerSubmitStatus === 'loading' && <ButtonProgressBar />}
                     </button>
                   </form>
                 </div>
 
-                <div className="bg-slate-50 border border-slate-200/70 rounded-[6px] overflow-hidden">
+                <div className="bg-slate-50 border border-slate-200/70 rounded-[10px] overflow-hidden">
                   <div className="px-5 py-4 bg-white border-b border-slate-200/70">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-[10px] tracking-[0.2em] text-blue-900 font-semibold uppercase mb-1">Community Board</p>
-                        <p className="text-sm font-bold text-slate-900">Open Volunteer Calls</p>
+                        <p className="text-[12px] tracking-[0.2em] text-blue-900 font-semibold uppercase mb-1">Community Board</p>
+                        <p className="text-sm font-semibold text-slate-900">Open Volunteer Calls</p>
                       </div>
                       <button
                         onClick={() => loadVolunteerCalls(true)}
                         disabled={volunteerCallsLoading}
-                        className="px-3 py-2 rounded-[6px] bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out flex items-center gap-1.5"
+                        className="px-3 py-2 rounded-[10px] bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out flex items-center gap-1.5"
                       >
                         <RefreshCw className={clsx('w-3.5 h-3.5', volunteerCallsLoading && 'animate-spin')} />
                         Refresh
@@ -1282,7 +1157,7 @@ export default function UserDashboard() {
                       <button
                         onClick={() => setVolunteerFilter('all')}
                         className={clsx(
-                          'px-4 py-2 text-xs font-semibold rounded-[6px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out',
+                          'px-4 py-2 text-xs font-semibold rounded-[10px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out',
                           volunteerFilter === 'all'
                             ? 'bg-blue-900 text-white shadow-sm'
                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -1293,7 +1168,7 @@ export default function UserDashboard() {
                       <button
                         onClick={() => setVolunteerFilter('mine')}
                         className={clsx(
-                          'px-4 py-2 text-xs font-semibold rounded-[6px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out',
+                          'px-4 py-2 text-xs font-semibold rounded-[10px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out',
                           volunteerFilter === 'mine'
                             ? 'bg-blue-900 text-white shadow-sm'
                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -1310,7 +1185,7 @@ export default function UserDashboard() {
                     ) : volunteerCallsError ? (
                       <div className="flex flex-col items-center justify-center h-full text-center py-12">
                         <AlertCircle className="w-10 h-10 text-red-400 mb-3" />
-                        <p className="text-[10px] tracking-[0.2em] text-red-600 font-semibold uppercase mb-1">Error</p>
+                        <p className="text-[12px] tracking-[0.2em] text-red-600 font-semibold uppercase mb-1">Error</p>
                         <p className="text-sm text-slate-600">{volunteerCallsError}</p>
                       </div>
                     ) : filteredVolunteerCalls.length === 0 ? (
@@ -1318,7 +1193,7 @@ export default function UserDashboard() {
                         <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-4">
                           <Users className="w-8 h-8 text-slate-400" />
                         </div>
-                        <p className="text-[10px] tracking-[0.2em] text-slate-500 font-semibold uppercase mb-2">
+                        <p className="text-[12px] tracking-[0.2em] text-slate-500 font-semibold uppercase mb-2">
                           {volunteerFilter === 'mine' ? 'No Calls Posted' : 'No Volunteer Calls'}
                         </p>
                         <p className="text-sm text-slate-600 max-w-xs">
@@ -1333,10 +1208,10 @@ export default function UserDashboard() {
                           const isOwner = c.userId === currentUser.id || c.userId === currentUser.uid || !!currentUser.isAdmin;
                           const isClosed = c.status === 'closed';
                           return (
-                            <div key={c.id} className="bg-white border border-slate-200/70 rounded-[6px] p-4 relative group hover:shadow-md hover:border-slate-300 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out">
+                            <div key={c.id} className="bg-white border border-slate-200/70 rounded-[10px] p-4 relative group hover:shadow-md hover:border-slate-300 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out">
                               {c.postedBy?.fullName && (
                                 <div className="mb-2">
-                                  <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-[6px] bg-blue-50 text-blue-700 text-[10px] font-bold uppercase tracking-wider">
+                                  <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-[10px] bg-blue-50 text-blue-700 text-[12px] font-semibold">
                                     <User className="w-3 h-3" />
                                     Posted by {c.postedBy.fullName}
                                   </span>
@@ -1344,7 +1219,7 @@ export default function UserDashboard() {
                               )}
                               <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
-                                  <p className="text-sm font-bold text-slate-900">{c.title}</p>
+                                  <p className="text-sm font-semibold text-slate-900">{c.title}</p>
                                   <a
                                     href={formatExternalUrl(c.projectUrl)}
                                     target="_blank"
@@ -1360,7 +1235,7 @@ export default function UserDashboard() {
                                     onClick={() => isOwner && handleToggleCallStatus(c)}
                                     disabled={!isOwner}
                                     className={clsx(
-                                      'px-2.5 py-1 rounded-[6px] text-[10px] font-black uppercase tracking-widest border flex-shrink-0 flex items-center gap-1.5 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out',
+                                      'px-2.5 py-1 rounded-[10px] text-[12px] font-semibold border flex-shrink-0 flex items-center gap-1.5 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out',
                                       isClosed
                                         ? 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200'
                                         : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100',
@@ -1374,7 +1249,7 @@ export default function UserDashboard() {
                                   {isOwner && (
                                     <button
                                       onClick={() => openManageModal(c)}
-                                      className="p-1.5 rounded-[6px] text-slate-500 hover:text-blue-900 hover:bg-slate-100 transition-colors"
+                                      className="p-1.5 rounded-[10px] text-slate-500 hover:text-blue-900 hover:bg-slate-100 transition-colors"
                                       title="Edit / Manage Call"
                                     >
                                       <Edit3 className="w-4 h-4" />
@@ -1385,17 +1260,17 @@ export default function UserDashboard() {
 
                               <p className="mt-3 text-xs text-slate-600 whitespace-pre-wrap break-words">{c.description}</p>
 
-                              <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] text-slate-500">
-                                <span className="font-semibold uppercase tracking-wider">
+                              <div className="mt-3 flex flex-wrap items-center gap-2 text-[12px] text-slate-500">
+                                <span className="font-semibold">
                                   {c.createdAt ? new Date(c.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) : ''}
                                 </span>
                                 {c.rolesNeeded && (
-                                  <span className="px-2 py-1 rounded-[6px] bg-slate-100 text-slate-600 font-semibold">
+                                  <span className="px-2 py-1 rounded-[10px] bg-slate-100 text-slate-600 font-semibold">
                                     {c.rolesNeeded}
                                   </span>
                                 )}
                                 {c.contact && (
-                                  <span className="px-2 py-1 rounded-[6px] bg-blue-50 text-blue-700 font-semibold">
+                                  <span className="px-2 py-1 rounded-[10px] bg-blue-50 text-blue-700 font-semibold">
                                     {c.contact}
                                   </span>
                                 )}
@@ -1415,16 +1290,16 @@ export default function UserDashboard() {
         {/* Volunteer Call Manage Modal */}
         {selectedCallForModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-[6px] shadow-xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="bg-white rounded-[10px] shadow-[var(--e2)] border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
               <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <div>
-                  <p className="text-[10px] tracking-[0.2em] text-blue-900 font-semibold uppercase mb-1">Call Management</p>
-                  <h3 className="font-bold text-slate-900 text-base">Manage Volunteer Call</h3>
+                  <p className="text-[12px] tracking-[0.2em] text-blue-900 font-semibold uppercase mb-1">Call Management</p>
+                  <h3 className="font-semibold text-slate-900 text-base">Manage Volunteer Call</h3>
                   <p className="text-xs text-slate-500 mt-0.5">Edit post details, change status to closed/open, or delete.</p>
                 </div>
                 <button
                   onClick={closeManageModal}
-                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-[6px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-[10px] transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1432,71 +1307,71 @@ export default function UserDashboard() {
 
               <form onSubmit={handleUpdateCall} className="p-6 space-y-4 overflow-y-auto flex-1">
                 <div>
-                  <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[13px] font-medium text-slate-900 mb-1.5">
                     Project / Role Title
                   </label>
                   <input
                     type="text"
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out"
+                    className="s-field"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[13px] font-medium text-slate-900 mb-1.5">
                     Project URL
                   </label>
                   <input
                     type="text"
                     value={editProjectUrl}
                     onChange={(e) => setEditProjectUrl(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out"
+                    className="s-field"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[13px] font-medium text-slate-900 mb-1.5">
                     Details
                   </label>
                   <textarea
                     value={editDescription}
                     onChange={(e) => setEditDescription(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out min-h-[100px] resize-none"
+                    className="s-field h-auto py-2.5 min-h-[100px] resize-none"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[13px] font-medium text-slate-900 mb-1.5">
                     Roles Needed
                   </label>
                   <input
                     type="text"
                     value={editRolesNeeded}
                     onChange={(e) => setEditRolesNeeded(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out"
+                    className="s-field"
                     placeholder="Frontend, Backend, UI/UX..."
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[13px] font-medium text-slate-900 mb-1.5">
                     Contact Info
                   </label>
                   <input
                     type="text"
                     value={editContact}
                     onChange={(e) => setEditContact(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[6px] text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 focus-visible:border-blue-900/30 transition-[border-color,box-shadow] duration-180 ease-out duration-200 ease-out"
+                    className="s-field"
                     placeholder="Discord / Email / Link"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[13px] font-medium text-slate-900 mb-1.5">
                     Status
                   </label>
                   <div className="grid grid-cols-2 gap-3">
@@ -1504,7 +1379,7 @@ export default function UserDashboard() {
                       type="button"
                       onClick={() => setEditStatus('open')}
                       className={clsx(
-                        'py-2.5 px-4 rounded-[6px] text-xs font-bold border transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out flex items-center justify-center gap-2',
+                        'py-2.5 px-4 rounded-[10px] text-xs font-semibold border transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out flex items-center justify-center gap-2',
                         editStatus === 'open'
                           ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-sm'
                           : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
@@ -1517,7 +1392,7 @@ export default function UserDashboard() {
                       type="button"
                       onClick={() => setEditStatus('closed')}
                       className={clsx(
-                        'py-2.5 px-4 rounded-[6px] text-xs font-bold border transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out flex items-center justify-center gap-2',
+                        'py-2.5 px-4 rounded-[10px] text-xs font-semibold border transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out flex items-center justify-center gap-2',
                         editStatus === 'closed'
                           ? 'bg-slate-200 border-slate-400 text-slate-900 shadow-sm'
                           : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
@@ -1533,7 +1408,7 @@ export default function UserDashboard() {
                   <button
                     type="button"
                     onClick={() => setConfirmDeleteCallId(selectedCallForModal.id)}
-                    className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-[6px] text-xs font-bold transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out flex items-center gap-1.5"
+                    className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-[10px] text-xs font-semibold transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out flex items-center gap-1.5"
                   >
                     <Trash2 className="w-4 h-4" />
                     Delete Call
@@ -1543,7 +1418,7 @@ export default function UserDashboard() {
                     <button
                       type="button"
                       onClick={closeManageModal}
-                      className="px-4 py-2.5 border border-slate-200 text-slate-700 rounded-[6px] text-xs font-bold hover:bg-slate-50 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
+                      className="px-4 py-2.5 border border-slate-200 text-slate-700 rounded-[10px] text-xs font-semibold hover:bg-slate-50 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out"
                     >
                       Cancel
                     </button>
@@ -1551,11 +1426,10 @@ export default function UserDashboard() {
                       type="submit"
                       disabled={modalActionStatus === 'loading'}
                       className={clsx(
-                        'relative px-5 py-2.5 bg-blue-900 text-white rounded-[6px] text-xs font-bold hover:bg-blue-800 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out disabled:opacity-50 overflow-hidden'
+                        'relative px-5 py-2.5 bg-blue-900 text-white rounded-[10px] text-xs font-semibold hover:bg-blue-800 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out disabled:opacity-50 overflow-hidden'
                       )}
                     >
                       {modalActionStatus === 'loading' ? 'Saving...' : 'Save Changes'}
-                      {modalActionStatus === 'loading' && <ButtonProgressBar />}
                     </button>
                   </div>
                 </div>
@@ -1571,15 +1445,15 @@ export default function UserDashboard() {
               initial={{ opacity: 0, scale: 0.95, y: 4 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
-              className="bg-white rounded-[6px] shadow-2xl border border-slate-200 w-full max-w-xs overflow-hidden"
+              className="bg-white rounded-[10px] shadow-[var(--e2)] border border-slate-200 w-full max-w-xs overflow-hidden"
             >
               <div className="p-5">
                 <div className="flex items-start gap-3.5">
-                  <div className="w-10 h-10 rounded-[6px] bg-red-50 border border-red-100 flex items-center justify-center flex-shrink-0">
+                  <div className="w-10 h-10 rounded-[10px] bg-red-50 border border-red-100 flex items-center justify-center flex-shrink-0">
                     <Trash2 className="w-4 h-4 text-red-600" strokeWidth={2} />
                   </div>
                   <div className="flex-1 min-w-0 pt-0.5">
-                    <h3 className="text-sm font-bold text-slate-900 leading-snug">
+                    <h3 className="text-sm font-semibold text-slate-900 leading-snug">
                       Delete this call?
                     </h3>
                     <p className="text-xs text-slate-500 mt-1 leading-relaxed">
@@ -1593,7 +1467,7 @@ export default function UserDashboard() {
                     type="button"
                     onClick={() => setConfirmDeleteCallId(null)}
                     disabled={modalActionStatus === 'loading'}
-                    className="px-4 py-2 border border-slate-200 text-slate-700 rounded-[6px] text-xs font-bold hover:bg-slate-50 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out disabled:opacity-50"
+                    className="px-4 py-2 border border-slate-200 text-slate-700 rounded-[10px] text-xs font-semibold hover:bg-slate-50 transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out disabled:opacity-50"
                   >
                     Cancel
                   </button>
@@ -1602,14 +1476,13 @@ export default function UserDashboard() {
                     onClick={() => handleDeleteCall(confirmDeleteCallId)}
                     disabled={modalActionStatus === 'loading'}
                     className={clsx(
-                      'relative px-4 py-2 rounded-[6px] text-xs font-bold transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out overflow-hidden disabled:opacity-50',
+                      'relative px-4 py-2 rounded-[10px] text-xs font-semibold transition-[color,transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out overflow-hidden disabled:opacity-50',
                       modalActionStatus === 'loading'
                         ? 'bg-red-400 text-white cursor-not-allowed'
                         : 'bg-red-600 text-white hover:bg-red-700 active:scale-[0.98] shadow-sm'
                     )}
                   >
                     {modalActionStatus === 'loading' ? 'Deleting...' : 'Delete'}
-                    {modalActionStatus === 'loading' && <ButtonProgressBar />}
                   </button>
                 </div>
               </div>

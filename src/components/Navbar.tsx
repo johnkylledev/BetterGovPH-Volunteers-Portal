@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Menu, X, ExternalLink } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Menu, X, ArrowUpRight } from 'lucide-react';
 import { useStore } from '../store/useStore';
-
-const MAIN_WEBSITE = "https://about.bettergov.ph/";
+import { ABOUT_WEBSITE } from './site/links';
 
 const isProfileComplete = (u: any) => {
   if (!u) return false;
@@ -24,24 +22,20 @@ export const Navbar: React.FC = () => {
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
-    };
+    const handleScroll = () => setIsScrolled(window.scrollY > 8);
+    handleScroll();
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const scrollToSection = (sectionId: string) => {
-    const element = document.getElementById(sectionId);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
 
   const handleOpenRolesClick = (e: React.MouseEvent) => {
     if (location.pathname === '/') {
       e.preventDefault();
-      scrollToSection('open-roles');
+      document.getElementById('open-roles')?.scrollIntoView({ behavior: 'smooth' });
     }
   };
 
@@ -57,142 +51,106 @@ export const Navbar: React.FC = () => {
     }
   };
 
-  const getCtaLabel = () => {
-    if (sessionUserId) {
-      return 'Dashboard';
-    }
-    return 'Sign In';
-  };
+  const ctaLabel = sessionUserId ? 'Dashboard' : 'Sign in';
 
   const navLinks = [
-    { label: 'Home', path: '/' },
-    { label: 'Open Roles', path: '/#open-roles', onClick: handleOpenRolesClick },
+    { label: 'Open roles', path: '/#open-roles', onClick: handleOpenRolesClick },
     { label: 'Projects', path: '/projects' },
     { label: 'Contribute', path: '/contribute' },
-    { label: 'About', path: MAIN_WEBSITE, isExternal: true },
+    { label: 'Verify', path: '/verify' },
   ];
 
+  const isActive = (path: string) => path !== '/#open-roles' && location.pathname.startsWith(path);
+
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 transition-[backdrop-filter,box-shadow,background-color] duration-200 ease-out ${isScrolled ? 'bg-white/95 backdrop-blur-md shadow-lg shadow-black/5' : 'bg-white'}`}>
-      <div className="max-w-7xl mx-auto px-3 sm:px-6">
-        <div className="flex justify-between h-14 sm:h-16 items-center gap-2">
-          <Link to="/" className="flex items-center gap-2 sm:gap-2.5 group min-w-0 flex-1">
-            <img src="/logo.svg" onError={(e) => { const t = e.currentTarget; t.onerror = null; t.src = 'https://assets.bettergov.ph/logos/webp/icon-primary.webp'; }} alt="BetterGovPH" className="h-6 w-6 sm:h-7 sm:w-auto flex-shrink-0 object-contain" />
-            <div className="flex flex-col leading-none min-w-0 hidden sm:flex">
-              <span className="font-display font-bold text-base tracking-tight text-blue-900 truncate">BetterGovPH</span>
-              <span className="font-display font-bold text-[9px] uppercase tracking-[0.2em] text-blue-900/60 leading-tight whitespace-nowrap">Volunteers</span>
-            </div>
-            <span className="sm:hidden font-display font-bold text-sm tracking-tight text-blue-900 truncate min-w-0">BetterGovPH</span>
-          </Link>
+    <nav
+      className={`fixed inset-x-0 top-0 z-50 transition-[box-shadow,background-color] duration-200 ${
+        isScrolled || isMobileMenuOpen
+          ? 'bg-white/80 backdrop-blur-xl backdrop-saturate-150 shadow-[0_1px_0_rgb(15_23_42/0.08)]'
+          : 'bg-transparent'
+      }`}
+    >
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+        <Link to="/" className="flex min-w-0 items-center gap-2.5">
+          <img
+            src="/logo.svg"
+            onError={(e) => { const t = e.currentTarget; t.onerror = null; t.src = 'https://assets.bettergov.ph/logos/webp/icon-primary.webp'; }}
+            alt=""
+            className="h-6 w-6 shrink-0 object-contain"
+          />
+          <span className="truncate text-[15px] font-semibold tracking-[-0.015em] text-slate-900">
+            BetterGovPH <span className="font-normal text-slate-500">Volunteers</span>
+          </span>
+        </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-4 lg:gap-6 flex-shrink-0">
-            {navLinks.map((link) => {
-              const isActive = location.pathname === link.path || (link.path === '/#open-roles' && location.pathname === '/' && location.hash === '#open-roles');
-              if (link.isExternal) {
-                return (
-                  <a
-                    key={link.label}
-                    href={link.path}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs lg:text-sm font-semibold text-slate-600 hover:text-blue-900 transition-[color,opacity] duration-200 ease-out relative group flex items-center gap-1"
-                  >
-                    {link.label}
-                    <ExternalLink size={14} className="opacity-60 group-hover:opacity-100 transition-opacity duration-200 ease-out" />
-                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-900 transition-[width] duration-200 ease-out group-hover:w-full" />
-                  </a>
-                );
-              }
-              return (
-                <Link
-                  key={link.label}
-                  to={link.path}
-                  onClick={link.onClick}
-                  className={`text-xs lg:text-sm font-semibold transition-[color] duration-200 ease-out relative group ${isActive ? 'text-blue-900' : 'text-slate-600 hover:text-blue-900'}`}
-                >
-                  {link.label}
-                  <span className={`absolute -bottom-1 left-0 h-0.5 bg-blue-900 transition-[width] duration-200 ease-out ${isActive ? 'w-full' : 'w-0 group-hover:w-full'}`} />
-                </Link>
-              );
-            })}
-
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={handleCtaClick}
-              className="text-xs md:text-sm font-bold px-4 md:px-5 py-1.5 md:py-2 rounded-[6px] border-2 border-blue-900 text-blue-900 hover:bg-blue-900 hover:text-white transition-[color,transform,box-shadow,background-color,border-color] duration-200 ease-out shadow-sm active:scale-[0.98]"
+        <div className="hidden items-center gap-1 md:flex">
+          {navLinks.map((link) => (
+            <Link
+              key={link.label}
+              to={link.path}
+              onClick={link.onClick}
+              className={`rounded-lg px-3 py-1.5 text-[14px] transition-colors duration-150 ${
+                isActive(link.path) ? 'font-medium text-slate-900' : 'text-slate-500 hover:text-slate-900'
+              }`}
             >
-              {getCtaLabel()}
-            </motion.button>
-          </div>
-
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setMobileMenuOpen(!isMobileMenuOpen)}
-            className="md:hidden flex items-center justify-center p-2 text-slate-600 hover:text-blue-900 transition-[color] duration-200 ease-out active:scale-[0.97] active:transition-none"
-            aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+              {link.label}
+            </Link>
+          ))}
+          <a
+            href={ABOUT_WEBSITE}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group inline-flex items-center gap-0.5 rounded-lg px-3 py-1.5 text-[14px] text-slate-500 transition-colors duration-150 hover:text-slate-900"
           >
-            {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+            About
+            <ArrowUpRight size={13} strokeWidth={1.75} className="transition-transform duration-200 group-hover:translate-x-px group-hover:-translate-y-px" />
+          </a>
+          <button onClick={handleCtaClick} className="s-btn s-btn-plain ml-3 h-9 px-3.5">
+            {ctaLabel}
           </button>
         </div>
+
+        <button
+          onClick={() => setMobileMenuOpen((v) => !v)}
+          className="-mr-2 flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 hover:text-slate-900 md:hidden"
+          aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={isMobileMenuOpen}
+        >
+          {isMobileMenuOpen ? <X size={20} strokeWidth={1.75} /> : <Menu size={20} strokeWidth={1.75} />}
+        </button>
       </div>
 
-      {/* Mobile Navigation */}
       {isMobileMenuOpen && (
-        <div className="md:hidden border-t border-slate-200 bg-white/95 backdrop-blur-md">
-          <div className="px-4 py-3 space-y-1">
-            {navLinks.map((link) => {
-              if (link.isExternal) {
-                return (
-                  <a
-                    key={link.label}
-                    href={link.path}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center justify-between text-sm font-semibold text-slate-600 hover:text-blue-900 px-3 py-2.5 rounded-[6px] hover:bg-slate-50 transition-[color,background-color] duration-200 ease-out active:scale-[0.99] active:transition-none"
-                  >
-                    <span>{link.label}</span>
-                    <ExternalLink size={14} className="opacity-60" />
-                  </a>
-                );
-              }
-              return (
-                <Link
-                  key={link.label}
-                  to={link.path}
-                  onClick={(e) => {
-                    setMobileMenuOpen(false);
-                    if (link.onClick) link.onClick(e);
-                  }}
-                  className="block text-sm font-semibold text-slate-600 hover:text-blue-900 px-3 py-2.5 rounded-[6px] hover:bg-slate-50 transition-[color,background-color] duration-200 ease-out active:scale-[0.99] active:transition-none"
-                >
-                  {link.label}
-                </Link>
-              );
-            })}
-
-            <div className="border-t border-slate-100 my-1" />
-            <button
-              onClick={() => {
+        <div className="border-t border-slate-200/70 px-4 pb-4 pt-2 md:hidden">
+          {navLinks.map((link) => (
+            <Link
+              key={link.label}
+              to={link.path}
+              onClick={(e) => {
                 setMobileMenuOpen(false);
-                handleCtaClick();
+                link.onClick?.(e);
               }}
-              className="w-full text-sm font-bold px-5 py-3 rounded-[6px] bg-blue-900 text-white hover:bg-blue-800 transition-[color,background-color] duration-200 ease-out text-center active:scale-[0.98] active:transition-none"
+              className="block rounded-lg px-2 py-3 text-[15px] text-slate-700 hover:bg-slate-100"
             >
-              {getCtaLabel()}
+              {link.label}
+            </Link>
+          ))}
+          <a
+            href={ABOUT_WEBSITE}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 rounded-lg px-2 py-3 text-[15px] text-slate-700 hover:bg-slate-100"
+          >
+            About <ArrowUpRight size={14} strokeWidth={1.75} className="text-slate-400" />
+          </a>
+          <div className="mt-3 grid gap-2">
+            <button onClick={handleCtaClick} className="s-btn s-btn-plain w-full">
+              {ctaLabel}
             </button>
             {!sessionUserId && (
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  navigate('/register');
-                }}
-                className="w-full text-sm font-bold px-5 py-3 rounded-[6px] border-2 border-blue-900 text-blue-900 hover:bg-blue-50 transition-[color,background-color,border-color] duration-200 ease-out text-center mt-2 active:scale-[0.98] active:transition-none"
-              >
-                Start Contributing
-              </button>
+              <Link to="/register" className="s-btn s-btn-accent w-full">
+                Apply for membership
+              </Link>
             )}
           </div>
         </div>
