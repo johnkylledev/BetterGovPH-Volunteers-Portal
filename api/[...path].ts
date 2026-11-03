@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { createHmac, timingSafeEqual } from 'crypto';
 
 let _crypto: any = null;
 let _cryptoInit = false;
@@ -1465,6 +1466,27 @@ const handler_discord: H = async (req, res) => {
           typeof body.discord_avatar === 'string' ? (body.discord_avatar.trim() || undefined) : undefined;
         const { data: userData } = await supabase
           .from('users').select('discord_id, discord_username').eq('uid', uid).maybeSingle();
+
+        // A Discord ID arriving from the browser must carry bettygo's signature over
+        // {ts}.{uid}.{discordId}.{username}; otherwise anyone could edit the callback URL
+        // and claim another guild member's account.
+        if (discordIdFromBody) {
+          const ts = typeof body.ts === 'string' ? body.ts : '';
+          const sig = typeof body.sig === 'string' ? body.sig.toLowerCase() : '';
+          const rawUsername = typeof body.discord_username === 'string' ? body.discord_username : '';
+          const age = Date.now() - Number(ts);
+          const expected = createHmac('sha256', bettygoKey)
+            .update(`${ts}.${uid}.${discordIdFromBody}.${rawUsername}`)
+            .digest('hex');
+          const valid =
+            /^\d+$/.test(ts) && age >= 0 && age <= 10 * 60 * 1000 &&
+            sig.length === expected.length &&
+            timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+          if (!valid) {
+            sendError(res, 400, 'This Discord link could not be verified or has expired. Please connect Discord again.');
+            return;
+          }
+        }
         const discordId = discordIdFromBody ?? userData?.discord_id;
         if (!discordId) { sendJson(res, 200, { connected: false }); return; }
 
