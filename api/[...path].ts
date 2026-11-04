@@ -156,6 +156,7 @@ const mapUserRow = (row: any) => ({
   consentVersion: row.consent_version ?? undefined,
   consentAt: row.consent_at ?? undefined,
   consentPurposes: Array.isArray(row.consent_purposes) ? row.consent_purposes : [],
+  deletionRequestedAt: row.deletion_requested_at ?? undefined,
 });
 
 // Profile links (YouTube, GitHub, …): known platforms only, https URLs only, short. Private to the member and admins.
@@ -832,6 +833,7 @@ const handler_teams: H = async (req, res) => {
         id: project.id, name: project.project_name ?? project.title ?? '', status: project.status ?? 'pending',
         url: normalizeUrl(project.project_url ?? project.url ?? ''), repoUrl: project.repo_url ?? null,
         description: project.description ?? '', stage: project.stage ?? null, projType: project.proj_type ?? null,
+        repo: project.repo_stats ?? null,
       },
       owner: project.owner_type === 'member' && ownerUser
         ? { type: 'member', name: canManage ? ownerUser.full_name : publicNameOf(ownerUser), userId: canManage ? ownerUser.uid : undefined }
@@ -1005,6 +1007,9 @@ const handler_me: H = async (req, res) => {
   }
   if (typeof body.showInDirectory === 'boolean') updates.show_in_directory = body.showInDirectory;
   if (typeof body.showFullName === 'boolean') updates.show_full_name = body.showFullName;
+  // Right to erasure: the member asks, an admin completes it (approved projects may need a new owner first).
+  if (body.requestDeletion === true) { updates.deletion_requested_at = new Date().toISOString(); updates.show_in_directory = false; }
+  if (body.requestDeletion === false) updates.deletion_requested_at = null;
   updates.auth_provider = 'google';
 
   if (typeof updates.discord_username === 'string' && updates.discord_username.trim()) {
@@ -1054,7 +1059,7 @@ const handler_me: H = async (req, res) => {
       .from('users').update(updates).eq('uid', uid).select('*');
     // Before a migration runs, save everything else instead of failing the whole profile.
     if (updateError && isMissingColumnError(updateError)) {
-      for (const k of ['links', 'secondary_specialization', 'show_in_directory', 'show_full_name', 'consent_version', 'consent_at', 'consent_purposes']) delete updates[k];
+      for (const k of ['links', 'secondary_specialization', 'show_in_directory', 'show_full_name', 'consent_version', 'consent_at', 'consent_purposes', 'deletion_requested_at']) delete updates[k];
       consentEvent = null;
       ({ data: updatedRows, error: updateError } = await supabase.from('users').update(updates).eq('uid', uid).select('*'));
     }
@@ -1347,7 +1352,7 @@ const handler_admin: H = async (req, res) => {
     const adminCheck = await assertAdmin(adminSup, callerUid, authData?.user?.email ?? undefined);
     if (!adminCheck.ok) { sendError(res, 403, adminCheck.error); return; }
     const { data: users, error: usersError } = await adminSup.from('users')
-      .select('uid, full_name, email, member_id, status, created_at, consent_version, consent_at, consent_purposes, show_in_directory, show_full_name')
+      .select('uid, full_name, email, member_id, status, created_at, consent_version, consent_at, consent_purposes, show_in_directory, show_full_name, deletion_requested_at')
       .eq('is_admin', false).not('full_name', 'eq', '').order('created_at', { ascending: true }).limit(5000);
     if (usersError) {
       sendError(res, isMissingColumnError(usersError) ? 503 : 500,
@@ -1474,6 +1479,8 @@ const dedupeMergedProjects = (local: any[], remote: any[]): any[] => {
   return Array.from(map.values());
 };
 
+const PUBLIC_PROJECT_COLUMNS = 'id, project_name, project_url, description, proj_type, status, created_at, repo_url, stage, owner_type, owner_name, repo_stats';
+
 const handler_projects: H = async (req, res) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'public, max-age=300');
@@ -1489,15 +1496,16 @@ const handler_projects: H = async (req, res) => {
   if (!supabaseUrl) { sendError(res, 500, 'Server not configured'); return; }
   const makeClient = (key: string) => createClient(supabaseUrl, key, { auth: { persistSession: false, autoRefreshToken: false } });
   const runQuery = async (client: any) => {
+    // Public list: only public columns (anon can't read submitter ids, review notes or team data).
     let result = await client
-      .from('project_submissions').select('*')
+      .from('project_submissions').select(PUBLIC_PROJECT_COLUMNS)
       .in('status', ['approved', 'Approved', 'APPROVED'])
       .order('created_at', { ascending: false }).limit(100);
     if (result.error &&
         typeof (result.error as any)?.message === 'string' &&
         String((result.error as any).message).toLowerCase().includes('created_at')) {
       result = await client
-        .from('project_submissions').select('*')
+        .from('project_submissions').select(PUBLIC_PROJECT_COLUMNS)
         .in('status', ['approved', 'Approved', 'APPROVED'])
         .order('id', { ascending: false }).limit(100);
     }
@@ -1508,7 +1516,8 @@ const handler_projects: H = async (req, res) => {
   if (!primaryKey) { sendError(res, 500, 'Server not configured'); return; }
   let supabase = makeClient(primaryKey);
   let result = await runQuery(supabase);
-  if ((result.error || (result.data && result.data.length === 0)) && fallbackKey) {
+  // Retry with the anon key only if the service key failed; an empty list is a valid answer.
+  if (result.error && fallbackKey) {
     supabase = makeClient(fallbackKey);
     result = await runQuery(supabase);
   }
@@ -1707,6 +1716,7 @@ const mapCallRow = (row: any, postedBy?: { fullName: string; email: string }) =>
   projectUrl: row.project_url ?? '', description: row.description ?? '',
   rolesNeeded: row.roles_needed ?? undefined, contact: row.contact ?? undefined,
   callType: row.call_type ?? 'people', location: row.location ?? undefined, neededBy: row.needed_by ?? undefined,
+  commitment: row.commitment ?? undefined, workMode: row.work_mode ?? undefined, goodFirst: row.good_first === true,
   status: row.status ?? 'open', createdAt: row.created_at, postedBy,
 });
 
@@ -1718,6 +1728,11 @@ const callExtrasFrom = (body: any) => {
   if (typeof body.location === 'string') out.location = body.location.trim().slice(0, 160) || null;
   const nb = typeof body.needed_by === 'string' ? body.needed_by : typeof body.neededBy === 'string' ? body.neededBy : undefined;
   if (nb !== undefined) out.needed_by = /^\d{4}-\d{2}-\d{2}$/.test(nb) ? nb : null;
+  if (typeof body.commitment === 'string') out.commitment = ['one-off', 'few-hours', 'weekly', 'ongoing'].includes(body.commitment) ? body.commitment : null;
+  const wm = typeof body.work_mode === 'string' ? body.work_mode : typeof body.workMode === 'string' ? body.workMode : undefined;
+  if (wm !== undefined) out.work_mode = ['remote', 'onsite', 'hybrid'].includes(wm) ? wm : null;
+  const gf = typeof body.good_first === 'boolean' ? body.good_first : typeof body.goodFirst === 'boolean' ? body.goodFirst : undefined;
+  if (gf !== undefined) out.good_first = gf;
   return out;
 };
 

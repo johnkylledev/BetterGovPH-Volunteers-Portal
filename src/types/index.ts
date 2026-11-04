@@ -22,6 +22,14 @@ export interface ProjectSubmission {
   projType?: string;
   status: ProjectSubmissionStatus;
   createdAt: string;
+  repoUrl?: string;
+  stage?: ProjectStage;
+  ownerType?: 'member' | 'org';
+  ownerName?: string;
+  /** Message from the reviewing admin, shown to the submitter. */
+  adminNote?: string;
+  reviewedAt?: string;
+  repo?: RepoStats | null;
   submittedBy?: {
     fullName: string;
     email: string;
@@ -36,6 +44,13 @@ export interface VolunteerCall {
   description: string;
   rolesNeeded?: string;
   contact?: string;
+  callType?: CallType;
+  location?: string;
+  neededBy?: string;
+  commitment?: 'one-off' | 'few-hours' | 'weekly' | 'ongoing';
+  workMode?: 'remote' | 'onsite' | 'hybrid';
+  /** Small, well-described task a newcomer can pick up. */
+  goodFirst?: boolean;
   status: VolunteerCallStatus;
   createdAt: string;
   postedBy?: {
@@ -51,6 +66,12 @@ export interface Project {
   url: string;
   projType?: string;
   createdAt?: string;
+  repoUrl?: string;
+  stage?: ProjectStage;
+  ownerName?: string;
+  repo?: RepoStats | null;
+  /** 'local' for portal projects (they have a team page); anything else comes from bettergov.ph */
+  source?: string;
 }
 
 export interface User {
@@ -79,4 +100,49 @@ export interface User {
   discordAvatar?: string;
   /** Optional profile links keyed by platform (youtube, github, …). Private to the member and admins. */
   links?: Partial<Record<'youtube' | 'tiktok' | 'facebook' | 'instagram' | 'x' | 'linkedin' | 'github' | 'portfolio', string>>;
+  /** Optional second role, e.g. a developer who also makes videos. */
+  secondarySpecialization?: string;
+  /** Listed in the public Volunteers directory. */
+  showInDirectory?: boolean;
+  /** Show the full name publicly instead of "John K****". */
+  showFullName?: boolean;
+  consentVersion?: string;
+  consentAt?: string;
+  consentPurposes?: string[];
+  deletionRequestedAt?: string;
+}
+
+export interface RepoStats {
+  slug: string; url: string; ok: boolean; error?: string;
+  description?: string | null; language?: string | null; stars?: number; forks?: number;
+  openIssues?: number; closedIssues?: number; openPrs?: number; mergedPrs?: number;
+  commits30d?: number; lastCommitAt?: string | null; lastCommitMessage?: string | null;
+  ci?: 'passing' | 'failing' | 'pending' | null; archived?: boolean; isPrivate?: boolean;
+  hasReadme?: boolean; license?: string | null;
+  release?: { tag: string; at: string } | null;
+  milestone?: { title: string; dueOn: string | null; percent: number } | null;
+  activity?: 'active' | 'quiet' | 'stale' | 'archived';
+  progress?: { percent: number; basis: 'milestone' | 'issues' } | null;
+  checks?: { key: string; label: string; ok: boolean }[];
+  checkedAt: string;
+}
+
+export type ProjectStage = 'idea' | 'building' | 'beta' | 'live';
+export type CallType = 'people' | 'venue' | 'equipment' | 'funding' | 'transport' | 'food' | 'printing' | 'other';
+
+export interface TeamPerson {
+  userId?: string; name: string; role: string | null; memberId: string | null; avatarUrl: string | null;
+  discordUsername?: string | null; skills?: string[];
+}
+export interface TeamInfo {
+  available: boolean;
+  project: { id: string; name: string; status: string; url: string; repoUrl: string | null; description: string; stage: ProjectStage | null; projType: string | null; repo?: RepoStats | null };
+  owner: { type: 'member' | 'org'; name: string; userId?: string } | null;
+  members: (TeamPerson & { isHead: boolean; teamRole: string | null })[];
+  me: { status: 'pending' | 'approved' | 'declined' | 'left' | null; isHead: boolean; canManage: boolean; approvedMember: boolean } | null;
+  requests?: { id: string; message: string; teamRole: string | null; createdAt: string; person: TeamPerson }[];
+}
+export interface MyTeam {
+  projectId: string; projectName: string; projectStatus: string; role: 'head' | 'member';
+  status: 'pending' | 'approved' | 'declined' | 'left'; teamRole: string | null; requestedAt: string; decidedAt: string | null;
 }
