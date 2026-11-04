@@ -15,10 +15,11 @@ interface Props {
   onImport: () => void;
   onExportRopa: () => void;
   ropaBusy: boolean;
+  onPostCall: () => void;
 }
 
 /** Admin home: what needs a decision first, then how the community is doing. */
-export const AdminOverview: React.FC<Props> = ({ onGo, onImport, onExportRopa, ropaBusy }) => {
+export const AdminOverview: React.FC<Props> = ({ onGo, onImport, onExportRopa, ropaBusy, onPostCall }) => {
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState('');
   const [erasing, setErasing] = useState<{ uid: string; name: string; email: string; typed: string; busy: boolean } | null>(null);
@@ -231,7 +232,7 @@ export const AdminOverview: React.FC<Props> = ({ onGo, onImport, onExportRopa, r
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={onImport} className="s-btn s-btn-plain"><Upload size={15} strokeWidth={1.75} />Import projects</button>
           <button type="button" onClick={onExportRopa} disabled={ropaBusy} className="s-btn s-btn-plain">{ropaBusy ? 'Preparing…' : 'Privacy records (ROPA)'}</button>
-          <Link to="/dashboard?tab=volunteer" className="s-btn s-btn-plain"><Megaphone size={15} strokeWidth={1.75} />Post a call</Link>
+          <button type="button" onClick={onPostCall} className="s-btn s-btn-plain"><Megaphone size={15} strokeWidth={1.75} />Post a call</button>
           <button type="button" onClick={() => onGo('calls')} className="s-btn s-btn-plain">Moderate calls</button>
         </div>
       </section>

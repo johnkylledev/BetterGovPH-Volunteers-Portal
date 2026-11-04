@@ -81,6 +81,7 @@ export default function AdminDashboard() {
   // Review dialog: the note goes back to the submitter (required when rejecting).
   const [review, setReview] = useState<{ id: string; name: string; action: 'approve' | 'reject'; note: string; error: string } | null>(null);
   const [ropaBusy, setRopaBusy] = useState(false);
+  const [postingCall, setPostingCall] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState('');
   const [importBusy, setImportBusy] = useState(false);
@@ -559,7 +560,8 @@ export default function AdminDashboard() {
         </div>
 
         {activeTab === 'overview' ? (
-          <AdminOverview onGo={setActiveTab} onImport={() => { setImportOpen(true); setImportResult(null); }} onExportRopa={exportRopa} ropaBusy={ropaBusy} />
+          <AdminOverview onGo={setActiveTab} onImport={() => { setImportOpen(true); setImportResult(null); }} onExportRopa={exportRopa} ropaBusy={ropaBusy}
+            onPostCall={() => { setPostingCall(true); setActiveTab('calls'); }} />
         ) : (
         <>
         {activeTab !== 'calls' && (
@@ -572,7 +574,7 @@ export default function AdminDashboard() {
 
         <div className="s-card overflow-hidden">
           {activeTab === 'calls' ? (
-            <AdminCalls />
+            <AdminCalls startPosting={postingCall} onPostingChange={setPostingCall} />
           ) : activeTab === 'applications' ? (
             <>
               <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4 sm:gap-6">

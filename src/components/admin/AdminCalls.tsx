@@ -8,15 +8,19 @@ import { callTypeOf } from '../../constants/community';
 import { CallMeta } from '../CallFields';
 import { InterestList } from '../CallInterest';
 import { timeAgo } from '../RepoHealth';
+import { PostCallForm } from '../PostCallForm';
 
 /** Admin moderation for calls and requests: every call, any status. */
-export const AdminCalls: React.FC = () => {
+export const AdminCalls: React.FC<{ startPosting?: boolean; onPostingChange?: (v: boolean) => void }> = ({ startPosting, onPostingChange }) => {
   const [filter, setFilter] = useState<'All' | 'open' | 'closed'>('open');
   const [calls, setCalls] = useState<VolunteerCall[] | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [openList, setOpenList] = useState<string | null>(null);
+  const [posting, setPostingState] = useState(!!startPosting);
+  const setPosting = (v: boolean) => { setPostingState(v); onPostingChange?.(v); };
+  useEffect(() => { if (startPosting) setPostingState(true); }, [startPosting]);
 
   const load = useCallback(async () => {
     setError('');
@@ -49,7 +53,7 @@ export const AdminCalls: React.FC = () => {
           <p className="mt-1 text-xs text-slate-500 sm:text-sm">Calls go live without approval. Close anything off-topic or out of date.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-        <Link to="/dashboard?tab=volunteer" className="s-btn s-btn-accent h-9 text-[13px]">Post a call</Link>
+        {!posting && <button type="button" onClick={() => setPosting(true)} className="s-btn s-btn-accent h-9 text-[13px]">Post a call</button>}
         <div className="flex gap-1 rounded-[10px] bg-slate-100 p-1">
           {(['open', 'closed', 'All'] as const).map((f) => (
             <button key={f} type="button" onClick={() => setFilter(f)}
@@ -60,6 +64,15 @@ export const AdminCalls: React.FC = () => {
         </div>
         </div>
       </div>
+
+      {posting && (
+        <div className="border-b border-slate-100 bg-slate-50/60 p-4 sm:p-6">
+          <div className="mx-auto max-w-2xl rounded-[14px] bg-white p-5 shadow-[0_0_0_1px_rgb(15_23_42/0.08),var(--e1)] sm:p-6">
+            <h3 className="mb-4 text-[16px] font-semibold text-slate-900">Post a call or request</h3>
+            <PostCallForm idPrefix="admin-call" onCancel={() => setPosting(false)} onPosted={() => { setPosting(false); setFilter('open'); load(); }} />
+          </div>
+        </div>
+      )}
 
       {calls === null ? (
         <p className="p-6 text-[14px] text-slate-500" role="status">Loading…</p>
