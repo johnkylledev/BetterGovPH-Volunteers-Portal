@@ -150,6 +150,12 @@ const mapUserRow = (row: any) => ({
   discordDisplayName: row.discord_display_name ?? undefined,
   discordAvatar: row.discord_avatar ?? undefined,
   links: row.links && typeof row.links === 'object' && !Array.isArray(row.links) ? row.links : {},
+  secondarySpecialization: row.secondary_specialization ?? undefined,
+  showInDirectory: row.show_in_directory !== false,
+  showFullName: row.show_full_name === true,
+  consentVersion: row.consent_version ?? undefined,
+  consentAt: row.consent_at ?? undefined,
+  consentPurposes: Array.isArray(row.consent_purposes) ? row.consent_purposes : [],
 });
 
 // Profile links (YouTube, GitHub, …): known platforms only, https URLs only, short. Private to the member and admins.
@@ -516,6 +522,439 @@ const assertAdmin = async (supabaseAdmin: any, uid: string, email?: string) => {
 
 type H = (req: any, res: any) => Promise<void>;
 
+// ============================================================================
+//  Privacy, consent, teams and repo tracking (migration 20261105000000)
+// ============================================================================
+
+/** Before a migration runs, Postgres/PostgREST reports the new column as missing; callers retry without it. */
+const isMissingColumnError = (err: any) =>
+  /column .* does not exist|could not find the .* column|schema cache|does not exist/i.test(String(err?.message || ''));
+const isMissingTableError = (err: any) =>
+  /relation .* does not exist|could not find the table|schema cache/i.test(String(err?.message || ''));
+
+/** "John Kylle Cruz" → "John K**** C****". Public pages never show a full name unless the member opts in. */
+/** Only http(s) links are stored — no javascript:, data: or other schemes that could run in a browser. */
+const safeHttpUrl = (raw: string): string => {
+  try {
+    const u = new URL(raw);
+    return (u.protocol === 'https:' || u.protocol === 'http:') && raw.length <= 500 ? u.toString() : '';
+  } catch { return ''; }
+};
+
+const redactName = (full: string) => {
+  const words = String(full || '').trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return 'Member';
+  const [first, ...rest] = words;
+  return [first, ...rest.map((w) => `${(Array.from(w)[0] || '').toUpperCase()}****`)].join(' ');
+};
+const publicNameOf = (row: any) =>
+  row?.show_full_name === true ? String(row.full_name || '').trim() || 'Member' : redactName(row?.full_name || '');
+
+const discordAvatarOf = (row: any, size = 96) =>
+  /^\d+$/.test(String(row?.discord_id ?? '')) && /^(a_)?[a-f0-9]+$/i.test(String(row?.discord_avatar ?? ''))
+    ? `https://cdn.discordapp.com/avatars/${row.discord_id}/${row.discord_avatar}.png?size=${size}`
+    : null;
+
+// ----- Data Privacy Act (RA 10173) consent ---------------------------------
+const CONSENT_VERSION = '2026-11-v1';
+const CONSENT_PURPOSES = ['membership', 'matching', 'directory', 'communications'] as const;
+const REQUIRED_PURPOSES = ['membership', 'matching'];
+
+const authCaller = async (req: any) => {
+  const { url, serviceKey } = getSupabaseConfig();
+  if (!url || !serviceKey) return { error: 'Server not configured' as const };
+  const supabase = createServiceClient(url, serviceKey);
+  const token = getBearerToken(req.headers?.authorization);
+  if (!token) return { supabase, uid: '', email: '' };
+  const { data } = await supabase.auth.getUser(token);
+  return { supabase, uid: data?.user?.id ? String(data.user.id) : '', email: data?.user?.email ? String(data.user.email) : '' };
+};
+
+// ----- GitHub repo tracker ---------------------------------------------------
+const parseGithubRepo = (raw: unknown): { owner: string; name: string } | null => {
+  if (typeof raw !== 'string') return null;
+  const m = raw.trim().match(/^(?:https?:\/\/)?(?:www\.)?github\.com\/([A-Za-z0-9-]{1,39})\/([A-Za-z0-9._-]{1,100}?)(?:\.git)?(?:[/?#].*)?$/i);
+  return m ? { owner: m[1], name: m[2] } : null;
+};
+
+interface RepoStats {
+  slug: string; url: string; ok: boolean; error?: string;
+  description?: string | null; language?: string | null; stars?: number; forks?: number;
+  openIssues?: number; closedIssues?: number; openPrs?: number; mergedPrs?: number;
+  commits30d?: number; lastCommitAt?: string | null; lastCommitMessage?: string | null;
+  ci?: 'passing' | 'failing' | 'pending' | null; archived?: boolean; isPrivate?: boolean;
+  hasReadme?: boolean; license?: string | null;
+  release?: { tag: string; at: string } | null;
+  milestone?: { title: string; dueOn: string | null; percent: number } | null;
+  /** Derived for the UI */
+  activity?: 'active' | 'quiet' | 'stale' | 'archived';
+  progress?: { percent: number; basis: 'milestone' | 'issues' } | null;
+  checks?: { key: string; label: string; ok: boolean }[];
+  checkedAt: string;
+}
+
+const deriveRepo = (s: RepoStats): RepoStats => {
+  if (!s.ok) return s;
+  const days = s.lastCommitAt ? (Date.now() - new Date(s.lastCommitAt).getTime()) / 86_400_000 : Infinity;
+  s.activity = s.archived ? 'archived' : days <= 14 ? 'active' : days <= 60 ? 'quiet' : 'stale';
+  const issuesTotal = (s.openIssues ?? 0) + (s.closedIssues ?? 0);
+  s.progress = s.milestone
+    ? { percent: Math.round(s.milestone.percent), basis: 'milestone' }
+    : issuesTotal > 0 ? { percent: Math.round(((s.closedIssues ?? 0) / issuesTotal) * 100), basis: 'issues' } : null;
+  s.checks = [
+    { key: 'public', label: 'Public repository', ok: !s.isPrivate },
+    { key: 'readme', label: 'Has a README', ok: !!s.hasReadme },
+    { key: 'license', label: 'Has an open-source license', ok: !!s.license },
+    { key: 'recent', label: 'Commits in the last 60 days', ok: days <= 60 },
+    { key: 'ci', label: 'Checks passing on the main branch', ok: s.ci === 'passing' || s.ci === null },
+  ];
+  return s;
+};
+
+const REPO_GQL = `query($owner:String!,$name:String!,$since:GitTimestamp!){
+  repository(owner:$owner,name:$name){
+    description isArchived isPrivate stargazerCount forkCount url
+    primaryLanguage{name} licenseInfo{spdxId}
+    openIssues:issues(states:OPEN){totalCount} closedIssues:issues(states:CLOSED){totalCount}
+    openPrs:pullRequests(states:OPEN){totalCount} mergedPrs:pullRequests(states:MERGED){totalCount}
+    readme:object(expression:"HEAD:README.md"){id} readmeLower:object(expression:"HEAD:readme.md"){id}
+    latestRelease{tagName publishedAt}
+    milestones(states:OPEN,first:1,orderBy:{field:DUE_DATE,direction:ASC}){nodes{title dueOn progressPercentage}}
+    defaultBranchRef{target{... on Commit{committedDate messageHeadline statusCheckRollup{state} history(since:$since){totalCount}}}}
+  }
+}`;
+
+const fetchRepoStats = async (repoUrl: string): Promise<RepoStats> => {
+  const parsed = parseGithubRepo(repoUrl);
+  const checkedAt = new Date().toISOString();
+  if (!parsed) return { slug: '', url: repoUrl, ok: false, error: 'Not a GitHub repository link (github.com/owner/repo).', checkedAt };
+  const slug = `${parsed.owner}/${parsed.name}`;
+  const url = `https://github.com/${slug}`;
+  const token = process.env.GITHUB_TOKEN ?? '';
+  try {
+    if (token) {
+      const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
+      const gql = await ghGql(token, REPO_GQL, { owner: parsed.owner, name: parsed.name, since });
+      const r = gql?.data?.repository;
+      if (!r) return { slug, url, ok: false, error: 'Repository not found, or it is private.', checkedAt };
+      const head = r.defaultBranchRef?.target;
+      const rollup = String(head?.statusCheckRollup?.state || '').toUpperCase();
+      const ms = r.milestones?.nodes?.[0];
+      return deriveRepo({
+        slug, url: r.url || url, ok: true, checkedAt,
+        description: r.description ?? null, language: r.primaryLanguage?.name ?? null,
+        stars: r.stargazerCount ?? 0, forks: r.forkCount ?? 0,
+        openIssues: r.openIssues?.totalCount ?? 0, closedIssues: r.closedIssues?.totalCount ?? 0,
+        openPrs: r.openPrs?.totalCount ?? 0, mergedPrs: r.mergedPrs?.totalCount ?? 0,
+        commits30d: head?.history?.totalCount ?? 0,
+        lastCommitAt: head?.committedDate ?? null, lastCommitMessage: head?.messageHeadline ?? null,
+        ci: rollup === 'SUCCESS' ? 'passing' : rollup === 'FAILURE' || rollup === 'ERROR' ? 'failing' : rollup ? 'pending' : null,
+        archived: !!r.isArchived, isPrivate: !!r.isPrivate,
+        hasReadme: !!(r.readme?.id || r.readmeLower?.id), license: r.licenseInfo?.spdxId ?? null,
+        release: r.latestRelease ? { tag: r.latestRelease.tagName, at: r.latestRelease.publishedAt } : null,
+        milestone: ms ? { title: ms.title, dueOn: ms.dueOn ?? null, percent: Number(ms.progressPercentage) || 0 } : null,
+      });
+    }
+    // No token: the public REST API still answers the basics (60 requests/hour per IP).
+    const resp = await fetch(`https://api.github.com/repos/${slug}`, { headers: { Accept: 'application/vnd.github+json' } });
+    if (resp.status === 404) return { slug, url, ok: false, error: 'Repository not found, or it is private.', checkedAt };
+    if (!resp.ok) return { slug, url, ok: false, error: `GitHub answered ${resp.status}. Try again later.`, checkedAt };
+    const r: any = await resp.json();
+    return deriveRepo({
+      slug, url: r.html_url || url, ok: true, checkedAt,
+      description: r.description ?? null, language: r.language ?? null,
+      stars: r.stargazers_count ?? 0, forks: r.forks_count ?? 0, openIssues: r.open_issues_count ?? 0,
+      lastCommitAt: r.pushed_at ?? null, archived: !!r.archived, isPrivate: !!r.private,
+      hasReadme: true, license: r.license?.spdx_id ?? null, ci: null,
+    });
+  } catch {
+    return { slug, url, ok: false, error: 'Couldn’t reach GitHub. Try again in a minute.', checkedAt };
+  }
+};
+
+const REPO_STALE_MS = 6 * 60 * 60 * 1000;
+
+/** Refreshes and stores stats for a project row. Silently does nothing before the migration runs. */
+const refreshProjectRepo = async (supabase: any, row: any): Promise<RepoStats | null> => {
+  const repoUrl = row?.repo_url || (parseGithubRepo(row?.project_url) ? row.project_url : '');
+  if (!repoUrl) return null;
+  const stats = await fetchRepoStats(repoUrl);
+  try {
+    await supabase.from('project_submissions')
+      .update({ repo_stats: stats, repo_checked_at: stats.checkedAt, ...(row.repo_url ? {} : { repo_url: repoUrl }) })
+      .eq('id', row.id);
+  } catch { /* column missing until migration */ }
+  return stats;
+};
+
+// ---------- /repo-tracker ----------------------------------------------------
+// GET ?url=…          live check for the submit form (signed-in members only)
+// GET ?ids=1,2,3      stored stats for approved projects; refreshes a few stale ones per call
+const handler_repo_tracker: H = async (req, res) => {
+  if (req.method !== 'GET') { sendError(res, 405, 'Method not allowed'); return; }
+  const caller = await authCaller(req);
+  if ('error' in caller) { sendError(res, 500, caller.error); return; }
+  const { supabase, uid } = caller;
+  const url = getStringParam(req.query?.url);
+  if (url) {
+    if (!uid) { sendError(res, 401, 'Sign in to check a repository'); return; }
+    sendJson(res, 200, { repo: await fetchRepoStats(url) });
+    return;
+  }
+  const ids = (getStringParam(req.query?.ids) || '').split(',').map((s) => s.trim()).filter(Boolean).slice(0, 60);
+  if (!ids.length) { sendJson(res, 200, { repos: {} }); return; }
+  const { data, error } = await supabase.from('project_submissions').select('*').in('id', ids);
+  if (error) { sendJson(res, 200, { repos: {} }); return; }
+  const rows = (data ?? []).filter((r: any) => String(r.status || '').toLowerCase() === 'approved');
+  const out: Record<string, RepoStats | null> = {};
+  let refreshBudget = 3; // keep well inside the 10 s function limit
+  for (const r of rows) {
+    const stale = !r.repo_checked_at || Date.now() - new Date(r.repo_checked_at).getTime() > REPO_STALE_MS;
+    if (stale && refreshBudget > 0 && (r.repo_url || parseGithubRepo(r.project_url))) {
+      refreshBudget--;
+      out[String(r.id)] = await refreshProjectRepo(supabase, r);
+    } else {
+      out[String(r.id)] = r.repo_stats ?? null;
+    }
+  }
+  res.setHeader('Cache-Control', 'public, max-age=300');
+  sendJson(res, 200, { repos: out });
+};
+
+// ---------- /cron/repo-sync (Vercel Cron, daily) ----------------------------
+const handler_cron_repo_sync: H = async (req, res) => {
+  const secret = process.env.CRON_SECRET || '';
+  if (!secret || getBearerToken(req.headers?.authorization) !== secret) { sendError(res, 401, 'Unauthorized'); return; }
+  const { url, serviceKey } = getSupabaseConfig();
+  if (!url || !serviceKey) { sendError(res, 500, 'Server not configured'); return; }
+  const supabase = createServiceClient(url, serviceKey);
+  const { data, error } = await supabase.from('project_submissions').select('*')
+    .in('status', ['approved', 'Approved', 'APPROVED'])
+    .order('repo_checked_at', { ascending: true, nullsFirst: true }).limit(12);
+  if (error) { sendError(res, 500, 'Failed to load projects'); return; }
+  let refreshed = 0;
+  const started = Date.now();
+  for (const r of data ?? []) {
+    if (Date.now() - started > 8000) break;
+    if (await refreshProjectRepo(supabase, r)) refreshed++;
+  }
+  try { await invalidateCache('cache:projects:approved'); await invalidateCache('cache:projects:approved:merged'); } catch { /* noop */ }
+  sendJson(res, 200, { refreshed });
+};
+
+// ---------- /teams -----------------------------------------------------------
+const TEAM_STATUSES = ['pending', 'approved', 'declined', 'left'];
+
+const handler_teams: H = async (req, res) => {
+  if (req.method !== 'GET' && req.method !== 'POST') { sendError(res, 405, 'Method not allowed'); return; }
+  const caller = await authCaller(req);
+  if ('error' in caller) { sendError(res, 500, caller.error); return; }
+  const { supabase, uid } = caller;
+  const { data: me } = uid ? await supabase.from('users').select('*').eq('uid', uid).maybeSingle() : { data: null };
+  const isAdmin = !!me?.is_admin;
+
+  const loadProject = async (projectId: string) => {
+    const { data } = await supabase.from('project_submissions').select('*').eq('id', projectId).maybeSingle();
+    return data ?? null;
+  };
+  const loadTeam = async (projectId: string) => {
+    const { data, error } = await supabase.from('team_members').select('*').eq('project_id', String(projectId));
+    if (error) return { rows: [] as any[], missing: isMissingTableError(error) };
+    return { rows: data ?? [], missing: false };
+  };
+  const headIdOf = (project: any, rows: any[]) =>
+    rows.find((r) => r.role === 'head' && r.status === 'approved')?.user_id || project?.team_head_id || project?.user_id || null;
+
+  if (req.method === 'GET') {
+    // My teams and requests (dashboard)
+    if (getStringParam(req.query?.mine)) {
+      if (!uid) { sendError(res, 401, 'Sign in first'); return; }
+      const { data: mine, error } = await supabase.from('team_members').select('*').eq('user_id', uid);
+      if (error) { sendJson(res, 200, { teams: [], pendingForMe: 0, available: !isMissingTableError(error) }); return; }
+      const projectIds = Array.from(new Set((mine ?? []).map((m: any) => m.project_id)));
+      const { data: projects } = projectIds.length
+        ? await supabase.from('project_submissions').select('*').in('id', projectIds)
+        : { data: [] as any[] };
+      const byId = new Map((projects ?? []).map((p: any) => [String(p.id), p]));
+      const headOf = (mine ?? []).filter((m: any) => m.role === 'head' && m.status === 'approved').map((m: any) => m.project_id);
+      const { count: pendingForMe } = headOf.length
+        ? await supabase.from('team_members').select('*', { count: 'exact', head: true }).in('project_id', headOf).eq('status', 'pending')
+        : { count: 0 };
+      sendJson(res, 200, {
+        available: true,
+        pendingForMe: pendingForMe ?? 0,
+        teams: (mine ?? []).filter((m: any) => m.status !== 'left').map((m: any) => {
+          const p: any = byId.get(String(m.project_id));
+          return {
+            projectId: m.project_id, projectName: p?.project_name ?? p?.title ?? 'Project',
+            projectStatus: p?.status ?? 'pending', role: m.role, status: m.status, teamRole: m.team_role ?? null,
+            requestedAt: m.created_at, decidedAt: m.decided_at ?? null,
+          };
+        }),
+      });
+      return;
+    }
+
+    const projectId = getStringParam(req.query?.project);
+    if (!projectId) { sendError(res, 400, 'project is required'); return; }
+    const project = await loadProject(projectId);
+    if (!project) { sendError(res, 404, 'Project not found'); return; }
+    const approvedProject = String(project.status || '').toLowerCase() === 'approved';
+    const { rows, missing } = await loadTeam(projectId);
+    const headId = headIdOf(project, rows);
+    const canManage = !!uid && (uid === headId || isAdmin);
+    if (!approvedProject && !canManage && project.user_id !== uid) { sendError(res, 404, 'Project not found'); return; }
+
+    const userIds = Array.from(new Set([...rows.map((r: any) => r.user_id), headId, project.owner_user_id].filter(Boolean)));
+    const { data: users } = userIds.length ? await supabase.from('users').select('*').in('uid', userIds) : { data: [] as any[] };
+    const userById = new Map((users ?? []).map((u: any) => [String(u.uid), u]));
+    // Team pages are public: names are redacted unless the member opted in, except for the head/admins.
+    const personOf = (userId: string, full = false) => {
+      const u: any = userById.get(String(userId));
+      return {
+        userId: canManage || full ? userId : undefined,
+        name: u ? (canManage || full ? String(u.full_name || '').trim() || 'Member' : publicNameOf(u)) : 'Member',
+        role: u?.specialization || null,
+        memberId: u?.member_id || null,
+        avatarUrl: discordAvatarOf(u),
+        discordUsername: canManage ? u?.discord_username || null : undefined,
+        skills: canManage && Array.isArray(u?.skills) ? u.skills.slice(0, 6).map((s: any) => s?.name).filter(Boolean) : undefined,
+      };
+    };
+    const members = rows.filter((r: any) => r.status === 'approved');
+    if (headId && !members.some((m: any) => m.user_id === headId)) members.unshift({ user_id: headId, role: 'head', status: 'approved' });
+    const mine = uid ? rows.find((r: any) => r.user_id === uid) : null;
+    const ownerUser: any = project.owner_user_id ? userById.get(String(project.owner_user_id)) : null;
+
+    sendJson(res, 200, {
+      available: !missing,
+      project: {
+        id: project.id, name: project.project_name ?? project.title ?? '', status: project.status ?? 'pending',
+        url: normalizeUrl(project.project_url ?? project.url ?? ''), repoUrl: project.repo_url ?? null,
+        description: project.description ?? '', stage: project.stage ?? null, projType: project.proj_type ?? null,
+      },
+      owner: project.owner_type === 'member' && ownerUser
+        ? { type: 'member', name: canManage ? ownerUser.full_name : publicNameOf(ownerUser), userId: canManage ? ownerUser.uid : undefined }
+        : project.owner_name ? { type: project.owner_type || 'org', name: project.owner_name } : null,
+      members: members.map((m: any) => ({ ...personOf(m.user_id), isHead: m.user_id === headId, teamRole: m.team_role ?? null })),
+      me: uid ? { status: mine?.status ?? (uid === headId ? 'approved' : null), isHead: uid === headId, canManage,
+        approvedMember: String(me?.status || '').toLowerCase() === 'approved' || isAdmin } : null,
+      requests: canManage
+        ? rows.filter((r: any) => r.status === 'pending').map((r: any) => ({
+            id: r.id, message: r.message ?? '', teamRole: r.team_role ?? null, createdAt: r.created_at, person: personOf(r.user_id, true),
+          }))
+        : undefined,
+    });
+    return;
+  }
+
+  // ----- POST actions -----
+  if (!uid) { sendError(res, 401, 'Sign in first'); return; }
+  const body = getBody(req);
+  const action = typeof body.action === 'string' ? body.action : '';
+  const projectId = typeof body.projectId === 'string' || typeof body.projectId === 'number' ? String(body.projectId) : '';
+  if (!projectId) { sendError(res, 400, 'projectId is required'); return; }
+  const project = await loadProject(projectId);
+  if (!project) { sendError(res, 404, 'Project not found'); return; }
+  const { rows, missing } = await loadTeam(projectId);
+  if (missing) { sendError(res, 503, 'Teams aren’t switched on yet. An admin needs to run the latest database migration.'); return; }
+  const headId = headIdOf(project, rows);
+  const canManage = uid === headId || isAdmin;
+  const now = new Date().toISOString();
+
+  if (action === 'join') {
+    if (String(project.status || '').toLowerCase() !== 'approved') { sendError(res, 400, 'This project isn’t open for joining yet.'); return; }
+    if (!isAdmin && String(me?.status || '').toLowerCase() !== 'approved') { sendError(res, 403, 'You can join teams once your membership is approved.'); return; }
+    if (uid === headId) { sendError(res, 400, 'You already lead this team.'); return; }
+    const existing = rows.find((r: any) => r.user_id === uid);
+    if (existing?.status === 'approved') { sendError(res, 400, 'You’re already on this team.'); return; }
+    if (existing?.status === 'pending') { sendError(res, 400, 'Your request is already waiting for the team head.'); return; }
+    const payload = {
+      project_id: projectId, user_id: uid, role: 'member', status: 'pending',
+      message: typeof body.message === 'string' ? body.message.trim().slice(0, 500) || null : null,
+      team_role: typeof body.teamRole === 'string' ? body.teamRole.trim().slice(0, 80) || null : null,
+      created_at: now, decided_at: null,
+    };
+    const { error } = existing
+      ? await supabase.from('team_members').update(payload).eq('id', existing.id)
+      : await supabase.from('team_members').insert(payload);
+    if (error) { sendError(res, 500, 'Couldn’t send your request'); return; }
+    sendJson(res, 200, { status: 'pending' });
+    return;
+  }
+
+  if (action === 'cancel' || action === 'leave') {
+    if (uid === headId) { sendError(res, 400, 'Hand the team head role to someone else before leaving.'); return; }
+    const existing = rows.find((r: any) => r.user_id === uid);
+    if (!existing) { sendError(res, 404, 'You’re not on this team'); return; }
+    const { error } = await supabase.from('team_members').update({ status: 'left', decided_at: now }).eq('id', existing.id);
+    if (error) { sendError(res, 500, 'Couldn’t update your membership'); return; }
+    sendJson(res, 200, { status: 'left' });
+    return;
+  }
+
+  if (!canManage) { sendError(res, 403, 'Only the team head or an admin can do that.'); return; }
+
+  if (action === 'decide') {
+    const requestId = typeof body.requestId === 'string' ? body.requestId : '';
+    const decision = body.decision === 'approve' ? 'approved' : body.decision === 'decline' ? 'declined' : '';
+    const target = rows.find((r: any) => r.id === requestId);
+    if (!target || !decision) { sendError(res, 400, 'requestId and decision (approve|decline) are required'); return; }
+    const { error } = await supabase.from('team_members').update({ status: decision, decided_at: now }).eq('id', requestId);
+    if (error) { sendError(res, 500, 'Couldn’t save the decision'); return; }
+    sendJson(res, 200, { status: decision });
+    return;
+  }
+
+  if (action === 'remove') {
+    const userId = typeof body.userId === 'string' ? body.userId : '';
+    if (!userId || userId === headId) { sendError(res, 400, 'Pick a member to remove (not the head).'); return; }
+    const { error } = await supabase.from('team_members').update({ status: 'left', decided_at: now }).eq('project_id', projectId).eq('user_id', userId);
+    if (error) { sendError(res, 500, 'Couldn’t remove that member'); return; }
+    sendJson(res, 200, { status: 'left' });
+    return;
+  }
+
+  if (action === 'transfer-head') {
+    const userId = typeof body.userId === 'string' ? body.userId : '';
+    const target = rows.find((r: any) => r.user_id === userId && r.status === 'approved');
+    if (!target) { sendError(res, 400, 'The new head must already be on the team.'); return; }
+    await supabase.from('team_members').update({ role: 'member' }).eq('project_id', projectId).eq('role', 'head');
+    if (headId && !rows.some((r: any) => r.user_id === headId)) {
+      await supabase.from('team_members').insert({ project_id: projectId, user_id: headId, role: 'member', status: 'approved', decided_at: now });
+    }
+    const { error } = await supabase.from('team_members').update({ role: 'head' }).eq('id', target.id);
+    if (error) { sendError(res, 500, 'Couldn’t hand over the head role'); return; }
+    try { await supabase.from('project_submissions').update({ team_head_id: userId }).eq('id', projectId); } catch { /* noop */ }
+    sendJson(res, 200, { headId: userId });
+    return;
+  }
+
+  if (action === 'set-owner') {
+    const ownerType = body.ownerType === 'member' ? 'member' : body.ownerType === 'org' ? 'org' : '';
+    if (!ownerType) { sendError(res, 400, 'ownerType must be member or org'); return; }
+    const update: Record<string, any> = { owner_type: ownerType };
+    if (ownerType === 'member') {
+      const userId = typeof body.ownerUserId === 'string' ? body.ownerUserId : '';
+      const onTeam = userId === headId || rows.some((r: any) => r.user_id === userId && r.status === 'approved');
+      if (!onTeam) { sendError(res, 400, 'Pick an owner from the team.'); return; }
+      update.owner_user_id = userId; update.owner_name = null;
+    } else {
+      const name = typeof body.ownerName === 'string' ? body.ownerName.trim().slice(0, 120) : '';
+      if (!name) { sendError(res, 400, 'Enter the organisation or agency name.'); return; }
+      update.owner_name = name; update.owner_user_id = null;
+    }
+    const { error } = await supabase.from('project_submissions').update(update).eq('id', projectId);
+    if (error) { sendError(res, isMissingColumnError(error) ? 503 : 500, 'Couldn’t save the owner'); return; }
+    try { await invalidateCache('cache:projects:approved'); await invalidateCache('cache:projects:approved:merged'); } catch { /* noop */ }
+    sendJson(res, 200, { owner: update });
+    return;
+  }
+
+  sendError(res, 400, `Unknown action. Use one of: join, cancel, leave, decide, remove, transfer-head, set-owner (statuses: ${TEAM_STATUSES.join(', ')})`);
+};
+
+
 // ---------- /me (api/_handlers/me.ts) ---------------------------------------
 const handler_me: H = async (req, res) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -561,6 +1000,11 @@ const handler_me: H = async (req, res) => {
   if (typeof body.experienceLevel === 'string') updates.experience_level = body.experienceLevel.trim().slice(0, 50);
   const links = sanitizeLinks(body.links);
   if (links) updates.links = links;
+  if (typeof body.secondarySpecialization === 'string') {
+    updates.secondary_specialization = body.secondarySpecialization.trim().slice(0, 100) || null;
+  }
+  if (typeof body.showInDirectory === 'boolean') updates.show_in_directory = body.showInDirectory;
+  if (typeof body.showFullName === 'boolean') updates.show_full_name = body.showFullName;
   updates.auth_provider = 'google';
 
   if (typeof updates.discord_username === 'string' && updates.discord_username.trim()) {
@@ -573,18 +1017,60 @@ const handler_me: H = async (req, res) => {
   }
 
   const { data: existingUser } = await supabase.from('users').select('*').eq('uid', uid).maybeSingle();
+
+  // Data Privacy Act consent. Every change is also written to consent_log (the ROPA evidence trail).
+  let consentEvent: { action: 'granted' | 'updated' | 'withdrawn'; purposes: string[] } | null = null;
+  const nowIso = new Date().toISOString();
+  if (body.consent && typeof body.consent === 'object') {
+    if (body.consent.withdraw === true) {
+      updates.consent_at = null; updates.consent_purposes = []; updates.show_in_directory = false; updates.show_full_name = false;
+      consentEvent = { action: 'withdrawn', purposes: [] };
+    } else {
+      const purposes: string[] = Array.isArray(body.consent.purposes)
+        ? Array.from(new Set(body.consent.purposes.filter((p: unknown) => typeof p === 'string' && (CONSENT_PURPOSES as readonly string[]).includes(p as string))))
+        : [];
+      if (!REQUIRED_PURPOSES.every((p) => purposes.includes(p))) {
+        sendError(res, 400, 'Consent to membership and project matching is needed to join.');
+        return;
+      }
+      updates.consent_version = CONSENT_VERSION; updates.consent_at = nowIso; updates.consent_purposes = purposes;
+      updates.show_in_directory = purposes.includes('directory');
+      consentEvent = { action: existingUser?.consent_at ? 'updated' : 'granted', purposes };
+    }
+  } else if (typeof body.showInDirectory === 'boolean' && existingUser?.consent_at) {
+    // The directory switch is the "directory" purpose; keep the consent record in step with it.
+    const current: string[] = Array.isArray(existingUser.consent_purposes) ? existingUser.consent_purposes : [];
+    const next = body.showInDirectory ? Array.from(new Set([...current, 'directory'])) : current.filter((p) => p !== 'directory');
+    if (next.length !== current.length) {
+      updates.consent_purposes = next; updates.consent_version = CONSENT_VERSION; updates.consent_at = nowIso;
+      consentEvent = { action: 'updated', purposes: next };
+    }
+  }
+
   // The name on an approved member's Volunteer Card is what /verify vouches for; only admins change it.
   if (existingUser && String(existingUser.status || '').toLowerCase() === 'approved') delete updates.full_name;
   if (existingUser) {
     let { data: updatedRows, error: updateError } = await supabase
       .from('users').update(updates).eq('uid', uid).select('*');
-    // Before the `links` column migration runs, save everything else instead of failing the whole profile.
-    if (updateError && 'links' in updates && String(updateError.message || '').toLowerCase().includes('links')) {
-      delete updates.links;
+    // Before a migration runs, save everything else instead of failing the whole profile.
+    if (updateError && isMissingColumnError(updateError)) {
+      for (const k of ['links', 'secondary_specialization', 'show_in_directory', 'show_full_name', 'consent_version', 'consent_at', 'consent_purposes']) delete updates[k];
+      consentEvent = null;
       ({ data: updatedRows, error: updateError } = await supabase.from('users').update(updates).eq('uid', uid).select('*'));
     }
     if (updateError) { sendError(res, 500, 'Failed to update profile'); return; }
     const updated = Array.isArray(updatedRows) ? updatedRows[0] : null;
+    if (consentEvent) {
+      try {
+        await supabase.from('consent_log').insert({
+          user_id: uid, action: consentEvent.action, consent_version: CONSENT_VERSION, purposes: consentEvent.purposes,
+          user_agent: String(req.headers?.['user-agent'] || '').slice(0, 300) || null,
+        });
+      } catch { /* table missing until migration */ }
+    }
+    if (consentEvent || 'show_in_directory' in updates || 'show_full_name' in updates) {
+      try { await invalidateCache('cache:volunteers:directory:v2'); } catch { /* noop */ }
+    }
     if (updated) { sendJson(res, 200, { user: mapUserRow(updated) }); return; }
   }
   const now = new Date().toISOString();
@@ -608,12 +1094,19 @@ const handler_me: H = async (req, res) => {
 };
 
 // ---------- /admin (api/_handlers/admin.ts) ----------------------------------
+const projectExtrasOf = (row: any) => ({
+  repoUrl: row.repo_url ?? undefined, stage: row.stage ?? undefined,
+  ownerType: row.owner_type ?? undefined, ownerName: row.owner_name ?? undefined,
+  adminNote: row.admin_note ?? undefined, reviewedAt: row.reviewed_at ?? undefined,
+  repo: row.repo_stats ?? undefined,
+});
 const mapSubmissionRow = (row: any, submittedBy?: { fullName: string; email: string }) => ({
   id: row.id, userId: row.user_id,
   projectName: row.project_name ?? '', projectUrl: row.project_url ?? '',
   description: row.description ?? '',
   projType: row.proj_type ?? row.tech_stack ?? undefined,
   status: row.status ?? 'pending', createdAt: row.created_at, submittedBy,
+  ...projectExtrasOf(row),
 });
 
 const handler_admin: H = async (req, res) => {
@@ -674,7 +1167,7 @@ const handler_admin: H = async (req, res) => {
     }
     if (roleFilter && roleFilter !== 'All') query = query.eq('specialization', roleFilter);
     if (searchRaw && searchRaw.trim()) {
-      const safe = searchRaw.trim().replace(/[%_]/g, '').slice(0, 64);
+      const safe = searchRaw.trim().replace(/[%_,()*:"\\]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 64);
       const search = `%${safe}%`;
       query = query.or(`full_name.ilike.${search},email.ilike.${search},discord_username.ilike.${search},member_id.ilike.${search}`);
     }
@@ -782,15 +1275,23 @@ const handler_admin: H = async (req, res) => {
       try { await invalidateCache('cache:projects:approved'); await invalidateCache('cache:admin:stats'); }
       catch { /* noop */ }
     };
+    const note = typeof body.note === 'string' ? body.note.trim().slice(0, 1000) : '';
+    const reviewFields = { admin_note: note || null, reviewed_at: new Date().toISOString() };
+    const updateWithReview = async (fields: Record<string, any>) => {
+      let r = await adminSup.from('project_submissions').update({ ...fields, ...reviewFields }).eq('id', id);
+      if (r.error && isMissingColumnError(r.error)) r = await adminSup.from('project_submissions').update(fields).eq('id', id);
+      return r;
+    };
     if (action === 'approve') {
-      const { error: approveError } = await adminSup.from('project_submissions').update({ status: 'approved' }).eq('id', id);
+      const { error: approveError } = await updateWithReview({ status: 'approved' });
       if (approveError) { sendError(res, 500, 'Failed to approve submission'); return; }
       await invalidateProjectCache();
       sendJson(res, 200, { message: 'Approved submission' });
       return;
     }
     if (action === 'reject') {
-      const { error: rejectError } = await adminSup.from('project_submissions').update({ status: 'rejected' }).eq('id', id);
+      if (!note) { sendError(res, 400, 'Add a short note so the submitter knows what to change.'); return; }
+      const { error: rejectError } = await updateWithReview({ status: 'rejected' });
       if (rejectError) { sendError(res, 500, 'Failed to reject submission'); return; }
       await invalidateProjectCache();
       sendJson(res, 200, { message: 'Rejected submission' });
@@ -802,6 +1303,9 @@ const handler_admin: H = async (req, res) => {
       if (typeof body.project_url === 'string') updateFields.project_url = body.project_url.trim();
       if (typeof body.description === 'string') updateFields.description = body.description.trim();
       if (typeof body.proj_type === 'string') updateFields.proj_type = body.proj_type.trim();
+      if (typeof body.repo_url === 'string') updateFields.repo_url = body.repo_url.trim() || null;
+      if (typeof body.stage === 'string') updateFields.stage = body.stage.trim() || null;
+      if (typeof body.admin_note === 'string') updateFields.admin_note = body.admin_note.trim() || null;
       if (typeof body.status === 'string' && ['pending', 'approved', 'rejected'].includes(body.status)) {
         updateFields.status = body.status;
       }
@@ -832,6 +1336,29 @@ const handler_admin: H = async (req, res) => {
     return;
   }
 
+  if (req.method === 'GET' && resource === 'consent') {
+    if (!supabaseUrl || !serviceRoleKey) { sendError(res, 500, 'Server not configured'); return; }
+    const token = getBearerToken(req.headers?.authorization);
+    if (!token) { sendError(res, 401, 'Missing Authorization bearer token'); return; }
+    const adminSup = createServiceClient(supabaseUrl, serviceRoleKey);
+    const { data: authData, error: authError } = await adminSup.auth.getUser(token);
+    const callerUid = authData?.user?.id ? String(authData.user.id) : '';
+    if (authError || !callerUid) { sendError(res, 401, 'Invalid token'); return; }
+    const adminCheck = await assertAdmin(adminSup, callerUid, authData?.user?.email ?? undefined);
+    if (!adminCheck.ok) { sendError(res, 403, adminCheck.error); return; }
+    const { data: users, error: usersError } = await adminSup.from('users')
+      .select('uid, full_name, email, member_id, status, created_at, consent_version, consent_at, consent_purposes, show_in_directory, show_full_name')
+      .eq('is_admin', false).not('full_name', 'eq', '').order('created_at', { ascending: true }).limit(5000);
+    if (usersError) {
+      sendError(res, isMissingColumnError(usersError) ? 503 : 500,
+        isMissingColumnError(usersError) ? 'Run the 20261105 migration to start recording consent.' : 'Failed to load consent records');
+      return;
+    }
+    const { data: log } = await adminSup.from('consent_log').select('*').order('created_at', { ascending: false }).limit(5000);
+    sendJson(res, 200, { version: CONSENT_VERSION, members: users ?? [], log: log ?? [] });
+    return;
+  }
+
   sendError(res, 400, 'Unknown resource or method');
 };
 
@@ -841,6 +1368,9 @@ const mapProjectRow = (row: any) => ({
   description: row.description ?? '', url: normalizeUrl(row.project_url ?? row.url ?? ''),
   projType: row.proj_type ?? row.tech_stack ?? undefined,
   createdAt: row.created_at ?? undefined,
+  repoUrl: row.repo_url ?? undefined, stage: row.stage ?? undefined,
+  ownerName: row.owner_type === 'org' ? row.owner_name ?? undefined : undefined,
+  repo: row.repo_stats ?? undefined,
 });
 
 // ---------- /projects --------------------------------------------------------
@@ -1046,7 +1576,7 @@ const handler_submit_project: H = async (req, res) => {
     typeof body.project_url === 'string' && body.project_url.trim() ? body.project_url.trim() :
     typeof body.projectUrl === 'string' && body.projectUrl.trim() ? body.projectUrl.trim() :
     typeof body.url === 'string' && body.url.trim() ? body.url.trim() : '';
-  const description = typeof body.description === 'string' ? body.description.trim() : '';
+  const description = typeof body.description === 'string' ? body.description.trim().slice(0, 4000) : '';
   const projTypeRaw =
     typeof body.proj_type === 'string' ? body.proj_type :
     typeof body.projType === 'string' ? body.projType :
@@ -1057,11 +1587,37 @@ const handler_submit_project: H = async (req, res) => {
     sendError(res, 400, 'project_name, project_url, and description are required');
     return;
   }
+  if (projectName.length > 160) { sendError(res, 400, 'Keep the project name under 160 characters.'); return; }
+  if (!safeHttpUrl(projectUrl)) { sendError(res, 400, 'Use a full web link (https://…) for the project.'); return; }
+  // Repo: given explicitly, or the main link if that is already a GitHub repo. Must exist and be public.
+  const repoRaw = typeof body.repo_url === 'string' ? body.repo_url.trim() : typeof body.repoUrl === 'string' ? body.repoUrl.trim() : '';
+  const repoUrl = repoRaw || (parseGithubRepo(projectUrl) ? projectUrl : '');
+  let repoStats: RepoStats | null = null;
+  if (repoUrl) {
+    repoStats = await fetchRepoStats(repoUrl);
+    if (!repoStats.ok) { sendError(res, 400, repoStats.error || 'Couldn’t read that repository.'); return; }
+  }
+  const STAGES = ['idea', 'building', 'beta', 'live'];
+  const stage = typeof body.stage === 'string' && STAGES.includes(body.stage) ? body.stage : null;
+  const ownerType = body.owner_type === 'org' || body.ownerType === 'org' ? 'org' : 'member';
+  const ownerNameRaw = typeof body.owner_name === 'string' ? body.owner_name : typeof body.ownerName === 'string' ? body.ownerName : '';
+  const extras: Record<string, any> = {
+    repo_url: repoStats ? repoStats.url : null, stage, team_head_id: uid,
+    owner_type: ownerType, owner_name: ownerType === 'org' ? ownerNameRaw.trim().slice(0, 120) || null : null,
+    owner_user_id: ownerType === 'member' ? uid : null,
+    repo_stats: repoStats, repo_checked_at: repoStats?.checkedAt ?? null,
+  };
   const supabaseDb = createServiceClient(supabaseUrl, serviceRoleKey);
   let r = await tryInsertSubmission(supabaseDb, {
     user_id: uid, project_name: projectName, project_url: projectUrl,
-    description, proj_type: projType || null, status: 'pending',
+    description, proj_type: projType || null, status: 'pending', ...extras,
   });
+  if (r.error && isMissingColumnError(r.error)) {
+    r = await tryInsertSubmission(supabaseDb, {
+      user_id: uid, project_name: projectName, project_url: projectUrl,
+      description, proj_type: projType || null, status: 'pending',
+    });
+  }
   let data = r.data, error = r.error;
   if (error && String(error.message || '').toLowerCase().includes('proj_type')) {
     const r2 = await tryInsertSubmission(supabaseDb, {
@@ -1098,11 +1654,17 @@ const handler_submit_project: H = async (req, res) => {
   }
   if (error || !data?.id) {
     console.error('[Submit Project API Error]:', error);
-    sendError(res, 500, error?.message ? `Failed to submit project: ${error.message}` : 'Failed to submit project');
+    sendError(res, 500, 'Failed to submit project. Please try again.');
     return;
   }
+  // The submitter leads the project's team.
+  try {
+    await supabaseDb.from('team_members').insert({
+      project_id: String(data.id), user_id: uid, role: 'head', status: 'approved', decided_at: new Date().toISOString(),
+    });
+  } catch { /* table missing until migration */ }
   try { await invalidateCache('cache:admin:stats'); } catch { /* noop */ }
-  sendJson(res, 200, { message: 'Submitted successfully!', submissionId: data.id });
+  sendJson(res, 200, { message: 'Submitted successfully!', submissionId: data.id, repo: repoStats });
 };
 
 // ---------- /my-project-submissions (api/_handlers/my-project-submissions.ts)
@@ -1112,6 +1674,7 @@ const mapMySubmissionRow = (row: any) => ({
   description: row.description ?? '',
   projType: row.proj_type ?? row.tech_stack ?? undefined,
   status: row.status ?? 'pending', createdAt: row.created_at,
+  ...projectExtrasOf(row),
 });
 
 const handler_my_project_submissions: H = async (req, res) => {
@@ -1143,8 +1706,20 @@ const mapCallRow = (row: any, postedBy?: { fullName: string; email: string }) =>
   id: row.id, userId: row.user_id, title: row.title ?? '',
   projectUrl: row.project_url ?? '', description: row.description ?? '',
   rolesNeeded: row.roles_needed ?? undefined, contact: row.contact ?? undefined,
+  callType: row.call_type ?? 'people', location: row.location ?? undefined, neededBy: row.needed_by ?? undefined,
   status: row.status ?? 'open', createdAt: row.created_at, postedBy,
 });
+
+const CALL_TYPES = ['people', 'venue', 'equipment', 'funding', 'transport', 'food', 'printing', 'other'];
+const callExtrasFrom = (body: any) => {
+  const out: Record<string, any> = {};
+  const t = typeof body.call_type === 'string' ? body.call_type : typeof body.callType === 'string' ? body.callType : '';
+  if (t && CALL_TYPES.includes(t)) out.call_type = t;
+  if (typeof body.location === 'string') out.location = body.location.trim().slice(0, 160) || null;
+  const nb = typeof body.needed_by === 'string' ? body.needed_by : typeof body.neededBy === 'string' ? body.neededBy : undefined;
+  if (nb !== undefined) out.needed_by = /^\d{4}-\d{2}-\d{2}$/.test(nb) ? nb : null;
+  return out;
+};
 
 const handler_volunteer_calls: H = async (req, res) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -1187,7 +1762,8 @@ const handler_volunteer_calls: H = async (req, res) => {
     const userMap = new Map<string, { fullName: string; email: string }>();
     if (userIds.length > 0) {
       const { data: usersData } = await supabase.from('users').select('uid, full_name, email').in('uid', userIds);
-      if (usersData) for (const u of usersData) userMap.set(u.uid, { fullName: u.full_name ?? '', email: u.email ?? '' });
+      // Emails stay with admins; members see who posted, and reach them through the contact field.
+      if (usersData) for (const u of usersData) userMap.set(u.uid, { fullName: u.full_name ?? '', email: isAdmin ? u.email ?? '' : '' });
     }
     sendJson(res, 200, {
       calls: rows.map((r: any) => mapCallRow(r, userMap.get(r.user_id))),
@@ -1210,18 +1786,26 @@ const handler_volunteer_calls: H = async (req, res) => {
       sendError(res, 403, 'Forbidden: You do not own this volunteer call'); return;
     }
     const updateFields: Record<string, any> = {};
-    if (typeof body.title === 'string') updateFields.title = body.title.trim();
-    if (typeof body.project_url === 'string') updateFields.project_url = body.project_url.trim();
-    if (typeof body.projectUrl === 'string') updateFields.project_url = body.projectUrl.trim();
-    if (typeof body.description === 'string') updateFields.description = body.description.trim();
-    if (typeof body.roles_needed === 'string') updateFields.roles_needed = body.roles_needed.trim() || null;
-    if (typeof body.rolesNeeded === 'string') updateFields.roles_needed = body.rolesNeeded.trim() || null;
-    if (typeof body.contact === 'string') updateFields.contact = body.contact.trim() || null;
+    if (typeof body.title === 'string') updateFields.title = body.title.trim().slice(0, 160);
+    const urlIn = typeof body.projectUrl === 'string' ? body.projectUrl : typeof body.project_url === 'string' ? body.project_url : undefined;
+    if (urlIn !== undefined) {
+      const clean = urlIn.trim() ? safeHttpUrl(urlIn.trim()) : '';
+      if (urlIn.trim() && !clean) { sendError(res, 400, 'Use a full web link (https://…) for the project.'); return; }
+      updateFields.project_url = clean;
+    }
+    if (typeof body.description === 'string') updateFields.description = body.description.trim().slice(0, 4000);
+    if (typeof body.roles_needed === 'string') updateFields.roles_needed = body.roles_needed.trim().slice(0, 500) || null;
+    if (typeof body.rolesNeeded === 'string') updateFields.roles_needed = body.rolesNeeded.trim().slice(0, 500) || null;
+    if (typeof body.contact === 'string') updateFields.contact = body.contact.trim().slice(0, 200) || null;
     if (typeof body.status === 'string' && ['open', 'closed'].includes(body.status.toLowerCase())) {
       updateFields.status = body.status.toLowerCase();
     }
-    if (Object.keys(updateFields).length === 0) { sendError(res, 400, 'No fields to update'); return; }
-    const { error: updateError } = await supabase.from('volunteer_calls').update(updateFields).eq('id', id);
+    const extras = callExtrasFrom(body);
+    if (Object.keys(updateFields).length === 0 && Object.keys(extras).length === 0) { sendError(res, 400, 'No fields to update'); return; }
+    let { error: updateError } = await supabase.from('volunteer_calls').update({ ...updateFields, ...extras }).eq('id', id);
+    if (updateError && isMissingColumnError(updateError) && Object.keys(updateFields).length) {
+      ({ error: updateError } = await supabase.from('volunteer_calls').update(updateFields).eq('id', id));
+    }
     if (updateError) { sendError(res, 500, 'Failed to update volunteer call'); return; }
     sendJson(res, 200, { message: 'Updated volunteer call successfully' });
     return;
@@ -1254,21 +1838,29 @@ const handler_volunteer_calls: H = async (req, res) => {
   }
 
   if (body.id) { sendError(res, 400, 'Cannot insert a new call with an existing ID'); return; }
-  const title = typeof body.title === 'string' ? body.title.trim() : '';
-  const projectUrl = typeof body.project_url === 'string' ? body.project_url.trim() :
+  const title = typeof body.title === 'string' ? body.title.trim().slice(0, 160) : '';
+  const projectUrlRaw = typeof body.project_url === 'string' ? body.project_url.trim() :
     typeof body.projectUrl === 'string' ? body.projectUrl.trim() : '';
-  const description = typeof body.description === 'string' ? body.description.trim() : '';
-  const rolesNeeded = typeof body.roles_needed === 'string' ? body.roles_needed.trim() :
-    typeof body.rolesNeeded === 'string' ? body.rolesNeeded.trim() : '';
-  const contact = typeof body.contact === 'string' ? body.contact.trim() : '';
-  if (!title || !projectUrl || !description) {
-    sendError(res, 400, 'title, project_url, and description are required'); return;
+  const projectUrl = safeHttpUrl(projectUrlRaw);
+  if (projectUrlRaw && !projectUrl) { sendError(res, 400, 'Use a full web link (https://…) for the project.'); return; }
+  const description = typeof body.description === 'string' ? body.description.trim().slice(0, 4000) : '';
+  const rolesNeeded = typeof body.roles_needed === 'string' ? body.roles_needed.trim().slice(0, 500) :
+    typeof body.rolesNeeded === 'string' ? body.rolesNeeded.trim().slice(0, 500) : '';
+  const contact = typeof body.contact === 'string' ? body.contact.trim().slice(0, 200) : '';
+  const extras = callExtrasFrom(body);
+  const isPeople = (extras.call_type ?? 'people') === 'people';
+  // A venue or equipment request may not have a project link yet; a call for people always does.
+  if (!title || !description || (isPeople && !projectUrl)) {
+    sendError(res, 400, isPeople ? 'title, project_url, and description are required' : 'title and description are required'); return;
   }
   const basePayload: Record<string, any> = {
     user_id: uid, title, project_url: projectUrl, description,
-    roles_needed: rolesNeeded || null, contact: contact || null, status: 'open',
+    roles_needed: isPeople ? rolesNeeded || null : null, contact: contact || null, status: 'open',
   };
-  let { data, error } = await supabase.from('volunteer_calls').insert([basePayload]).select('id').maybeSingle();
+  let { data, error } = await supabase.from('volunteer_calls').insert([{ ...basePayload, ...extras }]).select('id').maybeSingle();
+  if (error && isMissingColumnError(error)) {
+    ({ data, error } = await supabase.from('volunteer_calls').insert([basePayload]).select('id').maybeSingle());
+  }
   const missingIdDefault = error && (
     String(error.message || '').toLowerCase().includes('null value in column "id"') ||
     String((error as any).code || '') === '23502');
@@ -1285,7 +1877,7 @@ const handler_volunteer_calls: H = async (req, res) => {
   }
   if (error || !data?.id) {
     console.error('[Volunteer Calls API Error]:', error);
-    sendError(res, 500, error?.message ? `Failed to create volunteer call: ${error.message}` : 'Failed to create volunteer call');
+    sendError(res, 500, 'Failed to post. Please try again.');
     return;
   }
   sendJson(res, 200, { message: 'Posted successfully!', id: data.id });
@@ -1309,6 +1901,7 @@ const handler_verify: H = async (req, res) => {
   
   const token = getBearerToken(req.headers?.authorization);
   let isAdminCaller = false;
+  let callerUid = '';
   const dbClient = serviceKey
     ? createServiceClient(supabaseUrl, serviceKey)
     : createAnonClient(supabaseUrl, anonKey);
@@ -1317,7 +1910,7 @@ const handler_verify: H = async (req, res) => {
     try {
       const { data: authData } = await dbClient.auth.getUser(token);
       if (authData?.user) {
-        const callerUid = authData.user.id;
+        callerUid = authData.user.id;
         const { data: callerRow } = await dbClient
           .from('users').select('is_admin').eq('uid', callerUid).maybeSingle();
         isAdminCaller = !!callerRow?.is_admin;
@@ -1328,13 +1921,16 @@ const handler_verify: H = async (req, res) => {
   const cleanLookup = lookupRaw.trim();
   const lookupUpper = cleanLookup.toUpperCase();
   const exactMemberId = lookupUpper.startsWith('BGPH-') ? lookupUpper : `BGPH-${lookupUpper}`;
+  // Only a full member ID (BGPH-2026-001) or a uid is accepted. Anything else is never put in a query,
+  // so a visitor can't add their own filters (e.g. ",email.eq.someone@x") or enumerate members.
+  if (!isSafeMemberId(exactMemberId) && !isUuid(cleanLookup)) { sendError(res, 404, 'Not found'); return; }
 
   let row: any | null = null;
 
   const { data: memberData } = await dbClient
     .from('users')
-    .select('uid, full_name, specialization, role, status, member_id, year_joined, discord_username, is_admin')
-    .or(`member_id.eq.${exactMemberId},member_id.eq.${cleanLookup},member_id.ilike.%${cleanLookup}%`)
+    .select('*')
+    .eq('member_id', isSafeMemberId(exactMemberId) ? exactMemberId : '__none__')
     .maybeSingle();
 
   row = memberData ?? null;
@@ -1342,7 +1938,7 @@ const handler_verify: H = async (req, res) => {
   if (!row && isUuid(lookupRaw.trim())) {
     const { data: uidData } = await dbClient
       .from('users')
-      .select('uid, full_name, specialization, role, status, member_id, year_joined, discord_username, is_admin')
+      .select('*')
       .eq('uid', lookupRaw.trim()).maybeSingle();
     row = uidData ?? null;
   }
@@ -1356,14 +1952,17 @@ const handler_verify: H = async (req, res) => {
 
   const responsePayload: Record<string, any> = {
     memberId: row.member_id ?? null,
-    fullName: row.full_name ?? '',
+    // Public card: redacted unless the member opted in. The member themself and admins see it in full.
+    fullName: isAdminCaller || (callerUid && callerUid === row.uid) ? row.full_name ?? '' : publicNameOf(row),
+    nameRedacted: !(isAdminCaller || (callerUid && callerUid === row.uid) || row.show_full_name === true),
     specialization: row.specialization ?? '',
+    secondarySpecialization: row.secondary_specialization ?? null,
     role: row.role ?? 'Member',
     status: statusNormalized,
     yearJoined: row.year_joined ?? null,
   };
 
-  if (row.discord_username && String(row.discord_username).trim()) {
+  if ((isAdminCaller || (callerUid && callerUid === row.uid)) && row.discord_username && String(row.discord_username).trim()) {
     responsePayload.discordUsername = String(row.discord_username).trim();
   }
 
@@ -1656,7 +2255,7 @@ const handler_volunteers: H = async (req, res) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=1800');
   if (req.method !== 'GET') { sendError(res, 405, 'Method not allowed'); return; }
-  const cacheKey = 'cache:volunteers:directory:v1';
+  const cacheKey = 'cache:volunteers:directory:v2';
   try { const cached = await getCache<any>(cacheKey); if (cached) { sendJson(res, 200, cached); return; } }
   catch { /* noop */ }
   const { url: supabaseUrl, serviceKey } = getSupabaseConfig();
@@ -1664,25 +2263,26 @@ const handler_volunteers: H = async (req, res) => {
   const supabase = createServiceClient(supabaseUrl, serviceKey);
   const { data, error } = await supabase
     .from('users')
-    .select('full_name, specialization, member_id, year_joined, skills, discord_id, discord_avatar, is_admin')
+    .select('*')
     .eq('status', 'Approved')
     .not('member_id', 'is', null)
     .order('full_name', { ascending: true })
     .limit(1000);
   if (error) { sendError(res, 500, 'Failed to load volunteers'); return; }
-  const volunteers = (data ?? []).map((r: any) => {
+  // Members can hide themselves; names are redacted ("John K****") unless they opt in to their full name.
+  const volunteers = (data ?? []).filter((r: any) => r.show_in_directory !== false).map((r: any) => {
     const skills: { name: string; featured?: boolean }[] = Array.isArray(r.skills) ? r.skills : [];
     const ordered = [...skills.filter((s) => s?.featured), ...skills.filter((s) => !s?.featured)];
-    const avatarOk = /^\d+$/.test(String(r.discord_id ?? '')) && /^[a-z0-9_]+$/i.test(String(r.discord_avatar ?? ''));
     return {
-      name: String(r.full_name || '').trim() || 'Member',
+      name: publicNameOf(r),
       role: r.specialization || null,
+      secondaryRole: r.secondary_specialization || null,
       memberId: r.member_id,
       yearJoined: typeof r.year_joined === 'number' ? r.year_joined : null,
       isAdmin: !!r.is_admin,
       skills: ordered.map((s) => String(s?.name || '')).filter(Boolean).slice(0, 4),
       skillCount: skills.length,
-      avatarUrl: avatarOk ? `https://cdn.discordapp.com/avatars/${r.discord_id}/${r.discord_avatar}.png?size=96` : null,
+      avatarUrl: discordAvatarOf(r),
     };
   });
   const payload = { volunteers, count: volunteers.length };
@@ -1692,7 +2292,8 @@ const handler_volunteers: H = async (req, res) => {
 
 type HandlerKey =
   | '/me' | '/admin' | '/projects' | '/submit-project' | '/my-project-submissions'
-  | '/volunteer-calls' | '/verify' | '/discord' | '/discord-username-taken' | '/contribution-scores' | '/volunteers';
+  | '/volunteer-calls' | '/verify' | '/discord' | '/discord-username-taken' | '/contribution-scores' | '/volunteers'
+  | '/repo-tracker' | '/teams' | '/cron/repo-sync';
 
 const HANDLERS: Record<HandlerKey, H> = {
   '/me': handler_me,
@@ -1706,6 +2307,9 @@ const HANDLERS: Record<HandlerKey, H> = {
   '/discord-username-taken': handler_discord_username_taken,
   '/contribution-scores': handler_contribution_scores,
   '/volunteers': handler_volunteers,
+  '/repo-tracker': handler_repo_tracker,
+  '/teams': handler_teams,
+  '/cron/repo-sync': handler_cron_repo_sync,
 };
 
 const callHandler = async (key: HandlerKey, req: any, res: any) => {
@@ -1714,7 +2318,7 @@ const callHandler = async (key: HandlerKey, req: any, res: any) => {
   try { await fn(req, res); }
   catch (err) {
     console.error('[API][handler-error]', { key, error: err });
-    sendError(res, 500, errorToString(err));
+    sendError(res, 500, 'Internal server error');
   }
 };
 
@@ -1759,11 +2363,14 @@ async function handleRequest(req: any, res: any) {
     if (pathname === '/discord-username-taken') return callHandler('/discord-username-taken', req, res);
     if (pathname === '/contribution-scores') return callHandler('/contribution-scores', req, res);
     if (pathname === '/volunteers') return callHandler('/volunteers', req, res);
+    if (pathname === '/repo-tracker') return callHandler('/repo-tracker', req, res);
+    if (pathname === '/teams') return callHandler('/teams', req, res);
+    if (pathname === '/cron/repo-sync') return callHandler('/cron/repo-sync', req, res);
 
     sendError(res, 404, 'API endpoint not found');
   } catch (err) {
     console.error('[API][request-error]', { path: req.url, error: err });
-    sendError(res, 500, errorToString(err));
+    sendError(res, 500, 'Internal server error');
   }
 }
 
