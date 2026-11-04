@@ -13,6 +13,7 @@ import { SelectMenu } from '../../components/SelectMenu';
 import { trackForRole, memberNav, workTypeOptions, workTypeLabel, callFitsMember } from '../../constants/tracks';
 import { RolesNeededPicker, parseRoles } from '../../components/RolesNeededPicker';
 import { RefreshButton } from '../../components/RefreshButton';
+import { DISCORD_AVAILABLE, COMING_SOON_PILL } from '../../constants/integrations';
 import { MerchTab } from '../../components/merch/MerchTab';
 import { Medal } from '../../components/awards/Medal';
 import { AwardCard } from '../../components/awards/AwardCard';
@@ -676,7 +677,7 @@ export default function UserDashboard() {
                 </div>
 
                 {/* Discord is optional at sign-up for now; nudge members to connect it once it's available */}
-                {!(currentUser.discordConnected || currentUser.discordId) && (
+                {DISCORD_AVAILABLE && !(currentUser.discordConnected || currentUser.discordId) && (
                   <section className="s-card flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:p-6" aria-labelledby="discord-nudge-title">
                     <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-[#5865F2] text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.2),0_1px_2px_rgb(15_23_42/0.2)]">
                       <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -877,9 +878,13 @@ export default function UserDashboard() {
                             )}
                             <span className="truncate">
                               {currentUser.discordDisplayName || currentUser.discordUsername || (
-                                <button type="button" onClick={() => navigate('/profile?tab=connections')} className="font-medium text-[var(--accent)] hover:underline">
-                                  Connect Discord
-                                </button>
+                                DISCORD_AVAILABLE ? (
+                                  <button type="button" onClick={() => navigate('/profile?tab=connections')} className="font-medium text-[var(--accent)] hover:underline">
+                                    Connect Discord
+                                  </button>
+                                ) : (
+                                  <span className="text-slate-400">Coming soon</span>
+                                )
                               )}
                               {currentUser.discordDisplayName && currentUser.discordUsername && (
                                 <span className="text-slate-400"> @{currentUser.discordUsername}</span>

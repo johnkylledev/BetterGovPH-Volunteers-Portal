@@ -10,6 +10,7 @@ import { EXPERIENCE_LEVELS } from '../../constants/experience';
 import { SkillLevel, ExperienceLevel, UserSkill } from '../../types';
 import { SPECIALIZATIONS, ROLE_GROUPS, Specialization } from '../../constants/specializations';
 import { trackForRole } from '../../constants/tracks';
+import { DISCORD_AVAILABLE, COMING_SOON_PILL } from '../../constants/integrations';
 import type { LinkKey, ProfileLinks } from '../../constants/socialLinks';
 import { LinksFields, LINKS_INTRO, validateLinks } from '../../components/LinksFields';
 import { SKILL_CATEGORIES } from '../../constants/skills';
@@ -890,7 +891,7 @@ function LegacyRegister() {
                                                         <p className="flex flex-wrap items-center gap-x-2 text-[15px] font-semibold text-slate-900">
                                                             Discord
                                                             {!discordConnected && (
-                                                                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">Optional for now</span>
+                                                                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">Optional</span>
                                                             )}
                                                         </p>
                                                         <p className="mt-0.5 text-[13px] leading-snug text-slate-500">
@@ -900,12 +901,17 @@ function LegacyRegister() {
                                                                     {discordUsername ? `Connected as @${discordUsername}` : 'Connected'}
                                                                 </span>
                                                             ) : (
-                                                                'You can skip this and connect later from your Profile. We only read your username.'
+                                                                DISCORD_AVAILABLE
+                                                                    ? 'You can skip this and connect later from your Profile. We only read your username.'
+                                                                    : 'Linking is coming soon. Submit now — you can connect it later from your Profile.'
                                                             )}
                                                         </p>
                                                     </div>
                                                 </div>
-                                                {!discordConnected && (
+                                                {!discordConnected && !DISCORD_AVAILABLE && (
+                                                    <span className={COMING_SOON_PILL}>Coming soon</span>
+                                                )}
+                                                {!discordConnected && DISCORD_AVAILABLE && (
                                                     <button
                                                         type="button"
                                                         onClick={handleConnectDiscord}
@@ -995,7 +1001,7 @@ function LegacyRegister() {
                                                 {completing ? 'Saving…' : 'Submit application'}
                                             </button>
                                             {!discordConnected && (
-                                                <p className="text-[12px] text-[var(--fg-3)]">You can connect Discord later from Profile.</p>
+                                                <p className="text-[12px] text-[var(--fg-3)]">{DISCORD_AVAILABLE ? 'You can connect Discord later from Profile.' : 'Discord linking opens soon. No need to wait.'}</p>
                                             )}
                                         </div>
                                     )}

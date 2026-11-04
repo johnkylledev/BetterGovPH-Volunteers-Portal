@@ -15,6 +15,7 @@ import { SPECIALIZATIONS, ROLE_GROUPS } from '../../constants/specializations';
 import { SelectMenu, type SelectOption } from '../../components/SelectMenu';
 import { EXPERIENCE_LEVELS } from '../../constants/experience';
 import { connectDiscord, createOrUpdateUserRecord } from '../../services/supabase';
+import { DISCORD_AVAILABLE, COMING_SOON_PILL } from '../../constants/integrations';
 import type { ExperienceLevel, UserSkill } from '../../types';
 
 const TABS = [
@@ -479,11 +480,16 @@ export default function Profile() {
                               {currentUser.discordVerified ? ' · BetterGovPH server member' : ''}
                             </>
                           ) : (
-                            'Connect when you’re ready — it lets the team reach you in the community server. We only read your username.'
+                            DISCORD_AVAILABLE
+                              ? 'Connect when you’re ready — it lets the team reach you in the community server. We only read your username.'
+                              : 'Linking is coming soon. We’ll let you know when you can connect.'
                           )}
                         </p>
                       </div>
                     </div>
+                    {!DISCORD_AVAILABLE ? (
+                      <span className={COMING_SOON_PILL}>Coming soon</span>
+                    ) : (
                     <button
                       type="button"
                       onClick={handleReconnectDiscord}
@@ -497,6 +503,7 @@ export default function Profile() {
                     >
                       {discordBusy ? 'Connecting…' : discordLinked ? 'Reconnect' : 'Connect Discord'}
                     </button>
+                    )}
                   </div>
                 </div>
                 {discordError && (
