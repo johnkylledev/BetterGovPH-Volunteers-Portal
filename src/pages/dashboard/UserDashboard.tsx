@@ -4,11 +4,14 @@ import { useStore } from '../../store/useStore';
 import { AccessCard } from '../../components/AccessCard';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
 import { motion } from 'framer-motion';
-import { ShieldAlert, CheckCircle2, Clock, Copy, Code, Check, ExternalLink, Edit3, Trash2, X, Lock, Unlock, CalendarDays, Wrench, FolderGit2, BadgeCheck, Pencil, SlidersHorizontal, Star, Flame, Trophy } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, Clock, Copy, Code, Check, ExternalLink, Edit3, Trash2, X, Lock, Unlock, CalendarDays, Wrench, BadgeCheck, Pencil, SlidersHorizontal, Star, Flame, Trophy } from 'lucide-react';
 import clsx from 'clsx';
 import { StatTile } from '../../components/StatTile';
 import { UserChip } from '../../components/UserChip';
 import { AppHeader, MEMBER_NAV } from '../../components/AppHeader';
+import { SelectMenu } from '../../components/SelectMenu';
+import { trackForRole, memberNav, workTypeOptions, workTypeLabel, callFitsMember } from '../../constants/tracks';
+import { RolesNeededPicker, parseRoles } from '../../components/RolesNeededPicker';
 import { RefreshButton } from '../../components/RefreshButton';
 import { MerchTab } from '../../components/merch/MerchTab';
 import { Medal } from '../../components/awards/Medal';
@@ -97,7 +100,7 @@ export default function UserDashboard() {
   const [editStatus, setEditStatus] = useState<'open' | 'closed'>('open');
   const [modalActionStatus, setModalActionStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [confirmDeleteCallId, setConfirmDeleteCallId] = useState<string | null>(null);
-  const [volunteerFilter, setVolunteerFilter] = useState<'all' | 'mine'>('all');
+  const [volunteerFilter, setVolunteerFilter] = useState<'all' | 'fits' | 'mine'>('all');
 
   const openManageModal = (call: VolunteerCall) => {
     setSelectedCallForModal(call);
@@ -164,6 +167,8 @@ export default function UserDashboard() {
   }, [currentUser?.isAdmin, navigate, authInitialized, isRedirecting]);
 
   if (!authInitialized || !currentUser || isRedirecting) return <LoadingOverlay />;
+  // The member's track tailors the work tab, start card and call matching to their role.
+  const track = trackForRole(currentUser.specialization);
 
   const handleLogout = async () => {
     await logout();
@@ -534,7 +539,7 @@ export default function UserDashboard() {
         projectName: projectName.trim(),
         projectUrl: projectUrl.trim(),
         description: projectDescription.trim(),
-        projType: projectProjType.trim() || undefined,
+        projType: (projectProjType || track.defaultType).trim() || undefined,
       });
       toast.success(res?.message || 'Project submitted');
       setProjectName('');
@@ -552,10 +557,13 @@ export default function UserDashboard() {
     }
   };
 
+  const callFits = (c: VolunteerCall) => callFitsMember(track, currentUser.specialization, c);
+  const fitsCount = volunteerCalls.filter((c) => c.status !== 'closed' && callFits(c)).length;
   const filteredVolunteerCalls = volunteerCalls.filter((c) => {
     if (volunteerFilter === 'mine') {
       return c.userId === currentUser.id || !!currentUser.isAdmin;
     }
+    if (volunteerFilter === 'fits') return callFits(c);
     return true;
   });
 
@@ -577,7 +585,7 @@ export default function UserDashboard() {
     <>
       <div className="site min-h-screen pb-16">
         <AppHeader
-          items={MEMBER_NAV}
+          items={memberNav(track)}
           activeId={activeTab}
           onSelect={(id) => setActiveTab(id as typeof activeTab)}
           account={
@@ -660,12 +668,51 @@ export default function UserDashboard() {
                     hint={currentUser.experienceLevel ? currentUser.experienceLevel : 'listed'}
                   />
                   <StatTile
-                    label="Projects"
-                    icon={FolderGit2}
+                    label={track.statLabel}
+                    icon={track.icon}
                     value={submittedCount > 0 ? <>{approvedCount}<span className="text-[15px] font-normal text-slate-400"> / {submittedCount}</span></> : approvedCount}
                     hint={submittedCount > 0 ? 'approved' : 'none yet'}
                   />
                 </div>
+
+                {/* Where to start — shortcuts chosen for the member's role */}
+                <section className="s-card p-5 sm:p-6" aria-labelledby="start-title">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                    <h2 id="start-title" className={sectionTitle}>Where to start</h2>
+                    <p className="text-[13px] text-slate-500">
+                      Picked for <span className="font-medium text-slate-700">{currentUser.specialization || 'you'}</span>
+                    </p>
+                  </div>
+                  <ul className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                    {track.starts.map((a) => {
+                      const inner = (
+                        <>
+                          <a.icon size={20} strokeWidth={1.75} className="text-[var(--accent)]" aria-hidden />
+                          <span className="mt-3 block text-[14px] font-semibold text-slate-900">{a.title}</span>
+                          <span className="mt-0.5 block flex-1 text-[13px] leading-snug text-slate-500">{a.desc}</span>
+                          <span className="mt-3 inline-flex items-center gap-1 text-[13px] font-medium text-[var(--accent)]">
+                            {a.label}
+                            {a.href?.startsWith('http') ? <ExternalLink size={12} strokeWidth={1.75} /> : <span aria-hidden>→</span>}
+                          </span>
+                        </>
+                      );
+                      const cls = 'flex h-full flex-col rounded-[12px] bg-slate-50 p-4 text-left shadow-[inset_0_0_0_1px_rgb(15_23_42/0.06)] transition-[background-color,box-shadow] duration-150 hover:bg-white hover:shadow-[0_0_0_1px_rgb(15_23_42/0.1),0_4px_12px_-4px_rgb(15_23_42/0.12)] focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(30_58_138/0.3)]';
+                      return (
+                        <li key={a.title}>
+                          {a.tab ? (
+                            <button type="button" className={cls + ' w-full'} onClick={() => { setActiveTab(a.tab!); window.scrollTo({ top: 0 }); if (a.tab === 'volunteer' && fitsCount > 0) setVolunteerFilter('fits'); }}>
+                              {inner}
+                            </button>
+                          ) : a.href?.startsWith('http') ? (
+                            <a href={a.href} target="_blank" rel="noopener noreferrer" className={cls}>{inner}</a>
+                          ) : (
+                            <a href={a.href} className={cls}>{inner}</a>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
 
                 {/* Activity */}
                 <section className="s-card p-5 sm:p-6" aria-labelledby="activity-title">
@@ -948,13 +995,11 @@ export default function UserDashboard() {
           <main className="mx-auto max-w-6xl px-4 sm:px-6 pt-10 sm:pt-14">
             <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div className="max-w-xl">
-                <h1 className="text-[28px] sm:text-[32px]">Projects</h1>
-                <p className="mt-1.5 text-[15px] text-slate-600">
-                  Share something you built for the community. An admin reviews it before it appears on the public projects page.
-                </p>
+                <h1 className="text-[28px] sm:text-[32px]">{track.tabLabel}</h1>
+                <p className="mt-1.5 text-[15px] text-slate-600">{track.intro}</p>
               </div>
               <a href="/projects" target="_blank" rel="noopener noreferrer" className="group inline-flex shrink-0 items-center gap-1 text-[14px] font-medium text-[var(--accent)]">
-                View public projects
+                See everyone’s work
                 <ExternalLink size={13} strokeWidth={1.75} />
               </a>
             </div>
@@ -962,17 +1007,17 @@ export default function UserDashboard() {
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-[380px_minmax(0,1fr)] lg:gap-10">
               <section className="min-w-0" aria-labelledby="submit-title">
                 <div className="s-card p-5 sm:p-6 lg:sticky lg:top-24">
-                  <h2 id="submit-title" className="text-[16px] font-semibold">Submit a project</h2>
+                  <h2 id="submit-title" className="text-[16px] font-semibold">{track.submitTitle}</h2>
                   <form onSubmit={handleProjectSubmit} className="mt-5 space-y-4">
                     <div>
-                      <label htmlFor="proj-name" className="mb-1.5 block text-[13px] font-medium text-slate-900">Project name</label>
+                      <label htmlFor="proj-name" className="mb-1.5 block text-[13px] font-medium text-slate-900">{track.nameLabel}</label>
                       <input
                         id="proj-name"
                         type="text"
                         value={projectName}
                         onChange={(e) => setProjectName(e.target.value)}
                         className="s-field"
-                        placeholder="BetterGovPH Tracker"
+                        placeholder={track.namePlaceholder}
                         disabled={projectSubmitStatus === 'loading'}
                       />
                     </div>
@@ -985,10 +1030,10 @@ export default function UserDashboard() {
                         value={projectUrl}
                         onChange={(e) => setProjectUrl(e.target.value)}
                         className="s-field"
-                        placeholder="https://github.com/…"
+                        placeholder={track.linkPlaceholder}
                         disabled={projectSubmitStatus === 'loading'}
                       />
-                      <p className="mt-1.5 text-[12px] text-slate-500">GitHub repo, live demo, or docs.</p>
+                      <p className="mt-1.5 text-[12px] text-slate-500">{track.linkHint}</p>
                     </div>
                     <div>
                       <label htmlFor="proj-desc" className="mb-1.5 block text-[13px] font-medium text-slate-900">Description</label>
@@ -997,28 +1042,20 @@ export default function UserDashboard() {
                         value={projectDescription}
                         onChange={(e) => setProjectDescription(e.target.value)}
                         className="s-field h-auto min-h-[120px] resize-y py-2.5"
-                        placeholder="What does it do, and who is it for?"
+                        placeholder={track.descPlaceholder}
                         disabled={projectSubmitStatus === 'loading'}
                       />
                     </div>
                     <div>
-                      <label htmlFor="proj-type" className="mb-1.5 block text-[13px] font-medium text-slate-900">Type</label>
-                      <select
+                      <label id="proj-type-label" htmlFor="proj-type" className="mb-1.5 block text-[13px] font-medium text-slate-900">Type</label>
+                      <SelectMenu
                         id="proj-type"
-                        value={projectProjType}
-                        onChange={(e) => setProjectProjType(e.target.value)}
-                        className="s-field cursor-pointer"
-                        disabled={projectSubmitStatus === 'loading'}
-                      >
-                        <option value="">Select a type</option>
-                        <option value="web">Web</option>
-                        <option value="api">API</option>
-                        <option value="mobile">Mobile</option>
-                        <option value="data">Data</option>
-                        <option value="policy">Policy</option>
-                        <option value="blockchain">Blockchain</option>
-                        <option value="other">Other</option>
-                      </select>
+                        labelledBy="proj-type-label"
+                        value={projectProjType || track.defaultType}
+                        placeholder="Select a type"
+                        options={workTypeOptions(track)}
+                        onChange={setProjectProjType}
+                      />
                     </div>
                     <button type="submit" disabled={projectSubmitStatus === 'loading'} className="s-btn s-btn-accent h-11 w-full">
                       {projectSubmitStatus === 'loading' ? 'Submitting…' : 'Submit for review'}
@@ -1049,7 +1086,7 @@ export default function UserDashboard() {
                 ) : mySubmissions.length === 0 ? (
                   <div className="s-card px-5 py-10 text-center">
                     <p className="text-[15px] font-semibold">Nothing submitted yet</p>
-                    <p className="mx-auto mt-1 max-w-xs text-[14px] text-slate-500">Projects you submit show up here while they’re reviewed.</p>
+                    <p className="mx-auto mt-1 max-w-xs text-[14px] text-slate-500">What you share shows up here while it’s reviewed.</p>
                   </div>
                 ) : (
                   <ul className="space-y-3">
@@ -1080,7 +1117,7 @@ export default function UserDashboard() {
                           <p className="mt-3 whitespace-pre-wrap break-words text-[14px] leading-relaxed text-slate-600">{s.description}</p>
                         )}
                         <p className="mt-3 flex flex-wrap items-center gap-x-2 text-[12px] text-slate-500">
-                          {s.projType && <span className="capitalize">{s.projType}</span>}
+                          {s.projType && <span>{workTypeLabel(s.projType)}</span>}
                           {s.projType && s.createdAt && <span aria-hidden>·</span>}
                           {s.createdAt && (
                             <time className="num" dateTime={s.createdAt}>
@@ -1117,7 +1154,7 @@ export default function UserDashboard() {
                         value={volunteerTitle}
                         onChange={(e) => setVolunteerTitle(e.target.value)}
                         className="s-field"
-                        placeholder="Frontend developer for a budget tracker"
+                        placeholder="Writer or frontend developer for a budget tracker"
                         disabled={volunteerSubmitStatus === 'loading'}
                       />
                     </div>
@@ -1130,7 +1167,7 @@ export default function UserDashboard() {
                         value={volunteerProjectUrl}
                         onChange={(e) => setVolunteerProjectUrl(e.target.value)}
                         className="s-field"
-                        placeholder="https://github.com/…"
+                        placeholder="https://…"
                         disabled={volunteerSubmitStatus === 'loading'}
                       />
                     </div>
@@ -1145,18 +1182,16 @@ export default function UserDashboard() {
                         disabled={volunteerSubmitStatus === 'loading'}
                       />
                     </div>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-1">
+                    <div className="grid grid-cols-1 gap-4">
                       <div>
-                        <label htmlFor="vc-roles" className="mb-1.5 block text-[13px] font-medium text-slate-900">
+                        <label id="vc-roles-label" htmlFor="vc-roles" className="mb-1.5 block text-[13px] font-medium text-slate-900">
                           Roles needed <span className="font-normal text-slate-400">optional</span>
                         </label>
-                        <input
+                        <RolesNeededPicker
                           id="vc-roles"
-                          type="text"
+                          labelledBy="vc-roles-label"
                           value={volunteerRolesNeeded}
-                          onChange={(e) => setVolunteerRolesNeeded(e.target.value)}
-                          className="s-field"
-                          placeholder="Frontend, UI/UX"
+                          onChange={setVolunteerRolesNeeded}
                           disabled={volunteerSubmitStatus === 'loading'}
                         />
                       </div>
@@ -1190,7 +1225,7 @@ export default function UserDashboard() {
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                   <h2 id="calls-title" className="sr-only">Calls</h2>
                   <div className="inline-flex rounded-[10px] bg-slate-200/60 p-1" role="tablist" aria-label="Filter calls">
-                    {(['all', 'mine'] as const).map((f) => (
+                    {(['all', 'fits', 'mine'] as const).map((f) => (
                       <button
                         key={f}
                         role="tab"
@@ -1201,7 +1236,12 @@ export default function UserDashboard() {
                           volunteerFilter === f ? 'bg-white font-medium text-slate-900 shadow-[var(--e1)]' : 'text-slate-500 hover:text-slate-900'
                         )}
                       >
-                        {f === 'all' ? 'All calls' : 'My calls'}
+                        {f === 'all' ? 'All calls' : f === 'fits' ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            For you
+                            {fitsCount > 0 && <span className="num rounded-full bg-[var(--accent)] px-1.5 text-[11px] font-semibold text-white">{fitsCount}</span>}
+                          </span>
+                        ) : 'My calls'}
                       </button>
                     ))}
                   </div>
@@ -1219,7 +1259,7 @@ export default function UserDashboard() {
                 ) : filteredVolunteerCalls.length === 0 ? (
                   <div className="s-card px-5 py-10 text-center">
                     <p className="text-[15px] font-semibold">
-                      {volunteerFilter === 'mine' ? 'You haven’t posted a call yet' : 'No open calls right now'}
+                      {volunteerFilter === 'mine' ? 'You haven’t posted a call yet' : volunteerFilter === 'fits' ? `No calls for ${track.tabLabel.toLowerCase()} yet` : 'No open calls right now'}
                     </p>
                     <p className="mx-auto mt-1 max-w-xs text-[14px] text-slate-500">
                       {volunteerFilter === 'mine' ? 'Use the form to ask the community for help.' : 'Check back soon, or post the first one.'}
@@ -1234,7 +1274,14 @@ export default function UserDashboard() {
                         <li key={c.id} className={clsx('s-card p-4 sm:p-5', isClosed && 'opacity-75')}>
                           <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
                             <div className="min-w-0 flex-1 basis-56">
-                              <h3 className="break-words text-[15px] font-semibold">{c.title}</h3>
+                              <h3 className="break-words text-[15px] font-semibold">
+                                {c.title}
+                                {!isClosed && callFits(c) && (
+                                  <span className="ml-2 inline-flex translate-y-[-1px] items-center rounded-full bg-[#eef3ff] px-2 py-0.5 align-middle text-[11px] font-medium text-[var(--accent)] shadow-[inset_0_0_0_1px_rgb(30_58_138/0.18)]">
+                                    Fits you
+                                  </span>
+                                )}
+                              </h3>
                               {c.postedBy?.fullName && (
                                 <p className="mt-0.5 text-[13px] text-slate-500">Posted by {c.postedBy.fullName}</p>
                               )}
@@ -1289,7 +1336,22 @@ export default function UserDashboard() {
                               {c.rolesNeeded && (
                                 <div className="min-w-0">
                                   <dt className="text-[12px] text-slate-500">Roles</dt>
-                                  <dd className="break-words text-slate-800">{c.rolesNeeded}</dd>
+                                  <dd className="mt-1 flex flex-wrap gap-1">
+                                    {parseRoles(c.rolesNeeded).map((r) => {
+                                      const mine = !!currentUser.specialization && r.toLowerCase() === currentUser.specialization.toLowerCase();
+                                      return (
+                                        <span
+                                          key={r}
+                                          className={clsx(
+                                            'rounded-full px-2 py-0.5 text-[12px]',
+                                            mine ? 'bg-[#eef3ff] font-medium text-[var(--accent)] shadow-[inset_0_0_0_1px_rgb(30_58_138/0.2)]' : 'bg-slate-100 text-slate-700'
+                                          )}
+                                        >
+                                          {r}
+                                        </span>
+                                      );
+                                    })}
+                                  </dd>
                                 </div>
                               )}
                               {c.contact && (
@@ -1375,15 +1437,14 @@ export default function UserDashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-[13px] font-medium text-slate-900 mb-1.5">
-                    Roles Needed
+                  <label id="edit-roles-label" htmlFor="edit-roles" className="block text-[13px] font-medium text-slate-900 mb-1.5">
+                    Roles needed
                   </label>
-                  <input
-                    type="text"
+                  <RolesNeededPicker
+                    id="edit-roles"
+                    labelledBy="edit-roles-label"
                     value={editRolesNeeded}
-                    onChange={(e) => setEditRolesNeeded(e.target.value)}
-                    className="s-field"
-                    placeholder="Frontend, Backend, UI/UX..."
+                    onChange={setEditRolesNeeded}
                   />
                 </div>
 

@@ -9,6 +9,9 @@ import { SkillsPicker } from '../../components/SkillsPicker';
 import { EXPERIENCE_LEVELS } from '../../constants/experience';
 import { SkillLevel, ExperienceLevel, UserSkill } from '../../types';
 import { SPECIALIZATIONS, ROLE_GROUPS, Specialization } from '../../constants/specializations';
+import { trackForRole } from '../../constants/tracks';
+import type { LinkKey, ProfileLinks } from '../../constants/socialLinks';
+import { LinksFields, LINKS_INTRO, validateLinks } from '../../components/LinksFields';
 import { SKILL_CATEGORIES } from '../../constants/skills';
 import { createOrUpdateUserRecord, getUserData, signInWithGoogle, supabase, connectDiscord, getDiscordStatus } from '../../services/supabase';
 
@@ -46,7 +49,10 @@ function LegacyRegister() {
         role: 'Member',
         customRole: '',
         specialization: '',
+        links: {} as ProfileLinks,
     });
+    const [linkErrors, setLinkErrors] = useState<Partial<Record<LinkKey, string>>>({});
+    const [completing, setCompleting] = useState(false);
 
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -102,6 +108,7 @@ function LegacyRegister() {
                 role: typeof draft.data.role === 'string' ? draft.data.role : prev.role,
                 customRole: typeof draft.data.customRole === 'string' ? draft.data.customRole : prev.customRole,
                 specialization: typeof draft.data.specialization === 'string' ? draft.data.specialization : prev.specialization,
+                links: draft.data.links && typeof draft.data.links === 'object' ? draft.data.links : prev.links,
             }));
         }
     }, []);
@@ -144,6 +151,7 @@ function LegacyRegister() {
                         skills: profile.skills || prev.skills,
                         experienceLevel: profile.experienceLevel || prev.experienceLevel,
                         customRole: profile.role && !ROLES.includes(profile.role) ? profile.role : prev.customRole,
+                        links: profile.links && Object.keys(profile.links).length ? { ...profile.links } : prev.links,
                     }));
                     const isComplete = profile.fullName && profile.specialization && profile.yearJoined && profile.discordConnected === true;
                     if (isComplete) {
@@ -206,7 +214,26 @@ function LegacyRegister() {
         }
     };
 
-    const handleComplete = () => {
+    const handleComplete = async () => {
+        // Optional channels (YouTube, GitHub, …): save them if any were added, but never block on the server.
+        const { clean, errors } = validateLinks(formData.links);
+        setLinkErrors(errors);
+        if (Object.keys(errors).length > 0) {
+            setError('Fix the highlighted link, or clear it to skip.');
+            setShouldShake(true);
+            setTimeout(() => setShouldShake(false), 500);
+            return;
+        }
+        if (Object.keys(clean).length > 0) {
+            setCompleting(true);
+            try {
+                const saved = await createOrUpdateUserRecord({ links: clean });
+                if (saved) setCurrentUser(saved as any);
+            } catch {
+                /* links can be added later from Profile */
+            }
+            setCompleting(false);
+        }
         clearDraft();
         navigate('/dashboard');
     };
@@ -889,6 +916,29 @@ function LegacyRegister() {
                                             </div>
                                         </div>
 
+                                        {/* Channels & links — optional, platforms picked for the chosen role */}
+                                        {(() => {
+                                            const trackId = trackForRole(formData.specialization).id;
+                                            return (
+                                                <div className="rounded-[14px] bg-white p-4 shadow-[0_0_0_1px_rgb(15_23_42/0.12),0_2px_6px_-2px_rgb(15_23_42/0.08)] sm:p-5">
+                                                    <p className="flex flex-wrap items-center gap-x-2 text-[15px] font-semibold text-slate-900">
+                                                        Your channels & links
+                                                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">Optional</span>
+                                                    </p>
+                                                    <p className="mb-4 mt-0.5 text-[13px] leading-snug text-slate-500">{LINKS_INTRO[trackId]}</p>
+                                                    <LinksFields
+                                                        idPrefix="reg-link"
+                                                        trackId={trackId}
+                                                        links={formData.links}
+                                                        onChange={(links) => setFormData({ ...formData, links })}
+                                                        errors={linkErrors}
+                                                        onClearError={(k) => setLinkErrors((prev) => ({ ...prev, [k]: undefined }))}
+                                                        expanded={Object.keys(linkErrors).length > 0}
+                                                    />
+                                                </div>
+                                            );
+                                        })()}
+
                                         {/* GitHub — later */}
                                         <div className="rounded-[14px] p-4 shadow-[inset_0_0_0_1.5px_rgb(203_213_225)] [background-image:repeating-linear-gradient(135deg,transparent_0_10px,rgb(241_245_249)_10px_11px)] sm:p-5">
                                             <div className="flex items-center gap-3.5">
@@ -937,10 +987,10 @@ function LegacyRegister() {
                                                 key="complete-step"
                                                 type="button"
                                                 onClick={handleComplete}
-                                                disabled={!discordConnected}
+                                                disabled={!discordConnected || completing}
                                                 className="s-btn s-btn-accent min-w-[180px]"
                                             >
-                                                Submit application
+                                                {completing ? 'Saving…' : 'Submit application'}
                                             </button>
                                             {!discordConnected && (
                                                 <p className="text-[12px] text-[var(--fg-3)]">Connect Discord to submit.</p>

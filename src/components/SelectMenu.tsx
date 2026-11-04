@@ -3,6 +3,7 @@ import clsx from 'clsx';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Check, ChevronDown } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { usePopoverPlacement } from '../hooks/usePopoverPlacement';
 
 export interface SelectOption {
   value: string;
@@ -37,6 +38,7 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const typed = useRef({ text: '', at: 0 });
+  const place = usePopoverPlacement(triggerRef, open);
 
   const selectedIndex = options.findIndex((o) => o.value === value);
   const selected = selectedIndex >= 0 ? options[selectedIndex] : null;
@@ -147,12 +149,15 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
             aria-labelledby={labelledBy}
             aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
             onKeyDown={onListKeyDown}
-            initial={reduce ? { opacity: 0 } : { opacity: 0, y: -4, scale: 0.98 }}
+            initial={reduce ? { opacity: 0 } : { opacity: 0, y: place.side === 'down' ? -4 : 4, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={reduce ? { opacity: 0 } : { opacity: 0, y: -2, scale: 0.99 }}
+            exit={reduce ? { opacity: 0 } : { opacity: 0, y: place.side === 'down' ? -2 : 2, scale: 0.99 }}
             transition={{ duration: 0.14, ease: [0.23, 1, 0.32, 1] }}
-            style={{ transformOrigin: 'top center' }}
-            className="absolute left-0 right-0 top-full z-50 mt-2 max-h-[min(360px,60vh)] min-w-[260px] overflow-y-auto overscroll-contain rounded-[14px] bg-white p-1.5 shadow-[0_0_0_1px_rgb(15_23_42/0.08),0_16px_40px_-12px_rgb(15_23_42/0.3)] focus:outline-none"
+            style={{ transformOrigin: place.side === 'down' ? 'top center' : 'bottom center', maxHeight: place.maxHeight }}
+            className={clsx(
+              'thin-scroll absolute left-0 right-0 z-50 min-w-[260px] overflow-y-auto overscroll-contain rounded-[14px] bg-white p-1.5 shadow-[0_0_0_1px_rgb(15_23_42/0.08),0_16px_40px_-12px_rgb(15_23_42/0.3)] focus:outline-none',
+              place.side === 'down' ? 'top-full mt-2' : 'bottom-full mb-2'
+            )}
           >
             {rows.map((row) =>
               row.kind === 'group' ? (
@@ -179,7 +184,7 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
                       onMouseMove={() => active !== i && setActive(i)}
                       onClick={() => choose(i)}
                       className={clsx(
-                        'flex min-h-[44px] cursor-pointer items-center gap-3 rounded-[10px] px-2.5 py-2 transition-colors duration-100',
+                        'flex min-h-[40px] cursor-pointer items-center gap-3 rounded-[10px] px-2.5 py-1.5 transition-colors duration-100',
                         isActive ? 'bg-slate-900/[0.05]' : '',
                         isSelected && 'bg-[#f4f7ff]'
                       )}

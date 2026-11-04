@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { getApprovedProjects, supabase } from '../../services/supabase';
 import { Project } from '../../types';
 import { SiteLayout, PageIntro } from '../../components/site/SiteLayout';
+import { workTypeLabel } from '../../constants/tracks';
 
 const hostnameFromUrl = (url: string) => {
   try {
@@ -61,6 +62,7 @@ export default function Projects() {
       p.title.toLowerCase().includes(q) ||
       p.host.toLowerCase().includes(q) ||
       (p.projType || '').toLowerCase().includes(q) ||
+      workTypeLabel(p.projType).toLowerCase().includes(q) ||
       p.description.toLowerCase().includes(q)
     ));
   }, [enriched, q]);
@@ -174,7 +176,7 @@ export default function Projects() {
                     <p className="mt-3 flex-1 text-[14px] leading-relaxed text-[var(--fg-2)] line-clamp-3">{p.description}</p>
                     <div className="mt-5 flex items-center justify-between gap-3 border-t border-[var(--line)] pt-3 text-[12px] text-[var(--fg-3)]">
                       <span className="truncate">
-                        {p.projType || ((p as any).source === 'bettergov.ph' ? 'bettergov.ph' : 'Community')}
+                        {workTypeLabel(p.projType) || ((p as any).source === 'bettergov.ph' ? 'bettergov.ph' : 'Community')}
                       </span>
                       {p.createdAt && (
                         <time className="num shrink-0" dateTime={p.createdAt}>

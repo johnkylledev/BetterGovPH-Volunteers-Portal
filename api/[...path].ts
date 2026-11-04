@@ -149,7 +149,26 @@ const mapUserRow = (row: any) => ({
   discordVerified: row.discord_verified ?? false,
   discordDisplayName: row.discord_display_name ?? undefined,
   discordAvatar: row.discord_avatar ?? undefined,
+  links: row.links && typeof row.links === 'object' && !Array.isArray(row.links) ? row.links : {},
 });
+
+// Profile links (YouTube, GitHub, …): known platforms only, https URLs only, short. Private to the member and admins.
+const LINK_KEYS = ['youtube', 'tiktok', 'facebook', 'instagram', 'x', 'linkedin', 'github', 'portfolio'];
+const sanitizeLinks = (input: unknown): Record<string, string> | null => {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return null;
+  const out: Record<string, string> = {};
+  for (const key of LINK_KEYS) {
+    const raw = (input as Record<string, unknown>)[key];
+    if (typeof raw !== 'string' || !raw.trim()) continue;
+    const value = raw.trim().slice(0, 300);
+    try {
+      const u = new URL(value);
+      if (u.protocol !== 'https:') continue;
+      out[key] = u.toString();
+    } catch { /* drop anything that isn't a valid URL */ }
+  }
+  return out;
+};
 
 // ----- Redis / Upstash + memory cache (contrib of api/_lib/redis.ts) --------
 interface MemoryCacheEntry { value: any; expiresAt: number; }
@@ -540,6 +559,8 @@ const handler_me: H = async (req, res) => {
   if (typeof body.yearJoined === 'number' && body.yearJoined >= 2020 && body.yearJoined <= 2100) updates.year_joined = body.yearJoined;
   if (Array.isArray(body.skills) && body.skills.length <= 100) updates.skills = body.skills;
   if (typeof body.experienceLevel === 'string') updates.experience_level = body.experienceLevel.trim().slice(0, 50);
+  const links = sanitizeLinks(body.links);
+  if (links) updates.links = links;
   updates.auth_provider = 'google';
 
   if (typeof updates.discord_username === 'string' && updates.discord_username.trim()) {
@@ -555,8 +576,13 @@ const handler_me: H = async (req, res) => {
   // The name on an approved member's Volunteer Card is what /verify vouches for; only admins change it.
   if (existingUser && String(existingUser.status || '').toLowerCase() === 'approved') delete updates.full_name;
   if (existingUser) {
-    const { data: updatedRows, error: updateError } = await supabase
+    let { data: updatedRows, error: updateError } = await supabase
       .from('users').update(updates).eq('uid', uid).select('*');
+    // Before the `links` column migration runs, save everything else instead of failing the whole profile.
+    if (updateError && 'links' in updates && String(updateError.message || '').toLowerCase().includes('links')) {
+      delete updates.links;
+      ({ data: updatedRows, error: updateError } = await supabase.from('users').update(updates).eq('uid', uid).select('*'));
+    }
     if (updateError) { sendError(res, 500, 'Failed to update profile'); return; }
     const updated = Array.isArray(updatedRows) ? updatedRows[0] : null;
     if (updated) { sendJson(res, 200, { user: mapUserRow(updated) }); return; }

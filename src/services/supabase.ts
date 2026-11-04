@@ -180,6 +180,7 @@ const mapToAppUser = (dbUser: any): User | null => {
     discordVerified: dbUser.discord_verified ?? false,
     discordDisplayName: dbUser.discord_display_name ?? undefined,
     discordAvatar: dbUser.discord_avatar ?? undefined,
+    links: dbUser.links && typeof dbUser.links === 'object' && !Array.isArray(dbUser.links) ? dbUser.links : {},
   };
 };
 
@@ -270,6 +271,7 @@ export const createOrUpdateUserRecord = async (user: any) => {
       skills: user.skills,
       experienceLevel: user.experienceLevel,
       authProvider: user.authProvider,
+      ...(user.links ? { links: user.links } : {}),
     }),
   });
   return res.user;

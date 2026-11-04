@@ -5,7 +5,10 @@ import { AlertCircle, BadgeCheck, Briefcase, CheckCircle2, Clock, Link2, Lock, S
 import { useStore } from '../../store/useStore';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
 import { UserChip } from '../../components/UserChip';
-import { AppHeader, MEMBER_NAV } from '../../components/AppHeader';
+import { AppHeader } from '../../components/AppHeader';
+import { memberNav, trackForRole } from '../../constants/tracks';
+import { ALL_LINK_KEYS, type LinkKey, type ProfileLinks } from '../../constants/socialLinks';
+import { LinksFields, LINKS_INTRO, validateLinks } from '../../components/LinksFields';
 import { SkillsPicker } from '../../components/SkillsPicker';
 import { SkillIcon } from '../../components/SkillIcon';
 import { SPECIALIZATIONS, ROLE_GROUPS } from '../../constants/specializations';
@@ -33,6 +36,9 @@ const skillsKey = (skills: UserSkill[]) =>
     .sort()
     .join('|');
 
+const linksKey = (links?: ProfileLinks) =>
+  ALL_LINK_KEYS.map((k) => `${k}=${(links?.[k] || '').trim()}`).join('|');
+
 const Card: React.FC<{ title: string; description?: string; children: React.ReactNode }> = ({ title, description, children }) => (
   <section className="s-card p-5 sm:p-6">
     <h2 className="text-[16px] font-semibold text-slate-900">{title}</h2>
@@ -59,6 +65,9 @@ export default function Profile() {
   const [specialization, setSpecialization] = useState('');
   const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel | ''>('');
   const [skills, setSkills] = useState<UserSkill[]>([]);
+  const [links, setLinks] = useState<ProfileLinks>({});
+  const [linkErrors, setLinkErrors] = useState<Partial<Record<LinkKey, string>>>({});
+  const [showAllLinks, setShowAllLinks] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -75,6 +84,8 @@ export default function Profile() {
     setExperienceLevel((currentUser.experienceLevel as ExperienceLevel) ?? '');
     // Copy whole skill objects so `featured` (and any future fields) survive a save.
     setSkills((currentUser.skills ?? []).map((s) => ({ ...s })));
+    setLinks({ ...(currentUser.links ?? {}) });
+    setLinkErrors({});
   }, [currentUser]);
 
   useEffect(() => {
@@ -123,16 +134,17 @@ export default function Profile() {
   const nameLocked = currentUser?.status === 'Approved';
 
   const changed = useMemo(() => {
-    if (!currentUser) return { personal: false, role: false, skills: false };
+    if (!currentUser) return { personal: false, role: false, skills: false, connections: false };
     return {
       personal: !nameLocked && fullName.trim() !== (currentUser.fullName ?? ''),
       role:
         specialization !== (currentUser.specialization ?? '') ||
         experienceLevel !== (currentUser.experienceLevel ?? ''),
       skills: skillsKey(skills) !== skillsKey(currentUser.skills ?? []),
+      connections: linksKey(links) !== linksKey(currentUser.links),
     };
-  }, [currentUser, nameLocked, fullName, specialization, experienceLevel, skills]);
-  const dirty = changed.personal || changed.role || changed.skills;
+  }, [currentUser, nameLocked, fullName, specialization, experienceLevel, skills, links]);
+  const dirty = changed.personal || changed.role || changed.skills || changed.connections;
 
   if (!currentUser) return <LoadingOverlay />;
 
@@ -170,6 +182,16 @@ export default function Profile() {
       setSaveError('Choose a primary role.');
       return;
     }
+    // Links: normalize what was typed ("@handle", "youtube.com/…") and stop on a bad one.
+    const { clean: cleanLinks, errors } = validateLinks(links);
+    setLinkErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setActiveTab('connections');
+      setShowAllLinks(true);
+      setSaveState('error');
+      setSaveError('Fix the highlighted link.');
+      return;
+    }
     setSaveState('saving');
     setSaveError('');
     try {
@@ -180,6 +202,7 @@ export default function Profile() {
         // Featured skills are stored first so every view can show them up front.
         skills: [...skills.filter((s) => s.featured), ...skills.filter((s) => !s.featured)],
         yearJoined: currentUser.yearJoined,
+        links: cleanLinks,
       });
       if (updated) setCurrentUser(updated);
       setSaveState('saved');
@@ -225,7 +248,7 @@ export default function Profile() {
   return (
     <div className="site min-h-screen pb-28">
       <AppHeader
-        items={currentUser.isAdmin ? [] : MEMBER_NAV}
+        items={currentUser.isAdmin ? [] : memberNav(trackForRole(currentUser.specialization))}
         activeId={null}
         onSelect={(id) => navigate('/dashboard', { state: { tab: id } })}
         mobileNav={false}
@@ -280,7 +303,7 @@ export default function Profile() {
                 {TABS.map((tab, idx) => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
-                  const hasChanges = tab.id !== 'connections' && changed[tab.id];
+                  const hasChanges = changed[tab.id];
                   return (
                     <button
                       key={tab.id}
@@ -506,6 +529,24 @@ export default function Profile() {
                 </div>
               </div>
             </Card>
+
+            <div className="mt-6">
+              {(() => {
+                const trackId = trackForRole(specialization || currentUser.specialization).id;
+                return (
+                  <Card title="Your channels & links" description={LINKS_INTRO[trackId]}>
+                    <LinksFields
+                      trackId={trackId}
+                      links={links}
+                      onChange={(next) => { setLinks(next); touch(); }}
+                      errors={linkErrors}
+                      onClearError={(k) => setLinkErrors((prev) => ({ ...prev, [k]: undefined }))}
+                      expanded={showAllLinks}
+                    />
+                  </Card>
+                );
+              })()}
+            </div>
           </div>
         )}
           </div>
