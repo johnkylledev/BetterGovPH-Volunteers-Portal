@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Suspense, lazy, useEffect, useState } from "react";
 import { useStore } from "./store/useStore";
+import { peekReturnTo, takeReturnTo } from "./utils/returnTo";
 import { LoadingOverlay } from "./components/LoadingOverlay";
 import { getUserData, supabase, resetSupabaseClient } from "./services/supabase";
 import Landing from "./pages/public/Landing";
@@ -28,15 +29,36 @@ const isProfileComplete = (u: any) => {
   const fullNameOk = typeof u.fullName === 'string' && u.fullName.trim().length > 0;
   const specializationOk = typeof u.specialization === 'string' && u.specialization.trim().length > 0;
   const yearOk = typeof u.yearJoined === 'number' && Number.isFinite(u.yearJoined);
-  // Discord is optional for now (integration unavailable); members can connect it later from Profile.
-  return fullNameOk && specializationOk && yearOk;
+  // Registration ends at step 4 (Data Privacy Act consent). Discord is optional for now.
+  const consentOk = typeof u.consentAt === 'string' && u.consentAt.length > 0;
+  return fullNameOk && specializationOk && yearOk && consentOk;
 };
 
 function GatedRedirect({ to, forceReplace = false }: { to: string, forceReplace?: boolean }) {
   const location = useLocation();
   const alreadyRedirectedFromHere = (location.state as any)?.from === to;
-  if (alreadyRedirectedFromHere) return null;
+  // Loop guard: rather than a blank page, offer a way forward.
+  if (alreadyRedirectedFromHere) {
+    return (
+      <div className="site flex min-h-screen items-center justify-center px-4">
+        <div className="text-center">
+          <p className="text-[15px] text-slate-600">Taking you to the right page…</p>
+          <a href={to} className="s-btn s-btn-accent mt-4">Continue</a>
+        </div>
+      </div>
+    );
+  }
   return <Navigate to={to} state={{ from: location.pathname }} replace={forceReplace} />;
+}
+
+/** Clears the saved return path once we've arrived there (e.g. back on the call after signing in). */
+function ReturnToCleaner() {
+  const location = useLocation();
+  useEffect(() => {
+    const want = peekReturnTo();
+    if (want && want === location.pathname + location.search) takeReturnTo();
+  }, [location.pathname, location.search]);
+  return null;
 }
 
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) {
@@ -64,7 +86,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
       return <LoadingOverlay />;
     }
     if (currentUser?.isAdmin) return <GatedRedirect to="/admin" />;
-    return <GatedRedirect to={isProfileComplete(currentUser) ? "/dashboard" : "/register"} />;
+    return <GatedRedirect to={isProfileComplete(currentUser) ? peekReturnTo() || "/dashboard" : "/register"} />;
   }
 
   return <>{children}</>;
@@ -89,7 +111,7 @@ function RegisterRoute({ children }: { children: React.ReactNode }) {
   }
   if (sessionUserId && currentUser) {
     if (currentUser?.isAdmin) return <GatedRedirect to="/admin" />;
-    if (isProfileComplete(currentUser)) return <GatedRedirect to="/dashboard" />;
+    if (isProfileComplete(currentUser)) return <GatedRedirect to={peekReturnTo() || "/dashboard"} />;
   }
 
   return <>{children}</>;
@@ -239,6 +261,7 @@ export default function App() {
       {!authInitialized && !isEmbed && <LoadingOverlay />}
       <Router>
         <Suspense fallback={<LoadingOverlay />}>
+        <ReturnToCleaner />
         <Routes>
           <Route path="/" element={<HomeRoute><Landing /></HomeRoute>} />
           <Route path="/login/*" element={<PublicRoute><Login /></PublicRoute>} />

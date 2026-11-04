@@ -180,3 +180,11 @@ export interface ReportItem {
   id: string; targetType: 'call' | 'project'; targetId: string; targetTitle: string; targetStatus: string | null;
   reason: ReportReason; details: string; status: 'open' | 'dismissed' | 'actioned'; resolution: string; createdAt: string; reporter: string;
 }
+
+export interface AdminOverview {
+  queue: { pendingApps: number; pendingProjects: number; openReports: number; deletionRequests: number; noConsent: number };
+  numbers: { members: number; approvedProjects: number; importedProjects: number; openCalls: number; interests7d: number; newMembers7d: number };
+  roles: { role: string; count: number }[];
+  deletions: { uid: string; name: string; email: string; memberId: string | null; status: string; requestedAt: string }[];
+  feed: { kind: 'member' | 'project' | 'call'; text: string; status?: string; at: string; link?: string }[];
+}

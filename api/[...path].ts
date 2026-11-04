@@ -1299,6 +1299,7 @@ const handler_me: H = async (req, res) => {
   if (typeof body.showInDirectory === 'boolean') updates.show_in_directory = body.showInDirectory;
   if (typeof body.showFullName === 'boolean') updates.show_full_name = body.showFullName;
   if (typeof body.displayName === 'string') updates.display_name = cleanDisplayName(body.displayName) || null;
+  if (typeof body.role === 'string' && body.role.trim()) updates.role = body.role.replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 60);
   if (body.acceptCoc === true) updates.coc_accepted_at = new Date().toISOString();
   // Right to erasure: the member asks, an admin completes it (approved projects may need a new owner first).
   if (body.requestDeletion === true) { updates.deletion_requested_at = new Date().toISOString(); updates.show_in_directory = false; }
@@ -1346,7 +1347,8 @@ const handler_me: H = async (req, res) => {
   }
 
   // The name on an approved member's Volunteer Card is what /verify vouches for; only admins change it.
-  if (existingUser && String(existingUser.status || '').toLowerCase() === 'approved') delete updates.full_name;
+  // The name and community role on an approved card are what /verify vouches for; only admins change them.
+  if (existingUser && String(existingUser.status || '').toLowerCase() === 'approved') { delete updates.full_name; delete updates.role; }
   if (existingUser) {
     let { data: updatedRows, error: updateError } = await supabase
       .from('users').update(updates).eq('uid', uid).select('*');
@@ -1372,7 +1374,9 @@ const handler_me: H = async (req, res) => {
     if (updated) { sendJson(res, 200, { user: mapUserRow(updated) }); return; }
   }
   const now = new Date().toISOString();
-  const insertRow = {
+  const { updated_at: _u, ...sent } = updates;
+  const insertRow: Record<string, any> = {
+    ...sent,
     uid, email,
     full_name: updates.full_name ?? '',
     specialization: updates.specialization ?? '',
@@ -1385,8 +1389,12 @@ const handler_me: H = async (req, res) => {
     year_joined: updates.year_joined ?? null,
     auth_provider: 'google',
   };
-  const { data: insertResult, error: insertError } = await supabase
+  let { data: insertResult, error: insertError } = await supabase
     .from('users').insert(insertRow).select('*').maybeSingle();
+  if (insertError && isMissingColumnError(insertError)) {
+    for (const k of ['links', 'secondary_specialization', 'show_in_directory', 'show_full_name', 'consent_version', 'consent_at', 'consent_purposes', 'deletion_requested_at', 'display_name', 'coc_accepted_at']) delete insertRow[k];
+    ({ data: insertResult, error: insertError } = await supabase.from('users').insert(insertRow).select('*').maybeSingle());
+  }
   if (insertError || !insertResult) { sendError(res, 500, 'Failed to create profile'); return; }
   sendJson(res, 200, { user: mapUserRow(insertResult) });
 };
@@ -1575,7 +1583,7 @@ const handler_admin: H = async (req, res) => {
     if (submissionError) { sendError(res, 500, 'Failed to load submission'); return; }
     if (!submission) { sendError(res, 404, 'Submission not found'); return; }
     const invalidateProjectCache = async () => {
-      try { await invalidateCache('cache:projects:approved'); await invalidateCache('cache:admin:stats'); }
+      try { await invalidateCache('cache:projects:approved'); await invalidateCache('cache:projects:approved:merged'); await invalidateCache('cache:admin:stats'); }
       catch { /* noop */ }
     };
     const note = typeof body.note === 'string' ? body.note.trim().slice(0, 1000) : '';
@@ -1642,6 +1650,108 @@ const handler_admin: H = async (req, res) => {
       return;
     }
     sendError(res, 400, 'Unknown action');
+    return;
+  }
+
+  // Overview: what needs attention, community numbers, role mix and recent activity. Admins only.
+  if (req.method === 'GET' && resource === 'overview') {
+    if (!supabaseUrl || !serviceRoleKey) { sendError(res, 500, 'Server not configured'); return; }
+    const token = getBearerToken(req.headers?.authorization);
+    if (!token) { sendError(res, 401, 'Missing Authorization bearer token'); return; }
+    const adminSup = createServiceClient(supabaseUrl, serviceRoleKey);
+    const { data: authData, error: authError } = await adminSup.auth.getUser(token);
+    const callerUid = authData?.user?.id ? String(authData.user.id) : '';
+    if (authError || !callerUid) { sendError(res, 401, 'Invalid token'); return; }
+    const adminCheck = await assertAdmin(adminSup, callerUid, authData?.user?.email ?? undefined);
+    if (!adminCheck.ok) { sendError(res, 403, adminCheck.error); return; }
+    const head = (table: string) => adminSup.from(table).select('*', { count: 'exact', head: true });
+    const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
+    const safeCount = async (q: any) => { try { const { count } = await q; return count ?? 0; } catch { return 0; } };
+    const [pendingApps, members, pendingProjects, approvedProjects, importedProjects, openCalls, interests7d, openReports, newMembers7d, noConsent] = await Promise.all([
+      safeCount(head('users').in('status', ['Pending', 'pending', 'PENDING']).eq('is_admin', false).not('full_name', 'eq', '').not('specialization', 'eq', '')),
+      safeCount(head('users').in('status', ['Approved', 'approved', 'APPROVED']).eq('is_admin', false)),
+      safeCount(head('project_submissions').in('status', ['pending', 'Pending'])),
+      safeCount(head('project_submissions').in('status', ['approved', 'Approved'])),
+      safeCount(head('project_submissions').eq('imported', true)),
+      safeCount(head('volunteer_calls').eq('status', 'open')),
+      safeCount(head('call_interests').neq('status', 'withdrawn').gte('created_at', weekAgo)),
+      safeCount(head('reports').eq('status', 'open')),
+      safeCount(head('users').eq('is_admin', false).gte('created_at', weekAgo)),
+      safeCount(head('users').in('status', ['Approved', 'approved', 'APPROVED']).eq('is_admin', false).is('consent_at', null)),
+    ]);
+    const { data: roleRows } = await adminSup.from('users').select('specialization, secondary_specialization, status')
+      .eq('is_admin', false).not('specialization', 'eq', '').limit(5000);
+    const roleCount = new Map<string, number>();
+    for (const r of roleRows ?? []) {
+      if (r.specialization) roleCount.set(r.specialization, (roleCount.get(r.specialization) ?? 0) + 1);
+    }
+    const { data: deletions } = await adminSup.from('users').select('uid, full_name, email, member_id, status, deletion_requested_at')
+      .not('deletion_requested_at', 'is', null).order('deletion_requested_at', { ascending: true }).limit(50);
+    // Recent activity, newest first. Names only; no emails in the feed.
+    const [{ data: recentUsers }, { data: recentProjects }, { data: recentCalls }] = await Promise.all([
+      adminSup.from('users').select('full_name, status, created_at').eq('is_admin', false).not('full_name', 'eq', '').order('created_at', { ascending: false }).limit(6),
+      adminSup.from('project_submissions').select('id, project_name, status, created_at, imported').order('created_at', { ascending: false }).limit(6),
+      adminSup.from('volunteer_calls').select('id, title, call_type, created_at').order('created_at', { ascending: false }).limit(6),
+    ]);
+    const feed = [
+      ...(recentUsers ?? []).map((u: any) => ({ kind: 'member', text: `${u.full_name} applied`, status: u.status, at: u.created_at })),
+      ...(recentProjects ?? []).map((p: any) => ({ kind: 'project', text: `${p.imported ? 'Imported' : 'Submitted'}: ${p.project_name}`, status: p.status, at: p.created_at, link: `/projects/${p.id}` })),
+      ...(recentCalls ?? []).map((c: any) => ({ kind: 'call', text: `${c.call_type && c.call_type !== 'people' ? 'Request' : 'Call'}: ${c.title}`, at: c.created_at, link: `/opportunities?call=${c.id}` })),
+    ].sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 12);
+    sendJson(res, 200, {
+      queue: { pendingApps, pendingProjects, openReports, deletionRequests: (deletions ?? []).length, noConsent },
+      numbers: { members, approvedProjects, importedProjects, openCalls, interests7d, newMembers7d },
+      roles: Array.from(roleCount.entries()).sort((a, b) => b[1] - a[1]).map(([role, count]) => ({ role, count })),
+      deletions: (deletions ?? []).map((d: any) => ({ uid: d.uid, name: d.full_name, email: d.email, memberId: d.member_id, status: d.status, requestedAt: d.deletion_requested_at })),
+      feed,
+    });
+    return;
+  }
+
+  // Erase a member's data after a deletion request (RA 10173, right to erasure). Admins only.
+  // Approved public projects stay listed but move to the admin; everything personal is removed.
+  if (req.method === 'POST' && resource === 'erase-user') {
+    if (!supabaseUrl || !serviceRoleKey) { sendError(res, 500, 'Server not configured'); return; }
+    const token = getBearerToken(req.headers?.authorization);
+    if (!token) { sendError(res, 401, 'Missing Authorization bearer token'); return; }
+    const adminSup = createServiceClient(supabaseUrl, serviceRoleKey);
+    const { data: authData, error: authError } = await adminSup.auth.getUser(token);
+    const callerUid = authData?.user?.id ? String(authData.user.id) : '';
+    if (authError || !callerUid) { sendError(res, 401, 'Invalid token'); return; }
+    const adminCheck = await assertAdmin(adminSup, callerUid, authData?.user?.email ?? undefined);
+    if (!adminCheck.ok) { sendError(res, 403, adminCheck.error); return; }
+    const body = getBody(req);
+    const uid = typeof body.uid === 'string' && isUuid(body.uid) ? body.uid : '';
+    if (!uid) { sendError(res, 400, 'uid is required'); return; }
+    if (uid === callerUid) { sendError(res, 400, 'You can’t erase your own account here.'); return; }
+    const { data: target } = await adminSup.from('users').select('uid, is_admin, email, deletion_requested_at').eq('uid', uid).maybeSingle();
+    if (!target) { sendError(res, 404, 'Member not found'); return; }
+    if (target.is_admin) { sendError(res, 400, 'Remove admin rights first.'); return; }
+    // Typed confirmation: the member's email, so this can't happen by a stray click.
+    if (typeof body.confirm !== 'string' || body.confirm.trim().toLowerCase() !== String(target.email || '').toLowerCase()) {
+      sendError(res, 400, 'Type the member’s email to confirm.'); return;
+    }
+    const done: string[] = [];
+    const step = async (label: string, fn: () => PromiseLike<any>) => { try { const r = await fn(); if (!r?.error) done.push(label); } catch { /* table may not exist */ } };
+    // Projects they submitted: approved ones stay public under the admin; the rest are deleted.
+    await step('projects reassigned', () => adminSup.from('project_submissions').update({ user_id: callerUid, owner_user_id: null }).eq('user_id', uid).in('status', ['approved', 'Approved']));
+    await step('team head handed to admin', () => adminSup.from('project_submissions').update({ team_head_id: callerUid }).eq('team_head_id', uid));
+    await step('other projects deleted', () => adminSup.from('project_submissions').delete().eq('user_id', uid));
+    await step('team memberships', () => adminSup.from('team_members').delete().eq('user_id', uid));
+    await step('call interests', () => adminSup.from('call_interests').delete().eq('user_id', uid));
+    await step('calls', () => adminSup.from('volunteer_calls').delete().eq('user_id', uid));
+    await step('notifications', () => adminSup.from('notifications').delete().eq('user_id', uid));
+    await step('reports filed', () => adminSup.from('reports').delete().eq('reporter_id', uid));
+    await step('consent records', () => adminSup.from('consent_log').delete().eq('user_id', uid));
+    const { error: delErr } = await adminSup.from('users').delete().eq('uid', uid);
+    if (delErr) { sendError(res, 500, 'Couldn’t remove the profile. Related data may already be removed; try again.'); return; }
+    done.push('profile');
+    try { await adminSup.auth.admin.deleteUser(uid); done.push('sign-in account'); } catch { /* noop */ }
+    try {
+      await invalidateCache('cache:admin:stats'); await invalidateCache('cache:volunteers:directory:v2');
+      await invalidateCache('cache:projects:approved'); await invalidateCache('cache:projects:approved:merged');
+    } catch { /* noop */ }
+    sendJson(res, 200, { erased: true, removed: done });
     return;
   }
 
@@ -2055,6 +2165,40 @@ const mapMySubmissionRow = (row: any) => ({
 const handler_my_project_submissions: H = async (req, res) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
+  if (req.method === 'POST') {
+    // Edit and resubmit a project that was sent back (or is still waiting): it goes back to review.
+    const caller = await authCaller(req);
+    if ('error' in caller) { sendError(res, 500, caller.error); return; }
+    const { supabase: sb, uid: me } = caller;
+    if (!me) { sendError(res, 401, 'Sign in first'); return; }
+    const body = getBody(req);
+    const id = typeof body.id === 'string' ? body.id : '';
+    const { data: row } = id ? await sb.from('project_submissions').select('*').eq('id', id).maybeSingle() : { data: null };
+    if (!row || row.user_id !== me) { sendError(res, 404, 'Submission not found'); return; }
+    const st = String(row.status || '').toLowerCase();
+    if (st !== 'rejected' && st !== 'pending') { sendError(res, 400, 'Approved projects are edited by the team head or an admin.'); return; }
+    const fields: Record<string, any> = { status: 'pending' };
+    if (typeof body.projectName === 'string' && body.projectName.trim()) fields.project_name = body.projectName.trim().slice(0, 160);
+    if (typeof body.description === 'string' && body.description.trim()) fields.description = body.description.trim().slice(0, 4000);
+    if (typeof body.projectUrl === 'string') {
+      const u = safeHttpUrl(body.projectUrl.trim());
+      if (!u) { sendError(res, 400, 'Use a full web link (https://…) for the project.'); return; }
+      fields.project_url = u;
+    }
+    if (typeof body.repoUrl === 'string') {
+      if (body.repoUrl.trim()) {
+        const repo = await fetchRepoStats(body.repoUrl.trim());
+        if (!repo.ok) { sendError(res, 400, repo.error || 'Couldn’t read that repository.'); return; }
+        fields.repo_url = repo.url; fields.repo_stats = repo; fields.repo_checked_at = repo.checkedAt;
+      } else fields.repo_url = null;
+    }
+    const { error } = await sb.from('project_submissions').update(fields).eq('id', id);
+    if (error) { sendError(res, 500, 'Couldn’t resubmit. Try again.'); return; }
+    await notifyAdmins(sb, { kind: 'project_resubmitted', title: `Resubmitted for review: ${quote(fields.project_name ?? row.project_name)}`, link: '/admin?tab=projects' });
+    try { await invalidateCache('cache:admin:stats'); } catch { /* noop */ }
+    sendJson(res, 200, { status: 'pending' });
+    return;
+  }
   if (req.method !== 'GET') { sendError(res, 405, 'Method not allowed'); return; }
   const { url: supabaseUrl, serviceKey: serviceRoleKey } = getSupabaseConfig();
   if (!supabaseUrl || !serviceRoleKey) { sendError(res, 500, 'Server not configured'); return; }
@@ -2101,7 +2245,11 @@ const callExtrasFrom = (body: any) => {
   const gf = typeof body.good_first === 'boolean' ? body.good_first : typeof body.goodFirst === 'boolean' ? body.goodFirst : undefined;
   if (gf !== undefined) out.good_first = gf;
   const chat = body.chat_url ?? body.chatUrl;
-  if (typeof chat === 'string') out.chat_url = chat.trim() ? sanitizeChatUrl(chat) : null;
+  if (typeof chat === 'string') {
+    const clean = chat.trim() ? sanitizeChatUrl(chat) : null;
+    if (chat.trim() && !clean) out.__chatError = true;
+    out.chat_url = clean;
+  }
   return out;
 };
 
@@ -2145,6 +2293,7 @@ const handler_volunteer_calls: H = async (req, res) => {
       for (const u of us ?? []) names.set(String(u.uid), publicNameOf(u));
     }
     res.setHeader('Cache-Control', 'public, max-age=60');
+    res.setHeader('Vary', 'Authorization');
     sendJson(res, 200, {
       calls: rows.map((r: any) => {
         const c: any = mapCallRow(r, { fullName: names.get(String(r.user_id)) || 'Member', email: '' });
@@ -2234,6 +2383,8 @@ const handler_volunteer_calls: H = async (req, res) => {
       updateFields.status = body.status.toLowerCase();
     }
     const extras = callExtrasFrom(body);
+    if (extras.__chatError) { sendError(res, 400, 'Use a Messenger, WhatsApp, Viber, Telegram or Discord invite link for the group chat.'); return; }
+    delete extras.__chatError;
     if (Object.keys(updateFields).length === 0 && Object.keys(extras).length === 0) { sendError(res, 400, 'No fields to update'); return; }
     let { error: updateError } = await supabase.from('volunteer_calls').update({ ...updateFields, ...extras }).eq('id', id);
     if (updateError && isMissingColumnError(updateError) && Object.keys(updateFields).length) {
@@ -2281,6 +2432,8 @@ const handler_volunteer_calls: H = async (req, res) => {
     typeof body.rolesNeeded === 'string' ? body.rolesNeeded.trim().slice(0, 500) : '';
   const contact = typeof body.contact === 'string' ? body.contact.trim().slice(0, 200) : '';
   const extras = callExtrasFrom(body);
+  if (extras.__chatError) { sendError(res, 400, 'Use a Messenger, WhatsApp, Viber, Telegram or Discord invite link for the group chat.'); return; }
+  delete extras.__chatError;
   const isPeople = (extras.call_type ?? 'people') === 'people';
   // A venue or equipment request may not have a project link yet; a call for people always does.
   if (!title || !description || (isPeople && !projectUrl)) {
@@ -2703,7 +2856,8 @@ const handler_volunteers: H = async (req, res) => {
     .limit(1000);
   if (error) { sendError(res, 500, 'Failed to load volunteers'); return; }
   // Members can hide themselves; names are redacted ("John K****") unless they opt in to their full name.
-  const volunteers = (data ?? []).filter((r: any) => r.show_in_directory !== false).map((r: any) => {
+  const volunteers = (data ?? []).filter((r: any) =>
+    r.show_in_directory !== false && Array.isArray(r.consent_purposes) && r.consent_purposes.includes('directory')).map((r: any) => {
     const skills: { name: string; featured?: boolean }[] = Array.isArray(r.skills) ? r.skills : [];
     const ordered = [...skills.filter((s) => s?.featured), ...skills.filter((s) => !s?.featured)];
     return {

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import clsx from 'clsx';
 import { Flag, X } from 'lucide-react';
 import { toast } from 'sonner';
@@ -30,6 +30,10 @@ export const ReportsQueue: React.FC<{ initiallyOpen?: boolean }> = ({ initiallyO
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  const location = useLocation();
+  useEffect(() => {
+    if (new URLSearchParams(location.search).has('reports')) { setOpen(true); load(); }
+  }, [location.search, load]);
 
   if (!available) return null;
   const count = reports?.length ?? 0;
@@ -51,6 +55,7 @@ export const ReportsQueue: React.FC<{ initiallyOpen?: boolean }> = ({ initiallyO
   return (
     <>
       <button
+        id="reports-button"
         type="button"
         onClick={() => { setOpen(true); load(); }}
         className={clsx('relative inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] transition-colors',

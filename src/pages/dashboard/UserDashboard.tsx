@@ -16,6 +16,7 @@ import { CallMeta, CallMetaFields, CallTypePicker, EMPTY_CALL_EXTRAS, extrasFrom
 import { RepoChip, RepoPanel } from '../../components/RepoHealth';
 import { CallContact, InterestButton, InterestList } from '../../components/CallInterest';
 import { GettingStarted } from '../../components/GettingStarted';
+import { ResubmitProject } from '../../components/ResubmitProject';
 import { STAGES, callTypeOf } from '../../constants/community';
 import { RefreshButton } from '../../components/RefreshButton';
 import { DISCORD_AVAILABLE, COMING_SOON_PILL } from '../../constants/integrations';
@@ -49,6 +50,11 @@ export default function UserDashboard() {
     const wanted = (location.state as { tab?: string } | null)?.tab ?? new URLSearchParams(location.search).get('tab') ?? undefined;
     return MEMBER_NAV.some((n) => n.id === wanted) ? (wanted as 'dashboard') : 'dashboard';
   });
+  // Notification links and other pages can point at a tab while the dashboard is already open.
+  useEffect(() => {
+    const wanted = (location.state as { tab?: string } | null)?.tab ?? new URLSearchParams(location.search).get('tab') ?? undefined;
+    if (wanted && MEMBER_NAV.some((n) => n.id === wanted)) setActiveTab(wanted as 'dashboard');
+  }, [location.search, location.state]);
   const [projectName, setProjectName] = useState('');
   const [projectUrl, setProjectUrl] = useState('');
   const [projectDescription, setProjectDescription] = useState('');
@@ -141,8 +147,14 @@ export default function UserDashboard() {
   const handleUpdateCall = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCallForModal) return;
-    if (!editTitle.trim() || !editDescription.trim() || (editExtras.callType === 'people' && !editProjectUrl.trim())) {
-      toast.error(editExtras.callType === 'people' ? 'Title, project link and details are required.' : 'Title and details are required.');
+    const editPeople = editExtras.callType === 'people';
+    if (!editTitle.trim() || !editDescription.trim() || (editPeople && !editProjectUrl.trim())) {
+      toast.error(editPeople ? 'Title, project link and details are required.' : 'Title and details are required.');
+      setModalActionStatus('error');
+      return;
+    }
+    if (editPeople && editExtras.goodFirst && !editContact.trim() && !editExtras.chatUrl.trim()) {
+      toast.error('Good first tasks need a contact or a group chat, so a newcomer knows who to ask.');
       setModalActionStatus('error');
       return;
     }
@@ -153,13 +165,13 @@ export default function UserDashboard() {
         projectUrl: editProjectUrl.trim(),
         description: editDescription.trim(),
         rolesNeeded: editExtras.callType === 'people' ? editRolesNeeded.trim() : '',
-        contact: editContact.trim() || undefined,
+        contact: editContact.trim(),
         status: editStatus,
         callType: editExtras.callType,
         location: editExtras.location.trim(),
         neededBy: editExtras.neededBy,
-        commitment: editExtras.commitment,
-        workMode: editExtras.workMode,
+        commitment: editPeople ? editExtras.commitment : '',
+        workMode: editPeople ? editExtras.workMode : '',
         goodFirst: editExtras.callType === 'people' && editExtras.goodFirst,
         chatUrl: editExtras.chatUrl.trim(),
       });
@@ -533,7 +545,7 @@ export default function UserDashboard() {
       setVolunteerSubmitStatus('error');
       return;
     }
-    if (isPeople && callExtras.goodFirst && !volunteerContact.trim()) {
+    if (isPeople && callExtras.goodFirst && !volunteerContact.trim() && !callExtras.chatUrl.trim()) {
       toast.error('Good first tasks need a contact, so a newcomer knows who to ask.');
       setVolunteerSubmitStatus('error');
       return;
@@ -1205,11 +1217,16 @@ export default function UserDashboard() {
                     </div>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-1">
                       <div>
-                        <label htmlFor="proj-stage" className="mb-1.5 block text-[13px] font-medium text-slate-900">Stage</label>
-                        <select id="proj-stage" value={projectStage} onChange={(e) => setProjectStage(e.target.value as ProjectStage | '')} className="s-field h-11" disabled={projectSubmitStatus === 'loading'}>
-                          <option value="">Choose a stage</option>
-                          {STAGES.map((st) => <option key={st.id} value={st.id}>{st.label} — {st.hint}</option>)}
-                        </select>
+                        <label id="proj-stage-label" htmlFor="proj-stage" className="mb-1.5 block text-[13px] font-medium text-slate-900">Stage</label>
+                        <SelectMenu
+                          id="proj-stage"
+                          labelledBy="proj-stage-label"
+                          value={projectStage}
+                          disabled={projectSubmitStatus === 'loading'}
+                          onChange={(v) => setProjectStage(v as ProjectStage | '')}
+                          placeholder="Choose a stage"
+                          options={STAGES.map((st) => ({ value: st.id, label: st.label, hint: st.hint }))}
+                        />
                       </div>
                       <div>
                         <p id="proj-owner-label" className="mb-1.5 block text-[13px] font-medium text-slate-900">Who owns it?</p>
@@ -1323,6 +1340,7 @@ export default function UserDashboard() {
                           </div>
                         )}
                         {s.repo && <RepoChip repo={s.repo} className="mt-3" />}
+                        {s.status === 'rejected' && <ResubmitProject submission={s} onDone={() => loadMySubmissions(false)} />}
                         <p className="mt-3 flex flex-wrap items-center gap-x-2 text-[12px] text-slate-500">
                           <Link to={`/projects/${encodeURIComponent(String(s.id))}`} className="font-medium text-[var(--accent)] hover:underline">Project page & team</Link>
                           <span aria-hidden>·</span>

@@ -7,6 +7,8 @@ import { SiteLayout } from '../../components/site/SiteLayout';
 import { Avatar } from '../../components/Avatar';
 import { RepoPanel } from '../../components/RepoHealth';
 import { ReportButton } from '../../components/ReportButton';
+import { SelectMenu } from '../../components/SelectMenu';
+import { setReturnTo } from '../../utils/returnTo';
 import { getRepoStats, getTeam, teamAction, type TeamAction } from '../../services/supabase';
 import { useStore } from '../../store/useStore';
 import { stageLabel } from '../../constants/community';
@@ -111,7 +113,7 @@ export default function ProjectDetail() {
     if (!approved) return <p className="text-[13px] text-slate-500">This project is still in review. Team sign-ups open once it’s approved.</p>;
     if (!sessionUserId) {
       return (
-        <Link to="/login" className="s-btn s-btn-accent h-11 w-full">
+        <Link to="/login" onClick={() => setReturnTo(`/projects/${encodeURIComponent(id)}`)} className="s-btn s-btn-accent h-11 w-full">
           Sign in to join the team
         </Link>
       );
@@ -327,10 +329,15 @@ export default function ProjectDetail() {
                   }}
                 >
                   {ownerMode === 'member' ? (
-                    <select aria-label="Owner" value={ownerUserId} onChange={(e) => setOwnerUserId(e.target.value)} className="s-field sm:flex-1">
-                      <option value="">Choose a team member</option>
-                      {members.filter((m) => m.userId).map((m) => <option key={m.userId} value={m.userId}>{m.name}{m.isHead ? ' (head)' : ''}</option>)}
-                    </select>
+                    <SelectMenu
+                      id="owner-member"
+                      ariaLabel="Owner"
+                      className="sm:flex-1"
+                      value={ownerUserId}
+                      onChange={setOwnerUserId}
+                      placeholder="Choose a team member"
+                      options={members.filter((m) => m.userId).map((m) => ({ value: m.userId!, label: m.name, hint: m.isHead ? 'Team head' : m.teamRole || m.role || undefined }))}
+                    />
                   ) : (
                     <input aria-label="Organisation name" maxLength={120} value={ownerName} onChange={(e) => setOwnerName(e.target.value)} className="s-field sm:flex-1" placeholder="e.g. Barangay San Isidro, DICT, a school or NGO" />
                   )}

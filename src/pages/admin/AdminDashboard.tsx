@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Avatar } from '../../components/Avatar';
 import { ReportsQueue } from '../../components/ReportsQueue';
+import { AdminOverview } from '../../components/admin/AdminOverview';
+import { AdminCalls } from '../../components/admin/AdminCalls';
 import { NotificationBell } from '../../components/NotificationBell';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, CheckCircle2, XCircle, CreditCard, Copy, Code, Check, Briefcase, ChevronLeft, ChevronRight, Trash2, Inbox, FolderKanban, Clock, BadgeCheck } from 'lucide-react';
@@ -16,7 +18,14 @@ import { deleteProjectSubmission, editProjectSubmission, getAllUsers, getAdminSt
 import type { ImportProjectRow } from '../../types';
 import { ROPA_REGISTER, CONSENT_PURPOSES } from '../../constants/community';
 import { SkillIcon } from '../../components/SkillIcon';
-import { SPECIALIZATIONS } from '../../constants/specializations';
+import { SPECIALIZATIONS, ROLE_GROUPS } from '../../constants/specializations';
+import { SelectMenu, type SelectOption } from '../../components/SelectMenu';
+
+// Role filter for the admin tables: every role, grouped like the sign-up picker.
+const ROLE_FILTER_OPTIONS: SelectOption[] = [
+  { value: 'All', label: 'All roles' },
+  ...SPECIALIZATIONS.map((sp) => ({ value: sp.label, label: sp.label, icon: sp.icon, group: ROLE_GROUPS.find((g) => g.id === (sp.group ?? 'tech'))?.label })),
+];
 
 
 /**
@@ -48,7 +57,15 @@ export default function AdminDashboard() {
   const { currentUser, users, updateUserStatus, setUsers, authInitialized } = useStore();
   const logout = useStore((s) => s.logout);
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'applications' | 'members' | 'projects'>('applications');
+  const [activeTab, setActiveTab] = useState<'overview' | 'applications' | 'members' | 'projects' | 'calls'>(() => {
+    const t = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null;
+    return t === 'applications' || t === 'members' || t === 'projects' || t === 'calls' ? t : 'overview';
+  });
+  const adminLocation = useLocation();
+  useEffect(() => {
+    const t = new URLSearchParams(adminLocation.search).get('tab');
+    if (t === 'applications' || t === 'members' || t === 'projects' || t === 'calls' || t === 'overview') setActiveTab(t);
+  }, [adminLocation.search]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'All'>('All');
   const [roleFilter, setRoleFilter] = useState<string>('All');
@@ -106,7 +123,7 @@ export default function AdminDashboard() {
 
   const loadUsers = async (page: number, showLoading = true, search = debouncedSearch) => {
     if (!currentUser?.isAdmin) return;
-    if (activeTab === 'projects') return;
+    if (activeTab !== 'applications' && activeTab !== 'members') return;
     if (showLoading) setIsDataLoading(true);
     try {
       const filters = {
@@ -167,7 +184,7 @@ export default function AdminDashboard() {
     if (!currentUser?.isAdmin) return;
     if (activeTab === 'projects') {
       loadProjectSubmissions(true);
-    } else {
+    } else if (activeTab === 'applications' || activeTab === 'members') {
       loadUsers(currentPage, true, debouncedSearch);
     }
   }, [currentUser, currentPage, activeTab, statusFilter, roleFilter, debouncedSearch, projectStatusFilter, projectPage]);
@@ -185,7 +202,7 @@ export default function AdminDashboard() {
           table: 'users',
         },
         () => {
-          if (activeTab !== 'projects') {
+          if (activeTab === 'applications' || activeTab === 'members') {
             loadUsers(currentPage, false);
           }
           loadStats();
@@ -441,9 +458,11 @@ export default function AdminDashboard() {
   }, [users]);
 
   const adminTabs = [
+    { id: 'overview' as const, label: 'Overview', count: undefined as number | undefined },
     { id: 'applications' as const, label: 'Applications', count: stats.pending },
     { id: 'members' as const, label: 'Members', count: stats.approved },
-    { id: 'projects' as const, label: 'Projects', count: projectSubmissionsTotal },
+    { id: 'projects' as const, label: 'Projects', count: projectSubmissionsTotal || undefined },
+    { id: 'calls' as const, label: 'Calls', count: undefined as number | undefined },
   ];
   const tileSource = activeTab === 'projects' ? projectStats : stats;
   const isProjects = activeTab === 'projects';
@@ -481,7 +500,7 @@ export default function AdminDashboard() {
                 )}
               >
                 {t.label}
-                <span className="num text-[12px] text-slate-400">{t.count}</span>
+                {typeof t.count === 'number' && <span className="num text-[12px] text-slate-400">{t.count}</span>}
               </button>
             ))}
           </nav>
@@ -517,7 +536,7 @@ export default function AdminDashboard() {
               )}
             >
               {t.label}
-              <span className="num text-[12px] text-slate-400">{t.count}</span>
+              {typeof t.count === 'number' && <span className="num text-[12px] text-slate-400">{t.count}</span>}
             </button>
           ))}
         </nav>
@@ -527,22 +546,34 @@ export default function AdminDashboard() {
         <div>
           <h1 className="text-[28px] sm:text-[32px]">{adminTabs.find((t) => t.id === activeTab)?.label}</h1>
           <p className="mt-1 text-[15px] text-slate-600">
-            {activeTab === 'applications'
-              ? 'Review new membership applications and issue cards.'
-              : activeTab === 'members'
-                ? 'Everyone with an active card.'
-                : 'Moderate project submissions before they appear on the public list.'}
+            {activeTab === 'overview'
+              ? 'What needs a decision, and how the community is doing.'
+              : activeTab === 'applications'
+                ? 'Review new membership applications and issue cards.'
+                : activeTab === 'members'
+                  ? 'Everyone with an active card.'
+                  : activeTab === 'calls'
+                    ? 'Every call and request members have posted.'
+                    : 'Moderate project submissions before they appear on the public list.'}
           </p>
         </div>
 
+        {activeTab === 'overview' ? (
+          <AdminOverview onGo={setActiveTab} onImport={() => { setImportOpen(true); setImportResult(null); }} onExportRopa={exportRopa} ropaBusy={ropaBusy} />
+        ) : (
+        <>
+        {activeTab !== 'calls' && (
         <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
           {statTiles.map((t) => (
             <StatTile key={t.label} label={t.label} value={t.value} hint={t.hint} icon={t.icon} />
           ))}
         </div>
+        )}
 
         <div className="s-card overflow-hidden">
-          {activeTab === 'applications' ? (
+          {activeTab === 'calls' ? (
+            <AdminCalls />
+          ) : activeTab === 'applications' ? (
             <>
               <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4 sm:gap-6">
                 <div>
@@ -562,17 +593,14 @@ export default function AdminDashboard() {
                   </div>
                   <div className="grid grid-cols-2 sm:flex sm:items-center gap-3 w-full sm:w-auto">
                     <div className="relative w-full sm:w-auto">
-                      <Briefcase className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <select
+                      <SelectMenu
+                        id="role-filter-1"
+                        ariaLabel="Filter by role"
+                        className="sm:w-56"
                         value={roleFilter}
-                        onChange={(e) => setRoleFilter(e.target.value)}
-                        className="s-field sm:w-44 pl-10 pr-8 appearance-none cursor-pointer"
-                      >
-                        <option value="All">All Roles</option>
-                        {SPECIALIZATIONS.map(spec => (
-                          <option key={spec.id} value={spec.label}>{spec.label}</option>
-                        ))}
-                      </select>
+                        onChange={setRoleFilter}
+                        options={ROLE_FILTER_OPTIONS}
+                      />
                     </div>
                   </div>
                 </div>
@@ -902,17 +930,14 @@ export default function AdminDashboard() {
                   </div>
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
                     <div className="relative flex-1 sm:w-auto">
-                      <Briefcase className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <select
+                      <SelectMenu
+                        id="role-filter-2"
+                        ariaLabel="Filter by role"
+                        className="sm:w-56"
                         value={roleFilter}
-                        onChange={(e) => setRoleFilter(e.target.value)}
-                        className="s-field sm:w-44 pl-10 pr-8 appearance-none cursor-pointer"
-                      >
-                        <option value="All">All Roles</option>
-                        {SPECIALIZATIONS.map(spec => (
-                          <option key={spec.id} value={spec.label}>{spec.label}</option>
-                        ))}
-                      </select>
+                        onChange={setRoleFilter}
+                        options={ROLE_FILTER_OPTIONS}
+                      />
                     </div>
                     {users.filter(u => u && !u.isAdmin && u.status === 'Approved').length > 0 && (
                       <button
@@ -1012,6 +1037,8 @@ export default function AdminDashboard() {
             </>
           )}
         </div>
+        </>
+        )}
       </main>
 
       {/* Review Modal */}
@@ -1438,16 +1465,18 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">Status</label>
-                    <select
+                    <label id="edit-status-label" className="block text-xs font-semibold text-slate-500 mb-1">Status</label>
+                    <SelectMenu
+                      id="edit-status"
+                      labelledBy="edit-status-label"
                       value={editForm.status}
-                      onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[10px] text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500"
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="approved">Approved</option>
-                      <option value="rejected">Rejected</option>
-                    </select>
+                      onChange={(v) => setEditForm({ ...editForm, status: v })}
+                      options={[
+                        { value: 'pending', label: 'In review' },
+                        { value: 'approved', label: 'Approved', hint: 'Live on the Projects page' },
+                        { value: 'rejected', label: 'Sent back', hint: 'The submitter sees your note' },
+                      ]}
+                    />
                   </div>
                 </div>
                 <div className="p-4 sm:p-6 border-t border-slate-100 bg-slate-50 flex flex-col-reverse sm:flex-row justify-end gap-2.5">

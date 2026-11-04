@@ -10,8 +10,9 @@ const isProfileComplete = (u: any) => {
   const fullNameOk = typeof u.fullName === 'string' && u.fullName.trim().length > 0;
   const specializationOk = typeof u.specialization === 'string' && u.specialization.trim().length > 0;
   const yearOk = typeof u.yearJoined === 'number' && Number.isFinite(u.yearJoined);
-  // Discord is optional for now (integration unavailable); members can connect it later from Profile.
-  return fullNameOk && specializationOk && yearOk;
+  // Registration ends at step 4 (Data Privacy Act consent). Discord is optional for now.
+  const consentOk = typeof u.consentAt === 'string' && u.consentAt.length > 0;
+  return fullNameOk && specializationOk && yearOk && consentOk;
 };
 
 const menuItem = {

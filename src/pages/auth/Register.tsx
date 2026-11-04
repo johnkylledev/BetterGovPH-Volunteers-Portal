@@ -106,10 +106,11 @@ function LegacyRegister() {
 
     useEffect(() => {
         const draft = loadDraft();
-        if (draft?.step && !hasSession) {
-            setCurrentStep(draft.step);
+        // Step 4 needs the saved profile; the profile check below moves people there when it exists.
+        if (draft?.step) {
+            setCurrentStep(Math.min(draft.step, 3) as Step);
         }
-        if (draft?.data && !hasSession) {
+        if (draft?.data) {
             setFormData(prev => ({
                 ...prev,
                 fullName: typeof draft.data.fullName === 'string' ? draft.data.fullName : prev.fullName,
@@ -139,7 +140,7 @@ function LegacyRegister() {
 
     useEffect(() => {
         if (hasSession) {
-            if (currentUser && currentUser.fullName && currentUser.specialization && currentUser.yearJoined && (currentUser.discordConnected === true || currentStep !== 4)) {
+            if (currentUser && currentUser.fullName && currentUser.specialization && currentUser.yearJoined && currentUser.consentAt) {
                 if (currentUser.isAdmin) {
                     navigate('/admin', { replace: true });
                 } else {
@@ -169,8 +170,11 @@ function LegacyRegister() {
                         links: profile.links && Object.keys(profile.links).length ? { ...profile.links } : prev.links,
                         secondarySpecialization: profile.secondarySpecialization || prev.secondarySpecialization,
                     }));
-                    const isComplete = profile.fullName && profile.specialization && profile.yearJoined && (profile.discordConnected === true || currentStep !== 4);
-                    if (isComplete) {
+                    const hasBasics = profile.fullName && profile.specialization && profile.yearJoined;
+                    const isComplete = hasBasics && profile.consentAt;
+                    // Saved through step 3 but never gave consent: continue at the last step.
+                    if (hasBasics && !isComplete && !profile.isAdmin) setCurrentStep(4);
+                    if (isComplete || profile.isAdmin) {
                         if (profile.isAdmin) {
                             navigate('/admin', { replace: true });
                         } else {
@@ -582,7 +586,7 @@ function LegacyRegister() {
                                         type="button"
                                         onClick={() => {
                                             const target = Number(step.id);
-                                            if (!Number.isNaN(target) && target >= 1 && target <= 4) {
+                                            if (!Number.isNaN(target) && target >= 1 && target <= currentStep) {
                                                 setCurrentStep(target as Step);
                                             }
                                         }}
@@ -704,20 +708,14 @@ function LegacyRegister() {
                                         </div>
 
                                         <div>
-                                            <label htmlFor="field-year" className="mb-1.5 block text-[14px] font-medium text-slate-900">Member since</label>
-                                            <div className="relative">
-                                                <select
-                                                    id="field-year"
-                                                    value={formData.yearJoined}
-                                                    onChange={(e) => setFormData({ ...formData, yearJoined: Number(e.target.value) })}
-                                                    className="s-field h-11 cursor-pointer appearance-none pr-10 text-[15px]"
-                                                >
-                                                    {Array.from({ length: new Date().getFullYear() - 2024 }, (_, i) => new Date().getFullYear() - i).map((year) => (
-                                                        <option key={year} value={year}>{year}</option>
-                                                    ))}
-                                                </select>
-                                                <ChevronDown size={16} strokeWidth={1.75} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                                            </div>
+                                            <label id="label-year" htmlFor="field-year" className="mb-1.5 block text-[14px] font-medium text-slate-900">Member since</label>
+                                            <SelectMenu
+                                                id="field-year"
+                                                labelledBy="label-year"
+                                                value={String(formData.yearJoined)}
+                                                onChange={(v) => setFormData({ ...formData, yearJoined: Number(v) })}
+                                                options={Array.from({ length: new Date().getFullYear() - 2024 }, (_, i) => new Date().getFullYear() - i).map((year) => ({ value: String(year), label: String(year) }))}
+                                            />
                                             <p className="mt-1.5 text-[12px] text-slate-500">The year you first joined the community.</p>
                                         </div>
                                     </motion.div>

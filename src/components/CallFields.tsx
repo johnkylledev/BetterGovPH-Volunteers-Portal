@@ -2,6 +2,7 @@ import React from 'react';
 import clsx from 'clsx';
 import { CalendarClock, Clock3, MapPin, Sprout, Wifi } from 'lucide-react';
 import type { CallType, VolunteerCall } from '../types';
+import { SelectMenu } from './SelectMenu';
 import { CALL_TYPES, COMMITMENTS, WORK_MODES, callTypeOf, commitmentLabel, neededByLabel, workModeLabel } from '../constants/community';
 
 export interface CallExtras {
@@ -55,7 +56,6 @@ export const CallTypePicker: React.FC<{ value: CallType; onChange: (t: CallType)
 export const CallMetaFields: React.FC<{ value: CallExtras; onChange: (v: CallExtras) => void; idPrefix: string; disabled?: boolean }> = ({ value, onChange, idPrefix, disabled }) => {
   const set = (patch: Partial<CallExtras>) => onChange({ ...value, ...patch });
   const people = value.callType === 'people';
-  const select = 's-field h-11 pr-8';
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
@@ -71,18 +71,29 @@ export const CallMetaFields: React.FC<{ value: CallExtras; onChange: (v: CallExt
       {people && (
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label htmlFor={`${idPrefix}-commit`} className={labelClass}>Time</label>
-            <select id={`${idPrefix}-commit`} value={value.commitment} disabled={disabled} onChange={(e) => set({ commitment: e.target.value })} className={select}>
-              <option value="">Not sure</option>
-              {COMMITMENTS.map((c) => <option key={c.id} value={c.id}>{c.label} — {c.hint}</option>)}
-            </select>
+            <label id={`${idPrefix}-commit-label`} htmlFor={`${idPrefix}-commit`} className={labelClass}>Time</label>
+            <SelectMenu
+              id={`${idPrefix}-commit`}
+              labelledBy={`${idPrefix}-commit-label`}
+              value={value.commitment}
+              disabled={disabled}
+              onChange={(v) => set({ commitment: v })}
+              placeholder="Not sure"
+              options={[{ value: '', label: 'Not sure' }, ...COMMITMENTS.map((c) => ({ value: c.id, label: c.label, hint: c.hint }))]}
+            />
           </div>
           <div>
-            <label htmlFor={`${idPrefix}-mode`} className={labelClass}>Format</label>
-            <select id={`${idPrefix}-mode`} value={value.workMode} disabled={disabled} onChange={(e) => set({ workMode: e.target.value })} className={select}>
-              <option value="">Any</option>
-              {WORK_MODES.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
-            </select>
+            <label id={`${idPrefix}-mode-label`} htmlFor={`${idPrefix}-mode`} className={labelClass}>Format</label>
+            <SelectMenu
+              id={`${idPrefix}-mode`}
+              labelledBy={`${idPrefix}-mode-label`}
+              value={value.workMode}
+              disabled={disabled}
+              onChange={(v) => set({ workMode: v })}
+              placeholder="Any"
+              align="right"
+              options={[{ value: '', label: 'Any' }, ...WORK_MODES.map((m) => ({ value: m.id, label: m.label }))]}
+            />
           </div>
         </div>
       )}
