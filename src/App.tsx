@@ -20,6 +20,7 @@ const Volunteers = lazy(() => import("./pages/public/Volunteers"));
 const ProjectDetail = lazy(() => import("./pages/public/ProjectDetail"));
 const Opportunities = lazy(() => import("./pages/public/Opportunities"));
 const CodeOfConduct = lazy(() => import("./pages/public/CodeOfConduct"));
+const Certificate = lazy(() => import("./pages/dashboard/Certificate"));
 const Contribute = lazy(() => import("./pages/public/Contribute"));
 const NotFound = lazy(() => import("./pages/public/NotFound"));
 const DiscordCallback = lazy(() => import("./pages/auth/DiscordCallback"));
@@ -269,6 +270,7 @@ export default function App() {
           <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/certificate" element={<ProtectedRoute><Certificate /></ProtectedRoute>} />
           <Route path="/verify" element={<Verify />} />
           <Route path="/verify/:id" element={<Verify />} />
           <Route path="/projects" element={<Projects />} />

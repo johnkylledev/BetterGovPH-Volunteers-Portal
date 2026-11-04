@@ -16,6 +16,7 @@ import { CallMeta, CallMetaFields, CallTypePicker, EMPTY_CALL_EXTRAS, extrasFrom
 import { RepoChip, RepoPanel } from '../../components/RepoHealth';
 import { CallContact, InterestButton, InterestList } from '../../components/CallInterest';
 import { GettingStarted } from '../../components/GettingStarted';
+import { HoursToConfirm, MyHoursCard } from '../../components/VolunteerHours';
 import { ResubmitProject } from '../../components/ResubmitProject';
 import { STAGES, callTypeOf } from '../../constants/community';
 import { RefreshButton } from '../../components/RefreshButton';
@@ -793,6 +794,10 @@ export default function UserDashboard() {
                 )}
 
                 <GettingStarted user={currentUser} calls={volunteerCalls} teams={myTeams?.teams ?? null} />
+
+                <HoursToConfirm />
+
+                <MyHoursCard teams={myTeams?.teams ?? null} calls={volunteerCalls} approved={currentUser.status === 'Approved'} />
 
                 {myTeams && (myTeams.teams.length > 0 || myTeams.pendingForMe > 0) && (
                   <section className="s-card p-5 sm:p-6" aria-labelledby="teams-title">

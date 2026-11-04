@@ -9,6 +9,11 @@ import { RepoPanel } from '../../components/RepoHealth';
 import { ReportButton } from '../../components/ReportButton';
 import { SelectMenu } from '../../components/SelectMenu';
 import { setReturnTo } from '../../utils/returnTo';
+import { ShareButton } from '../../components/ShareButton';
+import { ProjectUpdates } from '../../components/ProjectUpdates';
+import { HoursToConfirm, LogHoursForm } from '../../components/VolunteerHours';
+import { STAGES } from '../../constants/community';
+import { availabilitySummary } from '../../constants/community';
 import { getRepoStats, getTeam, teamAction, type TeamAction } from '../../services/supabase';
 import { useStore } from '../../store/useStore';
 import { stageLabel } from '../../constants/community';
@@ -106,6 +111,8 @@ export default function ProjectDetail() {
   const { project, members, me, requests, owner } = team;
   const canManage = !!me?.canManage;
   const approved = project.status.toLowerCase() === 'approved';
+  const onTeam = !!me && (me.isHead || me.status === 'approved');
+  const shareUrl = `${window.location.origin}/projects/${encodeURIComponent(String(project.id))}`;
   const myStatus = me?.status ?? null;
 
   const joinBox = (() => {
@@ -209,6 +216,7 @@ export default function ProjectDetail() {
                 <ArrowUpRight size={15} strokeWidth={1.75} />
               </a>
             )}
+            {approved && <ShareButton url={shareUrl} title={project.name} />}
             {project.chatUrl && (
               <a href={project.chatUrl} target="_blank" rel="noreferrer" className="s-btn s-btn-plain h-10">
                 <MessageCircle size={15} strokeWidth={1.75} />
@@ -223,6 +231,18 @@ export default function ProjectDetail() {
 
         <div className="mt-10 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-8">
           <div className="min-w-0 space-y-6">
+            {project.stage === 'needs-lead' && (
+              <div className="rounded-[14px] bg-amber-50 p-4 shadow-[inset_0_0_0_1px_rgb(245_158_11/0.3)] sm:p-5">
+                <p className="text-[15px] font-semibold text-slate-900">Looking for a new lead</p>
+                <p className="mt-0.5 text-[13.5px] text-slate-700">The founder stepped back. If you’d like to take this on, ask to join and say so in your note.</p>
+              </div>
+            )}
+            {project.stage === 'completed' && (
+              <div className="rounded-[14px] bg-emerald-50 p-4 shadow-[inset_0_0_0_1px_rgb(16_185_129/0.25)] sm:p-5">
+                <p className="text-[15px] font-semibold text-slate-900">Completed</p>
+                <p className="mt-0.5 text-[13.5px] text-slate-700">This project reached its goal. It stays here for reference, and can be restarted or forked.</p>
+              </div>
+            )}
             <section className="s-card p-5 sm:p-6" aria-labelledby="about-title">
               <h2 id="about-title" className="text-[16px] font-semibold">About</h2>
               <p className="mt-2 whitespace-pre-wrap break-words text-[15px] leading-relaxed text-[var(--fg-2)]">{project.description}</p>
@@ -242,6 +262,20 @@ export default function ProjectDetail() {
               )
             )}
 
+            {approved && <ProjectUpdates projectId={String(project.id)} canPost={onTeam} canModerate={canManage} />}
+
+            {onTeam && approved && (
+              <section className="s-card p-5 sm:p-6" aria-labelledby="loghours-title">
+                <h2 id="loghours-title" className="text-[16px] font-semibold">Log your hours</h2>
+                <p className="mt-1 mb-4 text-[13px] text-slate-500">
+                  {me?.isHead ? 'An admin confirms hours for team heads.' : 'The team head confirms them; confirmed hours go on your certificate.'}
+                </p>
+                <LogHoursForm idPrefix="proj-hours" projectId={String(project.id)} onLogged={() => {}} />
+              </section>
+            )}
+
+            {canManage && <HoursToConfirm projectId={String(project.id)} title="Team hours to confirm" />}
+
             {canManage && requests && (
               <section className="s-card p-5 sm:p-6" aria-labelledby="requests-title">
                 <h2 id="requests-title" className="text-[16px] font-semibold">
@@ -260,6 +294,7 @@ export default function ProjectDetail() {
                             <p className="text-[13px] text-slate-500">
                               {[r.person.role, r.teamRole && `wants to do ${r.teamRole}`, r.person.discordUsername && `@${r.person.discordUsername}`].filter(Boolean).join(' · ')}
                             </p>
+                            {availabilitySummary(r.person) && <p className="text-[12.5px] text-slate-500">{availabilitySummary(r.person)}</p>}
                             {r.person.skills && r.person.skills.length > 0 && (
                               <p className="mt-1.5 flex flex-wrap gap-1">
                                 {r.person.skills.map((s) => <span key={s} className="rounded-full bg-slate-100 px-2 py-0.5 text-[12px] text-slate-700">{s}</span>)}
@@ -299,6 +334,19 @@ export default function ProjectDetail() {
 
             {canManage && (
               <section className="s-card p-5 sm:p-6" aria-labelledby="owner-title">
+                <div className="mb-5 border-b border-slate-200/80 pb-5">
+                  <h2 id="stage-title" className="text-[16px] font-semibold">Stage</h2>
+                  <p className="mt-1 text-[14px] text-slate-500">Mark it “Looking for a new lead” if you’re stepping back, or “Completed” when the goal is reached.</p>
+                  <SelectMenu
+                    id="project-stage"
+                    labelledBy="stage-title"
+                    className="mt-3 sm:max-w-sm"
+                    value={project.stage || ''}
+                    placeholder="Choose a stage"
+                    onChange={(v) => act('stage', { action: 'set-stage', stage: v as never }, 'Stage updated')}
+                    options={STAGES.map((st) => ({ value: st.id, label: st.label, hint: st.hint }))}
+                  />
+                </div>
                 <h2 id="owner-title" className="text-[16px] font-semibold">Project owner</h2>
                 <p className="mt-1 text-[14px] text-slate-500">Who the project belongs to: someone on the team, or the organisation or agency it’s for.</p>
                 <div className="mt-4 inline-flex rounded-[10px] bg-slate-200/60 p-1" role="radiogroup" aria-label="Owner type">

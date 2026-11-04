@@ -122,6 +122,10 @@ export interface User {
   displayName?: string;
   /** When they agreed to the code of conduct. */
   cocAcceptedAt?: string;
+  availability?: string[];
+  hoursPerWeek?: string;
+  region?: string;
+  languages?: string[];
 }
 
 export interface RepoStats {
@@ -139,12 +143,13 @@ export interface RepoStats {
   checkedAt: string;
 }
 
-export type ProjectStage = 'idea' | 'building' | 'beta' | 'live';
+export type ProjectStage = 'idea' | 'building' | 'beta' | 'live' | 'completed' | 'needs-lead';
 export type CallType = 'people' | 'venue' | 'equipment' | 'funding' | 'transport' | 'food' | 'printing' | 'other';
 
 export interface TeamPerson {
   userId?: string; name: string; role: string | null; memberId: string | null; avatarUrl: string | null;
   discordUsername?: string | null; skills?: string[];
+  availability?: string[]; hoursPerWeek?: string | null; region?: string | null; languages?: string[];
 }
 export interface TeamInfo {
   available: boolean;
@@ -164,6 +169,7 @@ export interface CallInterest {
   person: {
     name: string; role: string | null; secondaryRole: string | null; memberId: string | null; approved: boolean;
     avatarUrl: string | null; discordUsername: string | null; skills: string[];
+    availability?: string[]; hoursPerWeek?: string | null; region?: string | null; languages?: string[];
   };
 }
 
@@ -188,3 +194,13 @@ export interface AdminOverview {
   deletions: { uid: string; name: string; email: string; memberId: string | null; status: string; requestedAt: string }[];
   feed: { kind: 'member' | 'project' | 'call'; text: string; status?: string; at: string; link?: string }[];
 }
+
+export interface HoursEntry {
+  id: string; hours: number; activity: string; workedOn: string; status: 'pending' | 'confirmed' | 'declined'; createdAt: string;
+  projectId: string | null; callId: string | null; where: string; person: { name: string; memberId: string | null };
+}
+export interface CertificateData {
+  name: string; memberId: string | null; role: string | null; secondaryRole: string | null; communityRole: string;
+  yearJoined: number | null; totalHours: number; items: { name: string; hours: number; from: string; to: string }[]; teams: number; issuedAt: string;
+}
+export interface ProjectUpdate { id: string; body: string; createdAt: string; mine: boolean; author: string; avatarUrl: string | null }

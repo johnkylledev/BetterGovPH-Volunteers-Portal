@@ -6,6 +6,7 @@ import { SiteLayout, PageIntro } from '../../components/site/SiteLayout';
 import { CallMeta } from '../../components/CallFields';
 import { CallContact, InterestButton } from '../../components/CallInterest';
 import { ReportButton } from '../../components/ReportButton';
+import { ShareButton } from '../../components/ShareButton';
 import { parseRoles } from '../../components/RolesNeededPicker';
 import { getOpenCalls } from '../../services/supabase';
 import { useStore } from '../../store/useStore';
@@ -168,6 +169,7 @@ export default function Opportunities() {
                       </a>
                     )}
                     <div className="mt-4 space-y-3 border-t border-[var(--line)] pt-4">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
                       <InterestButton
                         call={c}
                         signedIn={signedIn}
@@ -175,6 +177,8 @@ export default function Opportunities() {
                         returnPath={`/opportunities?call=${encodeURIComponent(c.id)}`}
                         onChanged={(status) => setCalls((list) => list?.map((x) => (x.id === c.id ? { ...x, myInterest: status } : x)) ?? null)}
                       />
+                      <ShareButton compact url={`${window.location.origin}/opportunities?call=${encodeURIComponent(c.id)}`} title={c.title} />
+                      </div>
                       {signedIn ? (
                         <>
                           <CallContact call={c} />

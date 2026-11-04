@@ -159,6 +159,10 @@ const mapUserRow = (row: any) => ({
   deletionRequestedAt: row.deletion_requested_at ?? undefined,
   displayName: row.display_name ?? undefined,
   cocAcceptedAt: row.coc_accepted_at ?? undefined,
+  availability: Array.isArray(row.availability) ? row.availability : [],
+  hoursPerWeek: row.hours_per_week ?? undefined,
+  region: row.region ?? undefined,
+  languages: Array.isArray(row.languages) ? row.languages : [],
 });
 
 // Profile links (YouTube, GitHub, …): known platforms only, https URLs only, short. Private to the member and admins.
@@ -825,7 +829,7 @@ const handler_call_interests: H = async (req, res) => {
             name: u ? (isAdmin ? u.full_name : memberNameOf(u)) : 'Member',
             role: u?.specialization ?? null, secondaryRole: u?.secondary_specialization ?? null,
             memberId: u?.member_id ?? null, approved: String(u?.status || '').toLowerCase() === 'approved',
-            avatarUrl: discordAvatarOf(u), discordUsername: u?.discord_username || null,
+            avatarUrl: discordAvatarOf(u), discordUsername: u?.discord_username || null, ...availabilityOf(u),
             skills: Array.isArray(u?.skills) ? u.skills.slice(0, 6).map((s: any) => s?.name).filter(Boolean) : [],
           },
         };
@@ -1015,6 +1019,329 @@ const handler_reports: H = async (req, res) => {
   sendJson(res, 200, { status: 'received' });
 };
 
+// ============================================================================
+//  Hours, certificates, project updates, share previews (migration 20261105000500)
+// ============================================================================
+const PH_REGIONS = ['NCR', 'CAR', 'Ilocos Region', 'Cagayan Valley', 'Central Luzon', 'CALABARZON', 'MIMAROPA', 'Bicol Region',
+  'Western Visayas', 'Central Visayas', 'Eastern Visayas', 'Zamboanga Peninsula', 'Northern Mindanao', 'Davao Region',
+  'SOCCSKSARGEN', 'Caraga', 'BARMM', 'Abroad'];
+const LANGS = ['Filipino', 'English', 'Cebuano', 'Ilocano', 'Hiligaynon', 'Bikol', 'Waray', 'Kapampangan', 'Pangasinan',
+  'Maranao', 'Maguindanaon', 'Tausug', 'Chavacano', 'Kinaray-a', 'Surigaonon', 'Other'];
+const AVAIL = ['weekdays', 'weeknights', 'weekends'];
+const HOURS_PW = ['1-2', '3-5', '6-10', '10+'];
+const PROJECT_STAGES = ['idea', 'building', 'beta', 'live', 'completed', 'needs-lead'];
+
+/** When and where someone can help, for posters and team heads (not public). */
+const availabilityOf = (u: any) => ({
+  availability: Array.isArray(u?.availability) ? u.availability : [],
+  hoursPerWeek: u?.hours_per_week ?? null,
+  region: u?.region ?? null,
+  languages: Array.isArray(u?.languages) ? u.languages : [],
+});
+
+const isTeamMember = async (supabase: any, projectId: string, uid: string) => {
+  const { data: project } = await supabase.from('project_submissions').select('id, user_id, team_head_id, status, project_name').eq('id', projectId).maybeSingle();
+  if (!project) return { project: null, member: false, head: false };
+  const { data: row } = await supabase.from('team_members').select('role, status').eq('project_id', String(projectId)).eq('user_id', uid).maybeSingle();
+  const head = project.team_head_id === uid || (row?.role === 'head' && row?.status === 'approved') || (!project.team_head_id && project.user_id === uid);
+  return { project, member: head || row?.status === 'approved', head };
+};
+
+// ---------- /hours -------------------------------------------------------------
+// GET  ?mine=1        my entries and totals
+// GET  ?toConfirm=1   entries I can confirm (teams I lead, calls I posted; everything for admins)
+// POST { projectId | callId, hours, activity, workedOn }     log hours
+// POST { action: 'decide', id, decision: 'confirm' | 'decline' }
+// POST { action: 'delete', id }                               remove my own pending entry
+const handler_hours: H = async (req, res) => {
+  if (req.method !== 'GET' && req.method !== 'POST') { sendError(res, 405, 'Method not allowed'); return; }
+  const caller = await authCaller(req);
+  if ('error' in caller) { sendError(res, 500, caller.error); return; }
+  const { supabase, uid } = caller;
+  if (!uid) { sendError(res, 401, 'Sign in first'); return; }
+  const { data: me } = await supabase.from('users').select('*').eq('uid', uid).maybeSingle();
+  const isAdmin = !!me?.is_admin;
+
+  const label = async (rows: any[]) => {
+    const pids = Array.from(new Set(rows.map((r) => r.project_id).filter(Boolean)));
+    const cids = Array.from(new Set(rows.map((r) => r.call_id).filter(Boolean)));
+    const uids = Array.from(new Set(rows.map((r) => r.user_id)));
+    const [{ data: ps }, { data: cs }, { data: us }] = await Promise.all([
+      pids.length ? supabase.from('project_submissions').select('id, project_name').in('id', pids) : Promise.resolve({ data: [] as any[] }),
+      cids.length ? supabase.from('volunteer_calls').select('id, title').in('id', cids) : Promise.resolve({ data: [] as any[] }),
+      uids.length ? supabase.from('users').select('*').in('uid', uids) : Promise.resolve({ data: [] as any[] }),
+    ]);
+    const pn = new Map((ps ?? []).map((p: any) => [String(p.id), p.project_name]));
+    const cn = new Map((cs ?? []).map((c: any) => [String(c.id), c.title]));
+    const un = new Map((us ?? []).map((u: any) => [String(u.uid), u]));
+    return rows.map((r) => ({
+      id: r.id, hours: Number(r.hours), activity: r.activity, workedOn: r.worked_on, status: r.status, createdAt: r.created_at,
+      projectId: r.project_id, callId: r.call_id,
+      where: (r.project_id ? pn.get(String(r.project_id)) : cn.get(String(r.call_id))) ?? r.context_label ?? 'Volunteering',
+      person: { name: isAdmin ? un.get(String(r.user_id))?.full_name : memberNameOf(un.get(String(r.user_id))), memberId: un.get(String(r.user_id))?.member_id ?? null },
+    }));
+  };
+
+  if (req.method === 'GET') {
+    if (getStringParam(req.query?.mine)) {
+      const { data, error } = await supabase.from('volunteer_hours').select('*').eq('user_id', uid).order('worked_on', { ascending: false }).limit(200);
+      if (error) { sendJson(res, 200, { entries: [], totals: { confirmed: 0, pending: 0 }, available: !isMissingTableError(error) }); return; }
+      const sum = (st: string) => (data ?? []).filter((r: any) => r.status === st).reduce((a: number, r: any) => a + Number(r.hours), 0);
+      sendJson(res, 200, { available: true, entries: await label(data ?? []), totals: { confirmed: sum('confirmed'), pending: sum('pending') } });
+      return;
+    }
+    if (getStringParam(req.query?.toConfirm)) {
+      let q: any = supabase.from('volunteer_hours').select('*').eq('status', 'pending').neq('user_id', uid).order('created_at', { ascending: true }).limit(100);
+      if (!isAdmin) {
+        const [{ data: led }, { data: heads }, { data: mine }] = await Promise.all([
+          supabase.from('project_submissions').select('id').eq('team_head_id', uid),
+          supabase.from('team_members').select('project_id').eq('user_id', uid).eq('role', 'head').eq('status', 'approved'),
+          supabase.from('volunteer_calls').select('id').eq('user_id', uid),
+        ]);
+        const pids = Array.from(new Set([...(led ?? []).map((p: any) => String(p.id)), ...(heads ?? []).map((h: any) => String(h.project_id))]));
+        const cids = (mine ?? []).map((c: any) => c.id);
+        if (!pids.length && !cids.length) { sendJson(res, 200, { entries: [] }); return; }
+        const ors = [pids.length ? `project_id.in.(${pids.join(',')})` : '', cids.length ? `call_id.in.(${cids.join(',')})` : ''].filter(Boolean).join(',');
+        q = q.or(ors);
+      }
+      const { data, error } = await q;
+      if (error) { sendJson(res, 200, { entries: [] }); return; }
+      sendJson(res, 200, { entries: await label(data ?? []) });
+      return;
+    }
+    sendError(res, 400, 'Use ?mine=1 or ?toConfirm=1');
+    return;
+  }
+
+  const body = getBody(req);
+  const action = typeof body.action === 'string' ? body.action : 'log';
+  const now = new Date().toISOString();
+
+  if (action === 'decide' || action === 'delete') {
+    const id = typeof body.id === 'string' && isUuid(body.id) ? body.id : '';
+    const { data: entry } = id ? await supabase.from('volunteer_hours').select('*').eq('id', id).maybeSingle() : { data: null };
+    if (!entry) { sendError(res, 404, 'Entry not found'); return; }
+    if (action === 'delete') {
+      if (entry.user_id !== uid || entry.status !== 'pending') { sendError(res, 403, 'You can only remove your own unconfirmed hours.'); return; }
+      await supabase.from('volunteer_hours').delete().eq('id', id);
+      sendJson(res, 200, { deleted: true });
+      return;
+    }
+    if (entry.user_id === uid) { sendError(res, 403, 'Someone else has to confirm your hours.'); return; }
+    let allowed = isAdmin;
+    let where = 'your volunteering';
+    if (!allowed && entry.project_id) { const t = await isTeamMember(supabase, entry.project_id, uid); allowed = t.head; where = t.project?.project_name ?? where; }
+    if (!allowed && entry.call_id) {
+      const { data: call } = await supabase.from('volunteer_calls').select('user_id, title').eq('id', entry.call_id).maybeSingle();
+      allowed = call?.user_id === uid; where = call?.title ?? where;
+    }
+    if (!allowed) { sendError(res, 403, 'Only the team head, the call poster or an admin can confirm hours.'); return; }
+    const status = body.decision === 'confirm' ? 'confirmed' : body.decision === 'decline' ? 'declined' : '';
+    if (!status) { sendError(res, 400, 'decision must be confirm or decline'); return; }
+    const { error } = await supabase.from('volunteer_hours').update({ status, confirmed_by: uid, decided_at: now }).eq('id', id);
+    if (error) { sendError(res, 500, 'Couldn’t save'); return; }
+    await notify(supabase, entry.user_id, status === 'confirmed'
+      ? { kind: 'hours_confirmed', title: `${Number(entry.hours)} h confirmed for ${quote(where)}`, body: 'They count toward your certificate of volunteer service.', link: '/certificate' }
+      : { kind: 'hours_declined', title: `Hours for ${quote(where)} weren’t confirmed`, body: 'Talk to the team head if this looks wrong.', link: '/dashboard' });
+    sendJson(res, 200, { status });
+    return;
+  }
+
+  // Log hours
+  const hours = Math.round(Number(body.hours) * 2) / 2;
+  if (!Number.isFinite(hours) || hours < 0.5 || hours > 24) { sendError(res, 400, 'Log between 0.5 and 24 hours per entry.'); return; }
+  const activity = typeof body.activity === 'string' ? body.activity.trim().slice(0, 200) : '';
+  if (activity.length < 3) { sendError(res, 400, 'Say briefly what you did.'); return; }
+  const workedOn = typeof body.workedOn === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.workedOn) ? body.workedOn : '';
+  const day = workedOn ? new Date(`${workedOn}T00:00:00Z`).getTime() : NaN;
+  if (!workedOn || Number.isNaN(day) || day > Date.now() + 86_400_000 || day < Date.now() - 366 * 86_400_000) {
+    sendError(res, 400, 'Pick the day you did it (within the last year).'); return;
+  }
+  const projectId = typeof body.projectId === 'string' || typeof body.projectId === 'number' ? String(body.projectId) : '';
+  const callId = typeof body.callId === 'string' && isUuid(body.callId) ? body.callId : '';
+  let notifyId: string | null = null;
+  let where = '';
+  if (projectId) {
+    const t = await isTeamMember(supabase, projectId, uid);
+    if (!t.project) { sendError(res, 404, 'Project not found'); return; }
+    if (!t.member) { sendError(res, 403, 'Join the team first, then log your hours.'); return; }
+    notifyId = t.head ? null : t.project.team_head_id || t.project.user_id;
+    where = t.project.project_name;
+  } else if (callId) {
+    const { data: call } = await supabase.from('volunteer_calls').select('id, user_id, title').eq('id', callId).maybeSingle();
+    if (!call) { sendError(res, 404, 'Call not found'); return; }
+    const { data: hand } = await supabase.from('call_interests').select('status').eq('call_id', callId).eq('user_id', uid).maybeSingle();
+    if (!hand || hand.status === 'withdrawn') { sendError(res, 403, 'Say you’re interested in the call first.'); return; }
+    notifyId = call.user_id; where = call.title;
+  } else { sendError(res, 400, 'projectId or callId is required'); return; }
+  const { data: row, error } = await supabase.from('volunteer_hours').insert({
+    user_id: uid, project_id: projectId || null, call_id: callId || null, hours, activity, worked_on: workedOn,
+    context_label: String(where || '').slice(0, 160) || null,
+  }).select('id').maybeSingle();
+  if (error) { sendError(res, isMissingTableError(error) ? 503 : 500, 'Couldn’t log your hours'); return; }
+  if (notifyId) {
+    await notify(supabase, notifyId, {
+      kind: 'hours_to_confirm', title: `${memberNameOf(me)} logged ${hours} h on ${quote(where)}`, body: activity, link: '/dashboard',
+    });
+  }
+  sendJson(res, 200, { id: row?.id, status: 'pending' });
+};
+
+// ---------- /certificate -------------------------------------------------------
+// Data for the printable certificate of volunteer service. Approved members only; uses the legal
+// name (schools and NSTP offices need it) and only confirmed hours.
+const handler_certificate: H = async (req, res) => {
+  if (req.method !== 'GET') { sendError(res, 405, 'Method not allowed'); return; }
+  const caller = await authCaller(req);
+  if ('error' in caller) { sendError(res, 500, caller.error); return; }
+  const { supabase, uid } = caller;
+  if (!uid) { sendError(res, 401, 'Sign in first'); return; }
+  const { data: me } = await supabase.from('users').select('*').eq('uid', uid).maybeSingle();
+  if (!me) { sendError(res, 404, 'Profile not found'); return; }
+  if (String(me.status || '').toLowerCase() !== 'approved' && !me.is_admin) { sendError(res, 403, 'Certificates are for approved members.'); return; }
+  const { data: rows } = await supabase.from('volunteer_hours').select('*').eq('user_id', uid).eq('status', 'confirmed');
+  const pids = Array.from(new Set((rows ?? []).map((r: any) => r.project_id).filter(Boolean)));
+  const cids = Array.from(new Set((rows ?? []).map((r: any) => r.call_id).filter(Boolean)));
+  const [{ data: ps }, { data: cs }, { data: teams }] = await Promise.all([
+    pids.length ? supabase.from('project_submissions').select('id, project_name').in('id', pids) : Promise.resolve({ data: [] as any[] }),
+    cids.length ? supabase.from('volunteer_calls').select('id, title').in('id', cids) : Promise.resolve({ data: [] as any[] }),
+    supabase.from('team_members').select('project_id, role, team_role').eq('user_id', uid).eq('status', 'approved'),
+  ]);
+  const pn = new Map((ps ?? []).map((p: any) => [String(p.id), p.project_name]));
+  const cn = new Map((cs ?? []).map((c: any) => [String(c.id), c.title]));
+  const byWhere = new Map<string, { name: string; hours: number; from: string; to: string }>();
+  for (const r of rows ?? []) {
+    const key = r.project_id ? `p:${r.project_id}` : r.call_id ? `c:${r.call_id}` : `l:${r.context_label ?? ''}`;
+    const name = (r.project_id ? pn.get(String(r.project_id)) : r.call_id ? cn.get(String(r.call_id)) : null) ?? r.context_label ?? 'Volunteering';
+    const cur = byWhere.get(key) ?? { name, hours: 0, from: r.worked_on, to: r.worked_on };
+    cur.hours += Number(r.hours);
+    if (r.worked_on < cur.from) cur.from = r.worked_on;
+    if (r.worked_on > cur.to) cur.to = r.worked_on;
+    byWhere.set(key, cur);
+  }
+  const total = Array.from(byWhere.values()).reduce((a, b) => a + b.hours, 0);
+  sendJson(res, 200, {
+    name: me.full_name, memberId: me.member_id ?? null, role: me.specialization ?? null, secondaryRole: me.secondary_specialization ?? null,
+    communityRole: me.role ?? 'Member', yearJoined: me.year_joined ?? null, totalHours: total,
+    items: Array.from(byWhere.values()).sort((a, b) => b.hours - a.hours),
+    teams: (teams ?? []).length, issuedAt: new Date().toISOString(),
+  });
+};
+
+// ---------- /project-updates ----------------------------------------------------
+const handler_project_updates: H = async (req, res) => {
+  if (req.method !== 'GET' && req.method !== 'POST') { sendError(res, 405, 'Method not allowed'); return; }
+  const caller = await authCaller(req);
+  if ('error' in caller) { sendError(res, 500, caller.error); return; }
+  const { supabase, uid } = caller;
+  if (req.method === 'GET') {
+    const projectId = getStringParam(req.query?.project) || '';
+    const { data: project } = projectId ? await supabase.from('project_submissions').select('id, status, user_id, team_head_id').eq('id', projectId).maybeSingle() : { data: null };
+    if (!project) { sendError(res, 404, 'Project not found'); return; }
+    if (String(project.status || '').toLowerCase() !== 'approved' && project.user_id !== uid && project.team_head_id !== uid) { sendError(res, 404, 'Project not found'); return; }
+    const { data, error } = await supabase.from('project_updates').select('*').eq('project_id', projectId).order('created_at', { ascending: false }).limit(50);
+    if (error) { sendJson(res, 200, { updates: [], available: !isMissingTableError(error) }); return; }
+    const ids = Array.from(new Set((data ?? []).map((u: any) => u.author_id)));
+    const { data: us } = ids.length ? await supabase.from('users').select('*').in('uid', ids) : { data: [] as any[] };
+    const by = new Map((us ?? []).map((u: any) => [String(u.uid), u]));
+    sendJson(res, 200, {
+      available: true,
+      updates: (data ?? []).map((u: any) => ({
+        id: u.id, body: u.body, createdAt: u.created_at, mine: !!uid && u.author_id === uid,
+        author: publicNameOf(by.get(String(u.author_id))), avatarUrl: discordAvatarOf(by.get(String(u.author_id))),
+      })),
+    });
+    return;
+  }
+  if (!uid) { sendError(res, 401, 'Sign in first'); return; }
+  const body = getBody(req);
+  const { data: me } = await supabase.from('users').select('is_admin').eq('uid', uid).maybeSingle();
+  if (body.action === 'delete') {
+    const id = typeof body.id === 'string' && isUuid(body.id) ? body.id : '';
+    const { data: u } = id ? await supabase.from('project_updates').select('*').eq('id', id).maybeSingle() : { data: null };
+    if (!u) { sendError(res, 404, 'Not found'); return; }
+    const t = await isTeamMember(supabase, u.project_id, uid);
+    if (u.author_id !== uid && !t.head && !me?.is_admin) { sendError(res, 403, 'Only the author or the team head can delete this.'); return; }
+    await supabase.from('project_updates').delete().eq('id', id);
+    sendJson(res, 200, { deleted: true });
+    return;
+  }
+  const projectId = typeof body.projectId === 'string' || typeof body.projectId === 'number' ? String(body.projectId) : '';
+  const text = typeof body.body === 'string' ? body.body.trim().slice(0, 2000) : '';
+  if (!projectId || text.length < 2) { sendError(res, 400, 'Write an update first.'); return; }
+  const t = await isTeamMember(supabase, projectId, uid);
+  if (!t.project) { sendError(res, 404, 'Project not found'); return; }
+  if (!t.member && !me?.is_admin) { sendError(res, 403, 'Only team members can post updates.'); return; }
+  const { data: row, error } = await supabase.from('project_updates').insert({ project_id: projectId, author_id: uid, body: text }).select('id').maybeSingle();
+  if (error) { sendError(res, isMissingTableError(error) ? 503 : 500, 'Couldn’t post the update'); return; }
+  sendJson(res, 200, { id: row?.id });
+};
+
+// ---------- /og: link previews for Messenger, Facebook, WhatsApp, Viber ----------
+// vercel.json routes /projects/:id and /opportunities here; we return the normal app page with
+// that project's or call's title and description in the <head>, so a shared link shows them.
+const escHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
+const handler_og: H = async (req, res) => {
+  const host = String(req.headers?.['x-forwarded-host'] || req.headers?.host || 'volunteers.bettergov.ph');
+  const origin = `${host.startsWith('localhost') ? 'http' : 'https'}://${host}`;
+  const kind = getStringParam(req.query?.kind);
+  let title = 'BetterGovPH Volunteers';
+  let description = 'Find something to help with: civic tech projects and calls for volunteers in the Philippines.';
+  let path = '/';
+  try {
+    const { url, serviceKey } = getSupabaseConfig();
+    const sb = url && serviceKey ? createServiceClient(url, serviceKey) : null;
+    if (sb && kind === 'project') {
+      const id = getStringParam(req.query?.id) || '';
+      path = `/projects/${encodeURIComponent(id)}`;
+      const { data: p } = isUuid(id) ? await sb.from('project_submissions').select('project_name, description, status').eq('id', id).maybeSingle() : { data: null };
+      if (p && String(p.status || '').toLowerCase() === 'approved') {
+        title = `${p.project_name} · BetterGovPH Volunteers`;
+        description = String(p.description || '').slice(0, 200) || 'A BetterGovPH community project. See the team and how to help.';
+      }
+    } else if (sb && kind === 'opportunities') {
+      const callId = getStringParam(req.query?.call) || '';
+      path = callId ? `/opportunities?call=${encodeURIComponent(callId)}` : '/opportunities';
+      title = 'Find something to help with · BetterGovPH Volunteers';
+      if (isUuid(callId)) {
+        const { data: c } = await sb.from('volunteer_calls').select('title, description, status, call_type').eq('id', callId).maybeSingle();
+        if (c && c.status === 'open') {
+          title = `${c.call_type && c.call_type !== 'people' ? 'Request' : 'Volunteers needed'}: ${c.title}`;
+          description = String(c.description || '').slice(0, 200);
+        }
+      }
+    }
+  } catch { /* fall back to the defaults */ }
+  const meta = [
+    `<title>${escHtml(title)}</title>`,
+    `<meta name="description" content="${escHtml(description)}">`,
+    `<meta property="og:type" content="website">`,
+    `<meta property="og:site_name" content="BetterGovPH Volunteers">`,
+    `<meta property="og:title" content="${escHtml(title)}">`,
+    `<meta property="og:description" content="${escHtml(description)}">`,
+    `<meta property="og:url" content="${escHtml(origin + path)}">`,
+    `<meta property="og:image" content="${escHtml(origin)}/og-default.png">`,
+    `<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">`,
+    `<meta name="twitter:card" content="summary_large_image">`,
+  ].join('');
+  let html = '';
+  try {
+    const r = await fetch(`${origin}/index.html`, { headers: { 'x-og-internal': '1' } });
+    if (r.ok) html = await r.text();
+  } catch { /* noop */ }
+  if (!html.includes('</head>')) {
+    // Couldn't load the app shell: send a small page with the preview tags that opens the app.
+    // No auto-refresh here: it would loop straight back into this handler.
+    html = `<!doctype html><html><head>${meta}</head><body><p><a href="/">Open BetterGovPH Volunteers</a></p></body></html>`;
+  } else {
+    html = html.replace(/<title>[\s\S]*?<\/title>/i, '').replace(/<meta\s+name="description"[^>]*>/i, '').replace('</head>', `${meta}</head>`);
+  }
+  res.statusCode = 200;
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=300');
+  res.end(html);
+};
+
 // ---------- /teams -----------------------------------------------------------
 const TEAM_STATUSES = ['pending', 'approved', 'declined', 'left'];
 
@@ -1092,6 +1419,7 @@ const handler_teams: H = async (req, res) => {
         avatarUrl: discordAvatarOf(u),
         discordUsername: canManage ? u?.discord_username || null : undefined,
         skills: canManage && Array.isArray(u?.skills) ? u.skills.slice(0, 6).map((s: any) => s?.name).filter(Boolean) : undefined,
+        ...(canManage ? availabilityOf(u) : {}),
       };
     };
     const members = rows.filter((r: any) => r.status === 'approved');
@@ -1215,6 +1543,16 @@ const handler_teams: H = async (req, res) => {
     return;
   }
 
+  if (action === 'set-stage') {
+    const stage = typeof body.stage === 'string' && PROJECT_STAGES.includes(body.stage) ? body.stage : '';
+    if (!stage) { sendError(res, 400, `stage must be one of: ${PROJECT_STAGES.join(', ')}`); return; }
+    const { error } = await supabase.from('project_submissions').update({ stage }).eq('id', projectId);
+    if (error) { sendError(res, 500, 'Couldn’t save the stage'); return; }
+    try { await invalidateCache('cache:projects:approved'); await invalidateCache('cache:projects:approved:merged'); } catch { /* noop */ }
+    sendJson(res, 200, { stage });
+    return;
+  }
+
   if (action === 'set-chat') {
     const raw = typeof body.chatUrl === 'string' ? body.chatUrl : '';
     const clean = raw.trim() ? sanitizeChatUrl(raw) : null;
@@ -1303,6 +1641,10 @@ const handler_me: H = async (req, res) => {
   if (typeof body.displayName === 'string') updates.display_name = cleanDisplayName(body.displayName) || null;
   if (typeof body.role === 'string' && body.role.trim()) updates.role = body.role.replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 60);
   if (body.acceptCoc === true) updates.coc_accepted_at = new Date().toISOString();
+  if (Array.isArray(body.availability)) updates.availability = body.availability.filter((v: unknown) => typeof v === 'string' && AVAIL.includes(v as string)).slice(0, 3);
+  if (typeof body.hoursPerWeek === 'string') updates.hours_per_week = HOURS_PW.includes(body.hoursPerWeek) ? body.hoursPerWeek : null;
+  if (typeof body.region === 'string') updates.region = PH_REGIONS.includes(body.region) ? body.region : null;
+  if (Array.isArray(body.languages)) updates.languages = body.languages.filter((v: unknown) => typeof v === 'string' && LANGS.includes(v as string)).slice(0, 8);
   // Right to erasure: the member asks, an admin completes it (approved projects may need a new owner first).
   if (body.requestDeletion === true) { updates.deletion_requested_at = new Date().toISOString(); updates.show_in_directory = false; }
   if (body.requestDeletion === false) updates.deletion_requested_at = null;
@@ -1356,7 +1698,7 @@ const handler_me: H = async (req, res) => {
       .from('users').update(updates).eq('uid', uid).select('*');
     // Before a migration runs, save everything else instead of failing the whole profile.
     if (updateError && isMissingColumnError(updateError)) {
-      for (const k of ['links', 'secondary_specialization', 'show_in_directory', 'show_full_name', 'consent_version', 'consent_at', 'consent_purposes', 'deletion_requested_at', 'display_name', 'coc_accepted_at']) delete updates[k];
+      for (const k of ['links', 'secondary_specialization', 'show_in_directory', 'show_full_name', 'consent_version', 'consent_at', 'consent_purposes', 'deletion_requested_at', 'display_name', 'coc_accepted_at', 'availability', 'hours_per_week', 'region', 'languages']) delete updates[k];
       consentEvent = null;
       ({ data: updatedRows, error: updateError } = await supabase.from('users').update(updates).eq('uid', uid).select('*'));
     }
@@ -1394,7 +1736,7 @@ const handler_me: H = async (req, res) => {
   let { data: insertResult, error: insertError } = await supabase
     .from('users').insert(insertRow).select('*').maybeSingle();
   if (insertError && isMissingColumnError(insertError)) {
-    for (const k of ['links', 'secondary_specialization', 'show_in_directory', 'show_full_name', 'consent_version', 'consent_at', 'consent_purposes', 'deletion_requested_at', 'display_name', 'coc_accepted_at']) delete insertRow[k];
+    for (const k of ['links', 'secondary_specialization', 'show_in_directory', 'show_full_name', 'consent_version', 'consent_at', 'consent_purposes', 'deletion_requested_at', 'display_name', 'coc_accepted_at', 'availability', 'hours_per_week', 'region', 'languages']) delete insertRow[k];
     ({ data: insertResult, error: insertError } = await supabase.from('users').insert(insertRow).select('*').maybeSingle());
   }
   if (insertError || !insertResult) { sendError(res, 500, 'Failed to create profile'); return; }
@@ -1745,6 +2087,8 @@ const handler_admin: H = async (req, res) => {
     await step('notifications', () => adminSup.from('notifications').delete().eq('user_id', uid));
     await step('reports filed', () => adminSup.from('reports').delete().eq('reporter_id', uid));
     await step('consent records', () => adminSup.from('consent_log').delete().eq('user_id', uid));
+    await step('volunteer hours', () => adminSup.from('volunteer_hours').delete().eq('user_id', uid));
+    await step('project updates', () => adminSup.from('project_updates').delete().eq('author_id', uid));
     const { error: delErr } = await adminSup.from('users').delete().eq('uid', uid);
     if (delErr) { sendError(res, 500, 'Couldn’t remove the profile. Related data may already be removed; try again.'); return; }
     done.push('profile');
@@ -1772,7 +2116,7 @@ const handler_admin: H = async (req, res) => {
     if (!list.length) { sendError(res, 400, 'Send { projects: [...] } (up to 100).'); return; }
     const { data: existing } = await adminSup.from('project_submissions').select('project_name, project_url');
     const seen = new Set((existing ?? []).flatMap((e: any) => [String(e.project_name || '').toLowerCase().trim(), projectUrlKey(e.project_url)]));
-    const STAGES = ['idea', 'building', 'beta', 'live'];
+    const STAGES = ['idea', 'building', 'beta', 'live', 'completed', 'needs-lead'];
     const rows: any[] = [];
     const skipped: { name: string; reason: string }[] = [];
     for (const p of list) {
@@ -2083,7 +2427,7 @@ const handler_submit_project: H = async (req, res) => {
   }
   const chatRaw = typeof body.chat_url === 'string' ? body.chat_url : typeof body.chatUrl === 'string' ? body.chatUrl : '';
   if (chatRaw.trim() && !sanitizeChatUrl(chatRaw)) { sendError(res, 400, 'Use a Messenger, WhatsApp, Viber, Telegram or Discord invite link for the group chat.'); return; }
-  const STAGES = ['idea', 'building', 'beta', 'live'];
+  const STAGES = ['idea', 'building', 'beta', 'live', 'completed', 'needs-lead'];
   const stage = typeof body.stage === 'string' && STAGES.includes(body.stage) ? body.stage : null;
   const ownerType = body.owner_type === 'org' || body.ownerType === 'org' ? 'org' : 'member';
   const ownerNameRaw = typeof body.owner_name === 'string' ? body.owner_name : typeof body.ownerName === 'string' ? body.ownerName : '';
@@ -2545,6 +2889,12 @@ const handler_verify: H = async (req, res) => {
     nameRedacted: !(isAdminCaller || (callerUid && callerUid === row.uid) || row.show_full_name === true),
     specialization: row.specialization ?? '',
     secondarySpecialization: row.secondary_specialization ?? null,
+    confirmedHours: await (async () => {
+      try {
+        const { data: hrs } = await dbClient.from('volunteer_hours').select('hours').eq('user_id', row.uid).eq('status', 'confirmed');
+        return (hrs ?? []).reduce((a: number, h: any) => a + Number(h.hours), 0);
+      } catch { return 0; }
+    })(),
     role: row.role ?? 'Member',
     status: statusNormalized,
     yearJoined: row.year_joined ?? null,
@@ -2882,7 +3232,8 @@ const handler_volunteers: H = async (req, res) => {
 type HandlerKey =
   | '/me' | '/admin' | '/projects' | '/submit-project' | '/my-project-submissions'
   | '/volunteer-calls' | '/verify' | '/discord' | '/discord-username-taken' | '/contribution-scores' | '/volunteers'
-  | '/repo-tracker' | '/teams' | '/cron/repo-sync' | '/call-interests' | '/notifications' | '/reports';
+  | '/repo-tracker' | '/teams' | '/cron/repo-sync' | '/call-interests' | '/notifications' | '/reports'
+  | '/hours' | '/certificate' | '/project-updates' | '/og';
 
 const HANDLERS: Record<HandlerKey, H> = {
   '/me': handler_me,
@@ -2902,6 +3253,10 @@ const HANDLERS: Record<HandlerKey, H> = {
   '/call-interests': handler_call_interests,
   '/notifications': handler_notifications,
   '/reports': handler_reports,
+  '/hours': handler_hours,
+  '/certificate': handler_certificate,
+  '/project-updates': handler_project_updates,
+  '/og': handler_og,
 };
 
 const callHandler = async (key: HandlerKey, req: any, res: any) => {
@@ -2961,6 +3316,10 @@ async function handleRequest(req: any, res: any) {
     if (pathname === '/call-interests') return callHandler('/call-interests', req, res);
     if (pathname === '/notifications') return callHandler('/notifications', req, res);
     if (pathname === '/reports') return callHandler('/reports', req, res);
+    if (pathname === '/hours') return callHandler('/hours', req, res);
+    if (pathname === '/certificate') return callHandler('/certificate', req, res);
+    if (pathname === '/project-updates') return callHandler('/project-updates', req, res);
+    if (pathname === '/og') return callHandler('/og', req, res);
 
     sendError(res, 404, 'API endpoint not found');
   } catch (err) {

@@ -82,7 +82,8 @@ async function cleanup() {
   try {
     if (callIds.length) await admin.from('call_interests').delete().in('call_id', callIds);
     if (ids.length) {
-      for (const t of ['call_interests', 'team_members', 'notifications', 'consent_log']) await admin.from(t).delete().in('user_id', ids);
+      for (const t of ['call_interests', 'team_members', 'notifications', 'consent_log', 'volunteer_hours']) await admin.from(t).delete().in('user_id', ids);
+      await admin.from('project_updates').delete().in('author_id', ids);
       await admin.from('reports').delete().in('reporter_id', ids);
       await admin.from('volunteer_calls').delete().in('user_id', ids);
     }
@@ -136,6 +137,8 @@ async function main() {
   const noConsent = await api('/me', { token: ben.token, method: 'POST', body: { consent: { version: 'x', purposes: ['directory'] } } });
   check('consent without the required purposes is refused', noConsent.status === 400, String(noConsent.status));
   await register(ben, { name: T('Ben Reyes'), display: '', spec: 'Content Creator', directory: false });
+  const avail = await api('/me', { token: ben.token, method: 'POST', body: { availability: ['weekends', 'bogus'], hoursPerWeek: '3-5', region: 'Central Visayas', languages: ['Cebuano', 'English', 'Klingon'] } });
+  check('availability saved (unknown values dropped)', JSON.stringify(avail.json?.user?.availability) === '["weekends"]' && avail.json?.user?.region === 'Central Visayas' && JSON.stringify(avail.json?.user?.languages) === '["Cebuano","English"]', JSON.stringify(avail.json?.user && { a: avail.json.user.availability, r: avail.json.user.region, l: avail.json.user.languages }));
   await register(cara, { name: T('Cara Lim'), display: `cara-${RUN}`, spec: 'Lawyer / Policy Expert' });
   await register(dan, { name: T('Dan Cruz'), display: '', spec: 'UI/UX Designer' });
   await Promise.all(crowd.map((u, i) => register(u, { name: T(`Crowd Member ${i}`), display: `crowd${i}-${RUN}`, spec: 'Writer' })));
@@ -191,6 +194,8 @@ async function main() {
   const pid = sub.json?.submissionId;
   if (pid) created.projects.push(pid);
   check('repo checked at submit', sub.json?.repo?.ok === true, JSON.stringify(sub.json?.repo)?.slice(0, 120));
+  const ogPending = await fetch(`${API}/og?kind=project&id=${pid}`).then((r) => r.text());
+  check('link preview hides pending projects', !ogPending.includes('Budget Explainer'));
   const publicBefore = await api('/projects?source=merged');
   check('pending project is not public', !(publicBefore.json?.projects || []).some((p) => String(p.id) === String(pid)));
   const rejNoNote = await api('/admin?resource=submissions', { token: boss.token, method: 'POST', body: { id: pid, action: 'reject' } });
@@ -208,6 +213,9 @@ async function main() {
   const publicAfter = await api('/projects?source=merged');
   check('approved project is public right away', (publicAfter.json?.projects || []).some((p) => String(p.id) === String(pid)));
   check('public list has no submitter ids', !JSON.stringify(publicAfter.json || {}).includes(ana.id));
+  const ogLive = await fetch(`${API}/og?kind=project&id=${pid}`).then((r) => r.text());
+  check('link preview shows the project title', /<meta property="og:title" content="\[QA test\] Budget Explainer/.test(ogLive));
+  check('link preview has an image', ogLive.includes('og:image') && ogLive.includes('/og-default.png'));
 
   // ------------------------------------------------------------------ teams
   step('Teams: join, approve, decline, owner, hand-over');
@@ -235,6 +243,50 @@ async function main() {
   await api('/teams', { token: ana.token, method: 'POST', body: { projectId: pid, action: 'decide', requestId: reqC?.id, decision: 'decline' } });
   check('approved member is notified', ((await api('/notifications', { token: ben.token })).json?.items || []).some((n) => n.kind === 'team_approved'));
   check('declined member is notified', ((await api('/notifications', { token: cara.token })).json?.items || []).some((n) => n.kind === 'team_declined'));
+  const reqView = await api(`/teams?project=${pid}`, { token: ana.token });
+  check('public team page never shows availability', !JSON.stringify(teamAnon.json || {}).includes('Central Visayas'));
+  void reqView;
+
+  step('Hours, certificate, updates, stage');
+  const log = await api('/hours', { token: ben.token, method: 'POST', body: { projectId: pid, hours: 3, activity: T('Cut two reels'), workedOn: new Date().toISOString().slice(0, 10) } });
+  check('team member logs hours', log.status === 200 && log.json?.status === 'pending', JSON.stringify(log.json));
+  const tooMuch = await api('/hours', { token: ben.token, method: 'POST', body: { projectId: pid, hours: 30, activity: 'x long', workedOn: new Date().toISOString().slice(0, 10) } });
+  check('more than 24 h in one entry is refused', tooMuch.status === 400);
+  const future = await api('/hours', { token: ben.token, method: 'POST', body: { projectId: pid, hours: 1, activity: 'future work', workedOn: '2099-01-01' } });
+  check('future dates are refused', future.status === 400);
+  const outsider = await api('/hours', { token: cara.token, method: 'POST', body: { projectId: pid, hours: 1, activity: 'not on team', workedOn: new Date().toISOString().slice(0, 10) } });
+  check('non-members cannot log hours on a team', outsider.status === 403, String(outsider.status));
+  const selfConfirm = await api('/hours', { token: ben.token, method: 'POST', body: { action: 'decide', id: log.json?.id, decision: 'confirm' } });
+  check('you cannot confirm your own hours', selfConfirm.status === 403);
+  const toConfirm = await api('/hours?toConfirm=1', { token: ana.token });
+  check('head sees hours to confirm', (toConfirm.json?.entries || []).some((e) => e.id === log.json?.id));
+  check('head notified of logged hours', ((await api('/notifications', { token: ana.token })).json?.items || []).some((n) => n.kind === 'hours_to_confirm'));
+  const confirm = await api('/hours', { token: ana.token, method: 'POST', body: { action: 'decide', id: log.json?.id, decision: 'confirm' } });
+  check('head confirms hours', confirm.status === 200 && confirm.json?.status === 'confirmed');
+  check('volunteer notified of confirmation', ((await api('/notifications', { token: ben.token })).json?.items || []).some((n) => n.kind === 'hours_confirmed'));
+  const mineHours = await api('/hours?mine=1', { token: ben.token });
+  check('confirmed total is right', mineHours.json?.totals?.confirmed === 3, JSON.stringify(mineHours.json?.totals));
+  const cert = await api('/certificate', { token: ben.token });
+  check('certificate shows confirmed hours and the project', cert.status === 200 && cert.json?.totalHours === 3 && (cert.json?.items || []).some((i) => i.name === T('Budget Explainer')), JSON.stringify(cert.json)?.slice(0, 160));
+  check('certificate uses the legal name', cert.json?.name === T('Ben Reyes'));
+  const certPending = await api('/certificate', { token: dan.token });
+  check('no certificate before approval', certPending.status === 403);
+  const benMe = await api('/me', { token: ben.token });
+  const verifyHours = await api(`/verify?id=${encodeURIComponent(benMe.json?.user?.memberId || '')}`);
+  check('verify page shows confirmed hours', verifyHours.json?.confirmedHours === 3, String(verifyHours.json?.confirmedHours));
+  const upd = await api('/project-updates', { token: ana.token, method: 'POST', body: { projectId: pid, body: T('First reels are out') } });
+  check('team head posts an update', upd.status === 200 && !!upd.json?.id);
+  const updOut = await api('/project-updates', { token: cara.token, method: 'POST', body: { projectId: pid, body: 'not on the team' } });
+  check('outsiders cannot post updates', updOut.status === 403);
+  const updPublic = await api(`/project-updates?project=${pid}`);
+  check('updates are public on the project page', (updPublic.json?.updates || []).some((u) => u.body === T('First reels are out')));
+  check('update author shown by display name', (updPublic.json?.updates || []).some((u) => u.author === `ana-${RUN}`));
+  const stageBad = await api('/teams', { token: ben.token, method: 'POST', body: { projectId: pid, action: 'set-stage', stage: 'completed' } });
+  check('non-head cannot change the stage', stageBad.status === 403);
+  const stage = await api('/teams', { token: ana.token, method: 'POST', body: { projectId: pid, action: 'set-stage', stage: 'needs-lead' } });
+  const afterStage = await api(`/teams?project=${pid}`);
+  check('head marks the project as needing a new lead', stage.status === 200 && afterStage.json?.project?.stage === 'needs-lead');
+
   const asMember = await api(`/teams?project=${pid}`, { token: ben.token });
   check('members see the group chat', !!asMember.json?.project?.chatUrl);
   const ownerOrg = await api('/teams', { token: ana.token, method: 'POST', body: { projectId: pid, action: 'set-owner', ownerType: 'org', ownerName: T('Barangay San Isidro') } });
@@ -280,13 +332,20 @@ async function main() {
   const crowdRes = await Promise.all(crowd.map((u, i) => api('/call-interests', { token: u.token, method: 'POST', body: { callId: cid, message: `crowd ${i}`, contact: `m.me/crowd${i}` } })));
   check('6 people raise a hand at the same time', crowdRes.every((r) => r.status === 200), crowdRes.map((r) => r.status).join(','));
   await api('/call-interests', { token: crowd[0].token, method: 'POST', body: { callId: cid } }); // repeat: no duplicate
+  await api('/call-interests', { token: ben.token, method: 'POST', body: { callId: cid, contact: 'ben on Viber' } });
+  const callHours = await api('/hours', { token: ben.token, method: 'POST', body: { callId: cid, hours: 2, activity: T('Drafted the script'), workedOn: new Date().toISOString().slice(0, 10) } });
+  check('volunteer logs hours on a call they answered', callHours.status === 200, JSON.stringify(callHours.json));
+  const listAll = await api(`/call-interests?call=${cid}`, { token: ana.token });
+  const benInterest = (listAll.json?.interests || []).find((i) => i.contact === 'ben on Viber');
+  check('poster sees availability, region and languages', benInterest?.person?.region === 'Central Visayas' && (benInterest?.person?.languages || []).includes('Cebuano'));
+  await api('/call-interests', { token: ben.token, method: 'POST', body: { action: 'withdraw', callId: cid } });
   const list = await api(`/call-interests?call=${cid}`, { token: ana.token });
   check('poster sees exactly 6 interested', (list.json?.interests || []).length === 6, String((list.json?.interests || []).length));
   check('poster sees how to reach them', (list.json?.interests || []).every((i) => i.contact.startsWith('m.me/')));
   const peek = await api(`/call-interests?call=${cid}`, { token: ben.token });
   check('others cannot see who is interested', peek.status === 403);
   const posterNotes = (await api('/notifications', { token: ana.token })).json?.items || [];
-  check('poster gets one notification per person (no repeats)', posterNotes.filter((n) => n.kind === 'interest_new').length === 6, String(posterNotes.filter((n) => n.kind === 'interest_new').length));
+  check('poster gets one notification per person (no repeats)', posterNotes.filter((n) => n.kind === 'interest_new').length === 7, String(posterNotes.filter((n) => n.kind === 'interest_new').length));
   const first = list.json?.interests?.[0];
   await api('/call-interests', { token: ana.token, method: 'POST', body: { action: 'mark', interestId: first?.id, status: 'contacted' } });
   const contactedUser = crowd.find((u) => (list.json?.interests?.[0]?.person?.name || '').includes(`-${RUN}`) && true);

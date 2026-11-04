@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { AppNotification, CallInterest, CallType, ImportProjectRow, ReportItem, ReportReason, MyTeam, Project, ProjectStage, ProjectSubmission, RepoStats, TeamInfo, User, VolunteerCall } from '../types';
+import { AppNotification, CallInterest, CertificateData, HoursEntry, ProjectUpdate, CallType, ImportProjectRow, ReportItem, ReportReason, MyTeam, Project, ProjectStage, ProjectSubmission, RepoStats, TeamInfo, User, VolunteerCall } from '../types';
 
 const isUuid = (value: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
@@ -284,6 +284,10 @@ export const createOrUpdateUserRecord = async (user: any) => {
       ...(typeof user.requestDeletion === 'boolean' ? { requestDeletion: user.requestDeletion } : {}),
       ...(typeof user.displayName === 'string' ? { displayName: user.displayName } : {}),
       ...(user.acceptCoc === true ? { acceptCoc: true } : {}),
+      ...(Array.isArray(user.availability) ? { availability: user.availability } : {}),
+      ...(typeof user.hoursPerWeek === 'string' ? { hoursPerWeek: user.hoursPerWeek } : {}),
+      ...(typeof user.region === 'string' ? { region: user.region } : {}),
+      ...(Array.isArray(user.languages) ? { languages: user.languages } : {}),
     }),
   });
   return res.user;
@@ -744,7 +748,8 @@ export type TeamAction =
   | { action: 'transfer-head'; userId: string }
   | { action: 'set-owner'; ownerType: 'member'; ownerUserId: string }
   | { action: 'set-owner'; ownerType: 'org'; ownerName: string }
-  | { action: 'set-chat'; chatUrl: string };
+  | { action: 'set-chat'; chatUrl: string }
+  | { action: 'set-stage'; stage: ProjectStage };
 
 export const teamAction = async (projectId: string, body: TeamAction) =>
   apiRequest<Record<string, unknown>>('/api/v1/teams', {
@@ -852,3 +857,28 @@ export const resubmitProject = async (id: string, fields: { projectName?: string
     headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
     body: JSON.stringify({ id, ...fields }),
   });
+
+// ---------------------------------------------------------------------------
+// Hours, certificate, project updates
+// ---------------------------------------------------------------------------
+const jsonPost = async (path: string, body: unknown) =>
+  apiRequest<any>(path, { method: 'POST', headers: { ...(await authHeaders()), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+
+export const getMyHours = async () =>
+  apiRequest<{ entries: HoursEntry[]; totals: { confirmed: number; pending: number }; available?: boolean }>('/api/v1/hours?mine=1', { headers: await authHeaders() });
+export const getHoursToConfirm = async () =>
+  apiRequest<{ entries: HoursEntry[] }>('/api/v1/hours?toConfirm=1', { headers: await authHeaders() });
+export const logHours = (input: { projectId?: string; callId?: string; hours: number; activity: string; workedOn: string }) =>
+  jsonPost('/api/v1/hours', input) as Promise<{ id: string; status: string }>;
+export const decideHours = (id: string, decision: 'confirm' | 'decline') =>
+  jsonPost('/api/v1/hours', { action: 'decide', id, decision }) as Promise<{ status: string }>;
+export const deleteHours = (id: string) =>
+  jsonPost('/api/v1/hours', { action: 'delete', id }) as Promise<{ deleted: boolean }>;
+export const getCertificate = async () =>
+  apiRequest<CertificateData>('/api/v1/certificate', { headers: await authHeaders() });
+export const getProjectUpdates = async (projectId: string) =>
+  apiRequest<{ updates: ProjectUpdate[]; available?: boolean }>(`/api/v1/project-updates?project=${encodeURIComponent(projectId)}`, { headers: await authHeaders(false) });
+export const postProjectUpdate = (projectId: string, body: string) =>
+  jsonPost('/api/v1/project-updates', { projectId, body }) as Promise<{ id: string }>;
+export const deleteProjectUpdate = (id: string) =>
+  jsonPost('/api/v1/project-updates', { action: 'delete', id }) as Promise<{ deleted: boolean }>;

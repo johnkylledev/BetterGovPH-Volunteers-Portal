@@ -19,6 +19,7 @@ import { DISCORD_AVAILABLE, COMING_SOON_PILL } from '../../constants/integration
 import { Avatar, useSessionPhoto } from '../../components/Avatar';
 import { PrivacySettings } from '../../components/PrivacySettings';
 import { ComingSoonConnections } from '../../components/ComingSoonConnections';
+import { AVAILABILITY, HOURS_PER_WEEK, LANGUAGES, PH_REGIONS } from '../../constants/community';
 import type { ExperienceLevel, UserSkill } from '../../types';
 
 const TABS = [
@@ -71,6 +72,10 @@ export default function Profile() {
   const [displayName, setDisplayName] = useState('');
   const [specialization, setSpecialization] = useState('');
   const [secondary, setSecondary] = useState('');
+  const [availability, setAvailability] = useState<string[]>([]);
+  const [hoursPerWeek, setHoursPerWeek] = useState('');
+  const [region, setRegion] = useState('');
+  const [languages, setLanguages] = useState<string[]>([]);
   const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel | ''>('');
   const [skills, setSkills] = useState<UserSkill[]>([]);
   const [links, setLinks] = useState<ProfileLinks>({});
@@ -91,6 +96,10 @@ export default function Profile() {
     setDisplayName(currentUser.displayName ?? '');
     setSpecialization(currentUser.specialization ?? '');
     setSecondary(currentUser.secondarySpecialization ?? '');
+    setAvailability([...(currentUser.availability ?? [])]);
+    setHoursPerWeek(currentUser.hoursPerWeek ?? '');
+    setRegion(currentUser.region ?? '');
+    setLanguages([...(currentUser.languages ?? [])]);
     setExperienceLevel((currentUser.experienceLevel as ExperienceLevel) ?? '');
     // Copy whole skill objects so `featured` (and any future fields) survive a save.
     setSkills((currentUser.skills ?? []).map((s) => ({ ...s })));
@@ -150,12 +159,16 @@ export default function Profile() {
       role:
         specialization !== (currentUser.specialization ?? '') ||
         secondary !== (currentUser.secondarySpecialization ?? '') ||
+        [...availability].sort().join() !== [...(currentUser.availability ?? [])].sort().join() ||
+        hoursPerWeek !== (currentUser.hoursPerWeek ?? '') ||
+        region !== (currentUser.region ?? '') ||
+        [...languages].sort().join() !== [...(currentUser.languages ?? [])].sort().join() ||
         experienceLevel !== (currentUser.experienceLevel ?? ''),
       skills: skillsKey(skills) !== skillsKey(currentUser.skills ?? []),
       connections: linksKey(links) !== linksKey(currentUser.links),
       privacy: false, // privacy switches save the moment they change
     };
-  }, [currentUser, nameLocked, fullName, displayName, specialization, secondary, experienceLevel, skills, links]);
+  }, [currentUser, nameLocked, fullName, displayName, specialization, secondary, availability, hoursPerWeek, region, languages, experienceLevel, skills, links]);
   const dirty = changed.personal || changed.role || changed.skills || changed.connections;
 
   if (!currentUser) return <LoadingOverlay />;
@@ -207,6 +220,7 @@ export default function Profile() {
         displayName: displayName.trim(),
         specialization,
         secondarySpecialization: secondary && secondary !== specialization ? secondary : '',
+        availability, hoursPerWeek, region, languages,
         experienceLevel: experienceLevel || undefined,
         // Featured skills are stored first so every view can show them up front.
         skills: [...skills.filter((s) => s.featured), ...skills.filter((s) => !s.featured)],
@@ -438,6 +452,57 @@ export default function Profile() {
                     options={[{ value: '', label: 'Not specified' }, ...EXPERIENCE_LEVELS.map((lvl) => ({ value: lvl, label: lvl }))]}
                     onChange={(v) => { setExperienceLevel(v as ExperienceLevel); touch(); }}
                   />
+                </div>
+              </div>
+
+              <div className="mt-6 border-t border-slate-200/80 pt-5">
+                <h3 className="text-[15px] font-semibold text-slate-900">When and where you can help</h3>
+                <p className="mt-0.5 text-[13px] text-slate-500">Shown to people whose calls or teams you answer, never on public pages. It helps them pick tasks that fit you.</p>
+                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <fieldset className="sm:col-span-2">
+                    <legend className={labelClass}>Usually free</legend>
+                    <div className="flex flex-wrap gap-2">
+                      {AVAILABILITY.map((a) => {
+                        const on = availability.includes(a.id);
+                        return (
+                          <button key={a.id} type="button" aria-pressed={on}
+                            onClick={() => { setAvailability(on ? availability.filter((x) => x !== a.id) : [...availability, a.id]); touch(); }}
+                            className={clsx('min-h-[36px] rounded-full px-3.5 text-[13px] transition-[background-color,box-shadow] duration-150',
+                              on ? 'bg-[#eef3ff] font-medium text-[var(--accent)] shadow-[inset_0_0_0_1.5px_rgb(30_58_138/0.35)]' : 'bg-white text-slate-700 shadow-[inset_0_0_0_1px_rgb(15_23_42/0.12)]')}>
+                            {a.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+                  <div>
+                    <label id="hpw-label" htmlFor="hpw" className={labelClass}>Time you can give</label>
+                    <SelectMenu id="hpw" labelledBy="hpw-label" value={hoursPerWeek} placeholder="Not sure"
+                      onChange={(v) => { setHoursPerWeek(v); touch(); }}
+                      options={[{ value: '', label: 'Not sure' }, ...HOURS_PER_WEEK.map((h) => ({ value: h.id, label: h.label }))]} />
+                  </div>
+                  <div>
+                    <label id="region-label" htmlFor="region" className={labelClass}>Region</label>
+                    <SelectMenu id="region" labelledBy="region-label" value={region} placeholder="Choose a region" align="right"
+                      onChange={(v) => { setRegion(v); touch(); }}
+                      options={[{ value: '', label: 'Prefer not to say' }, ...PH_REGIONS.map((r) => ({ value: r, label: r }))]} />
+                  </div>
+                  <fieldset className="sm:col-span-2">
+                    <legend className={labelClass}>Languages you can work in</legend>
+                    <div className="flex flex-wrap gap-1.5">
+                      {LANGUAGES.map((l) => {
+                        const on = languages.includes(l);
+                        return (
+                          <button key={l} type="button" aria-pressed={on}
+                            onClick={() => { setLanguages(on ? languages.filter((x) => x !== l) : [...languages, l].slice(0, 8)); touch(); }}
+                            className={clsx('min-h-[32px] rounded-full px-3 text-[12.5px] transition-[background-color,box-shadow] duration-150',
+                              on ? 'bg-[#eef3ff] font-medium text-[var(--accent)] shadow-[inset_0_0_0_1.5px_rgb(30_58_138/0.35)]' : 'bg-white text-slate-700 shadow-[inset_0_0_0_1px_rgb(15_23_42/0.12)]')}>
+                            {l}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
                 </div>
               </div>
             </Card>

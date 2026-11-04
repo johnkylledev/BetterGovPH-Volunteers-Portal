@@ -65,6 +65,14 @@
       "handle": "filesystem"
     },
     {
+      "src": "/projects/([^/?#]+)/?",
+      "dest": "/api/[...path]?path=og&kind=project&id=$1"
+    },
+    {
+      "src": "/opportunities/?",
+      "dest": "/api/[...path]?path=og&kind=opportunities"
+    },
+    {
       "src": "/(.*)",
       "dest": "/index.html"
     }

@@ -48,7 +48,34 @@ export const STAGES: { id: ProjectStage; label: string; hint: string }[] = [
   { id: 'building', label: 'Building', hint: 'Work has started' },
   { id: 'beta', label: 'Beta', hint: 'Usable, being tested' },
   { id: 'live', label: 'Live', hint: 'Out and being used' },
+  { id: 'needs-lead', label: 'Looking for a new lead', hint: 'The founder stepped back; someone can take over' },
+  { id: 'completed', label: 'Completed', hint: 'Goal reached; kept for reference' },
 ];
+
+// When, where and in which languages members can help (shown to posters and team heads, not public).
+export const PH_REGIONS = ['NCR', 'CAR', 'Ilocos Region', 'Cagayan Valley', 'Central Luzon', 'CALABARZON', 'MIMAROPA', 'Bicol Region',
+  'Western Visayas', 'Central Visayas', 'Eastern Visayas', 'Zamboanga Peninsula', 'Northern Mindanao', 'Davao Region',
+  'SOCCSKSARGEN', 'Caraga', 'BARMM', 'Abroad'] as const;
+export const LANGUAGES = ['Filipino', 'English', 'Cebuano', 'Ilocano', 'Hiligaynon', 'Bikol', 'Waray', 'Kapampangan', 'Pangasinan',
+  'Maranao', 'Maguindanaon', 'Tausug', 'Chavacano', 'Kinaray-a', 'Surigaonon', 'Other'] as const;
+export const AVAILABILITY = [
+  { id: 'weekdays', label: 'Weekdays' },
+  { id: 'weeknights', label: 'Weeknights' },
+  { id: 'weekends', label: 'Weekends' },
+] as const;
+export const HOURS_PER_WEEK = [
+  { id: '1-2', label: '1–2 hours a week' },
+  { id: '3-5', label: '3–5 hours a week' },
+  { id: '6-10', label: '6–10 hours a week' },
+  { id: '10+', label: 'More than 10 hours a week' },
+] as const;
+export const availabilitySummary = (p: { availability?: string[]; hoursPerWeek?: string | null; region?: string | null; languages?: string[] }) =>
+  [
+    (p.availability ?? []).map((a) => AVAILABILITY.find((x) => x.id === a)?.label ?? a).join(', '),
+    p.hoursPerWeek ? HOURS_PER_WEEK.find((h) => h.id === p.hoursPerWeek)?.label : '',
+    p.region ?? '',
+    (p.languages ?? []).join(', '),
+  ].filter(Boolean).join(' · ');
 export const stageLabel = (id?: string | null) => STAGES.find((s) => s.id === id)?.label;
 
 // ---------------------------------------------------------------------------

@@ -8,6 +8,7 @@ import { expressInterest, getCallInterests, markInterest, withdrawInterest } fro
 import { setReturnTo } from '../utils/returnTo';
 import { Avatar } from './Avatar';
 import { formatExternalUrl } from '../utils/skillUtils';
+import { availabilitySummary } from '../constants/community';
 
 const chatLabel = (url: string) => {
   const h = (() => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; } })();
@@ -175,6 +176,7 @@ export const InterestList: React.FC<{ callId: string; onCount?: (n: number) => v
             <p className="text-[12.5px] text-slate-500">
               {[i.person.role, i.person.secondaryRole, i.person.discordUsername && `@${i.person.discordUsername}`].filter(Boolean).join(' · ')}
             </p>
+            {availabilitySummary(i.person) && <p className="text-[12.5px] text-slate-500">{availabilitySummary(i.person)}</p>}
             {i.contact && <p className="mt-1 break-all text-[13px] text-slate-800">Reach them: {/^https?:\/\//.test(i.contact) ? <a className="s-link" href={formatExternalUrl(i.contact)} target="_blank" rel="noreferrer">{i.contact}</a> : i.contact}</p>}
             {i.message && <p className="mt-1 whitespace-pre-wrap break-words text-[13px] text-slate-700">“{i.message}”</p>}
             {i.person.skills.length > 0 && (
