@@ -6,8 +6,23 @@ import { syncDiscord } from '../../services/supabase';
 const CANONICAL = 'https://volunteers.bettergov.ph/discord-callback';
 const KNOWN_STALE = /(^|\.)better-gov-ph-access-card-development\.vercel\.app$/i;
 
+// Pages that start a Discord connect can ask to be returned to (allowlist only).
+const RETURN_TO_ALLOWED = new Set(['/profile']);
+const peekReturnTo = (): string => {
+  try {
+    const v = sessionStorage.getItem('discord_return_to');
+    return v && RETURN_TO_ALLOWED.has(v) ? v : '/register';
+  } catch { return '/register'; }
+};
+const takeReturnTo = (): string => {
+  const v = peekReturnTo();
+  try { sessionStorage.removeItem('discord_return_to'); } catch { /* noop */ }
+  return v;
+};
+
 export default function DiscordCallback() {
   const navigate = useNavigate();
+  const [returnPath] = useState(peekReturnTo);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [bouncing, setBouncing] = useState<null | string>(null);
 
@@ -69,7 +84,7 @@ export default function DiscordCallback() {
       }
       if (!cancelled) {
         try { sessionStorage.removeItem('discord_connect_error'); } catch { /* noop */ }
-        navigate('/register');
+        navigate(takeReturnTo());
       }
     })();
 
@@ -91,11 +106,11 @@ export default function DiscordCallback() {
             <div className="pt-2">
               <button
                 type="button"
-                onClick={() => navigate('/register')}
+                onClick={() => navigate(takeReturnTo())}
                 className="inline-flex items-center gap-2 rounded-[6px] bg-slate-900 px-5 py-3 text-sm font-bold text-white shadow-[0_10px_24px_-14px_rgba(15,23,42,0.5)] hover:bg-slate-800 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-900/12 transition-colors active:scale-[0.98]"
               >
                 <ArrowLeft size={15} />
-                Back to registration
+                {returnPath === '/profile' ? 'Back to profile' : 'Back to registration'}
               </button>
             </div>
           </>
