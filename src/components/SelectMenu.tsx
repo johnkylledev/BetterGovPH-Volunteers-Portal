@@ -24,11 +24,18 @@ interface SelectMenuProps {
   /** id of the visible <label>, for the listbox's accessible name. */
   labelledBy?: string;
   className?: string;
+  disabled?: boolean;
+  /** sm: compact trigger for filter bars. */
+  size?: 'sm' | 'md';
+  /** Which edge the menu lines up with; use right for controls near the right edge. */
+  align?: 'left' | 'right';
+  /** Accessible name when there is no visible label. */
+  ariaLabel?: string;
 }
 
 /** A styled replacement for <select>: grouped options with icons and hints, full keyboard support. */
 export const SelectMenu: React.FC<SelectMenuProps> = ({
-  id, value, onChange, options, placeholder = 'Select…', labelledBy, className,
+  id, value, onChange, options, placeholder = 'Select…', labelledBy, className, disabled, size = 'md', align = 'left', ariaLabel,
 }) => {
   const reduce = useReducedMotion();
   const listId = useId();
@@ -120,12 +127,15 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
+        aria-label={ariaLabel}
+        disabled={disabled}
         onClick={() => (open ? close() : openMenu())}
         onKeyDown={(e) => {
           if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); openMenu(); }
         }}
         className={clsx(
-          's-field flex h-11 w-full items-center gap-2.5 text-left text-[15px]',
+          's-field flex w-full items-center gap-2.5 text-left disabled:cursor-not-allowed disabled:opacity-60',
+          size === 'sm' ? 'h-9 text-[13px]' : 'h-11 text-[15px]',
           open && 'shadow-[0_0_0_3px_rgb(30_58_138/0.15)]'
         )}
       >
@@ -155,7 +165,8 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
             transition={{ duration: 0.14, ease: [0.23, 1, 0.32, 1] }}
             style={{ transformOrigin: place.side === 'down' ? 'top center' : 'bottom center', maxHeight: place.maxHeight }}
             className={clsx(
-              'thin-scroll absolute left-0 right-0 z-50 min-w-[260px] overflow-y-auto overscroll-contain rounded-[14px] bg-white p-1.5 shadow-[0_0_0_1px_rgb(15_23_42/0.08),0_16px_40px_-12px_rgb(15_23_42/0.3)] focus:outline-none',
+              align === 'right' ? 'right-0' : 'left-0',
+              'thin-scroll absolute z-50 w-full min-w-[260px] overflow-y-auto overscroll-contain rounded-[14px] bg-white p-1.5 shadow-[0_0_0_1px_rgb(15_23_42/0.08),0_16px_40px_-12px_rgb(15_23_42/0.3)] focus:outline-none',
               place.side === 'down' ? 'top-full mt-2' : 'bottom-full mb-2'
             )}
           >

@@ -830,3 +830,25 @@ export const resolveReport = async (id: string, status: 'dismissed' | 'actioned'
     headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: 'resolve', id, status, ...opts }),
   });
+
+// ---------------------------------------------------------------------------
+// Admin overview and erasure
+// ---------------------------------------------------------------------------
+export const getAdminOverview = async () =>
+  apiRequest<import('../types').AdminOverview>('/api/v1/admin?resource=overview', { headers: await authHeaders() });
+
+/** Completes a deletion request. `confirm` must be the member's email. */
+export const eraseUser = async (uid: string, confirm: string) =>
+  apiRequest<{ erased: boolean; removed: string[] }>('/api/v1/admin?resource=erase-user', {
+    method: 'POST',
+    headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uid, confirm }),
+  });
+
+/** Fix a project that was sent back (or is still in review) and put it back in the review queue. */
+export const resubmitProject = async (id: string, fields: { projectName?: string; projectUrl?: string; description?: string; repoUrl?: string }) =>
+  apiRequest<{ status: string }>('/api/v1/my-project-submissions', {
+    method: 'POST',
+    headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, ...fields }),
+  });
