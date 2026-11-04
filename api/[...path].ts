@@ -3099,14 +3099,28 @@ const handler_verify: H = async (req, res) => {
     ? createServiceClient(supabaseUrl, serviceKey)
     : createAnonClient(supabaseUrl, anonKey);
 
+  // Cards are read through verify_member(): one exact match, card columns only, never the
+  // whole row. Until that function exists (migration not applied) the old read is used.
+  const cardFor = async (lookup: string): Promise<{ row: any | null; viaRpc: boolean }> => {
+    try {
+      const { data, error } = await dbClient.rpc('verify_member', { p_lookup: lookup });
+      if (error) return { row: null, viaRpc: false };
+      return { row: Array.isArray(data) ? data[0] ?? null : data ?? null, viaRpc: true };
+    } catch { return { row: null, viaRpc: false }; }
+  };
+
   if (token && serviceKey) {
     try {
       const { data: authData } = await dbClient.auth.getUser(token);
       if (authData?.user) {
         callerUid = authData.user.id;
-        const { data: callerRow } = await dbClient
-          .from('users').select('is_admin').eq('uid', callerUid).maybeSingle();
-        isAdminCaller = !!callerRow?.is_admin;
+        const caller = await cardFor(callerUid);
+        if (caller.viaRpc) isAdminCaller = !!caller.row?.is_admin;
+        else {
+          const { data: callerRow } = await dbClient
+            .from('users').select('is_admin').eq('uid', callerUid).maybeSingle();
+          isAdminCaller = !!callerRow?.is_admin;
+        }
       }
     } catch { isAdminCaller = false; }
   }
@@ -3118,22 +3132,31 @@ const handler_verify: H = async (req, res) => {
   // so a visitor can't add their own filters (e.g. ",email.eq.someone@x") or enumerate members.
   if (!isSafeMemberId(exactMemberId) && !isUuid(cleanLookup)) { sendError(res, 404, 'Not found'); return; }
 
+  // A uid lookup only answers the member themself or an admin.
+  const lookupValue = isSafeMemberId(exactMemberId)
+    ? exactMemberId
+    : (isAdminCaller || callerUid === cleanLookup ? cleanLookup : '');
+  if (!lookupValue) { sendError(res, 404, 'Not found'); return; }
+
   let row: any | null = null;
 
-  const { data: memberData } = await dbClient
-    .from('users')
-    .select('*')
-    .eq('member_id', isSafeMemberId(exactMemberId) ? exactMemberId : '__none__')
-    .maybeSingle();
+  const card = await cardFor(lookupValue);
+  row = card.row;
 
-  row = memberData ?? null;
-
-  if (!row && isUuid(lookupRaw.trim()) && (isAdminCaller || callerUid === lookupRaw.trim())) {
-    const { data: uidData } = await dbClient
+  if (!row && !card.viaRpc) {
+    const { data: memberData } = await dbClient
       .from('users')
       .select('*')
-      .eq('uid', lookupRaw.trim()).maybeSingle();
-    row = uidData ?? null;
+      .eq('member_id', isSafeMemberId(exactMemberId) ? exactMemberId : '__none__')
+      .maybeSingle();
+    row = memberData ?? null;
+    if (!row && lookupValue === cleanLookup) {
+      const { data: uidData } = await dbClient
+        .from('users')
+        .select('*')
+        .eq('uid', cleanLookup).maybeSingle();
+      row = uidData ?? null;
+    }
   }
 
   if (!row) { sendError(res, 404, 'Not found'); return; }
@@ -3375,12 +3398,19 @@ const handler_discord_username_taken: H = async (req, res) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'GET') { sendError(res, 405, 'Method not allowed'); return; }
-  const { url: supabaseUrl, anonKey } = getSupabaseConfig();
-  if (!supabaseUrl || !anonKey) { sendError(res, 500, 'Server not configured'); return; }
+  const { url: supabaseUrl, anonKey, serviceKey } = getSupabaseConfig();
+  if (!supabaseUrl || (!anonKey && !serviceKey)) { sendError(res, 500, 'Server not configured'); return; }
   const usernameRaw = getStringParam(req.query?.username);
   const username = (usernameRaw ?? '').trim();
   if (!username || username.length < 2 || username.length > 64) {
     sendError(res, 400, 'Invalid username'); return;
+  }
+  // Table access is revoked for the public roles, so the availability check goes through
+  // discord_username_taken(); the anon read stays as the pre-migration fallback.
+  if (serviceKey) {
+    const svc = createServiceClient(supabaseUrl, serviceKey);
+    const { data: takenData, error: takenError } = await svc.rpc('discord_username_taken', { p_username: username });
+    if (!takenError) { sendJson(res, 200, { taken: takenData === true }); return; }
   }
   const supabase = createAnonClient(supabaseUrl, anonKey);
   const { data, error } = await supabase
