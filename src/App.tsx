@@ -25,8 +25,8 @@ const isProfileComplete = (u: any) => {
   const fullNameOk = typeof u.fullName === 'string' && u.fullName.trim().length > 0;
   const specializationOk = typeof u.specialization === 'string' && u.specialization.trim().length > 0;
   const yearOk = typeof u.yearJoined === 'number' && Number.isFinite(u.yearJoined);
-  const discordOk = u.discordConnected === true;
-  return fullNameOk && specializationOk && yearOk && discordOk;
+  // Discord is optional for now (integration unavailable); members can connect it later from Profile.
+  return fullNameOk && specializationOk && yearOk;
 };
 
 function GatedRedirect({ to, forceReplace = false }: { to: string, forceReplace?: boolean }) {

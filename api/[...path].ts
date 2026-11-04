@@ -639,9 +639,9 @@ const handler_admin: H = async (req, res) => {
     if (!adminCheck.ok) { sendError(res, 403, adminCheck.error); return; }
     const cacheKey = 'cache:admin:stats';
     try { const c = await getCache<any>(cacheKey); if (c) { sendJson(res, 200, c); return; } } catch { /* noop */ }
-    const { count: total } = await adminSup.from('users').select('*', { count: 'exact', head: true }).or('discord_connected.eq.true,status.eq.Approved,status.eq.approved');
+    const { count: total } = await adminSup.from('users').select('*', { count: 'exact', head: true }).not('full_name', 'eq', '').or('specialization.neq."",status.eq.Approved,status.eq.approved');
     const { count: pending } = await adminSup.from('users').select('*', { count: 'exact', head: true })
-      .in('status', ['Pending', 'pending', 'PENDING']).not('full_name', 'eq', '').eq('discord_connected', true);
+      .in('status', ['Pending', 'pending', 'PENDING']).not('full_name', 'eq', '').not('specialization', 'eq', '');
     const { count: approved } = await adminSup.from('users').select('*', { count: 'exact', head: true })
       .in('status', ['Approved', 'approved', 'APPROVED']);
     const payload = { total: total ?? 0, pending: pending ?? 0, approved: approved ?? 0 };
@@ -666,7 +666,7 @@ const handler_admin: H = async (req, res) => {
     const statusFilter = getStringParam(req.query?.status);
     const roleFilter = getStringParam(req.query?.role);
     const searchRaw = getStringParam(req.query?.search);
-    let query: any = adminSup.from('users').select('*', { count: 'exact' }).eq('is_admin', false).not('full_name', 'eq', '').or('discord_connected.eq.true,status.eq.Approved,status.eq.approved');
+    let query: any = adminSup.from('users').select('*', { count: 'exact' }).eq('is_admin', false).not('full_name', 'eq', '').or('specialization.neq."",status.eq.Approved,status.eq.approved');
     if (statusFilter && statusFilter !== 'All') {
       const variants = Array.from(new Set([statusFilter, statusFilter.toLowerCase(), statusFilter.toUpperCase(),
         statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1).toLowerCase()]));
