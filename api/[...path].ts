@@ -1624,9 +1624,49 @@ const normalizePath = (req: any): string => {
   }
 };
 
+// Public Volunteers directory. Approved members only, and only what their public card already
+// shows (name, role, member ID, year) plus their featured skills and Discord avatar. No emails.
+const handler_volunteers: H = async (req, res) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=1800');
+  if (req.method !== 'GET') { sendError(res, 405, 'Method not allowed'); return; }
+  const cacheKey = 'cache:volunteers:directory:v1';
+  try { const cached = await getCache<any>(cacheKey); if (cached) { sendJson(res, 200, cached); return; } }
+  catch { /* noop */ }
+  const { url: supabaseUrl, serviceKey } = getSupabaseConfig();
+  if (!supabaseUrl || !serviceKey) { sendError(res, 500, 'Server not configured'); return; }
+  const supabase = createServiceClient(supabaseUrl, serviceKey);
+  const { data, error } = await supabase
+    .from('users')
+    .select('full_name, specialization, member_id, year_joined, skills, discord_id, discord_avatar, is_admin')
+    .eq('status', 'Approved')
+    .not('member_id', 'is', null)
+    .order('full_name', { ascending: true })
+    .limit(1000);
+  if (error) { sendError(res, 500, 'Failed to load volunteers'); return; }
+  const volunteers = (data ?? []).map((r: any) => {
+    const skills: { name: string; featured?: boolean }[] = Array.isArray(r.skills) ? r.skills : [];
+    const ordered = [...skills.filter((s) => s?.featured), ...skills.filter((s) => !s?.featured)];
+    const avatarOk = /^\d+$/.test(String(r.discord_id ?? '')) && /^[a-z0-9_]+$/i.test(String(r.discord_avatar ?? ''));
+    return {
+      name: String(r.full_name || '').trim() || 'Member',
+      role: r.specialization || null,
+      memberId: r.member_id,
+      yearJoined: typeof r.year_joined === 'number' ? r.year_joined : null,
+      isAdmin: !!r.is_admin,
+      skills: ordered.map((s) => String(s?.name || '')).filter(Boolean).slice(0, 4),
+      skillCount: skills.length,
+      avatarUrl: avatarOk ? `https://cdn.discordapp.com/avatars/${r.discord_id}/${r.discord_avatar}.png?size=96` : null,
+    };
+  });
+  const payload = { volunteers, count: volunteers.length };
+  try { await setCache(cacheKey, payload, 300); } catch { /* noop */ }
+  sendJson(res, 200, payload);
+};
+
 type HandlerKey =
   | '/me' | '/admin' | '/projects' | '/submit-project' | '/my-project-submissions'
-  | '/volunteer-calls' | '/verify' | '/discord' | '/discord-username-taken' | '/contribution-scores';
+  | '/volunteer-calls' | '/verify' | '/discord' | '/discord-username-taken' | '/contribution-scores' | '/volunteers';
 
 const HANDLERS: Record<HandlerKey, H> = {
   '/me': handler_me,
@@ -1639,6 +1679,7 @@ const HANDLERS: Record<HandlerKey, H> = {
   '/discord': handler_discord,
   '/discord-username-taken': handler_discord_username_taken,
   '/contribution-scores': handler_contribution_scores,
+  '/volunteers': handler_volunteers,
 };
 
 const callHandler = async (key: HandlerKey, req: any, res: any) => {
@@ -1691,6 +1732,7 @@ async function handleRequest(req: any, res: any) {
     if (pathname === '/discord') return callHandler('/discord', req, res);
     if (pathname === '/discord-username-taken') return callHandler('/discord-username-taken', req, res);
     if (pathname === '/contribution-scores') return callHandler('/contribution-scores', req, res);
+    if (pathname === '/volunteers') return callHandler('/volunteers', req, res);
 
     sendError(res, 404, 'API endpoint not found');
   } catch (err) {

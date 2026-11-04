@@ -15,6 +15,7 @@ const Verify = lazy(() => import("./pages/public/Verify"));
 const Privacy = lazy(() => import("./pages/public/Privacy"));
 const Terms = lazy(() => import("./pages/public/Terms"));
 const Projects = lazy(() => import("./pages/public/Projects"));
+const Volunteers = lazy(() => import("./pages/public/Volunteers"));
 const Contribute = lazy(() => import("./pages/public/Contribute"));
 const NotFound = lazy(() => import("./pages/public/NotFound"));
 const DiscordCallback = lazy(() => import("./pages/auth/DiscordCallback"));
@@ -245,6 +246,7 @@ export default function App() {
           <Route path="/verify" element={<Verify />} />
           <Route path="/verify/:id" element={<Verify />} />
           <Route path="/projects" element={<Projects />} />
+          <Route path="/volunteers" element={<Volunteers />} />
           <Route path="/contribute" element={<Contribute />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />

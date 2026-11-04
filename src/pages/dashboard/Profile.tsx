@@ -1,14 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import clsx from 'clsx';
-import { AlertCircle, BadgeCheck, Briefcase, CheckCircle2, ChevronDown, Clock, Link2, Lock, Star, User as UserIcon, Wrench } from 'lucide-react';
+import { AlertCircle, BadgeCheck, Briefcase, CheckCircle2, Clock, Link2, Lock, Star, User as UserIcon, Wrench } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
 import { UserChip } from '../../components/UserChip';
 import { AppHeader, MEMBER_NAV } from '../../components/AppHeader';
 import { SkillsPicker } from '../../components/SkillsPicker';
 import { SkillIcon } from '../../components/SkillIcon';
-import { SPECIALIZATIONS } from '../../constants/specializations';
+import { SPECIALIZATIONS, ROLE_GROUPS } from '../../constants/specializations';
+import { SelectMenu, type SelectOption } from '../../components/SelectMenu';
 import { EXPERIENCE_LEVELS } from '../../constants/experience';
 import { connectDiscord, createOrUpdateUserRecord } from '../../services/supabase';
 import type { ExperienceLevel, UserSkill } from '../../types';
@@ -102,9 +103,20 @@ export default function Profile() {
     return () => window.clearTimeout(t);
   }, [saveState]);
 
-  const specializationOptions = useMemo(() => {
-    const labels = SPECIALIZATIONS.map((s) => s.label);
-    return specialization && !labels.includes(specialization) ? [specialization, ...labels] : labels;
+  // Role choices for the custom select: icon, a few example skills, and the picker's two groups.
+  const roleOptions = useMemo<SelectOption[]>(() => {
+    const groupLabel = (g?: string) => ROLE_GROUPS.find((x) => x.id === (g ?? 'tech'))?.label;
+    const list: SelectOption[] = SPECIALIZATIONS.map((s) => ({
+      value: s.label,
+      label: s.label,
+      icon: s.icon,
+      hint: s.suggestedSkills.slice(0, 3).join(' · '),
+      group: groupLabel(s.group),
+    }));
+    // Keep a legacy role someone already has, even if it's no longer offered.
+    return specialization && !list.some((o) => o.value === specialization)
+      ? [{ value: specialization, label: specialization, group: 'Current' }, ...list]
+      : list;
   }, [specialization]);
 
   // Approved members' names are what the Volunteer Card and /verify vouch for, so they're locked.
@@ -343,38 +355,25 @@ export default function Profile() {
             <Card title="Role & experience" description="Your primary role drives skill recommendations and shows on your Volunteer Card.">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label htmlFor="specialization" className={labelClass}>Primary role</label>
-                  <div className="relative">
-                    <select
-                      id="specialization"
-                      className="s-field h-11 cursor-pointer appearance-none pr-10 text-[15px]"
-                      value={specialization}
-                      onChange={(e) => { setSpecialization(e.target.value); touch(); }}
-                    >
-                      <option value="" disabled>Select a role</option>
-                      {specializationOptions.map((label) => (
-                        <option key={label} value={label}>{label}</option>
-                      ))}
-                    </select>
-                    <ChevronDown size={16} strokeWidth={1.75} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                  </div>
+                  <label id="specialization-label" htmlFor="specialization" className={labelClass}>Primary role</label>
+                  <SelectMenu
+                    id="specialization"
+                    labelledBy="specialization-label"
+                    value={specialization}
+                    placeholder="Select a role"
+                    options={roleOptions}
+                    onChange={(v) => { setSpecialization(v); touch(); }}
+                  />
                 </div>
                 <div>
-                  <label htmlFor="experience" className={labelClass}>Experience</label>
-                  <div className="relative">
-                    <select
-                      id="experience"
-                      className="s-field h-11 cursor-pointer appearance-none pr-10 text-[15px]"
-                      value={experienceLevel}
-                      onChange={(e) => { setExperienceLevel(e.target.value as ExperienceLevel); touch(); }}
-                    >
-                      <option value="">Not specified</option>
-                      {EXPERIENCE_LEVELS.map((lvl) => (
-                        <option key={lvl} value={lvl}>{lvl}</option>
-                      ))}
-                    </select>
-                    <ChevronDown size={16} strokeWidth={1.75} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                  </div>
+                  <label id="experience-label" htmlFor="experience" className={labelClass}>Experience</label>
+                  <SelectMenu
+                    id="experience"
+                    labelledBy="experience-label"
+                    value={experienceLevel}
+                    options={[{ value: '', label: 'Not specified' }, ...EXPERIENCE_LEVELS.map((lvl) => ({ value: lvl, label: lvl }))]}
+                    onChange={(v) => { setExperienceLevel(v as ExperienceLevel); touch(); }}
+                  />
                 </div>
               </div>
             </Card>

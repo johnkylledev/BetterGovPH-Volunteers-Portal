@@ -17,6 +17,7 @@ const footerColumns: { heading: string; links: { label: string; to: string; exte
     heading: 'Portal',
     links: [
       { label: 'Sign in', to: '/login' },
+      { label: 'Volunteers', to: '/volunteers' },
       { label: 'Projects', to: '/projects' },
       { label: 'Verify a card', to: '/verify' },
     ],

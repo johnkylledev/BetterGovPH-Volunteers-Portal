@@ -6,6 +6,9 @@ import {
   LineChart, Component, FileText, Siren, FileCog, MousePointerClick, Users, Map,
   Shapes, MonitorSmartphone, Kanban, Handshake, ScanSearch, UserSearch, BadgeCheck,
   Brush, LayoutTemplate, Megaphone, PenLine, ShieldCheck,
+  Clapperboard, Camera, Type, Mic, Radio, Newspaper, SearchCheck, SpellCheck, Languages, ClipboardList,
+  FileSearch, GraduationCap, Presentation, HeartHandshake, Scale, Landmark, ScrollText, FilePen, Target,
+  HandHeart, MapPin, CalendarDays, PiggyBank,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { LOCAL_SKILL_ICONS } from './skillIconFiles';
@@ -33,6 +36,7 @@ const DEVICON: Record<string, string> = {
   'adobe xd': 'xd/xd-original.svg',
   'motion graphics': 'aftereffects/aftereffects-original.svg',
   'information design': 'canva/canva-original.svg',
+  'canva': 'canva/canva-original.svg',
   'html/css': 'html5/html5-original.svg',
 };
 
@@ -76,6 +80,38 @@ const CONCEPT_ICONS: Record<string, LucideIcon> = {
   'social media': Megaphone,
   'writing': PenLine,
   'security compliance': ShieldCheck,
+  // Non-tech skills
+  'video editing': Clapperboard,
+  'photography': Camera,
+  'content writing': PenLine,
+  'copywriting': Type,
+  'podcasting': Mic,
+  'livestreaming': Radio,
+  'illustration': Brush,
+  'journalism': Newspaper,
+  'fact-checking': SearchCheck,
+  'editing & proofreading': SpellCheck,
+  'translation (filipino/english)': Languages,
+  'policy research': FileSearch,
+  'survey design': ClipboardList,
+  'teaching': GraduationCap,
+  'curriculum design': BookOpen,
+  'workshop facilitation': Presentation,
+  'public speaking': Presentation,
+  'digital literacy training': MonitorSmartphone,
+  'mentoring': HeartHandshake,
+  'legal research': Scale,
+  'policy analysis': Landmark,
+  'legislative drafting': ScrollText,
+  'data privacy (dpa)': ShieldCheck,
+  'foi requests': FileSearch,
+  'contract review': FilePen,
+  'community organizing': Users,
+  'campaign strategy': Target,
+  'volunteer coordination': HandHeart,
+  'event organizing': CalendarDays,
+  'grassroots outreach': MapPin,
+  'fundraising': PiggyBank,
 };
 
 /**

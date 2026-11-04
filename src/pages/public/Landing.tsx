@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, BadgeCheck, ClipboardList, Clock, Hammer, Heart, LockOpen, Rocket, SearchCheck, Smartphone, Users } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { AccessCard } from '../../components/AccessCard';
 import { User } from '../../types';
@@ -26,19 +26,47 @@ const BETTERGOV_APPROACH = [
   'Technology serves bayanihan, not bureaucracy',
 ];
 
+// `span` lays the six out as a 4·2 / 2·4 / 3·3 bento on large screens.
 const PRINCIPLES = [
-  { title: 'Filipino-first', desc: 'Built by Filipinos, for the people who actually use public services.' },
-  { title: 'Open by default', desc: 'Code, data, and decisions happen in public where anyone can check them.' },
-  { title: 'Build together', desc: 'Small teams, shared ownership, credit where it’s due.' },
-  { title: 'Ship it', desc: 'A working tool today beats a perfect plan next year.' },
-  { title: 'Get it right', desc: 'Cite sources and verify numbers before anything goes out.' },
-  { title: 'For everyone', desc: 'Accessible on any phone, any connection, in plain language.' },
+  { title: 'Filipino-first', desc: 'Built by Filipinos, for the people who actually use public services.', icon: Heart, span: 'lg:col-span-4', featured: true },
+  { title: 'Open by default', desc: 'Code, data, and decisions happen in public where anyone can check them.', icon: LockOpen, span: 'lg:col-span-2' },
+  { title: 'Build together', desc: 'Small teams, shared ownership, credit where it’s due.', icon: Users, span: 'lg:col-span-2' },
+  { title: 'Ship it', desc: 'A working tool today beats a perfect plan next year.', icon: Rocket, span: 'lg:col-span-4' },
+  { title: 'Get it right', desc: 'Cite sources and verify numbers before anything goes out.', icon: SearchCheck, span: 'lg:col-span-3' },
+  { title: 'For everyone', desc: 'Accessible on any phone, any connection, in plain language.', icon: Smartphone, span: 'lg:col-span-3' },
 ];
 
+const DiscordMark = ({ size = 18 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
+  </svg>
+);
+
 const STEPS = [
-  { title: 'Say hello on Discord', desc: 'Meet the community and see what’s being built right now.', action: 'Open Discord', href: DISCORD_INVITE },
-  { title: 'Apply for membership', desc: 'Tell us your skills and interests. It takes about five minutes.', action: 'Start application', href: '/register' },
-  { title: 'Pick something to build', desc: 'Choose an open issue, join a project team, and ship.', action: 'See open roles', href: '#open-roles' },
+  {
+    title: 'Say hello on Discord',
+    desc: 'Meet the community, introduce yourself and see what’s being built right now.',
+    time: '1 min',
+    icon: <DiscordMark />,
+    action: 'Open Discord',
+    href: DISCORD_INVITE,
+  },
+  {
+    title: 'Apply for membership',
+    desc: 'Tell us your skills and the role you want. An admin reviews every application.',
+    time: '5 min',
+    icon: <ClipboardList size={18} strokeWidth={1.75} />,
+    action: 'Start application',
+    href: '/register',
+  },
+  {
+    title: 'Pick something to build',
+    desc: 'Choose an open issue or join a project team, then ship with people who care.',
+    time: 'Your pace',
+    icon: <Hammer size={18} strokeWidth={1.75} />,
+    action: 'See open roles',
+    href: '#open-roles',
+  },
 ];
 
 const PARTNERS: { name: string; logo?: string }[] = [
@@ -97,7 +125,7 @@ const Landing: React.FC = () => {
               Build the public tools the Philippines deserves.
             </motion.h1>
             <motion.p {...enter(0.1)} className="mt-6 max-w-[34rem] text-[17px] leading-relaxed text-[var(--fg-2)]">
-              We're a volunteer community of developers, designers, researchers, and advocates making government data
+              We're a volunteer community of developers, designers, writers, educators, lawyers, and advocates making government data
               open, readable, and accountable. Everything we ship is open source.
             </motion.p>
             <motion.div {...enter(0.16)} className="mt-9 flex flex-col gap-2.5 sm:flex-row">
@@ -174,15 +202,45 @@ const Landing: React.FC = () => {
       {/* Principles */}
       <section className="border-t border-[var(--line)]">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-20 sm:py-24">
-          <SectionHead title="How we work." />
+          <SectionHead title="How we work.">
+            Six habits that keep a volunteer team shipping useful things, and keep the public able to trust them.
+          </SectionHead>
           <Reveal>
-            <dl className="grid gap-x-12 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">
-              {PRINCIPLES.map((p) => (
-                <div key={p.title} className="border-t border-[var(--line)] pt-5">
-                  <dt className="text-[16px] font-semibold tracking-[-0.012em]">{p.title}</dt>
-                  <dd className="mt-1.5 text-[15px] leading-relaxed text-[var(--fg-2)]">{p.desc}</dd>
-                </div>
-              ))}
+            <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-6">
+              {PRINCIPLES.map((p, i) => {
+                const Icon = p.icon;
+                return (
+                  <div
+                    key={p.title}
+                    className={`group relative flex min-h-[176px] flex-col overflow-hidden rounded-[16px] p-6 transition-[box-shadow,transform] duration-200 sm:p-7 ${p.span} ${
+                      p.featured
+                        ? 'bg-[linear-gradient(140deg,#1e3a8a,#1e40af_60%,#2547b8)] text-white shadow-[0_10px_30px_-12px_rgb(30_58_138/0.6),inset_0_1px_0_rgb(255_255_255/0.12)] sm:col-span-2'
+                        : 'bg-[var(--card)] shadow-[var(--e2)] [@media(hover:hover)]:hover:-translate-y-0.5 [@media(hover:hover)]:hover:shadow-[0_1px_2px_rgb(15_23_42/0.05),0_12px_28px_-8px_rgb(15_23_42/0.16),0_0_0_1px_rgb(15_23_42/0.08)]'
+                    }`}
+                  >
+                    {p.featured && (
+                      <Icon
+                        aria-hidden
+                        size={180}
+                        strokeWidth={1}
+                        className="pointer-events-none absolute -bottom-10 -right-6 text-white/[0.07]"
+                      />
+                    )}
+                    <div className="flex items-center justify-between">
+                      <Icon size={22} strokeWidth={1.75} className={p.featured ? 'text-white' : 'text-[var(--accent)]'} aria-hidden />
+                      <span className={`num text-[13px] ${p.featured ? 'text-white/50' : 'text-[var(--fg-3)]/70'}`}>
+                        {String(i + 1).padStart(2, '0')}
+                      </span>
+                    </div>
+                    <dt className={`mt-auto pt-8 font-semibold tracking-[-0.015em] ${p.featured ? 'text-[24px] sm:text-[28px]' : 'text-[17px]'}`}>
+                      {p.title}
+                    </dt>
+                    <dd className={`mt-1.5 max-w-md leading-relaxed ${p.featured ? 'text-[16px] text-white/80' : 'text-[15px] text-[var(--fg-2)]'}`}>
+                      {p.desc}
+                    </dd>
+                  </div>
+                );
+              })}
             </dl>
           </Reveal>
         </div>
@@ -226,30 +284,70 @@ const Landing: React.FC = () => {
       {/* How to join */}
       <section className="border-t border-[var(--line)]">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-20 sm:py-24">
-          <SectionHead title="Three steps to join." />
+          <SectionHead title="Three steps to join.">
+            Free and open to every Filipino who wants to help. You don’t need years of experience, just a willingness to build.
+          </SectionHead>
           <Reveal>
-            <ol className="grid gap-px overflow-hidden rounded-[14px] bg-[var(--line)] shadow-[0_0_0_1px_var(--line)] md:grid-cols-3">
+            <ol className="relative grid gap-4 md:grid-cols-3 md:gap-6">
+              {/* The path between the step numbers */}
+              <span
+                aria-hidden
+                className="pointer-events-none absolute left-5 top-5 hidden h-[2px] w-[calc(66.666%+16px)] -translate-y-1/2 rounded-full bg-[linear-gradient(90deg,var(--accent),rgb(30_58_138/0.2))] md:block"
+              />
               {STEPS.map((step, i) => {
                 const isExternal = step.href.startsWith('http');
                 const isAnchor = step.href.startsWith('#');
-                const linkClass = 'group mt-6 inline-flex items-center gap-1.5 text-[14px] font-medium text-[var(--accent)]';
+                const primary = i === 0;
+                const linkClass = primary
+                  ? 's-btn s-btn-accent mt-6 h-10 w-fit gap-1.5 px-4 text-[14px]'
+                  : 'group mt-6 inline-flex w-fit items-center gap-1.5 text-[14px] font-medium text-[var(--accent)]';
                 const arrow = <ArrowRight size={14} strokeWidth={1.75} className="transition-transform duration-200 group-hover:translate-x-0.5" />;
                 return (
-                  <li key={step.title} className="flex flex-col bg-[var(--card)] p-6 sm:p-7">
-                    <span className="num text-[13px] text-[var(--fg-3)]">Step {i + 1}</span>
-                    <h3 className="mt-3 text-[17px] font-semibold">{step.title}</h3>
-                    <p className="mt-1.5 flex-1 text-[15px] leading-relaxed text-[var(--fg-2)]">{step.desc}</p>
-                    {isExternal ? (
-                      <a href={step.href} target="_blank" rel="noopener noreferrer" className={linkClass}>{step.action}{arrow}</a>
-                    ) : isAnchor ? (
-                      <button type="button" onClick={() => scrollToId(step.href.slice(1))} className={`${linkClass} w-fit`}>{step.action}{arrow}</button>
-                    ) : (
-                      <Link to={step.href} className={linkClass}>{step.action}{arrow}</Link>
+                  <li key={step.title} className="relative flex gap-4 md:flex-col md:gap-0">
+                    {/* Phones: a vertical line links the numbers instead */}
+                    {i < STEPS.length - 1 && (
+                      <span aria-hidden className="absolute bottom-[-16px] left-5 top-10 w-px bg-[var(--line)] md:hidden" />
                     )}
+                    <span className="num relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[15px] font-semibold text-white shadow-[0_0_0_5px_var(--bg),0_2px_6px_-1px_rgb(30_58_138/0.4)]">
+                      {i + 1}
+                    </span>
+                    <div className="flex min-w-0 flex-1 flex-col rounded-[14px] bg-[var(--card)] p-5 shadow-[var(--e2)] transition-[box-shadow,transform] duration-200 sm:p-6 md:mt-5 [@media(hover:hover)]:hover:-translate-y-0.5 [@media(hover:hover)]:hover:shadow-[0_1px_2px_rgb(15_23_42/0.05),0_12px_28px_-8px_rgb(15_23_42/0.16),0_0_0_1px_rgb(15_23_42/0.08)]">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className={primary ? 'text-[#5865F2]' : 'text-[var(--accent)]'}>{step.icon}</span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--muted)] px-2 py-0.5 text-[12px] text-[var(--fg-3)]">
+                          <Clock size={12} strokeWidth={1.75} aria-hidden />
+                          {step.time}
+                        </span>
+                      </div>
+                      <h3 className="mt-4 text-[17px] font-semibold">{step.title}</h3>
+                      <p className="mt-1.5 flex-1 text-[15px] leading-relaxed text-[var(--fg-2)]">{step.desc}</p>
+                      {isExternal ? (
+                        <a href={step.href} target="_blank" rel="noopener noreferrer" className={linkClass}>{step.action}{arrow}</a>
+                      ) : isAnchor ? (
+                        <button type="button" onClick={() => scrollToId(step.href.slice(1))} className={linkClass}>{step.action}{arrow}</button>
+                      ) : (
+                        <Link to={step.href} className={linkClass}>{step.action}{arrow}</Link>
+                      )}
+                    </div>
                   </li>
                 );
               })}
             </ol>
+
+            {/* Where the steps lead */}
+            <div className="mt-6 flex flex-col gap-3 rounded-[14px] bg-[linear-gradient(135deg,#eef3ff,#f7f9ff)] p-5 shadow-[inset_0_0_0_1px_rgb(30_58_138/0.12)] sm:flex-row sm:items-center sm:justify-between sm:p-6">
+              <p className="flex items-start gap-3 text-[15px] text-[var(--fg-2)]">
+                <BadgeCheck size={20} strokeWidth={1.75} className="mt-0.5 shrink-0 text-[var(--accent)]" aria-hidden />
+                <span>
+                  <span className="font-semibold text-[var(--fg)]">Once approved, you get a Volunteer Card</span>
+                  {' '}with a member ID and a QR anyone can scan to verify you.
+                </span>
+              </p>
+              <Link to="/verify" className="group inline-flex shrink-0 items-center gap-1.5 text-[14px] font-medium text-[var(--accent)]">
+                See how verification works
+                <ArrowRight size={14} strokeWidth={1.75} className="transition-transform duration-200 group-hover:translate-x-0.5" />
+              </Link>
+            </div>
           </Reveal>
         </div>
       </section>

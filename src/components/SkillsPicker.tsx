@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { Check, Plus, Search, Target, X } from 'lucide-react';
@@ -15,7 +15,29 @@ const CATEGORY_LABELS: Record<string, string> = {
   'Data & AI': 'Data & AI',
   'DevOps & Infrastructure': 'DevOps',
   'Cybersecurity': 'Security',
+  'Content & Media': 'Content',
+  'Writing & Research': 'Writing',
+  'Education & Training': 'Education',
+  'Law & Policy': 'Law & Policy',
+  'Advocacy & Community': 'Advocacy',
   'Professional & Others': 'Professional',
+};
+
+const CATEGORY_KEYS = Object.keys(SKILL_CATEGORIES) as SkillCategory[];
+const lower = (v: string) => v.toLowerCase();
+
+/** The category holding most of a role's skills, so browsing opens where that role's skills live. */
+const categoryForRole = (label: string): SkillCategory => {
+  const spec = SPECIALIZATIONS.find((s) => s.label === label);
+  if (!spec) return CATEGORY_KEYS[0];
+  const wanted = new Set([...spec.suggestedSkills, ...spec.requiredSkills].map(lower));
+  let best = CATEGORY_KEYS[0];
+  let bestScore = 0;
+  CATEGORY_KEYS.forEach((cat) => {
+    const score = SKILL_CATEGORIES[cat].filter((sk) => wanted.has(lower(sk))).length;
+    if (score > bestScore) { best = cat; bestScore = score; }
+  });
+  return best;
 };
 
 export interface SkillsPickerProps {
@@ -45,9 +67,44 @@ export const SkillsPicker: React.FC<SkillsPickerProps> = ({
   const [skillSearch, setSkillSearch] = useState('');
   const [otherSkill, setOtherSkill] = useState('');
   const [showOtherInput, setShowOtherInput] = useState(false);
-  const [activeSkillCategory, setActiveSkillCategory] = useState<SkillCategory>(
-    Object.keys(SKILL_CATEGORIES)[0] as SkillCategory
-  );
+  const [activeSkillCategory, setActiveSkillCategory] = useState<SkillCategory>(() => categoryForRole(specialization));
+  const tabsScrollRef = useRef<HTMLDivElement>(null);
+  const tabRefs = useRef<Partial<Record<SkillCategory, HTMLButtonElement | null>>>({});
+
+  // Changing the primary role jumps the browser to that role's category.
+  useEffect(() => {
+    if (specialization) setActiveSkillCategory(categoryForRole(specialization));
+  }, [specialization]);
+
+  // Searching follows the results: if this category has no match, move to the first one that does.
+  useEffect(() => {
+    const q = lower(skillSearch.trim());
+    if (!q) return;
+    const hasHere = SKILL_CATEGORIES[activeSkillCategory].some((sk) => lower(sk).includes(q));
+    if (hasHere) return;
+    const next = CATEGORY_KEYS.find((cat) => SKILL_CATEGORIES[cat].some((sk) => lower(sk).includes(q)));
+    if (next) setActiveSkillCategory(next);
+  }, [skillSearch, activeSkillCategory]);
+
+  // Keep the active category chip visible in the horizontal row (without scrolling the page).
+  useEffect(() => {
+    const row = tabsScrollRef.current;
+    const tab = tabRefs.current[activeSkillCategory];
+    if (!row || !tab) return;
+    const target = tab.offsetLeft - (row.clientWidth - tab.offsetWidth) / 2;
+    row.scrollTo({ left: Math.max(0, target), behavior: 'smooth' });
+  }, [activeSkillCategory]);
+
+  // How many picked skills sit in each category, shown on its chip.
+  const pickedPerCategory = useMemo(() => {
+    const picked = new Set(skills.map((sk) => lower(sk.name)));
+    const out: Partial<Record<SkillCategory, number>> = {};
+    CATEGORY_KEYS.forEach((cat) => {
+      const n = SKILL_CATEGORIES[cat].filter((sk) => picked.has(lower(sk))).length;
+      if (n) out[cat] = n;
+    });
+    return out;
+  }, [skills]);
 
   const { roleScores, betterRoleSuggestion } = useMemo(() => {
     const scores: Record<string, number> = {};
@@ -253,6 +310,7 @@ export const SkillsPicker: React.FC<SkillsPickerProps> = ({
           </div>
 
           <div
+              ref={tabsScrollRef}
               className="no-scrollbar -mx-1 mt-3 overflow-x-auto px-1 pb-1"
               role="tablist"
               aria-label="Skill categories"
@@ -260,21 +318,34 @@ export const SkillsPicker: React.FC<SkillsPickerProps> = ({
               <div className="flex w-max gap-1.5">
                   {Object.keys(SKILL_CATEGORIES).map((category) => {
                       const isActive = activeSkillCategory === category;
+                      const picked = pickedPerCategory[category as SkillCategory] ?? 0;
                       return (
                           <button
                               key={category}
+                              ref={(el) => { tabRefs.current[category as SkillCategory] = el; }}
                               type="button"
                               role="tab"
                               aria-selected={isActive}
                               onClick={() => setActiveSkillCategory(category as SkillCategory)}
                               className={clsx(
-                                  'min-h-[36px] shrink-0 whitespace-nowrap rounded-full px-3.5 text-[13px] transition-[background-color,color,box-shadow] duration-150',
+                                  'inline-flex min-h-[36px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-[13px] transition-[background-color,color,box-shadow] duration-150',
                                   isActive
                                       ? 'bg-slate-900 font-medium text-white'
                                       : 'bg-white text-slate-600 shadow-[inset_0_0_0_1px_rgb(15_23_42/0.1)] hover:text-slate-900'
                               )}
                           >
                               {CATEGORY_LABELS[category] || category}
+                              {picked > 0 && (
+                                  <span
+                                      className={clsx(
+                                          'num flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[11px] font-semibold',
+                                          isActive ? 'bg-white/20 text-white' : 'bg-[var(--accent)] text-white'
+                                      )}
+                                      aria-label={`${picked} picked`}
+                                  >
+                                      {picked}
+                                  </span>
+                              )}
                           </button>
                       );
                   })}
