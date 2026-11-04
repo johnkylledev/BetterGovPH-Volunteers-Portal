@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { ArrowUpRight, Plus, Search as SearchIcon, X as XIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { getApprovedProjects, supabase } from '../../services/supabase';
+import { getApprovedProjects, getRepoStats, supabase } from '../../services/supabase';
 import { Project } from '../../types';
 import { SiteLayout, PageIntro } from '../../components/site/SiteLayout';
 import { workTypeLabel } from '../../constants/tracks';
@@ -22,6 +22,20 @@ export default function Projects() {
   const [message, setMessage] = useState('');
   const [query, setQuery] = useState('');
 
+  // Repo stats are fetched lazily: the API refreshes a few stale repos per call, so ask a few times
+  // in the background until every portal project with a repo has numbers (or we give up).
+  const fillRepoStats = useCallback(async (list: Project[]) => {
+    const wanted = () => list.filter((p) => p.source === 'local' && p.repoUrl && !p.repo).map((p) => String(p.id));
+    for (let round = 0; round < 6 && wanted().length; round++) {
+      let map: Record<string, Project['repo']> = {};
+      try { map = await getRepoStats(wanted()); } catch { return; }
+      const got = Object.entries(map).filter(([, v]) => v);
+      if (!got.length) return;
+      list = list.map((p) => (map[String(p.id)] ? { ...p, repo: map[String(p.id)] } : p));
+      setProjects((prev) => prev.map((p) => (map[String(p.id)] ? { ...p, repo: map[String(p.id)] } : p)));
+    }
+  }, []);
+
   const loadProjects = useCallback(async (isInitial = false) => {
     if (isInitial) setStatus('loading');
     setMessage('');
@@ -29,12 +43,13 @@ export default function Projects() {
       const list = await getApprovedProjects({ merged: true });
       setProjects(list);
       setStatus('success');
+      fillRepoStats(list);
     } catch (err: any) {
       const m = err instanceof Error ? err.message : typeof err?.message === 'string' ? err.message : 'Failed to load projects';
       setStatus('error');
       setMessage(m);
     }
-  }, []);
+  }, [fillRepoStats]);
 
   useEffect(() => {
     loadProjects(true);
