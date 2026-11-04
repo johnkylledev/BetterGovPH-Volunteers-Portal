@@ -113,14 +113,13 @@ export const AccessCard: React.FC<AccessCardProps> = ({ user, isDemo }) => {
           isDemo ? 'cursor-default' : 'cursor-pointer'
         )}
       >
-        {/* Security print: fine diagonal lines, like the background of a printed ID */}
+        {/* Smooth card finish: soft light from the top corner and a gentle shade at the bottom, no pattern */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-[0.05]"
+          className="pointer-events-none absolute inset-0"
           style={{
             backgroundImage:
-              'repeating-linear-gradient(135deg, #fff 0 1px, transparent 1px 7px), repeating-linear-gradient(45deg, #fff 0 1px, transparent 1px 11px)',
-            maskImage: 'linear-gradient(to bottom, #000 0%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.6) 100%)',
+              'radial-gradient(120% 70% at 0% 0%, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0) 55%), linear-gradient(to bottom, rgba(255,255,255,0) 60%, rgba(5,20,60,0.28) 100%)',
           }}
         />
         {/* Embossed seal, cropped by the right edge */}
