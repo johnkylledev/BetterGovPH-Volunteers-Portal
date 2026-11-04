@@ -11,11 +11,12 @@ export interface CallExtras {
   commitment: string;
   workMode: string;
   goodFirst: boolean;
+  chatUrl: string;
 }
-export const EMPTY_CALL_EXTRAS: CallExtras = { callType: 'people', location: '', neededBy: '', commitment: '', workMode: '', goodFirst: false };
+export const EMPTY_CALL_EXTRAS: CallExtras = { callType: 'people', location: '', neededBy: '', commitment: '', workMode: '', goodFirst: false, chatUrl: '' };
 export const extrasFromCall = (c: VolunteerCall): CallExtras => ({
   callType: c.callType ?? 'people', location: c.location ?? '', neededBy: c.neededBy ?? '',
-  commitment: c.commitment ?? '', workMode: c.workMode ?? '', goodFirst: !!c.goodFirst,
+  commitment: c.commitment ?? '', workMode: c.workMode ?? '', goodFirst: !!c.goodFirst, chatUrl: c.chatUrl ?? '',
 });
 
 const labelClass = 'mb-1.5 block text-[13px] font-medium text-slate-900';
@@ -85,6 +86,11 @@ export const CallMetaFields: React.FC<{ value: CallExtras; onChange: (v: CallExt
           </div>
         </div>
       )}
+      <div>
+        <label htmlFor={`${idPrefix}-chat`} className={labelClass}>Group chat link <span className="font-normal text-slate-400">optional</span></label>
+        <input id={`${idPrefix}-chat`} type="url" inputMode="url" maxLength={300} value={value.chatUrl} disabled={disabled} onChange={(e) => set({ chatUrl: e.target.value })} className="s-field" placeholder="Messenger, WhatsApp, Viber, Telegram or Discord invite" />
+        <p className="mt-1 text-[12px] text-slate-500">Signed-in members see it, so people can join without Discord.</p>
+      </div>
       {people && (
         <label htmlFor={`${idPrefix}-first`} className="flex cursor-pointer items-start gap-3 rounded-[12px] bg-emerald-50/60 p-3 shadow-[inset_0_0_0_1px_rgb(16_185_129/0.2)]">
           <input id={`${idPrefix}-first`} type="checkbox" checked={value.goodFirst} disabled={disabled} onChange={(e) => set({ goodFirst: e.target.checked })} className="mt-0.5 h-4 w-4 accent-[var(--accent)]" />

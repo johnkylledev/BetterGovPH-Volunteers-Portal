@@ -16,6 +16,7 @@ import { LinksFields, LINKS_INTRO, validateLinks } from '../../components/LinksF
 import { SelectMenu } from '../../components/SelectMenu';
 import { ConsentFields, requiredConsentMissing } from '../../components/ConsentFields';
 import { CONSENT_VERSION, type ConsentPurposeId } from '../../constants/community';
+import { takeReturnTo } from '../../utils/returnTo';
 import { SKILL_CATEGORIES } from '../../constants/skills';
 import { createOrUpdateUserRecord, getUserData, signInWithGoogle, supabase, connectDiscord, getDiscordStatus } from '../../services/supabase';
 
@@ -46,6 +47,7 @@ function LegacyRegister() {
     const [currentStep, setCurrentStep] = useState<Step>(1);
     const [formData, setFormData] = useState({
         fullName: '',
+        displayName: '',
         discordUsername: '',
         yearJoined: new Date().getFullYear(),
         skills: [] as UserSkill[],
@@ -108,6 +110,7 @@ function LegacyRegister() {
             setFormData(prev => ({
                 ...prev,
                 fullName: typeof draft.data.fullName === 'string' ? draft.data.fullName : prev.fullName,
+                displayName: typeof draft.data.displayName === 'string' ? draft.data.displayName : prev.displayName,
                 discordUsername: typeof draft.data.discordUsername === 'string' ? draft.data.discordUsername : prev.discordUsername,
                 yearJoined: Number.isFinite(draft.data.yearJoined) ? Number(draft.data.yearJoined) : prev.yearJoined,
                 skills: Array.isArray(draft.data.skills) ? draft.data.skills : prev.skills,
@@ -137,7 +140,7 @@ function LegacyRegister() {
                 if (currentUser.isAdmin) {
                     navigate('/admin', { replace: true });
                 } else {
-                    navigate('/dashboard', { replace: true });
+                    navigate(takeReturnTo() || '/dashboard', { replace: true });
                 }
                 return;
             }
@@ -153,6 +156,7 @@ function LegacyRegister() {
                     setFormData(prev => ({
                         ...prev,
                         fullName: profile.fullName || prev.fullName,
+                        displayName: profile.displayName || prev.displayName,
                         specialization: profile.specialization || prev.specialization,
                         role: profile.role || prev.role,
                         yearJoined: profile.yearJoined || prev.yearJoined,
@@ -167,7 +171,7 @@ function LegacyRegister() {
                         if (profile.isAdmin) {
                             navigate('/admin', { replace: true });
                         } else {
-                            navigate('/dashboard', { replace: true });
+                            navigate(takeReturnTo() || '/dashboard', { replace: true });
                         }
                     }
                 }
@@ -254,7 +258,7 @@ function LegacyRegister() {
         }
         setCompleting(false);
         clearDraft();
-        navigate('/dashboard');
+        navigate(takeReturnTo() || '/dashboard');
     };
 
     if (!authInitialized || checkingProfile) return <LoadingOverlay />;
@@ -493,6 +497,7 @@ function LegacyRegister() {
             const saved = await createOrUpdateUserRecord({
                 uid: sessionUserId,
                 fullName: formData.fullName.trim(),
+                displayName: formData.displayName.trim(),
                 specialization: primaryRole,
                 secondarySpecialization: formData.secondarySpecialization && formData.secondarySpecialization !== primaryRole ? formData.secondarySpecialization : '',
                 role: rl,
@@ -666,7 +671,25 @@ function LegacyRegister() {
                                                 className="s-field h-11 text-[15px]"
                                                 placeholder="Juan Dela Cruz"
                                             />
-                                            <p id="hint-full-name" className="mt-1.5 text-[12px] text-slate-500">This is printed on your Volunteer Card exactly as typed.</p>
+                                            <p id="hint-full-name" className="mt-1.5 text-[12px] text-slate-500">This is printed on your Volunteer Card exactly as typed. It stays private unless you choose otherwise.</p>
+                                        </div>
+
+                                        <div>
+                                            <label htmlFor="field-display-name" className="mb-1.5 block text-[14px] font-medium text-slate-900">
+                                                Display name <span className="text-[13px] font-normal text-slate-400">optional</span>
+                                            </label>
+                                            <input
+                                                id="field-display-name"
+                                                type="text"
+                                                autoComplete="nickname"
+                                                maxLength={60}
+                                                value={formData.displayName}
+                                                onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
+                                                aria-describedby="hint-display-name"
+                                                className="s-field h-11 text-[15px]"
+                                                placeholder="A username or pseudonym, e.g. juandc"
+                                            />
+                                            <p id="hint-display-name" className="mt-1.5 text-[12px] text-slate-500">What others see on public pages and in teams. Leave it blank to show a shortened real name (“Juan D****”).</p>
                                         </div>
 
                                         <div>
@@ -1099,7 +1122,7 @@ function LegacyRegister() {
                                     Thanks for applying. An admin will review it, and your Volunteer Card goes live once it’s approved.
                                 </p>
                                 <button
-                                    onClick={() => { clearDraft(); navigate('/dashboard'); }}
+                                    onClick={() => { clearDraft(); navigate(takeReturnTo() || '/dashboard'); }}
                                     className="s-btn s-btn-accent mt-7 w-full"
                                 >
                                     Go to your dashboard

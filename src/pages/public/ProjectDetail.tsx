@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import clsx from 'clsx';
-import { ArrowLeft, ArrowUpRight, Building2, Crown, UserMinus, Users } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, Building2, Crown, MessageCircle, UserMinus, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { SiteLayout } from '../../components/site/SiteLayout';
 import { Avatar } from '../../components/Avatar';
@@ -26,6 +26,7 @@ export default function ProjectDetail() {
   const [ownerMode, setOwnerMode] = useState<'member' | 'org'>('member');
   const [ownerUserId, setOwnerUserId] = useState('');
   const [ownerName, setOwnerName] = useState('');
+  const [chatDraft, setChatDraft] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -35,6 +36,7 @@ export default function ProjectDetail() {
       setOwnerMode(t.owner?.type === 'org' ? 'org' : 'member');
       setOwnerName(t.owner?.type === 'org' ? t.owner.name : '');
       setOwnerUserId(t.owner?.userId || '');
+      setChatDraft(t.project.chatUrl || '');
     } catch (err) {
       setState(err instanceof Error && /not found/i.test(err.message) ? 'missing' : 'error');
     }
@@ -195,6 +197,15 @@ export default function ProjectDetail() {
                 <ArrowUpRight size={15} strokeWidth={1.75} />
               </a>
             )}
+            {project.chatUrl && (
+              <a href={project.chatUrl} target="_blank" rel="noreferrer" className="s-btn s-btn-plain h-10">
+                <MessageCircle size={15} strokeWidth={1.75} />
+                Team group chat
+              </a>
+            )}
+            {!sessionUserId && (
+              <span className="self-center text-[12.5px] text-[var(--fg-3)]">Sign in to see the team’s group chat.</span>
+            )}
           </div>
         </header>
 
@@ -257,6 +268,20 @@ export default function ProjectDetail() {
                     ))}
                   </ul>
                 )}
+              </section>
+            )}
+
+            {canManage && (
+              <section className="s-card p-5 sm:p-6" aria-labelledby="chat-title">
+                <h2 id="chat-title" className="text-[16px] font-semibold">Team group chat</h2>
+                <p className="mt-1 text-[14px] text-slate-500">Where the team talks. Messenger, WhatsApp, Viber, Telegram or Discord. Signed-in members see it.</p>
+                <form
+                  className="mt-4 flex flex-col gap-2 sm:flex-row"
+                  onSubmit={(e) => { e.preventDefault(); act('chat', { action: 'set-chat', chatUrl: chatDraft.trim() }, chatDraft.trim() ? 'Chat link saved' : 'Chat link removed'); }}
+                >
+                  <input aria-label="Group chat link" type="url" inputMode="url" maxLength={300} value={chatDraft} onChange={(e) => setChatDraft(e.target.value)} className="s-field sm:flex-1" placeholder="https://chat.whatsapp.com/…" />
+                  <button type="submit" disabled={busy !== null} className="s-btn s-btn-accent h-11">{busy === 'chat' ? 'Saving…' : 'Save link'}</button>
+                </form>
               </section>
             )}
 

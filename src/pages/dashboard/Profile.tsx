@@ -67,6 +67,7 @@ export default function Profile() {
   );
 
   const [fullName, setFullName] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [specialization, setSpecialization] = useState('');
   const [secondary, setSecondary] = useState('');
   const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel | ''>('');
@@ -86,6 +87,7 @@ export default function Profile() {
   const seedFromUser = useCallback(() => {
     if (!currentUser) return;
     setFullName(currentUser.fullName ?? '');
+    setDisplayName(currentUser.displayName ?? '');
     setSpecialization(currentUser.specialization ?? '');
     setSecondary(currentUser.secondarySpecialization ?? '');
     setExperienceLevel((currentUser.experienceLevel as ExperienceLevel) ?? '');
@@ -143,7 +145,7 @@ export default function Profile() {
   const changed = useMemo(() => {
     if (!currentUser) return { personal: false, role: false, skills: false, connections: false, privacy: false };
     return {
-      personal: !nameLocked && fullName.trim() !== (currentUser.fullName ?? ''),
+      personal: (!nameLocked && fullName.trim() !== (currentUser.fullName ?? '')) || displayName.trim() !== (currentUser.displayName ?? ''),
       role:
         specialization !== (currentUser.specialization ?? '') ||
         secondary !== (currentUser.secondarySpecialization ?? '') ||
@@ -152,7 +154,7 @@ export default function Profile() {
       connections: linksKey(links) !== linksKey(currentUser.links),
       privacy: false, // privacy switches save the moment they change
     };
-  }, [currentUser, nameLocked, fullName, specialization, secondary, experienceLevel, skills, links]);
+  }, [currentUser, nameLocked, fullName, displayName, specialization, secondary, experienceLevel, skills, links]);
   const dirty = changed.personal || changed.role || changed.skills || changed.connections;
 
   if (!currentUser) return <LoadingOverlay />;
@@ -201,6 +203,7 @@ export default function Profile() {
     try {
       const updated = await createOrUpdateUserRecord({
         ...(nameLocked ? {} : { fullName: fullName.trim() }),
+        displayName: displayName.trim(),
         specialization,
         secondarySpecialization: secondary && secondary !== specialization ? secondary : '',
         experienceLevel: experienceLevel || undefined,
@@ -364,6 +367,24 @@ export default function Profile() {
                     {nameLocked
                       ? 'This name is on your verified Volunteer Card. Ask an admin on Discord if it needs changing.'
                       : 'This is printed on your Volunteer Card exactly as typed.'}
+                  </p>
+                </div>
+                <div className="sm:col-span-2">
+                  <label htmlFor="displayName" className={labelClass}>
+                    Display name <span className="font-normal text-slate-400">optional</span>
+                  </label>
+                  <input
+                    id="displayName"
+                    className="s-field h-11 text-[15px]"
+                    value={displayName}
+                    maxLength={60}
+                    autoComplete="nickname"
+                    placeholder="A username or pseudonym"
+                    aria-describedby="displayName-hint"
+                    onChange={(e) => { setDisplayName(e.target.value); touch(); }}
+                  />
+                  <p id="displayName-hint" className="mt-1.5 text-[12px] text-slate-500">
+                    Shown instead of your real name on public pages, teams and calls. Admins still see your real name.
                   </p>
                 </div>
                 <div>

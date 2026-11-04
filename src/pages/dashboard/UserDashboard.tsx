@@ -14,6 +14,7 @@ import { trackForRole, memberNav, workTypeOptions, workTypeLabel, callFitsMember
 import { RolesNeededPicker, parseRoles } from '../../components/RolesNeededPicker';
 import { CallMeta, CallMetaFields, CallTypePicker, EMPTY_CALL_EXTRAS, extrasFromCall, type CallExtras } from '../../components/CallFields';
 import { RepoChip, RepoPanel } from '../../components/RepoHealth';
+import { CallContact, InterestButton, InterestList } from '../../components/CallInterest';
 import { STAGES, callTypeOf } from '../../constants/community';
 import { RefreshButton } from '../../components/RefreshButton';
 import { DISCORD_AVAILABLE, COMING_SOON_PILL } from '../../constants/integrations';
@@ -115,6 +116,8 @@ export default function UserDashboard() {
   const [projectOwnerType, setProjectOwnerType] = useState<'member' | 'org'>('member');
   const [projectOwnerName, setProjectOwnerName] = useState('');
   const [myTeams, setMyTeams] = useState<{ teams: MyTeam[]; pendingForMe: number } | null>(null);
+  const [openInterests, setOpenInterests] = useState<string | null>(null);
+  const [projectChatUrl, setProjectChatUrl] = useState('');
 
   const openManageModal = (call: VolunteerCall) => {
     setSelectedCallForModal(call);
@@ -157,6 +160,7 @@ export default function UserDashboard() {
         commitment: editExtras.commitment,
         workMode: editExtras.workMode,
         goodFirst: editExtras.callType === 'people' && editExtras.goodFirst,
+        chatUrl: editExtras.chatUrl.trim(),
       });
       toast.success('Volunteer call updated');
       closeManageModal();
@@ -547,6 +551,7 @@ export default function UserDashboard() {
         commitment: isPeople ? callExtras.commitment || undefined : undefined,
         workMode: isPeople ? callExtras.workMode || undefined : undefined,
         goodFirst: isPeople && callExtras.goodFirst,
+        chatUrl: callExtras.chatUrl.trim() || undefined,
       });
       toast.success(res?.message || 'Posted');
       resetVolunteerForm();
@@ -583,6 +588,7 @@ export default function UserDashboard() {
         stage: projectStage || undefined,
         ownerType: projectOwnerType,
         ownerName: projectOwnerType === 'org' ? projectOwnerName.trim() : undefined,
+        chatUrl: projectChatUrl.trim() || undefined,
       });
       toast.success(res?.message || 'Project submitted');
       setProjectName('');
@@ -594,6 +600,7 @@ export default function UserDashboard() {
       setProjectStage('');
       setProjectOwnerType('member');
       setProjectOwnerName('');
+      setProjectChatUrl('');
       setProjectSubmitStatus('idle');
       if (activeTab === 'submit-project') {
         loadMySubmissions();
@@ -1228,6 +1235,14 @@ export default function UserDashboard() {
                       </div>
                     </div>
                     <div>
+                      <label htmlFor="proj-chat" className="mb-1.5 block text-[13px] font-medium text-slate-900">
+                        Team group chat <span className="font-normal text-slate-400">optional</span>
+                      </label>
+                      <input id="proj-chat" type="url" inputMode="url" maxLength={300} value={projectChatUrl} onChange={(e) => setProjectChatUrl(e.target.value)}
+                        className="s-field" placeholder="Messenger, WhatsApp, Viber, Telegram or Discord invite" disabled={projectSubmitStatus === 'loading'} />
+                      <p className="mt-1.5 text-[12px] text-slate-500">Shown to signed-in members on the project page.</p>
+                    </div>
+                    <div>
                       <label htmlFor="proj-desc" className="mb-1.5 block text-[13px] font-medium text-slate-900">Description</label>
                       <textarea
                         id="proj-desc"
@@ -1549,6 +1564,40 @@ export default function UserDashboard() {
 
                           {c.description && (
                             <p className="mt-3 whitespace-pre-wrap break-words text-[14px] leading-relaxed text-slate-600">{c.description}</p>
+                          )}
+
+                          {!isOwner && !isClosed && (
+                            <div className="mt-4 space-y-3">
+                              <InterestButton
+                                call={c}
+                                signedIn
+                                isOwner={false}
+                                compact
+                                returnPath={`/opportunities?call=${encodeURIComponent(c.id)}`}
+                                onChanged={(st) => setVolunteerCalls((list) => list.map((x) => (x.id === c.id ? { ...x, myInterest: st } : x)))}
+                              />
+                              <CallContact call={c} />
+                            </div>
+                          )}
+                          {isOwner && typeof c.interestCount === 'number' && (
+                            <div className="mt-4 rounded-[12px] bg-slate-50 p-3.5 shadow-[inset_0_0_0_1px_rgb(15_23_42/0.05)]">
+                              <button
+                                type="button"
+                                aria-expanded={openInterests === c.id}
+                                onClick={() => setOpenInterests(openInterests === c.id ? null : c.id)}
+                                className="flex w-full items-center justify-between gap-3 text-left text-[13.5px] font-medium text-slate-900"
+                              >
+                                <span>
+                                  {c.interestCount === 0 ? 'No one has raised a hand yet' : `${c.interestCount} ${c.interestCount === 1 ? 'person is' : 'people are'} interested`}
+                                </span>
+                                <span className="text-[12.5px] font-normal text-[var(--accent)]">{openInterests === c.id ? 'Hide' : 'See who'}</span>
+                              </button>
+                              {openInterests === c.id && (
+                                <div className="mt-3 border-t border-slate-200/80 pt-3">
+                                  <InterestList callId={c.id} />
+                                </div>
+                              )}
+                            </div>
                           )}
 
                           {(c.rolesNeeded || c.contact || c.createdAt) && (
