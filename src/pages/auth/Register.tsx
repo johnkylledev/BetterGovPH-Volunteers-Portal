@@ -6,6 +6,7 @@ import clsx from 'clsx';
 import { ChevronDown, Check, MessageSquare, ArrowRight, ArrowLeft, User, Mail, Lock, Briefcase, ShieldCheck, AlertCircle, Search,  BookOpen, Wrench, GraduationCap, Brain, Code, Palette, Database, Globe, Cpu, Layers, Server, Smartphone, Zap, Link2, Github } from 'lucide-react';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
 import { SkillsPicker } from '../../components/SkillsPicker';
+import { EXPERIENCE_LEVELS } from '../../constants/experience';
 import { SkillLevel, ExperienceLevel, UserSkill } from '../../types';
 import { SPECIALIZATIONS, Specialization } from '../../constants/specializations';
 import { SKILL_CATEGORIES } from '../../constants/skills';
@@ -29,7 +30,6 @@ const LEVEL_CONFIG: Record<SkillLevel, { label: string; icon: any; desc: string 
     }
 };
 
-const EXPERIENCE_LEVELS: ExperienceLevel[] = ['Beginner', 'Intermediate', 'Advanced', 'Professional'];
 
 const ROLES = ['Member', 'Fellow', 'Contributor', 'Other'];
 
@@ -193,6 +193,8 @@ function LegacyRegister() {
         try {
             try { sessionStorage.removeItem('discord_connect_error'); } catch { /* noop */ }
             localStorage.setItem('onboarding_connections', '1');
+            // Registration always returns to /register; drop any address left by an abandoned profile reconnect.
+            try { sessionStorage.removeItem('discord_return_to'); } catch { /* noop */ }
             const { url } = await connectDiscord();
             const target = url;
             window.requestAnimationFrame(() => {

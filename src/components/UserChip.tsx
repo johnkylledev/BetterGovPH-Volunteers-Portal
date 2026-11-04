@@ -24,13 +24,34 @@ export const UserChip: React.FC<UserChipProps> = ({ name, subtitle, discordId, d
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
+  // Menu keyboard pattern: focus the first item on open, arrows move, Escape returns focus.
   useEffect(() => {
     if (!open) return;
+    menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
     const onPointerDown = (e: MouseEvent | TouchEvent) => {
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
     };
-    const onKeyDown = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false);
+        triggerRef.current?.focus();
+        return;
+      }
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
+      const items = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? []);
+      if (!items.length) return;
+      e.preventDefault();
+      const i = items.indexOf(document.activeElement as HTMLButtonElement);
+      const next =
+        e.key === 'Home' ? 0
+        : e.key === 'End' ? items.length - 1
+        : e.key === 'ArrowDown' ? (i + 1) % items.length
+        : (i - 1 + items.length) % items.length;
+      items[next].focus();
+    };
     document.addEventListener('mousedown', onPointerDown);
     document.addEventListener('touchstart', onPointerDown);
     document.addEventListener('keydown', onKeyDown);
@@ -42,12 +63,13 @@ export const UserChip: React.FC<UserChipProps> = ({ name, subtitle, discordId, d
   }, [open]);
 
   const itemClass =
-    'flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[13.5px] text-slate-700 transition-colors hover:bg-slate-900/[0.04] hover:text-slate-900';
+    'flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[13.5px] text-slate-700 transition-colors hover:bg-slate-900/[0.04] hover:text-slate-900 focus-visible:bg-slate-900/[0.04] focus-visible:outline-none';
   const avatarUrl = discordId && discordAvatar ? `https://cdn.discordapp.com/avatars/${discordId}/${discordAvatar}.png?size=64` : null;
 
   return (
     <div ref={rootRef} className="relative flex shrink-0 items-center gap-1.5">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
@@ -75,6 +97,7 @@ export const UserChip: React.FC<UserChipProps> = ({ name, subtitle, discordId, d
       </button>
       {open && (
         <div
+          ref={menuRef}
           role="menu"
           aria-label="Account"
           className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-xl bg-white py-1 shadow-[0_0_0_1px_rgb(15_23_42/0.1),0_12px_28px_-8px_rgb(15_23_42/0.2)]"
