@@ -10,6 +10,7 @@ const Login = lazy(() => import("./pages/auth/Login"));
 const Register = lazy(() => import("./pages/auth/Register"));
 const UserDashboard = lazy(() => import("./pages/dashboard/UserDashboard"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const Profile = lazy(() => import("./pages/dashboard/Profile"));
 const Verify = lazy(() => import("./pages/public/Verify"));
 const Privacy = lazy(() => import("./pages/public/Privacy"));
 const Terms = lazy(() => import("./pages/public/Terms"));
@@ -240,6 +241,7 @@ export default function App() {
           <Route path="/register/*" element={<RegisterRoute><Register /></RegisterRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/verify" element={<Verify />} />
           <Route path="/verify/:id" element={<Verify />} />
           <Route path="/projects" element={<Projects />} />

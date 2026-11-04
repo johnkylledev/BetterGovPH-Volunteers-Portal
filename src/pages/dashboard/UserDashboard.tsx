@@ -9,7 +9,6 @@ import clsx from 'clsx';
 import { StatTile } from '../../components/StatTile';
 import { UserChip } from '../../components/UserChip';
 import { RefreshButton } from '../../components/RefreshButton';
-import { EditProfileSheet } from '../../components/EditProfileSheet';
 import { MerchTab } from '../../components/merch/MerchTab';
 import { Medal } from '../../components/awards/Medal';
 import { AwardCard } from '../../components/awards/AwardCard';
@@ -53,7 +52,6 @@ export default function UserDashboard() {
   const [volunteerCallsLoading, setVolunteerCallsLoading] = useState(false);
   const [volunteerCallsError, setVolunteerCallsError] = useState('');
   const [isRedirecting, setIsRedirecting] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
 
   const resetVolunteerForm = () => {
     setVolunteerTitle('');
@@ -823,7 +821,7 @@ export default function UserDashboard() {
                 <section className="s-card p-5 sm:p-6" aria-labelledby="profile-title">
                   <div className="flex items-center justify-between gap-3">
                     <h2 id="profile-title" className={sectionTitle}>Profile</h2>
-                    <button type="button" onClick={() => setEditOpen(true)} className="s-btn s-btn-plain h-8 px-3 text-[13px]">
+                    <button type="button" onClick={() => navigate('/profile')} className="s-btn s-btn-plain h-8 px-3 text-[13px]">
                       <Pencil size={14} strokeWidth={1.75} />
                       Edit
                     </button>
@@ -868,7 +866,7 @@ export default function UserDashboard() {
                     <h2 id="skills-title" className={sectionTitle}>
                       Skills <span className="num font-normal text-slate-400">{totalSkills}</span>
                     </h2>
-                    <button type="button" onClick={() => setEditOpen(true)} className="s-btn s-btn-plain h-8 px-3 text-[13px]">
+                    <button type="button" onClick={() => navigate('/profile?tab=skills')} className="s-btn s-btn-plain h-8 px-3 text-[13px]">
                       <SlidersHorizontal size={14} strokeWidth={1.75} />
                       Customize
                     </button>
@@ -877,7 +875,7 @@ export default function UserDashboard() {
                   {totalSkills === 0 ? (
                     <div className="mt-4 rounded-[12px] bg-slate-50 px-4 py-6 text-center">
                       <p className="text-[14px] text-slate-600">No skills listed yet.</p>
-                      <button type="button" onClick={() => setEditOpen(true)} className="s-btn s-btn-accent mt-3">Add your skills</button>
+                      <button type="button" onClick={() => navigate('/profile?tab=skills')} className="s-btn s-btn-accent mt-3">Add your skills</button>
                     </div>
                   ) : (
                     <>
@@ -1548,7 +1546,6 @@ export default function UserDashboard() {
           </div>
         )}
       </div>
-      <EditProfileSheet open={editOpen} user={currentUser} onClose={() => setEditOpen(false)} />
     </>
   );
 }
