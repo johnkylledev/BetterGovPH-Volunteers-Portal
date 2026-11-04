@@ -12,7 +12,7 @@ export const RefreshButton: React.FC<{ onRefresh: () => void; loading?: boolean 
         onRefresh();
       }}
       disabled={loading}
-      className="s-btn s-btn-plain h-9 px-3 text-[13px]"
+      className="s-btn s-btn-plain h-9 shrink-0 px-2.5 text-[13px] sm:px-3"
     >
       <RefreshCw
         size={14}
@@ -21,7 +21,8 @@ export const RefreshButton: React.FC<{ onRefresh: () => void; loading?: boolean 
         style={{ transform: `rotate(${turns * 360}deg)` }}
         aria-hidden
       />
-      {loading ? 'Refreshing…' : 'Refresh'}
+      {/* Icon only on phones, so it fits beside the tabs */}
+      <span className="sr-only sm:not-sr-only">{loading ? 'Refreshing…' : 'Refresh'}</span>
     </button>
   );
 };

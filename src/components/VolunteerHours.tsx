@@ -133,10 +133,10 @@ export const MyHoursCard: React.FC<{ teams: MyTeam[] | null; calls: VolunteerCal
             <p className="rounded-[10px] bg-slate-50 px-3.5 py-3 text-[13px] text-slate-600">Join a project team or say you’re interested in a call first. Then you can log hours there.</p>
           )
         ) : (
-          <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => setOpen(true)} className="s-btn s-btn-plain h-10"><Clock3 size={15} strokeWidth={1.75} />Log hours</button>
+          <div className={clsx('grid gap-2', approved ? 'grid-cols-2' : 'grid-cols-1 sm:max-w-[200px]')}>
+            <button type="button" onClick={() => setOpen(true)} className="s-btn s-btn-plain h-10 w-full justify-center"><Clock3 size={15} strokeWidth={1.75} />Log hours</button>
             {approved && (
-              <Link to="/certificate" className="s-btn s-btn-plain h-10"><Award size={15} strokeWidth={1.75} />Certificate of service</Link>
+              <Link to="/certificate" aria-label="Certificate of service" className="s-btn s-btn-plain h-10 w-full justify-center"><Award size={15} strokeWidth={1.75} />Certificate</Link>
             )}
           </div>
         )}

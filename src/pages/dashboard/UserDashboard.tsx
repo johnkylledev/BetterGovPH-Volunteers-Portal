@@ -20,6 +20,7 @@ import { HoursToConfirm, MyHoursCard } from '../../components/VolunteerHours';
 import { ResubmitProject } from '../../components/ResubmitProject';
 import { STAGES, callTypeOf } from '../../constants/community';
 import { RefreshButton } from '../../components/RefreshButton';
+import { FormSheet, useCompactLayout } from '../../components/FormSheet';
 import { DISCORD_AVAILABLE, COMING_SOON_PILL } from '../../constants/integrations';
 import { MerchTab } from '../../components/merch/MerchTab';
 import { Medal } from '../../components/awards/Medal';
@@ -30,6 +31,9 @@ import { SkillIcon } from '../../components/SkillIcon';
 import { createVolunteerCall, deleteVolunteerCall, updateVolunteerCall, getMyProjectSubmissions, getVolunteerCalls, submitProjectSubmission, supabase, checkRepo, getMyTeams } from '../../services/supabase';
 import { MyTeam, ProjectStage, ProjectSubmission, RepoStats, VolunteerCall } from '../../types';
 import { formatExternalUrl } from '../../utils/skillUtils';
+
+/** Skills shown before "Show all" on the dashboard card. */
+const SKILLS_PREVIEW = 6;
 
 const SkeletonBars = () => (
   <div className="flex flex-col gap-2">
@@ -64,6 +68,11 @@ export default function UserDashboard() {
   const [mySubmissions, setMySubmissions] = useState<ProjectSubmission[]>([]);
   const [mySubmissionsLoading, setMySubmissionsLoading] = useState(false);
   const [mySubmissionsError, setMySubmissionsError] = useState<string>('');
+  const [showAllSkills, setShowAllSkills] = useState(false);
+  // Below lg the post/submit forms are bottom sheets opened from a floating button.
+  const compactForms = useCompactLayout();
+  const [postSheetOpen, setPostSheetOpen] = useState(false);
+  const [submitSheetOpen, setSubmitSheetOpen] = useState(false);
   const [volunteerTitle, setVolunteerTitle] = useState('');
   const [volunteerProjectUrl, setVolunteerProjectUrl] = useState('');
   const [volunteerDescription, setVolunteerDescription] = useState('');
@@ -570,6 +579,7 @@ export default function UserDashboard() {
         chatUrl: callExtras.chatUrl.trim() || undefined,
       });
       toast.success(res?.message || 'Posted');
+      setPostSheetOpen(false);
       resetVolunteerForm();
       if (activeTab === 'volunteer') {
         loadVolunteerCalls(false);
@@ -607,6 +617,7 @@ export default function UserDashboard() {
         chatUrl: projectChatUrl.trim() || undefined,
       });
       toast.success(res?.message || 'Project submitted');
+      setSubmitSheetOpen(false);
       setProjectName('');
       setProjectUrl('');
       setProjectDescription('');
@@ -1074,20 +1085,36 @@ export default function UserDashboard() {
                         </ul>
                       )}
                       {otherSkills.length > 0 && (
-                        <ul className="mt-3 flex flex-wrap gap-2">
-                          {otherSkills.map((skill) => (
-                            <li
-                              key={skill.name}
-                              className="inline-flex items-center gap-2 rounded-lg bg-white py-1.5 pl-2 pr-2.5 text-[13px] shadow-[inset_0_0_0_1px_rgb(15_23_42/0.1)]"
+                        <>
+                          {/* Phones: an even two-column grid (name, level underneath). Wider: wrapping pills. */}
+                          <ul id="other-skills" className="mt-3 grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap">
+                            {(showAllSkills ? otherSkills : otherSkills.slice(0, SKILLS_PREVIEW)).map((skill) => (
+                              <li
+                                key={skill.name}
+                                className="flex min-w-0 items-start gap-2 rounded-lg bg-white px-2.5 py-2 text-[13px] shadow-[inset_0_0_0_1px_rgb(15_23_42/0.1)] sm:inline-flex sm:items-center sm:gap-1.5 sm:py-1 sm:pl-2"
+                              >
+                                <span className="mt-0.5 shrink-0 sm:mt-0"><SkillIcon skillName={skill.name} size={13} /></span>
+                                <span className="min-w-0 sm:flex sm:items-center sm:gap-1.5">
+                                  <span className="block truncate font-medium text-slate-800">{skill.name}</span>
+                                  <span className={clsx('block text-[11.5px] leading-tight', skill.level === 'Expert' ? 'text-[var(--accent)]' : 'text-slate-400')}>
+                                    {skill.level}
+                                  </span>
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                          {otherSkills.length > SKILLS_PREVIEW && (
+                            <button
+                              type="button"
+                              aria-expanded={showAllSkills}
+                              aria-controls="other-skills"
+                              onClick={() => setShowAllSkills((v) => !v)}
+                              className="mt-2.5 inline-flex min-h-[36px] items-center rounded-full px-2 text-[13px] font-medium text-[var(--accent)] hover:bg-slate-50"
                             >
-                              <SkillIcon skillName={skill.name} size={13} />
-                              <span className="font-medium text-slate-800">{skill.name}</span>
-                              <span className={clsx('text-[12px]', skill.level === 'Expert' ? 'text-[var(--accent)]' : 'text-slate-400')}>
-                                {skill.level}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
+                              {showAllSkills ? 'Show fewer' : `Show all ${otherSkills.length}`}
+                            </button>
+                          )}
+                        </>
                       )}
                       {featuredSkills.length === 0 && (
                         <p className="mt-3 text-[12px] text-slate-400">Tip: star up to 3 skills in Customize to feature them here.</p>
@@ -1171,9 +1198,14 @@ export default function UserDashboard() {
             </div>
 
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-[380px_minmax(0,1fr)] lg:gap-10">
-              <section className="min-w-0" aria-labelledby="submit-title">
-                <div className="s-card p-5 sm:p-6 lg:sticky lg:top-24">
-                  <h2 id="submit-title" className="text-[16px] font-semibold">{track.submitTitle}</h2>
+              <FormSheet
+                compact={compactForms}
+                open={submitSheetOpen}
+                onOpenChange={setSubmitSheetOpen}
+                title={track.submitTitle}
+                actionLabel="Submit"
+                className="order-2 min-w-0 lg:order-1"
+              >
                   <form onSubmit={handleProjectSubmit} className="mt-5 space-y-4">
                     <div>
                       <label htmlFor="proj-name" className="mb-1.5 block text-[13px] font-medium text-slate-900">{track.nameLabel}</label>
@@ -1285,10 +1317,9 @@ export default function UserDashboard() {
                       {projectSubmitStatus === 'loading' ? 'Submitting…' : 'Submit for review'}
                     </button>
                   </form>
-                </div>
-              </section>
+              </FormSheet>
 
-              <section className="min-w-0" aria-labelledby="mine-title">
+              <section className={clsx('order-1 min-w-0 lg:order-2', compactForms && 'pb-20')} aria-labelledby="mine-title">
                 <div className="mb-6">
                   <AwardCard award={awardById('builder')} />
                 </div>
@@ -1376,9 +1407,14 @@ export default function UserDashboard() {
             </div>
 
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-[380px_minmax(0,1fr)] lg:gap-10">
-              <section className="order-2 min-w-0 lg:order-1" aria-labelledby="post-title">
-                <div className="s-card p-5 sm:p-6 lg:sticky lg:top-24">
-                  <h2 id="post-title" className="text-[16px] font-semibold">Post a call or request</h2>
+              <FormSheet
+                compact={compactForms}
+                open={postSheetOpen}
+                onOpenChange={setPostSheetOpen}
+                title="Post a call or request"
+                actionLabel="Post a call"
+                className="order-2 min-w-0 lg:order-1"
+              >
                   <form onSubmit={handleVolunteerSubmit} className="mt-5 space-y-4">
                     <CallTypePicker idPrefix="vc" value={callExtras.callType} onChange={(t) => setCallExtras({ ...callExtras, callType: t })} disabled={volunteerSubmitStatus === 'loading'} />
                     <div>
@@ -1457,15 +1493,14 @@ export default function UserDashboard() {
                       {volunteerSubmitStatus === 'loading' ? 'Posting…' : callExtras.callType === 'people' ? 'Post call' : 'Post request'}
                     </button>
                   </form>
-                </div>
-              </section>
+              </FormSheet>
 
-              <section className="order-1 min-w-0 lg:order-2" aria-labelledby="calls-title">
+              <section className={clsx('order-1 min-w-0 lg:order-2', compactForms && 'pb-20')} aria-labelledby="calls-title">
                 <div className="s-card mb-6 grid grid-cols-1 gap-5 p-4 sm:grid-cols-2 sm:p-5">
                   <AwardCard award={awardById('bayanihan')} compact />
                   <AwardCard award={awardById('team-assembled')} compact />
                 </div>
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="mb-4 flex items-center justify-between gap-2">
                   <h2 id="calls-title" className="sr-only">Calls</h2>
                   <div className="inline-flex rounded-[10px] bg-slate-200/60 p-1" role="tablist" aria-label="Filter calls">
                     {(['all', 'fits', 'mine'] as const).map((f) => (
@@ -1490,10 +1525,10 @@ export default function UserDashboard() {
                   </div>
                   <RefreshButton onRefresh={() => loadVolunteerCalls(true)} loading={volunteerCallsLoading} />
                 </div>
-                <div className="-mt-1 mb-4 flex flex-wrap gap-1.5" role="group" aria-label="Show">
+                <div className="no-scrollbar -mx-4 -mt-1 mb-4 flex gap-1.5 overflow-x-auto px-4 py-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0" role="group" aria-label="Show">
                   {([['all', 'Everything'], ['people', 'Volunteers'], ['things', 'Venues & resources'], ['first', 'Good first tasks']] as const).map(([k, label]) => (
                     <button key={k} type="button" aria-pressed={callKind === k} onClick={() => setCallKind(k)}
-                      className={clsx('min-h-[32px] rounded-full px-3 text-[12.5px] transition-[background-color,box-shadow,color] duration-150',
+                      className={clsx('min-h-[32px] shrink-0 whitespace-nowrap rounded-full px-3 text-[12.5px] transition-[background-color,box-shadow,color] duration-150',
                         callKind === k ? 'bg-slate-900 font-medium text-white' : 'bg-white text-slate-600 shadow-[inset_0_0_0_1px_rgb(15_23_42/0.12)] hover:text-slate-900')}>
                       {label}
                     </button>
