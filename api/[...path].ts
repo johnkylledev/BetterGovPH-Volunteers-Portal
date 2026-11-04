@@ -472,6 +472,59 @@ async function getContributionScores(
 }
 
 // ============================================================================
+//  Rate limiting
+// ============================================================================
+// Supabase/PostgREST throttle nothing but the auth endpoints, and each serverless
+// invocation is a fresh process, so the counter lives in Postgres: one atomic
+// upsert per bucket (path + client IP). If the migration isn't applied the rpc
+// errors and we fail open instead of locking the whole site.
+const RATE_LIMITS: Record<string, { limit: number; windowSeconds: number }> = {
+  '/verify': { limit: 30, windowSeconds: 60 },
+  '/discord-username-taken': { limit: 30, windowSeconds: 60 },
+  '/repo-tracker': { limit: 30, windowSeconds: 60 },
+  '/contribution-scores': { limit: 10, windowSeconds: 60 },
+};
+
+const clientIpOf = (req: any): string => {
+  const forwarded = req.headers?.['x-forwarded-for'];
+  const raw = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+  const first = typeof raw === 'string' ? raw.split(',')[0].trim() : '';
+  if (first) return first;
+  const realIp = req.headers?.['x-real-ip'];
+  if (typeof realIp === 'string' && realIp.trim()) return realIp.trim();
+  const socketIp = req.socket?.remoteAddress;
+  return typeof socketIp === 'string' && socketIp ? socketIp : 'unknown';
+};
+
+const enforceRateLimit = async (req: any, res: any, pathname: string): Promise<boolean> => {
+  const key = pathname.startsWith('/verify') ? '/verify' : pathname;
+  const rule = RATE_LIMITS[key];
+  if (!rule) return true;
+  const { url: supabaseUrl, serviceKey } = getSupabaseConfig();
+  if (!supabaseUrl || !serviceKey) return true;
+  try {
+    const supabase = createServiceClient(supabaseUrl, serviceKey);
+    // Cap the extra round trip: a slow database must never turn into a slow request.
+    const query = supabase.rpc('rate_limit_hit', {
+      p_bucket: `${key}:${clientIpOf(req)}`,
+      p_limit: rule.limit,
+      p_window_seconds: rule.windowSeconds,
+    });
+    const { data, error } = typeof AbortSignal?.timeout === 'function'
+      ? await query.abortSignal(AbortSignal.timeout(1500))
+      : await query;
+    if (error) return true;
+    const result: any = Array.isArray(data) ? data[0] : data;
+    if (!result || result.allowed !== false) return true;
+    if (!res.headersSent) res.setHeader('Retry-After', String(result.retry_after || rule.windowSeconds));
+    sendError(res, 429, 'Too many requests. Please slow down and try again shortly.');
+    return false;
+  } catch {
+    return true;
+  }
+};
+
+// ============================================================================
 //  Shared admin helpers (from admin.ts)
 // ============================================================================
 
@@ -2471,7 +2524,6 @@ const handler_volunteer_calls: H = async (req, res) => {
 
 // ---------- /verify (api/_handlers/verify.ts) -------------------------------
 const isSafeMemberId = (value: string) => /^BGPH-\d{4}-\d{3,4}$/i.test(value);
-const normalizeLookupId = (raw: string) => raw.trim().toUpperCase();
 
 const handler_verify: H = async (req, res) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -2483,26 +2535,11 @@ const handler_verify: H = async (req, res) => {
   const bodyId = getStringParam(req.body?.id ?? req.body?.memberId);
   const lookupRaw = queryId ?? bodyId;
   if (!lookupRaw || !lookupRaw.trim()) { sendError(res, 400, 'Missing id (memberId)'); return; }
-  const lookup = normalizeLookupId(lookupRaw);
-  
+
   const token = getBearerToken(req.headers?.authorization);
   let isAdminCaller = false;
   let callerUid = '';
-  const dbClient = serviceKey
-    ? createServiceClient(supabaseUrl, serviceKey)
-    : createAnonClient(supabaseUrl, anonKey);
-
-  if (token && serviceKey) {
-    try {
-      const { data: authData } = await dbClient.auth.getUser(token);
-      if (authData?.user) {
-        callerUid = authData.user.id;
-        const { data: callerRow } = await dbClient
-          .from('users').select('is_admin').eq('uid', callerUid).maybeSingle();
-        isAdminCaller = !!callerRow?.is_admin;
-      }
-    } catch { isAdminCaller = false; }
-  }
+  let row: any | null = null;
 
   const cleanLookup = lookupRaw.trim();
   const lookupUpper = cleanLookup.toUpperCase();
@@ -2510,26 +2547,59 @@ const handler_verify: H = async (req, res) => {
   // Only a full member ID (BGPH-2026-001) or a uid is accepted. Anything else is never put in a query,
   // so a visitor can't add their own filters (e.g. ",email.eq.someone@x") or enumerate members.
   if (!isSafeMemberId(exactMemberId) && !isUuid(cleanLookup)) { sendError(res, 404, 'Not found'); return; }
+  const rpcLookup = isSafeMemberId(exactMemberId) ? exactMemberId : cleanLookup;
 
-  let row: any | null = null;
+  // The card comes from the verify_member() function with the anon key: it only ever
+  // returns the card columns of one exact match, so public traffic never touches the
+  // service role key and the anon client can't select arbitrary columns.
+  const publicDb = anonKey ? createAnonClient(supabaseUrl, anonKey) : null;
+  let legacy = !publicDb;
+  if (publicDb) {
+    const { data: cardData, error: cardError } = await publicDb.rpc('verify_member', { p_lookup: rpcLookup });
+    legacy = Boolean(cardError);
+    row = legacy ? null : (Array.isArray(cardData) ? cardData[0] ?? null : cardData ?? null);
+  }
 
-  const { data: memberData } = await dbClient
-    .from('users')
-    .select('*')
-    .eq('member_id', isSafeMemberId(exactMemberId) ? exactMemberId : '__none__')
-    .maybeSingle();
-
-  row = memberData ?? null;
-
-  if (!row && isUuid(lookupRaw.trim())) {
-    const { data: uidData } = await dbClient
+  if (legacy) {
+    // Migration not applied yet: fall back to the previous direct read.
+    if (!serviceKey && !publicDb) { sendError(res, 500, 'Server not configured'); return; }
+    const dbClient = serviceKey ? createServiceClient(supabaseUrl, serviceKey) : publicDb!;
+    const { data: memberData } = await dbClient
       .from('users')
       .select('*')
-      .eq('uid', lookupRaw.trim()).maybeSingle();
-    row = uidData ?? null;
+      .eq('member_id', isSafeMemberId(exactMemberId) ? exactMemberId : '__none__')
+      .maybeSingle();
+    row = memberData ?? null;
+    if (!row && isUuid(cleanLookup)) {
+      const { data: uidData } = await dbClient.from('users').select('*').eq('uid', cleanLookup).maybeSingle();
+      row = uidData ?? null;
+    }
   }
 
   if (!row) { sendError(res, 404, 'Not found'); return; }
+
+  if (token) {
+    try {
+      const authDb = publicDb ?? (serviceKey ? createServiceClient(supabaseUrl, serviceKey) : null);
+      if (!authDb) { isAdminCaller = false; }
+      else {
+        const { data: authData } = await authDb.auth.getUser(token);
+        const authUid = authData?.user?.id ? String(authData.user.id) : '';
+        if (authUid) {
+          callerUid = authUid;
+          if (!legacy && publicDb) {
+            const { data: callerRows } = await publicDb.rpc('verify_member', { p_lookup: authUid });
+            const callerRow: any = Array.isArray(callerRows) ? callerRows[0] : callerRows;
+            isAdminCaller = !!callerRow?.is_admin;
+          } else if (serviceKey) {
+            const svc = createServiceClient(supabaseUrl, serviceKey);
+            const { data: callerRow } = await svc.from('users').select('is_admin').eq('uid', authUid).maybeSingle();
+            isAdminCaller = !!callerRow?.is_admin;
+          }
+        }
+      }
+    } catch { isAdminCaller = false; }
+  }
 
   const rawStatus = String(row.status || 'Pending').trim();
   const statusNormalized = row.is_admin
@@ -2769,6 +2839,10 @@ const handler_discord_username_taken: H = async (req, res) => {
     sendError(res, 400, 'Invalid username'); return;
   }
   const supabase = createAnonClient(supabaseUrl, anonKey);
+  // security definer function: the sign-up form needs this oracle, but the anon key
+  // must not be able to select from public.users directly.
+  const { data: takenData, error: takenError } = await supabase.rpc('discord_username_taken', { p_username: username });
+  if (!takenError) { sendJson(res, 200, { taken: takenData === true }); return; }
   const { data, error } = await supabase
     .from('users').select('uid').eq('discord_username', username).maybeSingle();
   if (error) { sendError(res, 500, 'Lookup failed'); return; }
@@ -2929,6 +3003,7 @@ async function handleRequest(req: any, res: any) {
     }
 
     const pathname = normalizePath(req);
+    if (!(await enforceRateLimit(req, res, pathname))) return;
 
     if (pathname === '/me' || pathname === '/') return callHandler('/me', req, res);
     if (pathname === '/admin') return callHandler('/admin', req, res);
