@@ -197,12 +197,14 @@ export default function UserDashboard() {
     }
   };
 
+  // Admins land on /admin, unless they came here for a member tool (posting a call, submitting a project).
+  const adminWantsTab = !!((location.state as { tab?: string } | null)?.tab || new URLSearchParams(location.search).get('tab'));
   useEffect(() => {
-    if (authInitialized && currentUser?.isAdmin && !isRedirecting) {
+    if (authInitialized && currentUser?.isAdmin && !isRedirecting && !adminWantsTab) {
       setIsRedirecting(true);
       navigate('/admin', { replace: true });
     }
-  }, [currentUser?.isAdmin, navigate, authInitialized, isRedirecting]);
+  }, [currentUser?.isAdmin, navigate, authInitialized, isRedirecting, adminWantsTab]);
 
   if (!authInitialized || !currentUser || isRedirecting) return <LoadingOverlay />;
   // The member's track tailors the work tab, start card and call matching to their role.

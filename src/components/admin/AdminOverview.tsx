@@ -231,7 +231,7 @@ export const AdminOverview: React.FC<Props> = ({ onGo, onImport, onExportRopa, r
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={onImport} className="s-btn s-btn-plain"><Upload size={15} strokeWidth={1.75} />Import projects</button>
           <button type="button" onClick={onExportRopa} disabled={ropaBusy} className="s-btn s-btn-plain">{ropaBusy ? 'Preparing…' : 'Privacy records (ROPA)'}</button>
-          <Link to="/dashboard" state={{ tab: 'volunteer' }} className="s-btn s-btn-plain"><Megaphone size={15} strokeWidth={1.75} />Post a call</Link>
+          <Link to="/dashboard?tab=volunteer" className="s-btn s-btn-plain"><Megaphone size={15} strokeWidth={1.75} />Post a call</Link>
           <button type="button" onClick={() => onGo('calls')} className="s-btn s-btn-plain">Moderate calls</button>
         </div>
       </section>

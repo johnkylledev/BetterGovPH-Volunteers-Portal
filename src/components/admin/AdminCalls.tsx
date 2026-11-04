@@ -48,6 +48,8 @@ export const AdminCalls: React.FC = () => {
           <h2 className="text-base font-semibold text-slate-900 sm:text-lg">Calls & requests</h2>
           <p className="mt-1 text-xs text-slate-500 sm:text-sm">Calls go live without approval. Close anything off-topic or out of date.</p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+        <Link to="/dashboard?tab=volunteer" className="s-btn s-btn-accent h-9 text-[13px]">Post a call</Link>
         <div className="flex gap-1 rounded-[10px] bg-slate-100 p-1">
           {(['open', 'closed', 'All'] as const).map((f) => (
             <button key={f} type="button" onClick={() => setFilter(f)}
@@ -55,6 +57,7 @@ export const AdminCalls: React.FC = () => {
               {f === 'All' ? 'All' : f}
             </button>
           ))}
+        </div>
         </div>
       </div>
 

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
 import clsx from 'clsx';
 import { Flag, X } from 'lucide-react';
@@ -30,6 +31,12 @@ export const ReportsQueue: React.FC<{ initiallyOpen?: boolean }> = ({ initiallyO
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
   const location = useLocation();
   useEffect(() => {
     if (new URLSearchParams(location.search).has('reports')) { setOpen(true); load(); }
@@ -66,8 +73,10 @@ export const ReportsQueue: React.FC<{ initiallyOpen?: boolean }> = ({ initiallyO
         {count > 0 && <span className="num">{count}</span>}
       </button>
 
-      {open && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-900/50 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="reports-title">
+      {/* Portal: the header's backdrop-blur would otherwise trap this fixed overlay inside the header. */}
+      {open && createPortal(
+        <div className="site" style={{ background: 'transparent' }}>
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-900/50 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="reports-title" onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
           <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-[14px] bg-white shadow-[var(--e2)]">
             <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-5 sm:p-6">
               <div>
@@ -123,6 +132,8 @@ export const ReportsQueue: React.FC<{ initiallyOpen?: boolean }> = ({ initiallyO
             </div>
           </div>
         </div>
+        </div>,
+        document.body
       )}
     </>
   );
