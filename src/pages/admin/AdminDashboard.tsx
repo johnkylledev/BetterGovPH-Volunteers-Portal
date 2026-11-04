@@ -418,6 +418,10 @@ export default function AdminDashboard() {
           <UserChip
             name={currentUser.fullName}
             subtitle="Administrator"
+            email={currentUser.email}
+            memberId={currentUser.memberId}
+            verified={currentUser.status === 'Approved' || !!currentUser.isAdmin}
+            isAdmin={!!currentUser.isAdmin}
             discordId={currentUser.discordId}
             discordAvatar={currentUser.discordAvatar}
             onOpen={() => setShowMyCard(true)}

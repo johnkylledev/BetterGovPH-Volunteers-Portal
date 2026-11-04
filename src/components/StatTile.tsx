@@ -18,6 +18,6 @@ export const StatTile: React.FC<StatTileProps> = ({ label, value, hint, icon: Ic
       {Icon && <Icon size={16} strokeWidth={1.75} className="shrink-0 text-slate-400" aria-hidden />}
     </div>
     <p className="num mt-1.5 text-[24px] font-semibold leading-none tracking-[-0.02em] text-slate-900 sm:text-[30px]">{value}</p>
-    {hint && <p className="mt-auto truncate pt-3 text-[12px] text-slate-400">{hint}</p>}
+    {hint && <p className="mt-auto pt-3 text-[12px] leading-snug text-slate-400 [overflow-wrap:anywhere]">{hint}</p>}
   </div>
 );

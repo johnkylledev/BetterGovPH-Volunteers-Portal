@@ -48,18 +48,28 @@
                                                %%%  %                                               
 ```
 
-A membership platform for [BetterGovPH](https://bettergov.ph/) — a civic tech community of Filipino volunteers building open-source tools for better governance. Members receive a digital access card with a QR code that links to a public verification page.
+A membership platform for [BetterGovPH](https://bettergov.ph/) — a civic tech community of Filipino volunteers building open-source tools for better governance. Members receive a **Volunteer Card** with a QR code that links to a public verification page.
 
 ## Features
 
 - **Member registration** — email/password or Google OAuth via Supabase Auth, with a 4-step onboarding flow (Account → Profile → Skills → Connections)
-- **Discord integration** — members link their Discord account via OAuth during onboarding; the Discord user ID is saved to Supabase after the callback, and guild membership in the BetterGovPH server is verified live on demand via bettygo
-- **Digital access card** — animated, downloadable card showing name, specialization, skills, and a QR code for public verification
+- **Discord integration** — members link their Discord account via OAuth during onboarding; bettygo signs the callback (HMAC-SHA256 with `BETTYGO_API_KEY`) and the API rejects unsigned or tampered results before saving the Discord user ID; guild membership in the BetterGovPH server is verified live on demand via bettygo
+- **Volunteer Card** — downloadable card showing name, specialization, skills, and a QR code for public verification
+- **Member dashboard** — overview with stats, activity, awards and featured skills, plus Projects, Volunteer calls and Merch (coming soon) sections
+- **Profile settings** — `/profile` with Personal, Role, Skills and Connections sections, an unsaved-changes bar, and up to 3 featured skills. Verified members' names are locked to match their card
+- **Account menu** — the header avatar opens a menu with your card, a copyable verification link, profile settings, the community Discord and sign out
+- **Skill logos** — each skill shows its original logo, bundled in `public/skill-icons/` so they load from our own domain; practice-type skills (Agile, Accessibility, etc.) use matching icons
 - **Public verification** — `/verify/:memberId` lets anyone confirm a member's identity without logging in
 - **Admin dashboard** — review applications, approve/decline members, manage project submissions and volunteer calls
 - **Project showcase** — approved civic tech projects listed at `/projects`
 - **Volunteer call board** — members can post and browse collaboration requests
 - **Contribution scoring** — ranks contributors across all BetterGovPH GitHub repos by commits, pull requests, reviews, and issues
+
+## Adding a skill logo
+
+1. Add the skill to `src/constants/skills.ts`.
+2. If it has a brand logo, map it in `src/utils/skillUtils.ts` (a Simple Icons slug, or a `DEVICON` entry for brands Simple Icons removed); otherwise give it a `CONCEPT_ICONS` entry.
+3. Download the SVG into `public/skill-icons/` (`<slug>.svg` or `devicon-<file>.svg`) and add the file name to `src/utils/skillIconFiles.ts`. Unlisted logos fall back to the CDN.
 
 ## Tech Stack
 
@@ -242,17 +252,21 @@ api/
   contribution-scores.ts    GET /api/contribution-scores
   ...                       Other Vercel serverless functions
 src/
-  components/               Shared UI (AccessCard, LoadingOverlay, etc.)
-  constants/                Skills and specialization dropdown values
+  components/               Shared UI (AccessCard, AppHeader, UserChip, SkillsPicker, SkillIcon, etc.)
+  constants/                Skills, specializations and experience levels
   hooks/                    Custom hooks
   pages/
     admin/                  AdminDashboard
     auth/                   Login, Register (4-step onboarding), DiscordCallback
-    dashboard/              UserDashboard
-    public/                 Landing, Verify, Projects, Privacy, Terms
+    dashboard/              UserDashboard, Profile
+    public/                 Landing, Verify, Projects, Contribute, Privacy, Terms, NotFound
   services/supabase.ts      All API calls and Supabase client
   store/useStore.ts         Zustand global store
   types/index.ts            Shared TypeScript types
+  utils/skillUtils.ts       Skill → logo/icon mapping (skillIconFiles.ts lists the bundled logos)
+public/
+  skill-icons/              Self-hosted skill logos (Simple Icons + Devicon SVGs)
+  partners/                 Partner logos shown on the landing page
 supabase/
   migrations/               SQL migration files applied in order
 tests/

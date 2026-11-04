@@ -1,10 +1,14 @@
 import React from 'react';
 import {
   Layers, Search, Palette, Cpu, Zap, BookOpen, Server, Globe,
-  Smartphone, Brain, Code, ShieldCheck, Briefcase, Terminal, Sparkles,
-  FileText, Database, Cloud, Lock, CheckCircle, Share2, BarChart3,
-  Flame, HardDrive, Feather, Compass, Award, Star
+  Smartphone, Brain, Code, Lock, CheckCircle, Share2, BarChart3, Database, Cloud,
+  Webhook, Accessibility, IterationCw, Bot, KeyRound, Stamp, Workflow, KeySquare,
+  LineChart, Component, FileText, Siren, FileCog, MousePointerClick, Users, Map,
+  Shapes, MonitorSmartphone, Kanban, Handshake, ScanSearch, UserSearch, BadgeCheck,
+  Brush, LayoutTemplate, Megaphone, PenLine, ShieldCheck,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { LOCAL_SKILL_ICONS } from './skillIconFiles';
 
 const sanitizeSkillSlug = (value: string): string | null => {
   const sanitized = value
@@ -14,21 +18,100 @@ const sanitizeSkillSlug = (value: string): string | null => {
   return sanitized.length > 0 ? sanitized : null;
 };
 
+/**
+ * Skills whose official logo isn't on Simple Icons (removed brands like AWS and Adobe):
+ * use Devicon's "original" artwork instead. Keys are lowercase skill names.
+ */
+const DEVICON_BASE = 'https://cdn.jsdelivr.net/gh/devicons/devicon@v2.16.0/icons';
+const DEVICON: Record<string, string> = {
+  'aws': 'amazonwebservices/amazonwebservices-original-wordmark.svg',
+  'cloud computing (aws/gcp/azure)': 'amazonwebservices/amazonwebservices-original-wordmark.svg',
+  'azure devops': 'azuredevops/azuredevops-original.svg',
+  'adobe photoshop': 'photoshop/photoshop-original.svg',
+  'adobe illustrator': 'illustrator/illustrator-plain.svg',
+  'graphic design': 'illustrator/illustrator-plain.svg',
+  'adobe xd': 'xd/xd-original.svg',
+  'motion graphics': 'aftereffects/aftereffects-original.svg',
+  'information design': 'canva/canva-original.svg',
+  'html/css': 'html5/html5-original.svg',
+};
+
+/** Simple Icons slugs that replace a missing or wrong-brand mapping below. */
+const SLUG_OVERRIDE: Record<string, string> = {
+  'budget analysis': 'googlesheets',
+};
+
+/** Skills that are practices, not products — no brand logo exists, so each gets a fitting icon. */
+const CONCEPT_ICONS: Record<string, LucideIcon> = {
+  'api development': Webhook,
+  'accessibility': Accessibility,
+  'a11y': Accessibility,
+  'agile': IterationCw,
+  'scrum': Kanban,
+  'artificial intelligence': Bot,
+  'authentication': KeyRound,
+  'brand identity': Stamp,
+  'ci/cd': Workflow,
+  'cryptography': KeySquare,
+  'data analysis': BarChart3,
+  'data analytics': LineChart,
+  'database design': Database,
+  'design systems': Component,
+  'ui components': Component,
+  'documentation': FileText,
+  'incident response': Siren,
+  'infrastructure as code': FileCog,
+  'interaction design': MousePointerClick,
+  'organizing': Users,
+  'community building': Users,
+  'product roadmap': Map,
+  'prototyping': Shapes,
+  'responsive design': MonitorSmartphone,
+  'stakeholder management': Handshake,
+  'ux research': ScanSearch,
+  'user research': UserSearch,
+  'verification': BadgeCheck,
+  'visual design': Brush,
+  'wireframing': LayoutTemplate,
+  'social media': Megaphone,
+  'writing': PenLine,
+  'security compliance': ShieldCheck,
+};
+
+/**
+ * Image URL for a skill's original logo, or null when it should use an icon instead.
+ * Known logos are served locally from /skill-icons; only unlisted (custom) skills hit the CDN.
+ */
+export const skillIconUrl = (skillName: string): string | null => {
+  const key = (skillName || '').toLowerCase().trim();
+  if (CONCEPT_ICONS[key]) return null;
+  if (DEVICON[key]) {
+    const file = `devicon-${DEVICON[key].split('/').pop()}`;
+    return LOCAL_SKILL_ICONS.has(file) ? `/skill-icons/${file}` : `${DEVICON_BASE}/${DEVICON[key]}`;
+  }
+  const slug = skillToSlug(skillName);
+  if (!slug) return null;
+  return LOCAL_SKILL_ICONS.has(`${slug}.svg`) ? `/skill-icons/${slug}.svg` : `https://cdn.simpleicons.org/${slug}`;
+};
+
 export const getSkillFallbackIcon = (skillName: string, size: number = 20) => {
   const lowerSkill = (skillName || '').toLowerCase().trim();
+  const concept = CONCEPT_ICONS[lowerSkill];
+  if (concept) return React.createElement(concept, { size });
+  const has = (word: string) => new RegExp(`(^|[^a-z])${word}`).test(lowerSkill);
 
   if (lowerSkill.includes('prototyp') || lowerSkill.includes('component')) return React.createElement(Layers, { size });
   if (lowerSkill.includes('research') || lowerSkill.includes('analysis')) return React.createElement(Search, { size });
-  if (lowerSkill.includes('visual') || lowerSkill.includes('design') || lowerSkill.includes('ui') || lowerSkill.includes('ux') || lowerSkill.includes('graphic')) return React.createElement(Palette, { size });
+  if (lowerSkill.includes('visual') || lowerSkill.includes('design') || has('ui') || has('ux') || lowerSkill.includes('graphic')) return React.createElement(Palette, { size });
   if (lowerSkill.includes('system') || lowerSkill.includes('devops') || lowerSkill.includes('infra') || lowerSkill.includes('architecture')) return React.createElement(Cpu, { size });
   if (lowerSkill.includes('agile') || lowerSkill.includes('scrum') || lowerSkill.includes('fast')) return React.createElement(Zap, { size });
   if (lowerSkill.includes('doc') || lowerSkill.includes('write') || lowerSkill.includes('writing') || lowerSkill.includes('content')) return React.createElement(BookOpen, { size });
   if (lowerSkill.includes('api') || lowerSkill.includes('backend') || lowerSkill.includes('server')) return React.createElement(Server, { size });
   if (lowerSkill.includes('frontend') || lowerSkill.includes('web') || lowerSkill.includes('browser')) return React.createElement(Globe, { size });
-  if (lowerSkill.includes('mobile') || lowerSkill.includes('app') || lowerSkill.includes('ios') || lowerSkill.includes('android')) return React.createElement(Smartphone, { size });
-  if (lowerSkill.includes('data') || lowerSkill.includes('ai') || lowerSkill.includes('ml') || lowerSkill.includes('learning') || lowerSkill.includes('model')) return React.createElement(Brain, { size });
+  if (lowerSkill.includes('mobile') || has('app') || lowerSkill.includes('ios') || lowerSkill.includes('android')) return React.createElement(Smartphone, { size });
+  if (lowerSkill.includes('data') || has('ai') || has('ml') || lowerSkill.includes('learning') || lowerSkill.includes('model')) return React.createElement(Brain, { size });
   if (lowerSkill.includes('sec') || lowerSkill.includes('hack') || lowerSkill.includes('auth')) return React.createElement(Lock, { size });
-  if (lowerSkill.includes('database') || lowerSkill.includes('sql') || lowerSkill.includes('db')) return React.createElement(Database, { size });
+  if (lowerSkill.includes('database') || lowerSkill.includes('sql') || has('db')) return React.createElement(Database, { size });
   if (lowerSkill.includes('cloud')) return React.createElement(Cloud, { size });
   if (lowerSkill.includes('community') || lowerSkill.includes('social')) return React.createElement(Share2, { size });
   if (lowerSkill.includes('verify') || lowerSkill.includes('check')) return React.createElement(CheckCircle, { size });
@@ -40,6 +123,8 @@ export const getSkillFallbackIcon = (skillName: string, size: number = 20) => {
 export const skillToSlug = (skill: string): string | null => {
   if (!skill) return null;
   const cleanSkill = skill.toLowerCase().trim();
+  if (CONCEPT_ICONS[cleanSkill] || DEVICON[cleanSkill]) return null;
+  if (SLUG_OVERRIDE[cleanSkill]) return SLUG_OVERRIDE[cleanSkill];
 
   const exactMap: Record<string, string> = {
     // Languages & Runtimes

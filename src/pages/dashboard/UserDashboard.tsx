@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { AccessCard } from '../../components/AccessCard';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
@@ -8,6 +8,7 @@ import { ShieldAlert, CheckCircle2, Clock, Copy, Code, Check, ExternalLink, Edit
 import clsx from 'clsx';
 import { StatTile } from '../../components/StatTile';
 import { UserChip } from '../../components/UserChip';
+import { AppHeader, MEMBER_NAV } from '../../components/AppHeader';
 import { RefreshButton } from '../../components/RefreshButton';
 import { MerchTab } from '../../components/merch/MerchTab';
 import { Medal } from '../../components/awards/Medal';
@@ -32,8 +33,13 @@ export default function UserDashboard() {
   const { currentUser, authInitialized } = useStore();
   const logout = useStore((s) => s.logout);
   const navigate = useNavigate();
+  const location = useLocation();
   const [copyStatus, setCopyStatus] = React.useState<'idle' | 'copied' | 'embed-copied'>('idle');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'submit-project' | 'volunteer' | 'merch'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'submit-project' | 'volunteer' | 'merch'>(() => {
+    // Profile's nav links here with the section to open.
+    const wanted = (location.state as { tab?: string } | null)?.tab;
+    return MEMBER_NAV.some((n) => n.id === wanted) ? (wanted as 'dashboard') : 'dashboard';
+  });
   const [projectName, setProjectName] = useState('');
   const [projectUrl, setProjectUrl] = useState('');
   const [projectDescription, setProjectDescription] = useState('');
@@ -563,12 +569,6 @@ export default function UserDashboard() {
   const featuredSkills = (currentUser.skills || []).filter((s) => s.featured);
   const otherSkills = (currentUser.skills || []).filter((s) => !s.featured);
 
-  const tabs: { id: typeof activeTab; label: string; soon?: boolean }[] = [
-    { id: 'dashboard', label: 'Overview' },
-    { id: 'submit-project', label: 'Projects' },
-    { id: 'volunteer', label: 'Volunteer calls' },
-    { id: 'merch', label: 'Merch', soon: true },
-  ];
 
   const sectionTitle = 'text-[15px] font-semibold tracking-[-0.01em] text-slate-900';
   const fieldLabel = 'text-[12px] text-slate-500';
@@ -576,35 +576,18 @@ export default function UserDashboard() {
   return (
     <>
       <div className="site min-h-screen pb-16">
-        <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl backdrop-saturate-150 shadow-[0_1px_0_rgb(15_23_42/0.08)]">
-          <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-            <a href="/" className="flex min-w-0 items-center gap-2.5">
-              <img src="/logo.svg" onError={(e) => { const t = e.currentTarget; t.onerror = null; t.src = 'https://assets.bettergov.ph/logos/webp/icon-primary.webp'; }} alt="" className="h-6 w-6 shrink-0 object-contain" />
-              <span className="truncate text-[15px] font-semibold tracking-[-0.015em] text-slate-900">
-                BetterGovPH <span className="hidden font-normal text-slate-500 sm:inline">Volunteers</span>
-              </span>
-            </a>
-
-            <nav aria-label="Dashboard sections" className="hidden items-center gap-1 md:flex">
-              {tabs.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setActiveTab(t.id)}
-                  aria-current={activeTab === t.id ? 'page' : undefined}
-                  className={clsx(
-                    'rounded-lg px-3 py-1.5 text-[14px] transition-colors duration-150',
-                    activeTab === t.id ? 'bg-slate-900/[0.05] font-medium text-slate-900' : 'text-slate-500 hover:text-slate-900'
-                  )}
-                >
-                  {t.label}
-                {t.soon && <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-px text-[10.5px] font-medium text-amber-800">Soon</span>}
-                </button>
-              ))}
-            </nav>
-
+        <AppHeader
+          items={MEMBER_NAV}
+          activeId={activeTab}
+          onSelect={(id) => setActiveTab(id as typeof activeTab)}
+          account={
             <UserChip
               name={currentUser.fullName}
               subtitle={currentUser.role || 'Member'}
+              email={currentUser.email}
+              memberId={currentUser.memberId}
+              verified={currentUser.status === 'Approved' || !!currentUser.isAdmin}
+              isAdmin={!!currentUser.isAdmin}
               discordId={currentUser.discordId}
               discordAvatar={currentUser.discordAvatar}
               onOpen={() => {
@@ -614,25 +597,8 @@ export default function UserDashboard() {
               openLabel="View my card"
               onSignOut={handleLogout}
             />
-          </div>
-
-          <nav aria-label="Dashboard sections" className="no-scrollbar flex gap-1 overflow-x-auto border-t border-slate-200/70 px-3 py-1.5 md:hidden">
-            {tabs.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setActiveTab(t.id)}
-                aria-current={activeTab === t.id ? 'page' : undefined}
-                className={clsx(
-                  'shrink-0 rounded-lg px-3 py-1.5 text-[14px] transition-colors duration-150',
-                  activeTab === t.id ? 'bg-slate-900/[0.06] font-medium text-slate-900' : 'text-slate-500'
-                )}
-              >
-                {t.label}
-                {t.soon && <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-px text-[10.5px] font-medium text-amber-800">Soon</span>}
-              </button>
-            ))}
-          </nav>
-        </header>
+          }
+        />
 
         {activeTab === 'dashboard' ? (
           <main className="mx-auto max-w-6xl px-4 sm:px-6 pt-10 sm:pt-14">
@@ -714,14 +680,15 @@ export default function UserDashboard() {
 
                   <dl className="mt-4 grid grid-cols-3 divide-x divide-slate-200/80 rounded-[12px] bg-slate-50 py-3 shadow-[inset_0_0_0_1px_rgb(15_23_42/0.05)]">
                     {[
-                      { label: 'Active days', value: activeDays, icon: CalendarDays },
-                      { label: 'Current streak', value: `${currentStreak}d`, icon: Flame },
-                      { label: 'Longest streak', value: `${longestStreak}d`, icon: Trophy },
+                      { label: 'Active days', short: 'Active', value: activeDays, icon: CalendarDays },
+                      { label: 'Current streak', short: 'Streak', value: `${currentStreak}d`, icon: Flame },
+                      { label: 'Longest streak', short: 'Best', value: `${longestStreak}d`, icon: Trophy },
                     ].map((st) => (
-                      <div key={st.label} className="min-w-0 px-3 text-center sm:px-4">
-                        <dt className="flex items-center justify-center gap-1.5 truncate text-[12px] text-slate-500">
+                      <div key={st.label} className="min-w-0 px-2 text-center sm:px-4">
+                        <dt className="flex flex-col items-center justify-center gap-1 text-[12px] leading-tight text-slate-500 sm:flex-row sm:gap-1.5">
                           <st.icon size={13} strokeWidth={1.75} className="shrink-0 text-slate-400" aria-hidden />
-                          {st.label}
+                          <span className="sm:hidden">{st.short}</span>
+                          <span className="hidden sm:inline">{st.label}</span>
                         </dt>
                         <dd className="num mt-0.5 text-[18px] font-semibold text-slate-900">{st.value}</dd>
                       </div>

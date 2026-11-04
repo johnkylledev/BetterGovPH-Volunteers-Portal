@@ -46,7 +46,7 @@ const PARTNERS: { name: string; logo?: string }[] = [
   { name: 'DBM', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Department_of_Budget_and_Management_%28DBM%29.svg/120px-Department_of_Budget_and_Management_%28DBM%29.svg.png' },
   { name: 'LGUs', logo: 'https://1000logos.net/wp-content/uploads/2019/03/DILG-Logo.png' },
   { name: 'PCIJ', logo: 'https://i0.wp.com/pcij.org/wp-content/uploads/2024/04/logo-pcij-web.png?w=200&quality=80&ssl=1' },
-  { name: 'People’s Budget Coalition' },
+  { name: 'People’s Budget Coalition', logo: '/partners/peoples-budget-coalition.png' },
 ];
 
 const demoUser: User = {
@@ -206,7 +206,15 @@ const Landing: React.FC = () => {
             {PARTNERS.map((p) => (
               <li key={p.name} className="flex items-center gap-2.5 text-[14px] font-medium text-[var(--fg-3)]">
                 {p.logo && (
-                  <img src={p.logo} alt="" loading="lazy" decoding="async" height={32} className="h-8 w-auto object-contain opacity-70 grayscale" />
+                  <img
+                    src={p.logo}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    height={32}
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    className="h-8 w-auto object-contain opacity-70 grayscale"
+                  />
                 )}
                 {p.name}
               </li>

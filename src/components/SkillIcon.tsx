@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { skillToSlug, getSkillFallbackIcon } from '../utils/skillUtils';
+import { skillIconUrl, getSkillFallbackIcon } from '../utils/skillUtils';
 
 interface SkillIconProps {
   skillName: string;
@@ -9,6 +9,7 @@ interface SkillIconProps {
   forceFallback?: boolean;
 }
 
+/** A skill's original logo (served locally), or a fitting icon when it has none or the image fails. */
 export const SkillIcon: React.FC<SkillIconProps> = ({
   skillName,
   size = 14,
@@ -16,68 +17,37 @@ export const SkillIcon: React.FC<SkillIconProps> = ({
   className = '',
   forceFallback = false,
 }) => {
-  const slug = skillToSlug(skillName);
-  const [imgLoaded, setImgLoaded] = useState(false);
-  const [imgFailed, setImgFailed] = useState(false);
+  const src = skillIconUrl(skillName);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    setImgLoaded(false);
-    setImgFailed(false);
-  }, [slug, skillName]);
+    setFailed(false);
+  }, [src]);
 
-  const showFallback = !slug || imgFailed || forceFallback;
-  const cdnUrl = slug ? `https://cdn.simpleicons.org/${slug}` : undefined;
+  const box: React.CSSProperties = { width: size, height: size, minWidth: size, minHeight: size };
 
-  const fallbackEl = React.cloneElement(getSkillFallbackIcon(skillName, size), {
-    style: { maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto' },
-  });
-
-  const dimensionStyle: React.CSSProperties = {
-    width: `${size}px`,
-    height: `${size}px`,
-    minWidth: `${size}px`,
-    minHeight: `${size}px`,
-    maxWidth: `${size}px`,
-    maxHeight: `${size}px`,
-  };
+  if (!src || failed || forceFallback) {
+    return (
+      <span className={`relative inline-flex shrink-0 items-center justify-center ${className}`} style={box} title={skillName}>
+        {React.cloneElement(getSkillFallbackIcon(skillName, size), {
+          style: { maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto' },
+        })}
+      </span>
+    );
+  }
 
   return (
-    <div
-      className={`relative inline-flex items-center justify-center shrink-0 ${className}`}
-      style={dimensionStyle}
+    <img
+      src={src}
+      alt=""
       title={skillName}
-    >
-      {showFallback ? (
-        fallbackEl
-      ) : (
-        <>
-          <div
-            className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 ease-out ${
-              imgLoaded ? 'opacity-0 pointer-events-none' : 'opacity-100'
-            }`}
-            aria-hidden="true"
-          >
-            {fallbackEl}
-          </div>
-          {cdnUrl && (
-            <img
-              key={cdnUrl}
-              src={cdnUrl}
-              alt={skillName}
-              loading="eager"
-              decoding="async"
-              fetchPriority="auto"
-              className={`w-full h-full object-contain transition-opacity duration-200 ease-out ${
-                imgLoaded ? 'opacity-100' : 'opacity-0'
-              } ${invert ? 'brightness-0 invert' : ''}`}
-              onLoad={() => setImgLoaded(true)}
-              onError={() => setImgFailed(true)}
-            />
-          )}
-        </>
-      )}
-    </div>
+      width={size}
+      height={size}
+      decoding="async"
+      draggable={false}
+      onError={() => setFailed(true)}
+      className={`inline-block shrink-0 object-contain ${invert ? 'brightness-0 invert' : ''} ${className}`}
+      style={box}
+    />
   );
 };
-
-
