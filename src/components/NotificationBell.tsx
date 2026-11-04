@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
-import { Bell } from 'lucide-react';
+import { Bell, X } from 'lucide-react';
 import { getNotifications, markNotificationsRead } from '../services/supabase';
 import type { AppNotification } from '../types';
 import { timeAgo } from './RepoHealth';
@@ -20,6 +21,22 @@ export const NotificationBell: React.FC = () => {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  // Where the panel goes. It renders in a portal: the header's backdrop blur would otherwise clip it.
+  const [pos, setPos] = useState<{ top: number; right: number; mobile: boolean }>({ top: 64, right: 12, mobile: true });
+  const place = useCallback(() => {
+    const r = buttonRef.current?.getBoundingClientRect();
+    if (!r) return;
+    const mobile = window.innerWidth < 640;
+    setPos({ top: Math.round(r.bottom + 8), right: Math.max(12, Math.round(window.innerWidth - r.right)), mobile });
+  }, []);
+  useLayoutEffect(() => {
+    if (!open) return;
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true); };
+  }, [open, place]);
 
   const load = useCallback(async () => {
     try {
@@ -40,7 +57,11 @@ export const NotificationBell: React.FC = () => {
 
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: MouseEvent | TouchEvent) => { if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false); };
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      const t = e.target as Node;
+      if (rootRef.current?.contains(t) || panelRef.current?.contains(t)) return;
+      setOpen(false);
+    };
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setOpen(false); buttonRef.current?.focus(); } };
     document.addEventListener('mousedown', onDown);
     document.addEventListener('touchstart', onDown);
@@ -78,7 +99,7 @@ export const NotificationBell: React.FC = () => {
         aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'}
         aria-expanded={open}
         aria-haspopup="dialog"
-        onClick={() => { setOpen((o) => !o); if (!open) load(); }}
+        onClick={() => { if (!open) { place(); load(); } setOpen((o) => !o); }}
         className="relative flex h-9 w-9 items-center justify-center rounded-full text-slate-600 transition-colors hover:bg-slate-900/[0.05] hover:text-slate-900"
       >
         <Bell size={18} strokeWidth={1.75} />
@@ -89,24 +110,38 @@ export const NotificationBell: React.FC = () => {
         )}
       </button>
 
-      {open && (
-        <div role="dialog" aria-label="Notifications" className="absolute right-0 top-[calc(100%+8px)] z-50 w-[min(92vw,360px)] overflow-hidden rounded-[14px] bg-white shadow-[0_0_0_1px_rgb(15_23_42/0.08),0_16px_40px_-12px_rgb(15_23_42/0.3)]">
+      {open && createPortal(
+        <div className="site" style={{ background: 'transparent' }}>
+        {/* Phones: dim the page and give the panel the full width under the header */}
+        {pos.mobile && <div className="fixed inset-0 z-[55] bg-slate-900/25" aria-hidden onClick={() => setOpen(false)} />}
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-label="Notifications"
+          style={pos.mobile ? { top: pos.top, left: 12, right: 12 } : { top: pos.top, right: pos.right, width: 380 }}
+          className="fixed z-[60] flex max-h-[min(75vh,560px)] flex-col overflow-hidden rounded-[14px] bg-white shadow-[0_0_0_1px_rgb(15_23_42/0.08),0_16px_40px_-12px_rgb(15_23_42/0.3)]"
+        >
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
             <p className="text-[14px] font-semibold text-slate-900">Notifications</p>
-            {unread > 0 && (
-              <button type="button" onClick={markAll} className="text-[12.5px] font-medium text-[var(--accent)] hover:underline">Mark all read</button>
-            )}
+            <span className="flex items-center gap-1">
+              {unread > 0 && (
+                <button type="button" onClick={markAll} className="min-h-[36px] rounded-full px-2.5 text-[12.5px] font-medium text-[var(--accent)] hover:bg-slate-50">Mark all read</button>
+              )}
+              <button type="button" aria-label="Close notifications" onClick={() => { setOpen(false); buttonRef.current?.focus(); }} className="flex h-9 w-9 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+                <X size={16} strokeWidth={1.75} />
+              </button>
+            </span>
           </div>
           {items.length === 0 ? (
             <p className="px-4 py-8 text-center text-[13px] text-slate-500">Nothing yet. When someone answers your call or your team request, it shows up here.</p>
           ) : (
-            <ul className="thin-scroll max-h-[min(60vh,420px)] overflow-y-auto">
+            <ul className="thin-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain">
               {items.map((n) => (
                 <li key={n.id}>
                   <button
                     type="button"
                     onClick={() => openItem(n)}
-                    className={clsx('flex w-full gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-50', !n.read && 'bg-[#f5f8ff]')}
+                    className={clsx('flex min-h-[56px] w-full gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-50 active:bg-slate-100', !n.read && 'bg-[#f5f8ff]')}
                   >
                     <span className={clsx('mt-1.5 h-2 w-2 shrink-0 rounded-full', n.read ? 'bg-transparent' : 'bg-[var(--accent)]')} aria-hidden />
                     <span className="min-w-0 flex-1">
@@ -120,6 +155,8 @@ export const NotificationBell: React.FC = () => {
             </ul>
           )}
         </div>
+        </div>,
+        document.body
       )}
     </div>
   );

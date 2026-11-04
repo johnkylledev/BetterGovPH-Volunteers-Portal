@@ -55,7 +55,7 @@ export const ShareButton: React.FC<{ url: string; title: string; className?: str
         Share
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 top-[calc(100%+6px)] z-40 w-56 rounded-[12px] bg-white p-1.5 shadow-[0_0_0_1px_rgb(15_23_42/0.08),0_16px_40px_-12px_rgb(15_23_42/0.3)]">
+        <div role="menu" className="absolute right-0 top-[calc(100%+6px)] z-40 w-56 max-w-[calc(100vw-24px)] rounded-[12px] bg-white p-1.5 shadow-[0_0_0_1px_rgb(15_23_42/0.08),0_16px_40px_-12px_rgb(15_23_42/0.3)]">
           <button role="menuitem" type="button" onClick={copy} className="flex min-h-[38px] w-full items-center gap-2.5 rounded-[8px] px-2.5 text-left text-[13.5px] text-slate-800 hover:bg-slate-50">
             {copied ? <Check size={15} strokeWidth={2} className="text-emerald-600" /> : <Link2 size={15} strokeWidth={1.75} className="text-slate-500" />}
             {copied ? 'Link copied' : 'Copy link (for Messenger)'}
