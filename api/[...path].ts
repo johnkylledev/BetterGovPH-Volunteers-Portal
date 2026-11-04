@@ -552,6 +552,8 @@ const handler_me: H = async (req, res) => {
   }
 
   const { data: existingUser } = await supabase.from('users').select('*').eq('uid', uid).maybeSingle();
+  // The name on an approved member's Volunteer Card is what /verify vouches for; only admins change it.
+  if (existingUser && String(existingUser.status || '').toLowerCase() === 'approved') delete updates.full_name;
   if (existingUser) {
     const { data: updatedRows, error: updateError } = await supabase
       .from('users').update(updates).eq('uid', uid).select('*');
