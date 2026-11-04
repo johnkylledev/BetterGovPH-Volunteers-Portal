@@ -1,4 +1,4 @@
-import { Globe, Database, Code, Palette, Cpu, Brain, ShieldCheck, Briefcase, Layers } from 'lucide-react';
+import { Globe, Database, Code, Palette, Cpu, Brain, ShieldCheck, Briefcase, Layers, Clapperboard, Newspaper, GraduationCap, Scale, Megaphone, FileSearch, HandHeart } from 'lucide-react';
 
 export interface Specialization {
   id: string;
@@ -7,6 +7,8 @@ export interface Specialization {
   suggestedSkills: string[];
   requiredSkills: string[];
   minRequiredCount: number;
+  /** Which half of the role picker it sits in. Defaults to 'tech'. */
+  group?: 'tech' | 'community';
   validationRules?: {
     type: 'simple' | 'balanced';
     requirements: {
@@ -80,5 +82,81 @@ export const SPECIALIZATIONS: Specialization[] = [
     suggestedSkills: ['Agile', 'Scrum', 'Documentation', 'Product Roadmap', 'Stakeholder Management'],
     requiredSkills: ['Agile', 'Scrum', 'Documentation', 'Product Roadmap', 'Stakeholder Management', 'Project Management', 'Technical Writing', 'Research & Documentation'],
     minRequiredCount: 3
+  },
+
+  // Non-tech roles. Civic work needs storytellers, teachers, lawyers and organizers as much as code,
+  // so these ask for fewer matching skills (2) to confirm the role.
+  {
+    id: 'content',
+    label: 'Content Creator',
+    icon: Clapperboard,
+    group: 'community',
+    suggestedSkills: ['Video Editing', 'Social Media', 'Content Writing', 'Photography', 'Canva'],
+    requiredSkills: ['Video Editing', 'Social Media', 'Content Writing', 'Photography', 'Canva', 'Copywriting', 'Podcasting', 'Livestreaming', 'Illustration', 'Graphic Design', 'Motion Graphics'],
+    minRequiredCount: 2
+  },
+  {
+    id: 'writer',
+    label: 'Writer & Journalist',
+    icon: Newspaper,
+    group: 'community',
+    suggestedSkills: ['Writing', 'Journalism', 'Fact-Checking', 'Editing & Proofreading', 'Translation (Filipino/English)'],
+    requiredSkills: ['Writing', 'Journalism', 'Fact-Checking', 'Editing & Proofreading', 'Translation (Filipino/English)', 'Content Writing', 'Copywriting', 'Technical Writing', 'Research & Documentation'],
+    minRequiredCount: 2
+  },
+  {
+    id: 'educator',
+    label: 'Educator & Trainer',
+    icon: GraduationCap,
+    group: 'community',
+    suggestedSkills: ['Teaching', 'Curriculum Design', 'Workshop Facilitation', 'Public Speaking', 'Digital Literacy Training'],
+    requiredSkills: ['Teaching', 'Curriculum Design', 'Workshop Facilitation', 'Public Speaking', 'Digital Literacy Training', 'Mentoring', 'Documentation'],
+    minRequiredCount: 2
+  },
+  {
+    id: 'legal',
+    label: 'Lawyer & Policy Expert',
+    icon: Scale,
+    group: 'community',
+    suggestedSkills: ['Legal Research', 'Policy Analysis', 'Legislative Drafting', 'Data Privacy (DPA)', 'FOI Requests'],
+    requiredSkills: ['Legal Research', 'Policy Analysis', 'Legislative Drafting', 'Data Privacy (DPA)', 'FOI Requests', 'Contract Review', 'Policy Research'],
+    minRequiredCount: 2
+  },
+  {
+    id: 'advocate',
+    label: 'Advocate & Organizer',
+    icon: Megaphone,
+    group: 'community',
+    suggestedSkills: ['Community Organizing', 'Campaign Strategy', 'Volunteer Coordination', 'Social Media', 'Event Organizing'],
+    requiredSkills: ['Community Organizing', 'Campaign Strategy', 'Volunteer Coordination', 'Social Media', 'Event Organizing', 'Grassroots Outreach', 'Fundraising', 'Community Building', 'Public Speaking'],
+    minRequiredCount: 2
+  },
+  {
+    id: 'researcher',
+    label: 'Researcher & Analyst',
+    icon: FileSearch,
+    group: 'community',
+    suggestedSkills: ['Policy Research', 'Budget Analysis', 'Data Analysis', 'Survey Design', 'Fact-Checking'],
+    requiredSkills: ['Policy Research', 'Budget Analysis', 'Data Analysis', 'Survey Design', 'Fact-Checking', 'Research & Documentation', 'Data Analytics', 'Writing'],
+    minRequiredCount: 2
+  },
+  {
+    id: 'general',
+    label: 'General Volunteer',
+    icon: HandHeart,
+    group: 'community',
+    suggestedSkills: ['Volunteer Coordination', 'Translation (Filipino/English)', 'Event Organizing', 'Social Media'],
+    requiredSkills: [
+      'Volunteer Coordination', 'Translation (Filipino/English)', 'Event Organizing', 'Social Media', 'Community Organizing',
+      'Community Building', 'Writing', 'Teaching', 'Mentoring', 'Fundraising', 'Grassroots Outreach', 'Photography',
+      'Public Speaking', 'Documentation', 'Research & Documentation', 'Project Management'
+    ],
+    minRequiredCount: 1
   }
 ];
+
+/** The two halves of the role picker, so non-tech volunteers find their place without scrolling past code roles. */
+export const ROLE_GROUPS = [
+  { id: 'tech', label: 'Tech & design' },
+  { id: 'community', label: 'Community, content & policy' },
+] as const;

@@ -22,9 +22,29 @@ export const SKILL_CATEGORIES = {
     'Ethical Hacking', 'Network Security', 'Application Security',
     'Penetration Testing', 'Incident Response', 'Security Compliance'
   ],
+  'Content & Media': [
+    'Video Editing', 'Social Media', 'Content Writing', 'Photography', 'Canva',
+    'Copywriting', 'Podcasting', 'Livestreaming', 'Illustration'
+  ],
+  'Writing & Research': [
+    'Writing', 'Journalism', 'Fact-Checking', 'Editing & Proofreading',
+    'Translation (Filipino/English)', 'Policy Research', 'Budget Analysis', 'Survey Design'
+  ],
+  'Education & Training': [
+    'Teaching', 'Curriculum Design', 'Workshop Facilitation', 'Public Speaking',
+    'Digital Literacy Training', 'Mentoring'
+  ],
+  'Law & Policy': [
+    'Legal Research', 'Policy Analysis', 'Legislative Drafting', 'Data Privacy (DPA)',
+    'FOI Requests', 'Contract Review'
+  ],
+  'Advocacy & Community': [
+    'Community Organizing', 'Campaign Strategy', 'Volunteer Coordination', 'Event Organizing',
+    'Grassroots Outreach', 'Fundraising', 'Community Building'
+  ],
   'Professional & Others': [
     'Project Management', 'Technical Writing', 'Research & Documentation',
-    'Community Building', 'Public Speaking', 'Open Source Contributor'
+    'Open Source Contributor'
   ]
 };
 

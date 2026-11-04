@@ -62,6 +62,7 @@ export const Navbar: React.FC = () => {
 
   const navLinks = [
     { label: 'Open roles', path: '/#open-roles', onClick: handleOpenRolesClick },
+    { label: 'Volunteers', path: '/volunteers' },
     { label: 'Projects', path: '/projects' },
     { label: 'Contribute', path: '/contribute' },
     { label: 'Verify', path: '/verify' },

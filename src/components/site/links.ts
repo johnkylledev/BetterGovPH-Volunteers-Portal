@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Code2, Server, Database, FileSearch, PenTool, Megaphone } from 'lucide-react';
+import { Code2, Server, Database, FileSearch, PenTool, Megaphone, Clapperboard, GraduationCap, Scale } from 'lucide-react';
 
 export const DISCORD_INVITE = 'https://discord.com/invite/mHtThpN8bT';
 export const GITHUB_ORG = 'https://github.com/BetterGovPH';
@@ -63,6 +63,30 @@ export const ROLES: Role[] = [
     icon: Megaphone,
     description: 'Write about the work, share it, and bring more people in. Transparency needs an audience.',
     skills: ['Writing', 'Social media', 'Organizing'],
+    commitment: '2–3 hrs/week',
+    href: DISCORD_INVITE,
+  },
+  {
+    title: 'Content creator',
+    icon: Clapperboard,
+    description: 'Turn dense public data into videos, posts and explainers people actually watch and share.',
+    skills: ['Video editing', 'Social media', 'Canva'],
+    commitment: '2–4 hrs/week',
+    href: DISCORD_INVITE,
+  },
+  {
+    title: 'Educator',
+    icon: GraduationCap,
+    description: 'Teach communities how to read budgets, request records and use the tools we build.',
+    skills: ['Teaching', 'Workshops', 'Digital literacy'],
+    commitment: '2–4 hrs/week',
+    href: DISCORD_INVITE,
+  },
+  {
+    title: 'Lawyer & policy expert',
+    icon: Scale,
+    description: 'Check our work against the law, guide FOI requests, and keep the data privacy-safe.',
+    skills: ['Legal research', 'Data Privacy Act', 'FOI'],
     commitment: '2–3 hrs/week',
     href: DISCORD_INVITE,
   },

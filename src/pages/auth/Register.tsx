@@ -8,7 +8,7 @@ import { LoadingOverlay } from '../../components/LoadingOverlay';
 import { SkillsPicker } from '../../components/SkillsPicker';
 import { EXPERIENCE_LEVELS } from '../../constants/experience';
 import { SkillLevel, ExperienceLevel, UserSkill } from '../../types';
-import { SPECIALIZATIONS, Specialization } from '../../constants/specializations';
+import { SPECIALIZATIONS, ROLE_GROUPS, Specialization } from '../../constants/specializations';
 import { SKILL_CATEGORIES } from '../../constants/skills';
 import { createOrUpdateUserRecord, getUserData, signInWithGoogle, supabase, connectDiscord, getDiscordStatus } from '../../services/supabase';
 
@@ -655,7 +655,7 @@ function LegacyRegister() {
                                             <legend id="label-specialization" className="text-[15px] font-semibold text-slate-900">
                                                 Primary role
                                             </legend>
-                                            <p className="mt-1 text-[13px] text-slate-500">Pick the closest match — you’ll back it up with skills next.</p>
+                                            <p className="mt-1 text-[13px] text-slate-500">Everyone is welcome — tech or not. Pick the closest match and you’ll back it up with skills next.</p>
                                             <div
                                                 id="field-specialization"
                                                 role="radiogroup"
@@ -665,7 +665,12 @@ function LegacyRegister() {
                                                 tabIndex={-1}
                                                 className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2"
                                             >
-                                                {SPECIALIZATIONS.map((spec) => {
+                                                {ROLE_GROUPS.flatMap((group) => [
+                                                    <p key={`group-${group.id}`} className="col-span-full mt-2 flex items-center gap-3 text-[12px] font-medium text-slate-500 first:mt-0">
+                                                        {group.label}
+                                                        <span aria-hidden className="h-px flex-1 bg-slate-200" />
+                                                    </p>,
+                                                    ...SPECIALIZATIONS.filter((spec) => (spec.group ?? 'tech') === group.id).map((spec) => {
                                                     const Icon = spec.icon;
                                                     const isSelected = formData.specialization === spec.label;
                                                     return (
@@ -705,7 +710,8 @@ function LegacyRegister() {
                                                             </span>
                                                         </button>
                                                     );
-                                                })}
+                                                    }),
+                                                ])}
                                             </div>
                                         </fieldset>
 
