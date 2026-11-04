@@ -1,20 +1,29 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ChevronDown, IdCard, LogOut, UserCog } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { ArrowUpRight, BadgeCheck, Check, ChevronDown, IdCard, LayoutDashboard, Link2, LogOut, MessageCircle, UserCog } from 'lucide-react';
+import { DISCORD_INVITE } from './site/links';
 
 interface UserChipProps {
   name: string;
   subtitle: string;
+  email?: string;
+  memberId?: string;
+  /** Approved members get a Verified badge and a shareable card link. */
+  verified?: boolean;
+  isAdmin?: boolean;
   discordId?: string;
   discordAvatar?: string;
-  /** Menu entry that opens the Volunteer Card (hidden when not provided). */
+  /** Opens the Volunteer Card in place; without it the menu links to the public card page. */
   onOpen?: () => void;
   openLabel?: string;
   onSignOut: () => void;
 }
 
-/** Header identity: avatar + name + role in one pill that opens an account menu, with a compact sign-out beside it. */
-export const UserChip: React.FC<UserChipProps> = ({ name, subtitle, discordId, discordAvatar, onOpen, openLabel, onSignOut }) => {
+/** Header identity pill that opens an account menu: who you are, quick actions, sign out. */
+export const UserChip: React.FC<UserChipProps> = ({
+  name, subtitle, email, memberId, verified, isAdmin, discordId, discordAvatar, onOpen, openLabel, onSignOut,
+}) => {
   const initials = (name || '?')
     .trim()
     .split(/\s+/)
@@ -22,15 +31,20 @@ export const UserChip: React.FC<UserChipProps> = ({ name, subtitle, discordId, d
     .map((w) => w[0]?.toUpperCase() ?? '')
     .join('');
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  // Only keyboard opens move focus into the menu; a mouse click shouldn't pre-highlight an item.
+  const openedByKeyboard = useRef(false);
 
   // Menu keyboard pattern: focus the first item on open, arrows move, Escape returns focus.
   useEffect(() => {
     if (!open) return;
-    menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+    if (openedByKeyboard.current) menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
     const onPointerDown = (e: MouseEvent | TouchEvent) => {
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
     };
@@ -41,10 +55,10 @@ export const UserChip: React.FC<UserChipProps> = ({ name, subtitle, discordId, d
         return;
       }
       if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
-      const items = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? []);
+      const items = Array.from(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
       if (!items.length) return;
       e.preventDefault();
-      const i = items.indexOf(document.activeElement as HTMLButtonElement);
+      const i = items.indexOf(document.activeElement as HTMLElement);
       const next =
         e.key === 'Home' ? 0
         : e.key === 'End' ? items.length - 1
@@ -62,28 +76,56 @@ export const UserChip: React.FC<UserChipProps> = ({ name, subtitle, discordId, d
     };
   }, [open]);
 
-  const itemClass =
-    'flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[13.5px] text-slate-700 transition-colors hover:bg-slate-900/[0.04] hover:text-slate-900 focus-visible:bg-slate-900/[0.04] focus-visible:outline-none';
-  const avatarUrl = discordId && discordAvatar ? `https://cdn.discordapp.com/avatars/${discordId}/${discordAvatar}.png?size=64` : null;
+  useEffect(() => {
+    if (!copied) return;
+    const t = window.setTimeout(() => setCopied(false), 1800);
+    return () => window.clearTimeout(t);
+  }, [copied]);
+
+  const avatarUrl = discordId && discordAvatar ? `https://cdn.discordapp.com/avatars/${discordId}/${discordAvatar}.png?size=96` : null;
+  const avatar = (size: string, text: string) =>
+    avatarUrl ? (
+      <img src={avatarUrl} alt="" className={`${size} shrink-0 rounded-full object-cover`} />
+    ) : (
+      <span className={`flex ${size} shrink-0 items-center justify-center rounded-full bg-[var(--accent)] ${text} font-semibold text-white`}>
+        {initials}
+      </span>
+    );
+
+  const go = (path: string) => { setOpen(false); navigate(path); };
+  const homePath = isAdmin ? '/admin' : '/dashboard';
+  const onProfile = pathname.startsWith('/profile');
+  const cardUrl = memberId && typeof window !== 'undefined' ? `${window.location.origin}/verify/${memberId}` : '';
+
+  const copyCardLink = async () => {
+    if (!cardUrl) return;
+    try {
+      await navigator.clipboard.writeText(cardUrl);
+      setCopied(true);
+    } catch {
+      /* clipboard unavailable */
+    }
+  };
+
+  const item =
+    'flex w-full min-h-[40px] items-center gap-3 rounded-lg px-2.5 text-left text-[14px] text-slate-700 transition-colors hover:bg-slate-900/[0.04] hover:text-slate-900 focus-visible:bg-slate-900/[0.05] focus-visible:outline-none';
+  const icon = 'shrink-0 text-slate-400';
 
   return (
-    <div ref={rootRef} className="relative flex shrink-0 items-center gap-1.5">
+    <div ref={rootRef} className="relative shrink-0">
       <button
         ref={triggerRef}
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={(e) => {
+          openedByKeyboard.current = e.detail === 0;
+          setOpen((v) => !v);
+        }}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`${name} — account menu`}
-        className="group flex min-h-[40px] items-center gap-2.5 rounded-full bg-white py-1 pl-1 pr-1 shadow-[0_0_0_1px_rgb(15_23_42/0.1),0_1px_2px_rgb(15_23_42/0.05)] transition-[box-shadow] duration-150 sm:pr-3 [@media(hover:hover)]:hover:shadow-[0_0_0_1px_rgb(15_23_42/0.18),0_2px_6px_-2px_rgb(15_23_42/0.12)]"
+        className="group flex min-h-[40px] items-center gap-2.5 rounded-full bg-white py-1 pl-1 pr-1 shadow-[0_0_0_1px_rgb(15_23_42/0.1),0_1px_2px_rgb(15_23_42/0.05)] transition-[box-shadow] duration-150 focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(30_58_138/0.35)] sm:pr-3 [@media(hover:hover)]:hover:shadow-[0_0_0_1px_rgb(15_23_42/0.18),0_2px_6px_-2px_rgb(15_23_42/0.12)]"
       >
-        {avatarUrl ? (
-          <img src={avatarUrl} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
-        ) : (
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[12px] font-semibold text-white">
-            {initials}
-          </span>
-        )}
+        {avatar('h-8 w-8', 'text-[12px]')}
         <span className="hidden min-w-0 text-left leading-tight sm:block">
           <span className="block max-w-[150px] truncate text-[13px] font-semibold text-slate-900">{name}</span>
           <span className="block text-[11.5px] text-slate-500">{subtitle}</span>
@@ -95,34 +137,92 @@ export const UserChip: React.FC<UserChipProps> = ({ name, subtitle, discordId, d
           aria-hidden
         />
       </button>
-      {open && (
-        <div
-          ref={menuRef}
-          role="menu"
-          aria-label="Account"
-          className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-xl bg-white py-1 shadow-[0_0_0_1px_rgb(15_23_42/0.1),0_12px_28px_-8px_rgb(15_23_42/0.2)]"
-        >
-          {onOpen && (
-            <button type="button" role="menuitem" className={itemClass} onClick={() => { setOpen(false); onOpen(); }}>
-              <IdCard size={16} strokeWidth={1.75} className="text-slate-400" aria-hidden />
-              {openLabel || 'View my card'}
-            </button>
-          )}
-          <button type="button" role="menuitem" className={itemClass} onClick={() => { setOpen(false); navigate('/profile'); }}>
-            <UserCog size={16} strokeWidth={1.75} className="text-slate-400" aria-hidden />
-            Profile settings
-          </button>
-        </div>
-      )}
-      <button
-        type="button"
-        onClick={onSignOut}
-        aria-label="Sign out"
-        title="Sign out"
-        className="flex h-10 w-10 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-slate-900/[0.05] hover:text-slate-900"
-      >
-        <LogOut size={17} strokeWidth={1.75} />
-      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            ref={menuRef}
+            role="menu"
+            aria-label="Account"
+            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: -4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.97, y: -2 }}
+            transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
+            style={{ transformOrigin: 'top right' }}
+            className="absolute right-0 top-full z-50 mt-2 w-[272px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl bg-white shadow-[0_0_0_1px_rgb(15_23_42/0.08),0_16px_40px_-12px_rgb(15_23_42/0.28)]"
+          >
+            {/* Who you're signed in as */}
+            <div className="flex items-center gap-3 border-b border-slate-200/80 bg-slate-50/70 px-4 py-3.5">
+              {avatar('h-10 w-10', 'text-[14px]')}
+              <div className="min-w-0">
+                <p className="flex items-center gap-1.5 text-[14px] font-semibold text-slate-900">
+                  <span className="truncate">{name}</span>
+                  {verified && <BadgeCheck size={15} strokeWidth={2} className="shrink-0 text-[var(--accent)]" aria-label="Verified" />}
+                </p>
+                {email && <p className="truncate text-[12.5px] text-slate-500">{email}</p>}
+                {memberId && <p className="mt-0.5 truncate font-mono text-[11.5px] text-slate-400">{memberId}</p>}
+              </div>
+            </div>
+
+            <div className="p-1.5">
+              {onProfile && (
+                <button type="button" role="menuitem" className={item} onClick={() => go(homePath)}>
+                  <LayoutDashboard size={16} strokeWidth={1.75} className={icon} aria-hidden />
+                  {isAdmin ? 'Admin dashboard' : 'Dashboard'}
+                </button>
+              )}
+              {(onOpen || (memberId && verified)) && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={item}
+                  onClick={() => {
+                    setOpen(false);
+                    if (onOpen) onOpen();
+                    else if (memberId) navigate(`/verify/${memberId}`);
+                  }}
+                >
+                  <IdCard size={16} strokeWidth={1.75} className={icon} aria-hidden />
+                  {openLabel || 'View my card'}
+                </button>
+              )}
+              {verified && cardUrl && (
+                <button type="button" role="menuitem" className={item} onClick={copyCardLink}>
+                  {copied ? (
+                    <Check size={16} strokeWidth={2} className="shrink-0 text-emerald-600" aria-hidden />
+                  ) : (
+                    <Link2 size={16} strokeWidth={1.75} className={icon} aria-hidden />
+                  )}
+                  <span aria-live="polite">{copied ? 'Link copied' : 'Copy verification link'}</span>
+                </button>
+              )}
+              {!onProfile && (
+                <button type="button" role="menuitem" className={item} onClick={() => go('/profile')}>
+                  <UserCog size={16} strokeWidth={1.75} className={icon} aria-hidden />
+                  Profile settings
+                </button>
+              )}
+              <a role="menuitem" href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer" className={item} onClick={() => setOpen(false)}>
+                <MessageCircle size={16} strokeWidth={1.75} className={icon} aria-hidden />
+                <span className="flex-1">Community Discord</span>
+                <ArrowUpRight size={14} strokeWidth={1.75} className="text-slate-300" aria-hidden />
+              </a>
+            </div>
+
+            <div className="border-t border-slate-200/80 p-1.5">
+              <button
+                type="button"
+                role="menuitem"
+                className={`${item} text-red-600 hover:bg-red-50 hover:text-red-700 focus-visible:bg-red-50`}
+                onClick={() => { setOpen(false); onSignOut(); }}
+              >
+                <LogOut size={16} strokeWidth={1.75} className="shrink-0" aria-hidden />
+                Sign out
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

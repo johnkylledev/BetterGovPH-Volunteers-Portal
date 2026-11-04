@@ -90,21 +90,25 @@ export const SkillsPicker: React.FC<SkillsPickerProps> = ({
                   type="button"
                   onClick={toggle}
                   aria-pressed={isSelected}
-                  className="flex min-h-[48px] w-full items-center gap-3 px-3.5 py-2.5 text-left"
+                  className="group flex min-h-[52px] w-full items-center gap-3 rounded-[12px] px-3.5 py-2.5 text-left focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(30_58_138/0.3)]"
               >
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center" aria-hidden>
                       <SkillIcon skillName={skill} size={16} />
                   </span>
                   <span className="min-w-0 flex-1 break-words text-[14px] font-medium text-slate-900">{skill}</span>
-                  <span
-                      aria-hidden
-                      className={clsx(
-                          'flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] transition-[background-color,box-shadow] duration-150',
-                          isSelected ? 'bg-[var(--accent)] text-white' : 'shadow-[inset_0_0_0_1.5px_rgb(148_163_184)]'
-                      )}
-                  >
-                      {isSelected && <Check size={12} strokeWidth={2.5} />}
-                  </span>
+                  {isSelected ? (
+                      <span aria-hidden className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-white">
+                          <Check size={13} strokeWidth={2.75} />
+                      </span>
+                  ) : (
+                      <span
+                          aria-hidden
+                          className="inline-flex h-7 shrink-0 items-center gap-1 rounded-full pl-2 pr-2.5 text-[12.5px] font-medium text-slate-500 shadow-[inset_0_0_0_1px_rgb(15_23_42/0.12)] transition-[color,box-shadow,background-color] duration-150 group-hover:bg-[#f4f7ff] group-hover:text-[var(--accent)] group-hover:shadow-[inset_0_0_0_1px_rgb(30_58_138/0.35)]"
+                      >
+                          <Plus size={13} strokeWidth={2.25} />
+                          Add
+                      </span>
+                  )}
               </button>
 
               {isSelected && (
@@ -141,20 +145,55 @@ export const SkillsPicker: React.FC<SkillsPickerProps> = ({
           const spec = SPECIALIZATIONS.find(s => s.label === specialization);
           const SpecIcon = spec?.icon || Target;
           const score = roleScores[specialization] || 0;
-          const verdict = score >= 70 ? 'Strong match' : score >= 40 ? 'Good start' : 'Add a few more';
+          const needed = spec?.minRequiredCount ?? 3;
+          const matched = skills.filter((s) => spec?.requiredSkills.some((rs) => rs.toLowerCase() === s.name.toLowerCase()));
+          const remaining = Math.max(0, needed - matched.length);
+          const verdict =
+              score >= 70
+                  ? { word: 'Strong match', tone: 'bg-emerald-50 text-emerald-800 shadow-[inset_0_0_0_1px_rgb(16_185_129/0.3)]' }
+                  : score >= 40
+                    ? { word: 'Good start', tone: 'bg-[#eef3ff] text-[var(--accent)] shadow-[inset_0_0_0_1px_rgb(30_58_138/0.2)]' }
+                    : { word: 'Getting started', tone: 'bg-slate-100 text-slate-600' };
           return (
-              <div className="rounded-[12px] bg-slate-50 p-4 shadow-[inset_0_0_0_1px_rgb(15_23_42/0.06)]">
-                  <div className="flex items-center gap-3">
-                      <SpecIcon size={18} strokeWidth={1.75} className="shrink-0 text-[var(--accent)]" aria-hidden />
+              <div className="s-card p-4 sm:p-5">
+                  <div className="flex items-start gap-3">
+                      <SpecIcon size={20} strokeWidth={1.75} className="mt-0.5 shrink-0 text-[var(--accent)]" aria-hidden />
                       <div className="min-w-0 flex-1">
-                          <p className="truncate text-[14px] font-medium text-slate-900">{specialization}</p>
-                          <p className="text-[12px] text-slate-500">{verdict} — based on the skills you pick below</p>
+                          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] font-semibold text-slate-900">
+                              {specialization}
+                              <span className={clsx('rounded-full px-2 py-0.5 text-[11.5px] font-medium', verdict.tone)}>{verdict.word}</span>
+                          </p>
+                          <p className="mt-0.5 text-[13px] text-slate-500">
+                              {remaining > 0
+                                  ? `Pick ${remaining} more ${remaining === 1 ? 'skill' : 'skills'} used in this role.`
+                                  : 'You have the core skills for this role.'}
+                          </p>
                       </div>
-                      <span className="num shrink-0 text-[15px] font-semibold text-slate-900">{score}%</span>
+                      <span className="num shrink-0 text-[15px] font-semibold text-slate-900" aria-label={`${Math.min(matched.length, needed)} of ${needed} core skills`}>
+                          {Math.min(matched.length, needed)}<span className="font-normal text-slate-400">/{needed}</span>
+                      </span>
                   </div>
-                  <div className="mt-3 h-1 overflow-hidden rounded-full bg-slate-200" role="meter" aria-label="Role match" aria-valuemin={0} aria-valuemax={100} aria-valuenow={score}>
-                      <div className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-500" style={{ width: `${score}%` }} />
-                  </div>
+
+                  {/* Core-skill slots: filled by matching picks, dashed while empty */}
+                  <ul className="mt-4 flex flex-wrap gap-2" aria-label="Core skills for this role">
+                      {matched.slice(0, needed).map((s) => (
+                          <li key={s.name} className="inline-flex h-8 items-center gap-1.5 rounded-full bg-white pl-2 pr-3 text-[13px] font-medium text-slate-800 shadow-[inset_0_0_0_1px_rgb(15_23_42/0.12)]">
+                              <SkillIcon skillName={s.name} size={14} />
+                              {s.name}
+                          </li>
+                      ))}
+                      {Array.from({ length: remaining }).map((_, i) => (
+                          <li key={`slot-${i}`} className="inline-flex h-8 items-center gap-1 rounded-full border-[1.5px] border-dashed border-slate-300 px-3 text-[13px] text-slate-400">
+                              <Plus size={13} strokeWidth={2} aria-hidden />
+                              Open slot
+                          </li>
+                      ))}
+                      {matched.length > needed && (
+                          <li className="inline-flex h-8 items-center rounded-full bg-slate-100 px-3 text-[13px] text-slate-600">
+                              +{matched.length - needed} more
+                          </li>
+                      )}
+                  </ul>
                   <AnimatePresence initial={false}>
                       {betterRoleSuggestion && (
                           <motion.div
@@ -185,7 +224,7 @@ export const SkillsPicker: React.FC<SkillsPickerProps> = ({
           <section aria-labelledby="rec-title">
               <h3 id="rec-title" className="text-[15px] font-semibold text-slate-900">Recommended for {specialization}</h3>
               <p className="mt-1 text-[13px] text-slate-500">Tap the ones you use, then set how comfortable you are.</p>
-              <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              <div className="mt-4 grid grid-cols-1 items-start gap-2.5 sm:grid-cols-2">
                   {SPECIALIZATIONS.find(s => s.label === specialization)?.suggestedSkills.map(skill => (
                       renderSkillItem(skill, 'recommended')
                   ))}
@@ -246,7 +285,7 @@ export const SkillsPicker: React.FC<SkillsPickerProps> = ({
               const list = SKILL_CATEGORIES[activeSkillCategory as keyof typeof SKILL_CATEGORIES]
                   .filter(skill => skill.toLowerCase().includes(skillSearch.toLowerCase()));
               return list.length > 0 ? (
-                  <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                  <div className="mt-4 grid grid-cols-1 items-start gap-2.5 sm:grid-cols-2">
                       {list.map((skill) => renderSkillItem(skill, 'explore'))}
                   </div>
               ) : (
