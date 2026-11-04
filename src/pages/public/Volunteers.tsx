@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Avatar } from '../../components/Avatar';
 import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import { ArrowRight, ArrowUpRight, BadgeCheck, Search as SearchIcon, X as XIcon } from 'lucide-react';
@@ -30,38 +31,12 @@ const readCache = (): Volunteer[] | null => {
   }
 };
 
-const initialsOf = (name: string) =>
-  name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';
-
-const Avatar: React.FC<{ v: Volunteer }> = ({ v }) => {
-  const [failed, setFailed] = useState(false);
-  if (v.avatarUrl && !failed) {
-    return (
-      <img
-        src={v.avatarUrl}
-        alt=""
-        width={48}
-        height={48}
-        loading="lazy"
-        decoding="async"
-        onError={() => setFailed(true)}
-        className="h-12 w-12 shrink-0 rounded-full bg-[var(--muted)] object-cover shadow-[0_0_0_1px_rgb(15_23_42/0.08)]"
-      />
-    );
-  }
-  return (
-    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(140deg,#1e3a8a,#2547b8)] text-[15px] font-semibold text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.15)]">
-      {initialsOf(v.name)}
-    </span>
-  );
-};
-
 const VolunteerCard: React.FC<{ v: Volunteer }> = ({ v }) => {
   const more = Math.max(0, v.skillCount - Math.min(v.skills.length, 3));
   return (
     <li className="flex flex-col rounded-[16px] bg-[var(--card)] p-5 shadow-[var(--e2)] transition-[box-shadow,transform] duration-200 [@media(hover:hover)]:hover:-translate-y-0.5 [@media(hover:hover)]:hover:shadow-[0_1px_2px_rgb(15_23_42/0.05),0_12px_28px_-8px_rgb(15_23_42/0.16),0_0_0_1px_rgb(15_23_42/0.08)]">
       <div className="flex items-center gap-3.5">
-        <Avatar v={v} />
+        <Avatar name={v.name} seed={v.memberId || v.name} photos={[v.avatarUrl]} size={48} />
         <div className="min-w-0">
           <p className="flex items-center gap-1.5 text-[15px] font-semibold text-[var(--fg)]">
             <span className="truncate">{v.name}</span>

@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ArrowUpRight, BadgeCheck, Check, ChevronDown, IdCard, LayoutDashboard, Link2, LogOut, MessageCircle, UserCog } from 'lucide-react';
 import { DISCORD_INVITE } from './site/links';
+import { Avatar, useSessionPhoto } from './Avatar';
 
 interface UserChipProps {
   name: string;
@@ -14,6 +15,8 @@ interface UserChipProps {
   isAdmin?: boolean;
   discordId?: string;
   discordAvatar?: string;
+  /** Stable id that keeps the fallback colour the same everywhere. */
+  seed?: string;
   /** Opens the Volunteer Card in place; without it the menu links to the public card page. */
   onOpen?: () => void;
   openLabel?: string;
@@ -22,14 +25,9 @@ interface UserChipProps {
 
 /** Header identity pill that opens an account menu: who you are, quick actions, sign out. */
 export const UserChip: React.FC<UserChipProps> = ({
-  name, subtitle, email, memberId, verified, isAdmin, discordId, discordAvatar, onOpen, openLabel, onSignOut,
+  name, subtitle, email, memberId, verified, isAdmin, discordId, discordAvatar, seed, onOpen, openLabel, onSignOut,
 }) => {
-  const initials = (name || '?')
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? '')
-    .join('');
+  const sessionPhoto = useSessionPhoto();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const reduceMotion = useReducedMotion();
@@ -82,15 +80,9 @@ export const UserChip: React.FC<UserChipProps> = ({
     return () => window.clearTimeout(t);
   }, [copied]);
 
-  const avatarUrl = discordId && discordAvatar ? `https://cdn.discordapp.com/avatars/${discordId}/${discordAvatar}.png?size=96` : null;
-  const avatar = (size: string, text: string) =>
-    avatarUrl ? (
-      <img src={avatarUrl} alt="" className={`${size} shrink-0 rounded-full object-cover`} />
-    ) : (
-      <span className={`flex ${size} shrink-0 items-center justify-center rounded-full bg-[var(--accent)] ${text} font-semibold text-white`}>
-        {initials}
-      </span>
-    );
+  const avatar = (px: number) => (
+    <Avatar name={name} seed={seed || memberId || email} discordId={discordId} discordAvatar={discordAvatar} photos={[sessionPhoto]} size={px} />
+  );
 
   const go = (path: string) => { setOpen(false); navigate(path); };
   const homePath = isAdmin ? '/admin' : '/dashboard';
@@ -125,7 +117,7 @@ export const UserChip: React.FC<UserChipProps> = ({
         aria-label={`${name} — account menu`}
         className="group flex min-h-[40px] items-center gap-2.5 rounded-full bg-white py-1 pl-1 pr-1 shadow-[0_0_0_1px_rgb(15_23_42/0.1),0_1px_2px_rgb(15_23_42/0.05)] transition-[box-shadow] duration-150 focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(30_58_138/0.35)] sm:pr-3 [@media(hover:hover)]:hover:shadow-[0_0_0_1px_rgb(15_23_42/0.18),0_2px_6px_-2px_rgb(15_23_42/0.12)]"
       >
-        {avatar('h-8 w-8', 'text-[12px]')}
+        {avatar(32)}
         <span className="hidden min-w-0 text-left leading-tight sm:block">
           <span className="block max-w-[150px] truncate text-[13px] font-semibold text-slate-900">{name}</span>
           <span className="block text-[11.5px] text-slate-500">{subtitle}</span>
@@ -153,7 +145,7 @@ export const UserChip: React.FC<UserChipProps> = ({
           >
             {/* Who you're signed in as */}
             <div className="flex items-center gap-3 border-b border-slate-200/80 bg-slate-50/70 px-4 py-3.5">
-              {avatar('h-10 w-10', 'text-[14px]')}
+              {avatar(40)}
               <div className="min-w-0">
                 <p className="flex items-center gap-1.5 text-[14px] font-semibold text-slate-900">
                   <span className="truncate">{name}</span>

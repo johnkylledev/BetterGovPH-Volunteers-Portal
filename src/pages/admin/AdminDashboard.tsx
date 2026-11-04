@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { Avatar } from '../../components/Avatar';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -551,18 +552,16 @@ export default function AdminDashboard() {
                           className="hover:bg-slate-50/50 transition-colors"
                         >
                           <td className="p-4 pl-6">
-                            <div className="font-semibold text-slate-900">{user.fullName}</div>
-                            <div className="text-xs text-slate-500">{user.email}</div>
+                            <div className="flex items-center gap-3">
+                              <Avatar name={user.fullName} seed={user.uid || user.id} discordId={user.discordId} discordAvatar={user.discordAvatar} size={32} />
+                              <div className="min-w-0">
+                                <div className="font-semibold text-slate-900">{user.fullName}</div>
+                                <div className="text-xs text-slate-500">{user.email}</div>
+                              </div>
+                            </div>
                           </td>
                           <td className="p-4">
                             <div className="flex items-center gap-2 mb-1">
-                              {user.discordAvatar && user.discordId ? (
-                                <img
-                                  src={`https://cdn.discordapp.com/avatars/${user.discordId}/${user.discordAvatar}.png?size=28`}
-                                  alt=""
-                                  className="w-6 h-6 rounded-full flex-shrink-0"
-                                />
-                              ) : null}
                               <div>
                                 <div className="font-semibold text-slate-700">
                                   {user.discordDisplayName || user.discordUsername || 'N/A'}
@@ -986,13 +985,7 @@ export default function AdminDashboard() {
                     <div>
                       <p className="text-[12px] font-semibold text-slate-400 mb-1">Discord</p>
                       <div className="flex items-center gap-2">
-                        {selectedUser.discordAvatar && selectedUser.discordId ? (
-                          <img
-                            src={`https://cdn.discordapp.com/avatars/${selectedUser.discordId}/${selectedUser.discordAvatar}.png?size=32`}
-                            alt=""
-                            className="w-6 h-6 rounded-full flex-shrink-0"
-                          />
-                        ) : null}
+                        <Avatar name={selectedUser.fullName} seed={selectedUser.uid || selectedUser.id} discordId={selectedUser.discordId} discordAvatar={selectedUser.discordAvatar} size={24} />
                         <div>
                           <p className="text-sm font-semibold text-blue-600">
                             {selectedUser.discordDisplayName || selectedUser.discordUsername || 'N/A'}
@@ -1231,13 +1224,7 @@ export default function AdminDashboard() {
                         <div>
                           <p className="text-[12px] font-semibold text-slate-400 mb-1">Discord</p>
                           <div className="flex items-center gap-2">
-                            {selectedMember.discordAvatar && selectedMember.discordId ? (
-                              <img
-                                src={`https://cdn.discordapp.com/avatars/${selectedMember.discordId}/${selectedMember.discordAvatar}.png?size=32`}
-                                alt=""
-                                className="w-6 h-6 rounded-full flex-shrink-0"
-                              />
-                            ) : null}
+                            <Avatar name={selectedMember.fullName} seed={selectedMember.uid || selectedMember.id} discordId={selectedMember.discordId} discordAvatar={selectedMember.discordAvatar} size={24} />
                             <div>
                               <p className="text-sm font-semibold text-blue-600">
                                 {selectedMember.discordDisplayName || selectedMember.discordUsername || 'N/A'}

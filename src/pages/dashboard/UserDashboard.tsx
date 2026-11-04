@@ -599,6 +599,7 @@ export default function UserDashboard() {
               isAdmin={!!currentUser.isAdmin}
               discordId={currentUser.discordId}
               discordAvatar={currentUser.discordAvatar}
+              seed={currentUser.uid || currentUser.id}
               onOpen={() => {
                 setActiveTab('dashboard');
                 setTimeout(() => document.getElementById('digital-card-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
