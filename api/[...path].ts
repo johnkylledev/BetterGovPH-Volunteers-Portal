@@ -158,6 +158,7 @@ const mapUserRow = (row: any) => ({
   consentPurposes: Array.isArray(row.consent_purposes) ? row.consent_purposes : [],
   deletionRequestedAt: row.deletion_requested_at ?? undefined,
   displayName: row.display_name ?? undefined,
+  cocAcceptedAt: row.coc_accepted_at ?? undefined,
 });
 
 // Profile links (YouTube, GitHub, …): known platforms only, https URLs only, short. Private to the member and admins.
@@ -592,6 +593,27 @@ const authCaller = async (req: any) => {
   return { supabase, uid: data?.user?.id ? String(data.user.id) : '', email: data?.user?.email ? String(data.user.email) : '' };
 };
 
+// ----- Notifications ---------------------------------------------------------
+/** Best effort: a missing table (before the migration) or a failed insert never breaks the action itself. */
+const notify = async (supabase: any, userId: string | null | undefined, n: { kind: string; title: string; body?: string; link?: string }) => {
+  if (!userId) return;
+  try {
+    await supabase.from('notifications').insert({
+      user_id: userId, kind: n.kind, title: n.title.slice(0, 200), body: n.body ? n.body.slice(0, 400) : null, link: n.link ?? null,
+    });
+  } catch { /* noop */ }
+};
+const notifyAdmins = async (supabase: any, n: { kind: string; title: string; body?: string; link?: string }) => {
+  try {
+    const { data } = await supabase.from('users').select('uid').eq('is_admin', true).limit(50);
+    await Promise.all((data ?? []).map((a: any) => notify(supabase, a.uid, n)));
+  } catch { /* noop */ }
+};
+const quote = (t: unknown, max = 60) => {
+  const v = String(t || '').trim();
+  return v.length > max ? `${v.slice(0, max - 1)}…` : v;
+};
+
 // ----- GitHub repo tracker ---------------------------------------------------
 const parseGithubRepo = (raw: unknown): { owner: string; name: string } | null => {
   if (typeof raw !== 'string') return null;
@@ -824,8 +846,15 @@ const handler_call_interests: H = async (req, res) => {
     const call = row ? await loadCall(row.call_id) : null;
     if (!call) { sendError(res, 404, 'Not found'); return; }
     if (call.user_id !== uid && !isAdmin) { sendError(res, 403, 'Only the poster can do that.'); return; }
+    const { data: before } = await supabase.from('call_interests').select('user_id, status').eq('id', interestId).maybeSingle();
     const { error } = await supabase.from('call_interests').update({ status, updated_at: now }).eq('id', interestId);
     if (error) { sendError(res, 500, 'Couldn’t update'); return; }
+    if (status === 'contacted' && before?.status !== 'contacted') {
+      await notify(supabase, before?.user_id, {
+        kind: 'interest_contacted', title: `The team behind “${quote(call.title)}” has seen your interest`,
+        body: 'They’ll reach you through the contact you left, or the group chat.', link: `/opportunities?call=${call.id}`,
+      });
+    }
     sendJson(res, 200, { status });
     return;
   }
@@ -852,9 +881,136 @@ const handler_call_interests: H = async (req, res) => {
     message: typeof body.message === 'string' ? body.message.trim().slice(0, 500) || null : null,
     contact: typeof body.contact === 'string' ? body.contact.trim().slice(0, 200) || null : null,
   };
+  const { data: prior } = await supabase.from('call_interests').select('status').eq('call_id', callId).eq('user_id', uid).maybeSingle();
   const { error } = await supabase.from('call_interests').upsert(payload, { onConflict: 'call_id,user_id' });
   if (error) { sendError(res, isMissingTableError(error) ? 503 : 500, 'Couldn’t save your interest. Try again.'); return; }
+  if (!prior || prior.status === 'withdrawn') {
+    await notify(supabase, call.user_id, {
+      kind: 'interest_new', title: `${memberNameOf(me)} is interested in “${quote(call.title)}”`,
+      body: payload.message || 'Open the call to see how to reach them.', link: '/dashboard?tab=volunteer',
+    });
+  }
   sendJson(res, 200, { status: 'new' });
+};
+
+// ---------- /notifications ----------------------------------------------------
+const handler_notifications: H = async (req, res) => {
+  if (req.method !== 'GET' && req.method !== 'POST') { sendError(res, 405, 'Method not allowed'); return; }
+  const caller = await authCaller(req);
+  if ('error' in caller) { sendError(res, 500, caller.error); return; }
+  const { supabase, uid } = caller;
+  if (!uid) { sendError(res, 401, 'Sign in first'); return; }
+  if (req.method === 'GET') {
+    const { data, error } = await supabase.from('notifications').select('id, kind, title, body, link, read_at, created_at')
+      .eq('user_id', uid).order('created_at', { ascending: false }).limit(30);
+    if (error) { sendJson(res, 200, { items: [], unread: 0, available: !isMissingTableError(error) }); return; }
+    const { count } = await supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', uid).is('read_at', null);
+    sendJson(res, 200, {
+      available: true, unread: count ?? 0,
+      items: (data ?? []).map((n: any) => ({ id: n.id, kind: n.kind, title: n.title, body: n.body, link: n.link, read: !!n.read_at, createdAt: n.created_at })),
+    });
+    return;
+  }
+  const body = getBody(req);
+  const ids: string[] = Array.isArray(body.ids) ? body.ids.filter((x: unknown) => typeof x === 'string' && isUuid(x)).slice(0, 100) : [];
+  let q: any = supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('user_id', uid).is('read_at', null);
+  if (ids.length) q = q.in('id', ids);
+  const { error } = await q;
+  if (error) { sendError(res, isMissingTableError(error) ? 503 : 500, 'Couldn’t update'); return; }
+  sendJson(res, 200, { ok: true });
+};
+
+// ---------- /reports ---------------------------------------------------------
+// POST { targetType, targetId, reason, details? }   any signed-in member
+// GET  ?status=open                                  admins: the queue
+// POST { action: 'resolve', id, status, resolution?, hide? }   admins
+const REPORT_REASONS = ['spam', 'harassment', 'misleading', 'privacy', 'other'];
+const handler_reports: H = async (req, res) => {
+  if (req.method !== 'GET' && req.method !== 'POST') { sendError(res, 405, 'Method not allowed'); return; }
+  const caller = await authCaller(req);
+  if ('error' in caller) { sendError(res, 500, caller.error); return; }
+  const { supabase, uid } = caller;
+  if (!uid) { sendError(res, 401, 'Sign in to report'); return; }
+  const { data: me } = await supabase.from('users').select('*').eq('uid', uid).maybeSingle();
+  const isAdmin = !!me?.is_admin;
+
+  const titleOf = async (type: string, id: string) => {
+    if (type === 'call') {
+      const { data } = await supabase.from('volunteer_calls').select('id, title, user_id, status').eq('id', id).maybeSingle();
+      return data ? { title: data.title as string, owner: data.user_id as string, status: data.status as string } : null;
+    }
+    const { data } = await supabase.from('project_submissions').select('id, project_name, user_id, status').eq('id', id).maybeSingle();
+    return data ? { title: data.project_name as string, owner: data.user_id as string, status: data.status as string } : null;
+  };
+
+  if (req.method === 'GET') {
+    if (!isAdmin) { sendError(res, 403, 'Admin only'); return; }
+    const status = getStringParam(req.query?.status) || 'open';
+    let q: any = supabase.from('reports').select('*').order('created_at', { ascending: false }).limit(100);
+    if (status !== 'all') q = q.eq('status', status);
+    const { data, error } = await q;
+    if (error) { sendJson(res, 200, { reports: [], available: !isMissingTableError(error) }); return; }
+    const reporterIds = Array.from(new Set((data ?? []).map((r: any) => r.reporter_id)));
+    const { data: reporters } = reporterIds.length ? await supabase.from('users').select('*').in('uid', reporterIds) : { data: [] as any[] };
+    const nameById = new Map((reporters ?? []).map((u: any) => [String(u.uid), String(u.full_name || 'Member')]));
+    const reports = await Promise.all((data ?? []).map(async (r: any) => {
+      const t = isUuid(String(r.target_id)) ? await titleOf(r.target_type, r.target_id) : null;
+      return {
+        id: r.id, targetType: r.target_type, targetId: r.target_id, targetTitle: t?.title ?? '(removed)', targetStatus: t?.status ?? null,
+        reason: r.reason, details: r.details ?? '', status: r.status, resolution: r.resolution ?? '', createdAt: r.created_at,
+        reporter: nameById.get(String(r.reporter_id)) ?? 'Member',
+      };
+    }));
+    sendJson(res, 200, { available: true, reports });
+    return;
+  }
+
+  const body = getBody(req);
+  if (body.action === 'resolve') {
+    if (!isAdmin) { sendError(res, 403, 'Admin only'); return; }
+    const id = typeof body.id === 'string' && isUuid(body.id) ? body.id : '';
+    const status = body.status === 'dismissed' ? 'dismissed' : body.status === 'actioned' ? 'actioned' : '';
+    if (!id || !status) { sendError(res, 400, 'id and status (dismissed|actioned) are required'); return; }
+    const { data: rep } = await supabase.from('reports').select('*').eq('id', id).maybeSingle();
+    if (!rep) { sendError(res, 404, 'Report not found'); return; }
+    const resolution = typeof body.resolution === 'string' ? body.resolution.trim().slice(0, 500) : '';
+    // "Hide" takes the item off public pages: closes a call, or sends a project back to review.
+    if (status === 'actioned' && body.hide === true && isUuid(String(rep.target_id))) {
+      if (rep.target_type === 'call') await supabase.from('volunteer_calls').update({ status: 'closed' }).eq('id', rep.target_id);
+      else {
+        await supabase.from('project_submissions').update({ status: 'pending', admin_note: resolution || 'Hidden after a report while an admin reviews it.' }).eq('id', rep.target_id);
+        try { await invalidateCache('cache:projects:approved'); await invalidateCache('cache:projects:approved:merged'); } catch { /* noop */ }
+      }
+    }
+    const { error } = await supabase.from('reports')
+      .update({ status, resolution: resolution || null, resolved_at: new Date().toISOString(), resolved_by: uid })
+      // Close every open report on the same item at once.
+      .eq('target_type', rep.target_type).eq('target_id', rep.target_id).eq('status', 'open');
+    if (error) { sendError(res, 500, 'Couldn’t update'); return; }
+    sendJson(res, 200, { status });
+    return;
+  }
+
+  const targetType = body.targetType === 'call' || body.targetType === 'project' ? body.targetType : '';
+  const targetId = typeof body.targetId === 'string' && isUuid(body.targetId) ? body.targetId : '';
+  const reason = typeof body.reason === 'string' && REPORT_REASONS.includes(body.reason) ? body.reason : '';
+  if (!targetType || !targetId || !reason) { sendError(res, 400, 'targetType, targetId and reason are required'); return; }
+  const target = await titleOf(targetType, targetId);
+  if (!target) { sendError(res, 404, 'Not found'); return; }
+  if (target.owner === uid) { sendError(res, 400, 'You can’t report your own post. Edit or close it instead.'); return; }
+  const { error } = await supabase.from('reports').insert({
+    reporter_id: uid, target_type: targetType, target_id: targetId, reason,
+    details: typeof body.details === 'string' ? body.details.trim().slice(0, 1000) || null : null,
+  });
+  if (error) {
+    if (String((error as any).code) === '23505') { sendJson(res, 200, { status: 'already_reported' }); return; }
+    sendError(res, isMissingTableError(error) ? 503 : 500, isMissingTableError(error) ? 'Reporting opens soon.' : 'Couldn’t send the report');
+    return;
+  }
+  await notifyAdmins(supabase, {
+    kind: 'report_new', title: `New report: ${quote(target.title)}`, body: `Reason: ${reason}`, link: '/admin?reports=1',
+  });
+  sendJson(res, 200, { status: 'received' });
 };
 
 // ---------- /teams -----------------------------------------------------------
@@ -998,6 +1154,10 @@ const handler_teams: H = async (req, res) => {
       ? await supabase.from('team_members').update(payload).eq('id', existing.id)
       : await supabase.from('team_members').insert(payload);
     if (error) { sendError(res, 500, 'Couldn’t send your request'); return; }
+    await notify(supabase, headId, {
+      kind: 'team_request', title: `${memberNameOf(me)} asked to join ${quote(project.project_name ?? project.title)}`,
+      body: payload.message || undefined, link: `/projects/${project.id}`,
+    });
     sendJson(res, 200, { status: 'pending' });
     return;
   }
@@ -1021,6 +1181,10 @@ const handler_teams: H = async (req, res) => {
     if (!target || !decision) { sendError(res, 400, 'requestId and decision (approve|decline) are required'); return; }
     const { error } = await supabase.from('team_members').update({ status: decision, decided_at: now }).eq('id', requestId);
     if (error) { sendError(res, 500, 'Couldn’t save the decision'); return; }
+    const pname = quote(project.project_name ?? project.title);
+    await notify(supabase, target.user_id, decision === 'approved'
+      ? { kind: 'team_approved', title: `You’re on the team for ${pname}`, body: 'Say hi in the team’s group chat.', link: `/projects/${project.id}` }
+      : { kind: 'team_declined', title: `Your request to join ${pname} wasn’t accepted this time`, body: 'Other projects are looking for people.', link: '/opportunities' });
     sendJson(res, 200, { status: decision });
     return;
   }
@@ -1135,6 +1299,7 @@ const handler_me: H = async (req, res) => {
   if (typeof body.showInDirectory === 'boolean') updates.show_in_directory = body.showInDirectory;
   if (typeof body.showFullName === 'boolean') updates.show_full_name = body.showFullName;
   if (typeof body.displayName === 'string') updates.display_name = cleanDisplayName(body.displayName) || null;
+  if (body.acceptCoc === true) updates.coc_accepted_at = new Date().toISOString();
   // Right to erasure: the member asks, an admin completes it (approved projects may need a new owner first).
   if (body.requestDeletion === true) { updates.deletion_requested_at = new Date().toISOString(); updates.show_in_directory = false; }
   if (body.requestDeletion === false) updates.deletion_requested_at = null;
@@ -1187,7 +1352,7 @@ const handler_me: H = async (req, res) => {
       .from('users').update(updates).eq('uid', uid).select('*');
     // Before a migration runs, save everything else instead of failing the whole profile.
     if (updateError && isMissingColumnError(updateError)) {
-      for (const k of ['links', 'secondary_specialization', 'show_in_directory', 'show_full_name', 'consent_version', 'consent_at', 'consent_purposes', 'deletion_requested_at', 'display_name']) delete updates[k];
+      for (const k of ['links', 'secondary_specialization', 'show_in_directory', 'show_full_name', 'consent_version', 'consent_at', 'consent_purposes', 'deletion_requested_at', 'display_name', 'coc_accepted_at']) delete updates[k];
       consentEvent = null;
       ({ data: updatedRows, error: updateError } = await supabase.from('users').update(updates).eq('uid', uid).select('*'));
     }
@@ -1345,6 +1510,11 @@ const handler_admin: H = async (req, res) => {
     if (error) { sendError(res, 500, 'Failed to update user'); return; }
     if (!data || data.length === 0) { sendError(res, 404, 'User not found'); return; }
     try { await invalidateCache('cache:admin:stats'); await invalidateCache('cache:verify:*'); } catch { /* noop */ }
+    if (status === 'Approved') {
+      await notify(adminSup, idUid, { kind: 'member_approved', title: 'You’re approved — your Volunteer Card is ready', body: 'You can now join project teams.', link: '/dashboard' });
+    } else if (status === 'Declined') {
+      await notify(adminSup, idUid, { kind: 'member_declined', title: 'An update on your application', body: 'See the note from the admins on your dashboard.', link: '/dashboard' });
+    }
     sendJson(res, 200, { memberId: memberId ?? data[0]?.member_id ?? null });
     return;
   }
@@ -1419,6 +1589,9 @@ const handler_admin: H = async (req, res) => {
       const { error: approveError } = await updateWithReview({ status: 'approved' });
       if (approveError) { sendError(res, 500, 'Failed to approve submission'); return; }
       await invalidateProjectCache();
+      await notify(adminSup, submission.user_id, {
+        kind: 'project_approved', title: `${quote(submission.project_name)} is live`, body: note || 'Its team page is open for sign-ups.', link: `/projects/${submission.id}`,
+      });
       sendJson(res, 200, { message: 'Approved submission' });
       return;
     }
@@ -1427,6 +1600,9 @@ const handler_admin: H = async (req, res) => {
       const { error: rejectError } = await updateWithReview({ status: 'rejected' });
       if (rejectError) { sendError(res, 500, 'Failed to reject submission'); return; }
       await invalidateProjectCache();
+      await notify(adminSup, submission.user_id, {
+        kind: 'project_changes', title: `${quote(submission.project_name)} needs a few changes`, body: note, link: '/dashboard?tab=submit-project',
+      });
       sendJson(res, 200, { message: 'Rejected submission' });
       return;
     }
@@ -2550,7 +2726,7 @@ const handler_volunteers: H = async (req, res) => {
 type HandlerKey =
   | '/me' | '/admin' | '/projects' | '/submit-project' | '/my-project-submissions'
   | '/volunteer-calls' | '/verify' | '/discord' | '/discord-username-taken' | '/contribution-scores' | '/volunteers'
-  | '/repo-tracker' | '/teams' | '/cron/repo-sync' | '/call-interests';
+  | '/repo-tracker' | '/teams' | '/cron/repo-sync' | '/call-interests' | '/notifications' | '/reports';
 
 const HANDLERS: Record<HandlerKey, H> = {
   '/me': handler_me,
@@ -2568,6 +2744,8 @@ const HANDLERS: Record<HandlerKey, H> = {
   '/teams': handler_teams,
   '/cron/repo-sync': handler_cron_repo_sync,
   '/call-interests': handler_call_interests,
+  '/notifications': handler_notifications,
+  '/reports': handler_reports,
 };
 
 const callHandler = async (key: HandlerKey, req: any, res: any) => {
@@ -2625,6 +2803,8 @@ async function handleRequest(req: any, res: any) {
     if (pathname === '/teams') return callHandler('/teams', req, res);
     if (pathname === '/cron/repo-sync') return callHandler('/cron/repo-sync', req, res);
     if (pathname === '/call-interests') return callHandler('/call-interests', req, res);
+    if (pathname === '/notifications') return callHandler('/notifications', req, res);
+    if (pathname === '/reports') return callHandler('/reports', req, res);
 
     sendError(res, 404, 'API endpoint not found');
   } catch (err) {

@@ -18,6 +18,7 @@ const Projects = lazy(() => import("./pages/public/Projects"));
 const Volunteers = lazy(() => import("./pages/public/Volunteers"));
 const ProjectDetail = lazy(() => import("./pages/public/ProjectDetail"));
 const Opportunities = lazy(() => import("./pages/public/Opportunities"));
+const CodeOfConduct = lazy(() => import("./pages/public/CodeOfConduct"));
 const Contribute = lazy(() => import("./pages/public/Contribute"));
 const NotFound = lazy(() => import("./pages/public/NotFound"));
 const DiscordCallback = lazy(() => import("./pages/auth/DiscordCallback"));
@@ -250,6 +251,7 @@ export default function App() {
           <Route path="/projects" element={<Projects />} />
           <Route path="/projects/:id" element={<ProjectDetail />} />
           <Route path="/opportunities" element={<Opportunities />} />
+          <Route path="/code-of-conduct" element={<CodeOfConduct />} />
           <Route path="/volunteers" element={<Volunteers />} />
           <Route path="/contribute" element={<Contribute />} />
           <Route path="/privacy" element={<Privacy />} />

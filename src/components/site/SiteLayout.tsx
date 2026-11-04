@@ -10,6 +10,7 @@ const footerColumns: { heading: string; links: { label: string; to: string; exte
       { label: 'Apply for membership', to: '/register' },
       { label: 'Open roles', to: '/#open-roles' },
       { label: 'Contributing guide', to: '/contribute' },
+      { label: 'Code of conduct', to: '/code-of-conduct' },
       { label: 'Discord', to: DISCORD_INVITE, external: true },
     ],
   },

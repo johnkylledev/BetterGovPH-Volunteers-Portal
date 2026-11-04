@@ -1,4 +1,5 @@
 import React from 'react';
+import { NotificationBell } from './NotificationBell';
 import clsx from 'clsx';
 
 export interface AppNavItem {
@@ -62,7 +63,10 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ items, activeId, onSelect,
         </nav>
       )}
 
-      {account}
+      <div className="flex items-center gap-1.5">
+        <NotificationBell />
+        {account}
+      </div>
     </div>
 
     {mobileNav && items.length > 0 && (

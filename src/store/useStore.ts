@@ -107,6 +107,7 @@ export const useStore = create<AuthState>()((set, get) => ({
               consentPurposes: supabaseUserData.consentPurposes,
               deletionRequestedAt: supabaseUserData.deletionRequestedAt,
               displayName: supabaseUserData.displayName,
+              cocAcceptedAt: supabaseUserData.cocAcceptedAt,
               discordId: supabaseUserData.discordId,
               discordConnected: supabaseUserData.discordConnected,
               discordVerified: supabaseUserData.discordVerified,

@@ -120,6 +120,8 @@ export interface User {
   deletionRequestedAt?: string;
   /** Optional username or pseudonym shown instead of the legal name. */
   displayName?: string;
+  /** When they agreed to the code of conduct. */
+  cocAcceptedAt?: string;
 }
 
 export interface RepoStats {
@@ -167,4 +169,14 @@ export interface CallInterest {
 
 export interface ImportProjectRow {
   name: string; url: string; description?: string; type?: string; repoUrl?: string; chatUrl?: string; stage?: ProjectStage; ownerName?: string;
+}
+
+export interface AppNotification {
+  id: string; kind: string; title: string; body: string | null; link: string | null; read: boolean; createdAt: string;
+}
+
+export type ReportReason = 'spam' | 'harassment' | 'misleading' | 'privacy' | 'other';
+export interface ReportItem {
+  id: string; targetType: 'call' | 'project'; targetId: string; targetTitle: string; targetStatus: string | null;
+  reason: ReportReason; details: string; status: 'open' | 'dismissed' | 'actioned'; resolution: string; createdAt: string; reporter: string;
 }
