@@ -98,6 +98,7 @@ export const useStore = create<AuthState>()((set, get) => ({
               yearJoined: supabaseUserData.yearJoined,
               skills: supabaseUserData.skills || [],
               experienceLevel: supabaseUserData.experienceLevel,
+              links: supabaseUserData.links,
               createdAt: supabaseUserData.createdAt,
               updatedAt: supabaseUserData.updatedAt,
             };

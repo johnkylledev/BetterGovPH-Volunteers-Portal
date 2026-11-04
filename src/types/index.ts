@@ -77,4 +77,6 @@ export interface User {
   discordVerified?: boolean;
   discordDisplayName?: string;
   discordAvatar?: string;
+  /** Optional profile links keyed by platform (youtube, github, …). Private to the member and admins. */
+  links?: Partial<Record<'youtube' | 'tiktok' | 'facebook' | 'instagram' | 'x' | 'linkedin' | 'github' | 'portfolio', string>>;
 }
