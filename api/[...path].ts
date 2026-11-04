@@ -1483,7 +1483,7 @@ const handler_admin: H = async (req, res) => {
     const list: any[] = Array.isArray(body.projects) ? body.projects.slice(0, 100) : [];
     if (!list.length) { sendError(res, 400, 'Send { projects: [...] } (up to 100).'); return; }
     const { data: existing } = await adminSup.from('project_submissions').select('project_name, project_url');
-    const seen = new Set((existing ?? []).flatMap((e: any) => [String(e.project_name || '').toLowerCase().trim(), String(e.project_url || '').toLowerCase().trim()]));
+    const seen = new Set((existing ?? []).flatMap((e: any) => [String(e.project_name || '').toLowerCase().trim(), projectUrlKey(e.project_url)]));
     const STAGES = ['idea', 'building', 'beta', 'live'];
     const rows: any[] = [];
     const skipped: { name: string; reason: string }[] = [];
@@ -1491,8 +1491,8 @@ const handler_admin: H = async (req, res) => {
       const name = typeof p?.name === 'string' ? p.name.trim().slice(0, 160) : '';
       const url = safeHttpUrl(typeof p?.url === 'string' ? p.url.trim() : '');
       if (!name || !url) { skipped.push({ name: name || '(no name)', reason: 'needs a name and an https link' }); continue; }
-      if (seen.has(name.toLowerCase()) || seen.has(url.toLowerCase())) { skipped.push({ name, reason: 'already listed' }); continue; }
-      seen.add(name.toLowerCase()); seen.add(url.toLowerCase());
+      if (seen.has(name.toLowerCase()) || seen.has(projectUrlKey(url))) { skipped.push({ name, reason: 'already listed' }); continue; }
+      seen.add(name.toLowerCase()); seen.add(projectUrlKey(url));
       const repo = typeof p?.repoUrl === 'string' && parseGithubRepo(p.repoUrl) ? p.repoUrl.trim() : parseGithubRepo(url) ? url : null;
       const ownerName = typeof p?.ownerName === 'string' ? p.ownerName.trim().slice(0, 120) : '';
       rows.push({
@@ -1645,13 +1645,23 @@ const fetchRemoteProjects = async (): Promise<any[]> => {
   }
 };
 
+/** Same site written differently (trailing slash, www, http, case) counts as one project. */
+const projectUrlKey = (url: unknown) => {
+  const raw = String(url || '').trim();
+  try {
+    const u = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+    return `${u.hostname.replace(/^www\./, '').toLowerCase()}${u.pathname.replace(/\/+$/, '')}${u.search}`;
+  } catch { return raw.toLowerCase().replace(/\/+$/, ''); }
+};
 const dedupeMergedProjects = (local: any[], remote: any[]): any[] => {
+  // Portal projects win: they have team pages and repo tracking.
   const map = new Map<string, any>();
   for (const p of local) {
-    if (p?.url) map.set(String(p.url), { ...p, source: p.source || 'local' });
+    if (p?.url) map.set(projectUrlKey(p.url), { ...p, source: p.source || 'local' });
   }
   for (const r of remote) {
-    if (r?.url && !map.has(String(r.url))) map.set(String(r.url), r);
+    const key = projectUrlKey(r?.url);
+    if (r?.url && !map.has(key)) map.set(key, r);
   }
   return Array.from(map.values());
 };

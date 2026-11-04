@@ -1,0 +1,19 @@
+name,link,description,type,repo,chat,owner
+eGovStatusPH,https://egovstatusph.vercel.app/,"Crowdsourced experience tracking for Philippine government digital services. See which services are up, down, or slow.",web,,,
+BetterGov.ph Portal,https://bettergov.ph,"Community-led Philippine national government portal providing accessible information on government services, agencies, and officials.",web,,,BetterGovPH
+2026 Budget Tracker,https://2026-budget.bettergov.ph,"Interactive tracker for the 2026 Philippine national budget, enabling citizens to monitor government spending allocations.",data,https://github.com/bettergovph/2026-budget,,BetterGovPH
+BetterLGU Directory,https://lgu.bettergov.ph,"A community-run directory of Better LGU transparency portals — helping builders find existing efforts, contribute, and launch new ones.",web,https://github.com/jmacj/better-lgu-directory,,BetterGovPH
+Budget Tracker,https://budget.bettergov.ph,Interactive platform for tracking and visualizing Philippine national budget allocations and expenditures.,data,https://github.com/bettergovph/open-budget-browser,,BetterGovPH
+Transparency Portal,https://transparency.bettergov.ph,Civic transparency platform aggregating Philippine government financial and procurement data for public accountability.,data,https://github.com/bettergovph/transparency-dashboard,,BetterGovPH
+Open Data Portal,https://data.bettergov.ph,"Public data platform providing accessible Philippine government datasets for transparency, research, and civic innovation.",data,https://github.com/bettergovph/open-data-portal,,BetterGovPH
+Bantay PH,https://bantay.bettergov.ph,"Community-powered watchdog platform for monitoring Philippine government projects, contracts, and public spending.",data,,,
+Petitions,https://petition.ph,Online petition platform for Filipino citizens to raise civic issues and advocate for government action.,policy,https://github.com/bettergovph/petition,,
+Tax Directory,https://taxdirectory.bettergov.ph,Public-facing platform providing tax-related tools and calculators for easier citizen access to tax information.,data,https://github.com/bettergovph/ph-tax-directory,,BetterGovPH
+Philgeps,https://philgeps.bettergov.ph,BetterGov interface for exploring and monitoring Philippine Government Electronic Procurement System data.,data,https://github.com/bettergovph/open-philgeps-data,,BetterGovPH
+SALN Tracker,https://saln.bettergov.ph,"Platform for tracking and exploring Statement of Assets, Liabilities, and Net Worth filings of Philippine public officials.",data,https://github.com/bettergovph/saln-tracker-ph,,BetterGovPH
+Hotlines,https://hotlines.bettergov.ph,Comprehensive directory of emergency and government hotlines in the Philippines.,web,https://github.com/bettergovph/hotlines,,BetterGovPH
+Open Bayan,https://www.openbayan.org,Open civic data platform connecting Filipinos to barangay-level government information.,data,https://github.com/bettergovph/openbayan.org,,
+Open Congress API,https://open-congress-api.bettergov.ph,"Open API providing structured data on the Philippine Congress, including legislative records and member information.",policy,https://github.com/bettergovph/open-congress-api,,BetterGovPH
+OpenGov Blockchain,https://govchain.bettergov.ph,Blockchain-based platform for ensuring transparency and immutability of Philippine government records.,data,https://github.com/bettergovph/govchain,,BetterGovPH
+Research & Visualizations,https://visualizations.bettergov.ph,Data visualization platform presenting insights from Philippine government data through interactive charts and analyses.,data,https://github.com/bettergovph/open-data-visualization,,BetterGovPH
+Juris AI,https://juris.ph,"Free, open access to Philippine Supreme Court decisions and Republic Acts with AI-powered search. Find cases by facts, issues, or doctrine — sourced from lawphil.net.",policy,,,BetterGovPH

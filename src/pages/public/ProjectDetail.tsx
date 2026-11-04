@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { SiteLayout } from '../../components/site/SiteLayout';
 import { Avatar } from '../../components/Avatar';
 import { RepoPanel } from '../../components/RepoHealth';
-import { getTeam, teamAction, type TeamAction } from '../../services/supabase';
+import { getRepoStats, getTeam, teamAction, type TeamAction } from '../../services/supabase';
 import { useStore } from '../../store/useStore';
 import { stageLabel } from '../../constants/community';
 import { workTypeLabel } from '../../constants/tracks';
@@ -37,6 +37,15 @@ export default function ProjectDetail() {
       setOwnerName(t.owner?.type === 'org' ? t.owner.name : '');
       setOwnerUserId(t.owner?.userId || '');
       setChatDraft(t.project.chatUrl || '');
+      // No stats yet, or older than 6 hours: ask the tracker (it refreshes from GitHub and stores them).
+      const repo = t.project.repo;
+      const stale = !repo || Date.now() - new Date(repo.checkedAt).getTime() > 6 * 3600 * 1000;
+      if (t.project.repoUrl && t.project.status.toLowerCase() === 'approved' && stale) {
+        getRepoStats([String(t.project.id)]).then((map) => {
+          const fresh = map[String(t.project.id)];
+          if (fresh) setTeam((cur) => (cur ? { ...cur, project: { ...cur.project, repo: fresh } } : cur));
+        }).catch(() => {});
+      }
     } catch (err) {
       setState(err instanceof Error && /not found/i.test(err.message) ? 'missing' : 'error');
     }
