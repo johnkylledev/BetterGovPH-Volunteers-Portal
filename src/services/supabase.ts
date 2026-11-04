@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { CallInterest, CallType, ImportProjectRow, MyTeam, Project, ProjectStage, ProjectSubmission, RepoStats, TeamInfo, User, VolunteerCall } from '../types';
+import { AppNotification, CallInterest, CallType, ImportProjectRow, ReportItem, ReportReason, MyTeam, Project, ProjectStage, ProjectSubmission, RepoStats, TeamInfo, User, VolunteerCall } from '../types';
 
 const isUuid = (value: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
@@ -283,6 +283,7 @@ export const createOrUpdateUserRecord = async (user: any) => {
       ...(user.consent ? { consent: user.consent } : {}),
       ...(typeof user.requestDeletion === 'boolean' ? { requestDeletion: user.requestDeletion } : {}),
       ...(typeof user.displayName === 'string' ? { displayName: user.displayName } : {}),
+      ...(user.acceptCoc === true ? { acceptCoc: true } : {}),
     }),
   });
   return res.user;
@@ -798,4 +799,34 @@ export const importProjects = async (projects: ImportProjectRow[]) =>
     method: 'POST',
     headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
     body: JSON.stringify({ projects }),
+  });
+
+// ---------------------------------------------------------------------------
+// Notifications and reports
+// ---------------------------------------------------------------------------
+export const getNotifications = async () =>
+  apiRequest<{ items: AppNotification[]; unread: number; available?: boolean }>('/api/v1/notifications', { headers: await authHeaders() });
+
+export const markNotificationsRead = async (ids?: string[]) =>
+  apiRequest<{ ok: boolean }>('/api/v1/notifications', {
+    method: 'POST',
+    headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+    body: JSON.stringify(ids?.length ? { ids } : {}),
+  });
+
+export const reportItem = async (input: { targetType: 'call' | 'project'; targetId: string; reason: ReportReason; details?: string }) =>
+  apiRequest<{ status: 'received' | 'already_reported' }>('/api/v1/reports', {
+    method: 'POST',
+    headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+
+export const getReports = async (status: 'open' | 'all' = 'open') =>
+  apiRequest<{ reports: ReportItem[]; available?: boolean }>(`/api/v1/reports?status=${status}`, { headers: await authHeaders() });
+
+export const resolveReport = async (id: string, status: 'dismissed' | 'actioned', opts?: { resolution?: string; hide?: boolean }) =>
+  apiRequest<{ status: string }>('/api/v1/reports', {
+    method: 'POST',
+    headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'resolve', id, status, ...opts }),
   });

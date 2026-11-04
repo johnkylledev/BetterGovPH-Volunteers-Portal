@@ -5,6 +5,7 @@ import { Plus, Search as SearchIcon, X as XIcon } from 'lucide-react';
 import { SiteLayout, PageIntro } from '../../components/site/SiteLayout';
 import { CallMeta } from '../../components/CallFields';
 import { CallContact, InterestButton } from '../../components/CallInterest';
+import { ReportButton } from '../../components/ReportButton';
 import { parseRoles } from '../../components/RolesNeededPicker';
 import { getOpenCalls } from '../../services/supabase';
 import { useStore } from '../../store/useStore';
@@ -175,7 +176,10 @@ export default function Opportunities() {
                         onChanged={(status) => setCalls((list) => list?.map((x) => (x.id === c.id ? { ...x, myInterest: status } : x)) ?? null)}
                       />
                       {signedIn ? (
-                        <CallContact call={c} />
+                        <>
+                          <CallContact call={c} />
+                          {!(myId && c.userId === myId) && <ReportButton targetType="call" targetId={c.id} />}
+                        </>
                       ) : c.contactHidden ? (
                         <p className="text-[12.5px] text-[var(--fg-3)]">Sign in to see how to reach the team.</p>
                       ) : null}

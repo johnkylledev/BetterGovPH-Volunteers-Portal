@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Avatar } from '../../components/Avatar';
+import { ReportsQueue } from '../../components/ReportsQueue';
+import { NotificationBell } from '../../components/NotificationBell';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -484,6 +486,9 @@ export default function AdminDashboard() {
             ))}
           </nav>
 
+          <div className="flex items-center gap-1.5">
+          <ReportsQueue initiallyOpen={typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('reports')} />
+          <NotificationBell />
           <UserChip
             name={currentUser.fullName}
             subtitle="Administrator"
@@ -497,6 +502,7 @@ export default function AdminDashboard() {
             openLabel="View my card"
             onSignOut={handleLogout}
           />
+          </div>
         </div>
 
         <nav aria-label="Admin sections" className="no-scrollbar flex gap-1 overflow-x-auto border-t border-slate-200/70 px-3 py-1.5 md:hidden">

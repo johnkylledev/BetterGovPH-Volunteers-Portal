@@ -15,6 +15,7 @@ import { RolesNeededPicker, parseRoles } from '../../components/RolesNeededPicke
 import { CallMeta, CallMetaFields, CallTypePicker, EMPTY_CALL_EXTRAS, extrasFromCall, type CallExtras } from '../../components/CallFields';
 import { RepoChip, RepoPanel } from '../../components/RepoHealth';
 import { CallContact, InterestButton, InterestList } from '../../components/CallInterest';
+import { GettingStarted } from '../../components/GettingStarted';
 import { STAGES, callTypeOf } from '../../constants/community';
 import { RefreshButton } from '../../components/RefreshButton';
 import { DISCORD_AVAILABLE, COMING_SOON_PILL } from '../../constants/integrations';
@@ -45,7 +46,7 @@ export default function UserDashboard() {
   const [copyStatus, setCopyStatus] = React.useState<'idle' | 'copied' | 'embed-copied'>('idle');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'submit-project' | 'volunteer' | 'merch'>(() => {
     // Profile's nav links here with the section to open.
-    const wanted = (location.state as { tab?: string } | null)?.tab;
+    const wanted = (location.state as { tab?: string } | null)?.tab ?? new URLSearchParams(location.search).get('tab') ?? undefined;
     return MEMBER_NAV.some((n) => n.id === wanted) ? (wanted as 'dashboard') : 'dashboard';
   });
   const [projectName, setProjectName] = useState('');
@@ -777,15 +778,7 @@ export default function UserDashboard() {
                   </section>
                 )}
 
-                {!currentUser.consentAt && (
-                  <section className="flex flex-col gap-3 rounded-[14px] bg-amber-50/70 p-5 shadow-[inset_0_0_0_1px_rgb(245_158_11/0.3)] sm:flex-row sm:items-center sm:p-6">
-                    <div className="min-w-0 flex-1">
-                      <h2 className="text-[15px] font-semibold text-slate-900">Review your privacy choices</h2>
-                      <p className="mt-0.5 text-[13px] text-slate-600">We need your go-ahead under the Data Privacy Act, and you choose what the public sees.</p>
-                    </div>
-                    <Link to="/profile?tab=privacy" className="s-btn s-btn-accent h-10 shrink-0">Review now</Link>
-                  </section>
-                )}
+                <GettingStarted user={currentUser} calls={volunteerCalls} teams={myTeams?.teams ?? null} />
 
                 {myTeams && (myTeams.teams.length > 0 || myTeams.pendingForMe > 0) && (
                   <section className="s-card p-5 sm:p-6" aria-labelledby="teams-title">

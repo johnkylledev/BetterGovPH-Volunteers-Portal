@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { SiteLayout } from '../../components/site/SiteLayout';
 import { Avatar } from '../../components/Avatar';
 import { RepoPanel } from '../../components/RepoHealth';
+import { ReportButton } from '../../components/ReportButton';
 import { getRepoStats, getTeam, teamAction, type TeamAction } from '../../services/supabase';
 import { useStore } from '../../store/useStore';
 import { stageLabel } from '../../constants/community';
@@ -378,6 +379,7 @@ export default function ProjectDetail() {
             <p className="px-1 text-[12px] leading-relaxed text-[var(--fg-3)]">
               Names are shortened on public pages unless a member chooses to show their full name.
             </p>
+            {sessionUserId && !canManage && approved && <ReportButton targetType="project" targetId={String(project.id)} className="px-1" />}
           </aside>
         </div>
       </div>

@@ -14,6 +14,7 @@ import { DISCORD_AVAILABLE, COMING_SOON_PILL } from '../../constants/integration
 import type { LinkKey, ProfileLinks } from '../../constants/socialLinks';
 import { LinksFields, LINKS_INTRO, validateLinks } from '../../components/LinksFields';
 import { SelectMenu } from '../../components/SelectMenu';
+import { ComingSoonConnections } from '../../components/ComingSoonConnections';
 import { ConsentFields, requiredConsentMissing } from '../../components/ConsentFields';
 import { CONSENT_VERSION, type ConsentPurposeId } from '../../constants/community';
 import { takeReturnTo } from '../../utils/returnTo';
@@ -60,6 +61,8 @@ function LegacyRegister() {
         consent: [] as ConsentPurposeId[],
     });
     const [consentError, setConsentError] = useState('');
+    const [cocAgreed, setCocAgreed] = useState(false);
+    const [cocError, setCocError] = useState('');
     const [linkErrors, setLinkErrors] = useState<Partial<Record<LinkKey, string>>>({});
     const [completing, setCompleting] = useState(false);
 
@@ -236,6 +239,13 @@ function LegacyRegister() {
             document.getElementById('reg-consent-membership')?.focus();
             return;
         }
+        if (!cocAgreed) {
+            setCocError('Please agree to the code of conduct to submit.');
+            setShouldShake(true);
+            setTimeout(() => setShouldShake(false), 500);
+            document.getElementById('reg-coc')?.focus();
+            return;
+        }
         const { clean, errors } = validateLinks(formData.links);
         setLinkErrors(errors);
         if (Object.keys(errors).length > 0) {
@@ -249,6 +259,7 @@ function LegacyRegister() {
             const saved = await createOrUpdateUserRecord({
                 ...(Object.keys(clean).length > 0 ? { links: clean } : {}),
                 consent: { version: CONSENT_VERSION, purposes: formData.consent },
+                acceptCoc: true,
             });
             if (saved) setCurrentUser(saved as any);
         } catch (err: any) {
@@ -295,7 +306,7 @@ function LegacyRegister() {
                                 ['Account', 'Sign in with Google and confirm your name.'],
                                 ['Profile', 'Your main role and experience level.'],
                                 ['Skills', 'What you can help with, and how well.'],
-                                ['Connect', 'Add your links. Discord is optional for now.'],
+                                ['Finish', 'Agree to how we use your information, and add your links.'],
                             ].map(([t, d], i) => (
                                 <li key={t} className="flex gap-4 border-b border-[var(--line)] py-3.5">
                                     <span className="num w-4 shrink-0 text-[13px] text-[var(--fg-3)]">{i + 1}</span>
@@ -519,7 +530,7 @@ function LegacyRegister() {
         { id: 1, name: 'Account', icon: <User size={15} strokeWidth={2} /> },
         { id: 2, name: 'Profile', icon: <Briefcase size={15} strokeWidth={2} /> },
         { id: 3, name: 'Skills', icon: <Wrench size={15} strokeWidth={2} /> },
-        { id: 4, name: 'Connect', icon: <Link2 size={15} strokeWidth={2} /> },
+        { id: 4, name: 'Finish', icon: <Link2 size={15} strokeWidth={2} /> },
     ];
 
 
@@ -543,7 +554,7 @@ function LegacyRegister() {
                             'The name here goes on your Volunteer Card.',
                             'This helps us match you with the right projects.',
                             'Pick what you can help with and how comfortable you are.',
-                            'Add where people can find your work. Discord is optional for now — you can connect it later.',
+                            'Last step: how we use your information, and where people can find your work.',
                         ][currentStep - 1]}
                     </p>
                 </div>
@@ -553,7 +564,7 @@ function LegacyRegister() {
                         {steps.map((step, i) => {
                             const done = currentStep > step.id;
                             const current = currentStep === step.id;
-                            const desc = ['Name & year', 'Role & experience', 'What you know', 'Links & Discord'][i];
+                            const desc = ['Name & year', 'Role & experience', 'What you know', 'Consent & links'][i];
                             return (
                                 <li key={step.id} className="relative">
                                     {i > 0 && (
@@ -935,7 +946,61 @@ function LegacyRegister() {
                                         transition={{ duration: 0.28, ease: [0.23, 1, 0.32, 1] }}
                                         className="space-y-3"
                                     >
-                                        {/* Discord — optional while the integration is unavailable */}
+                                        {/* Data Privacy Act consent — required to submit */}
+                                        <div className="rounded-[14px] bg-white p-4 shadow-[0_0_0_1px_rgb(15_23_42/0.12),0_2px_6px_-2px_rgb(15_23_42/0.08)] sm:p-5">
+                                            <p className="text-[15px] font-semibold text-slate-900">How we use your information</p>
+                                            <p className="mb-4 mt-0.5 text-[13px] leading-snug text-slate-500">
+                                                Under the Data Privacy Act we only use your details for what you agree to here.
+                                            </p>
+                                            <ConsentFields
+                                                idPrefix="reg-consent"
+                                                value={formData.consent}
+                                                onChange={(consent) => { setFormData({ ...formData, consent }); setConsentError(''); }}
+                                                error={consentError}
+                                            />
+                                            <label htmlFor="reg-coc" className="mt-3 flex cursor-pointer items-start gap-3 rounded-[12px] bg-white p-3 shadow-[inset_0_0_0_1px_rgb(15_23_42/0.1)] hover:bg-slate-50">
+                                                <input
+                                                    id="reg-coc"
+                                                    type="checkbox"
+                                                    checked={cocAgreed}
+                                                    onChange={(e) => { setCocAgreed(e.target.checked); setCocError(''); }}
+                                                    aria-describedby={cocError ? 'reg-coc-error' : undefined}
+                                                    className="mt-0.5 h-[18px] w-[18px] shrink-0 accent-[var(--accent)]"
+                                                />
+                                                <span className="text-[14px] text-slate-900">
+                                                    I agree to the <a href="/code-of-conduct" target="_blank" rel="noreferrer" className="s-link">code of conduct</a>
+                                                    <span className="ml-2 rounded-full bg-slate-900/5 px-1.5 py-px text-[10.5px] font-medium text-slate-600">Required</span>
+                                                    <span className="mt-0.5 block text-[12.5px] text-slate-500">Respect everyone, work in the open, no harassment or sharing others’ personal information.</span>
+                                                </span>
+                                            </label>
+                                            {cocError && <p id="reg-coc-error" role="alert" className="mt-2 text-[12.5px] text-red-700">{cocError}</p>}
+                                        </div>
+
+                                        {/* Channels & links — optional, platforms picked for the chosen role */}
+                                        {(() => {
+                                            const trackId = trackForRole(formData.specialization).id;
+                                            return (
+                                                <div className="rounded-[14px] bg-white p-4 shadow-[0_0_0_1px_rgb(15_23_42/0.12),0_2px_6px_-2px_rgb(15_23_42/0.08)] sm:p-5">
+                                                    <p className="flex flex-wrap items-center gap-x-2 text-[15px] font-semibold text-slate-900">
+                                                        Your channels & links
+                                                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">Optional</span>
+                                                    </p>
+                                                    <p className="mb-4 mt-0.5 text-[13px] leading-snug text-slate-500">{LINKS_INTRO[trackId]}</p>
+                                                    <LinksFields
+                                                        idPrefix="reg-link"
+                                                        trackId={trackId}
+                                                        links={formData.links}
+                                                        onChange={(links) => setFormData({ ...formData, links })}
+                                                        errors={linkErrors}
+                                                        onClearError={(k) => setLinkErrors((prev) => ({ ...prev, [k]: undefined }))}
+                                                        expanded={Object.keys(linkErrors).length > 0}
+                                                    />
+                                                </div>
+                                            );
+                                        })()}
+
+                                        {/* Discord — shown once linking is available, or if already connected */}
+                                        {(DISCORD_AVAILABLE || discordConnected) && (
                                         <div
                                             className={clsx(
                                                 'rounded-[14px] p-4 transition-[box-shadow,background-color] duration-200 sm:p-5',
@@ -987,64 +1052,9 @@ function LegacyRegister() {
                                                 )}
                                             </div>
                                         </div>
+                                        )}
 
-                                        {/* Data Privacy Act consent — required to submit */}
-                                        <div className="rounded-[14px] bg-white p-4 shadow-[0_0_0_1px_rgb(15_23_42/0.12),0_2px_6px_-2px_rgb(15_23_42/0.08)] sm:p-5">
-                                            <p className="text-[15px] font-semibold text-slate-900">How we use your information</p>
-                                            <p className="mb-4 mt-0.5 text-[13px] leading-snug text-slate-500">
-                                                Under the Data Privacy Act we only use your details for what you agree to here.
-                                            </p>
-                                            <ConsentFields
-                                                idPrefix="reg-consent"
-                                                value={formData.consent}
-                                                onChange={(consent) => { setFormData({ ...formData, consent }); setConsentError(''); }}
-                                                error={consentError}
-                                            />
-                                        </div>
-
-                                        {/* Channels & links — optional, platforms picked for the chosen role */}
-                                        {(() => {
-                                            const trackId = trackForRole(formData.specialization).id;
-                                            return (
-                                                <div className="rounded-[14px] bg-white p-4 shadow-[0_0_0_1px_rgb(15_23_42/0.12),0_2px_6px_-2px_rgb(15_23_42/0.08)] sm:p-5">
-                                                    <p className="flex flex-wrap items-center gap-x-2 text-[15px] font-semibold text-slate-900">
-                                                        Your channels & links
-                                                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">Optional</span>
-                                                    </p>
-                                                    <p className="mb-4 mt-0.5 text-[13px] leading-snug text-slate-500">{LINKS_INTRO[trackId]}</p>
-                                                    <LinksFields
-                                                        idPrefix="reg-link"
-                                                        trackId={trackId}
-                                                        links={formData.links}
-                                                        onChange={(links) => setFormData({ ...formData, links })}
-                                                        errors={linkErrors}
-                                                        onClearError={(k) => setLinkErrors((prev) => ({ ...prev, [k]: undefined }))}
-                                                        expanded={Object.keys(linkErrors).length > 0}
-                                                    />
-                                                </div>
-                                            );
-                                        })()}
-
-                                        {/* GitHub — later */}
-                                        <div className="rounded-[14px] p-4 shadow-[inset_0_0_0_1.5px_rgb(203_213_225)] [background-image:repeating-linear-gradient(135deg,transparent_0_10px,rgb(241_245_249)_10px_11px)] sm:p-5">
-                                            <div className="flex items-center gap-3.5">
-                                                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-white text-slate-700 shadow-[0_0_0_1px_rgb(15_23_42/0.1)]">
-                                                    <Github size={20} strokeWidth={1.75} />
-                                                </span>
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="flex flex-wrap items-center gap-x-2 text-[15px] font-semibold text-slate-700">
-                                                        GitHub
-                                                        <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-slate-500 shadow-[0_0_0_1px_rgb(15_23_42/0.08)]">Coming soon</span>
-                                                    </p>
-                                                    <p className="mt-0.5 text-[13px] leading-snug text-slate-500">Link your contributions to your profile automatically.</p>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <p className="flex items-start gap-2 px-1 pt-1 text-[12px] leading-relaxed text-slate-500">
-                                            <ShieldCheck size={14} strokeWidth={1.75} className="mt-0.5 shrink-0 text-slate-400" />
-                                            We never post for you or read your messages. You can disconnect anytime from Discord settings.
-                                        </p>
+                                        <ComingSoonConnections showDiscord={!DISCORD_AVAILABLE && !discordConnected} />
                                     </motion.div>
                                 )}
                             </AnimatePresence>
@@ -1079,7 +1089,7 @@ function LegacyRegister() {
                                                 {completing ? 'Saving…' : 'Submit application'}
                                             </button>
                                             {!discordConnected && (
-                                                <p className="text-[12px] text-[var(--fg-3)]">{DISCORD_AVAILABLE ? 'You can connect Discord later from Profile.' : 'Discord linking opens soon. No need to wait.'}</p>
+                                                <p className="text-[12px] text-[var(--fg-3)]">{DISCORD_AVAILABLE ? 'You can connect Discord later from Profile.' : 'You can change all of this later in Profile.'}</p>
                                             )}
                                         </div>
                                     )}
