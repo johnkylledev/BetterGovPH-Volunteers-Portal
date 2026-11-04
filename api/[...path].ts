@@ -104,9 +104,6 @@ const sendJson = (res: any, statusCode: number, body: Record<string, unknown>) =
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('X-API-Version', LIB_API_VERSION);
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Version');
     res.end(JSON.stringify(body));
   } catch {
     try {
@@ -530,6 +527,173 @@ const assertAdmin = async (supabaseAdmin: any, uid: string, email?: string) => {
 type H = (req: any, res: any) => Promise<void>;
 
 // ============================================================================
+//  Security: rate limiting, CORS allowlist, request size, audit log
+// ============================================================================
+
+/** Real client IP on Vercel (x-real-ip / x-vercel-forwarded-for), else the first forwarded hop. */
+const clientIpOf = (req: any): string => {
+  const h = req.headers || {};
+  const raw = String(h['x-real-ip'] || h['x-vercel-forwarded-for'] || String(h['x-forwarded-for'] || '').split(',')[0] || req.socket?.remoteAddress || 'unknown');
+  return raw.trim().slice(0, 64) || 'unknown';
+};
+
+// Portal origins that may call member/admin endpoints from a browser. Public read-only endpoints
+// (projects, volunteers, verify, og) stay open to any origin: no cookies are involved.
+const ALLOWED_ORIGINS = [
+  'https://volunteers.bettergov.ph',
+  'http://localhost:3000', 'http://localhost:5173', 'http://localhost:5187',
+];
+const isAllowedOrigin = (o: string) =>
+  ALLOWED_ORIGINS.includes(o) || /^https:\/\/better-gov-ph-access-card(-[a-z0-9-]+)?\.vercel\.app$/i.test(o);
+const PUBLIC_READ = new Set(['/projects', '/volunteers', '/verify', '/og']);
+
+const applyCors = (req: any, res: any, pathname: string) => {
+  const origin = String(req.headers?.origin || '');
+  try {
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Version');
+    res.setHeader('Access-Control-Max-Age', '600');
+    const publicRead = PUBLIC_READ.has(pathname) || pathname.startsWith('/verify');
+    if (origin && isAllowedOrigin(origin)) res.setHeader('Access-Control-Allow-Origin', origin);
+    else if (publicRead && (req.method === 'GET' || req.method === 'OPTIONS')) res.setHeader('Access-Control-Allow-Origin', '*');
+  } catch { /* headers already sent */ }
+};
+
+// ----- rate limiting -----
+// Two layers: a cheap per-instance burst guard on every request, and shared limits (Postgres,
+// atomic, all instances) on writes and on endpoints worth abusing. Limits per user are tighter than
+// per IP because schools and mobile networks put many people behind one address (CGNAT).
+interface Limit { key: 'ip' | 'user'; name: string; max: number; windowSec: number }
+const RATE_RULES: { match: (m: string, p: string, q: any) => boolean; limits: Limit[] }[] = [
+  { match: (m, p) => m === 'GET' && p.startsWith('/verify'), limits: [{ key: 'ip', name: 'verify', max: 60, windowSec: 600 }] },
+  { match: (m, p, q) => m === 'GET' && p === '/repo-tracker' && !!q?.url, limits: [{ key: 'user', name: 'repo-check', max: 30, windowSec: 3600 }] },
+  { match: (m, p) => m === 'GET' && p === '/repo-tracker', limits: [{ key: 'ip', name: 'repo-ids', max: 60, windowSec: 600 }] },
+  { match: (m, p) => m === 'POST' && p === '/call-interests', limits: [{ key: 'user', name: 'interest', max: 30, windowSec: 3600 }] },
+  { match: (m, p) => m === 'POST' && p === '/reports', limits: [{ key: 'user', name: 'report', max: 10, windowSec: 3600 }] },
+  { match: (m, p) => m === 'POST' && p === '/submit-project', limits: [{ key: 'user', name: 'submit', max: 10, windowSec: 86400 }] },
+  { match: (m, p) => m === 'POST' && p === '/my-project-submissions', limits: [{ key: 'user', name: 'resubmit', max: 20, windowSec: 86400 }] },
+  { match: (m, p) => m === 'POST' && p === '/volunteer-calls', limits: [{ key: 'user', name: 'call', max: 20, windowSec: 86400 }] },
+  { match: (m, p) => m === 'POST' && p === '/hours', limits: [{ key: 'user', name: 'hours', max: 60, windowSec: 86400 }] },
+  { match: (m, p) => m === 'POST' && p === '/project-updates', limits: [{ key: 'user', name: 'update', max: 30, windowSec: 86400 }] },
+  { match: (m, p) => m === 'POST' && p === '/teams', limits: [{ key: 'user', name: 'teams', max: 60, windowSec: 3600 }] },
+  { match: (m, p) => m === 'POST' && p === '/me', limits: [{ key: 'user', name: 'profile', max: 60, windowSec: 3600 }] },
+  { match: (m, p) => m === 'POST' && p === '/discord', limits: [{ key: 'user', name: 'discord', max: 20, windowSec: 3600 }] },
+];
+// Every write also counts toward a general budget.
+const WRITE_LIMITS: Limit[] = [
+  { key: 'user', name: 'writes', max: 120, windowSec: 600 },
+  { key: 'ip', name: 'writes', max: 300, windowSec: 600 },
+];
+
+const burst = new Map<string, { n: number; until: number }>();
+const BURST_MAX = 120;          // requests per IP per instance…
+const BURST_WINDOW_MS = 10_000; // …per 10 seconds
+const burstHit = (ip: string) => {
+  const now = Date.now();
+  const e = burst.get(ip);
+  if (!e || e.until <= now) {
+    burst.set(ip, { n: 1, until: now + BURST_WINDOW_MS });
+    if (burst.size > 5000) for (const [k, v] of burst) if (v.until <= now) burst.delete(k);
+    return true;
+  }
+  e.n += 1;
+  return e.n <= BURST_MAX;
+};
+
+// Who is calling, for per-user limits. Verified with Supabase (never trust an unverified JWT),
+// and cached briefly per instance so writes don't pay for it twice.
+const uidCache = new Map<string, { uid: string; until: number }>();
+const verifiedUid = async (req: any): Promise<string> => {
+  const token = getBearerToken(req.headers?.authorization);
+  if (!token) return '';
+  const hit = uidCache.get(token);
+  if (hit && hit.until > Date.now()) return hit.uid;
+  const { url, serviceKey } = getSupabaseConfig();
+  if (!url || !serviceKey) return '';
+  try {
+    const { data } = await createServiceClient(url, serviceKey).auth.getUser(token);
+    const uid = data?.user?.id ? String(data.user.id) : '';
+    uidCache.set(token, { uid, until: Date.now() + 60_000 });
+    if (uidCache.size > 2000) uidCache.clear();
+    return uid;
+  } catch { return ''; }
+};
+
+const tooMany = (res: any, retryAfterSec: number, limit?: number) => {
+  try {
+    res.setHeader('Retry-After', String(Math.max(1, Math.ceil(retryAfterSec))));
+    if (limit) { res.setHeader('RateLimit-Limit', String(limit)); res.setHeader('RateLimit-Remaining', '0'); }
+  } catch { /* noop */ }
+  const mins = Math.ceil(retryAfterSec / 60);
+  sendError(res, 429, retryAfterSec > 90 ? `Too many requests. Try again in about ${mins} minute${mins === 1 ? '' : 's'}.` : 'Too many requests. Wait a moment and try again.');
+};
+
+/** Returns false (and has already answered 429) when the request is over a limit. Fails open on infra errors. */
+const enforceRateLimits = async (req: any, res: any, pathname: string): Promise<boolean> => {
+  const ip = clientIpOf(req);
+  if (!burstHit(ip)) { tooMany(res, BURST_WINDOW_MS / 1000, BURST_MAX); return false; }
+  const method = String(req.method || 'GET').toUpperCase();
+  const isWrite = method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS';
+  const rule = RATE_RULES.find((r) => r.match(method, pathname, req.query));
+  const limits = [...(rule?.limits ?? []), ...(isWrite ? WRITE_LIMITS : [])];
+  if (!limits.length) return true;
+  const { url, serviceKey } = getSupabaseConfig();
+  if (!url || !serviceKey) return true;
+  const needsUser = limits.some((l) => l.key === 'user');
+  const uid = needsUser ? await verifiedUid(req) : '';
+  const sb = createServiceClient(url, serviceKey);
+  for (const l of limits) {
+    // Per-user rules apply to signed-in callers; anonymous callers fall back to their IP.
+    const who = l.key === 'user' && uid ? `u:${uid}` : `ip:${ip}`;
+    try {
+      const { data, error } = await sb.rpc('rate_limit_hit', { p_bucket: `${who}:${l.name}`, p_limit: l.max, p_window_seconds: l.windowSec });
+      if (error) continue; // limiter unavailable: don't take the site down with it
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row && row.ok === false) {
+        const retry = (new Date(row.resets).getTime() - Date.now()) / 1000;
+        tooMany(res, retry, l.max);
+        return false;
+      }
+    } catch { /* fail open */ }
+  }
+  // Housekeeping: now and then, clear windows that ended over a day ago.
+  if (Math.random() < 0.01) {
+    try { await sb.from('rate_limits').delete().lt('window_ends', new Date(Date.now() - 86_400_000).toISOString()); } catch { /* noop */ }
+  }
+  return true;
+};
+
+// ----- admin audit log -----
+const audit = async (supabase: any, req: any, actorId: string, action: string, target?: { type?: string; id?: string }, details: Record<string, unknown> = {}) => {
+  try {
+    await supabase.from('admin_audit_log').insert({
+      actor_id: actorId, action, target_type: target?.type ?? null, target_id: target?.id ? String(target.id) : null,
+      details, ip: clientIpOf(req),
+    });
+  } catch { /* table missing before the migration */ }
+};
+
+// ----- input hygiene -----
+const SKILL_LEVELS = ['Learner', 'Practitioner', 'Expert'];
+const sanitizeSkills = (raw: unknown) => {
+  if (!Array.isArray(raw)) return null;
+  const seen = new Set<string>();
+  const out: { name: string; level: string; featured?: boolean }[] = [];
+  for (const s of raw.slice(0, 60)) {
+    if (!s || typeof s !== 'object') continue;
+    const name = typeof (s as any).name === 'string' ? (s as any).name.replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 60) : '';
+    if (!name || seen.has(name.toLowerCase())) continue;
+    seen.add(name.toLowerCase());
+    const level = SKILL_LEVELS.includes((s as any).level) ? (s as any).level : 'Learner';
+    out.push({ name, level, ...((s as any).featured === true ? { featured: true } : {}) });
+  }
+  return out;
+};
+const MAX_BODY_BYTES = 64 * 1024;
+
+
+// ============================================================================
 //  Privacy, consent, teams and repo tracking (migration 20261105000000)
 // ============================================================================
 
@@ -746,7 +910,8 @@ const handler_repo_tracker: H = async (req, res) => {
   const url = getStringParam(req.query?.url);
   if (url) {
     if (!uid) { sendError(res, 401, 'Sign in to check a repository'); return; }
-    sendJson(res, 200, { repo: await fetchRepoStats(url) });
+    const repo = await fetchRepoStats(url);
+    sendJson(res, 200, { repo: repo.ok && repo.isPrivate ? { slug: repo.slug, url: repo.url, ok: false, error: 'That repository is private. Make it public to track it here.', checkedAt: repo.checkedAt } : repo });
     return;
   }
   const ids = (getStringParam(req.query?.ids) || '').split(',').map((s) => s.trim()).filter(Boolean).slice(0, 60);
@@ -787,6 +952,7 @@ const handler_cron_repo_sync: H = async (req, res) => {
     if (await refreshProjectRepo(supabase, r)) refreshed++;
   }
   try { await invalidateCache('cache:projects:approved'); await invalidateCache('cache:projects:approved:merged'); } catch { /* noop */ }
+  try { await supabase.from('rate_limits').delete().lt('window_ends', new Date(Date.now() - 86_400_000).toISOString()); } catch { /* noop */ }
   sendJson(res, 200, { refreshed });
 };
 
@@ -815,6 +981,7 @@ const handler_call_interests: H = async (req, res) => {
     const call = await loadCall(callId);
     if (!call) { sendError(res, 404, 'Call not found'); return; }
     if (call.user_id !== uid && !isAdmin) { sendError(res, 403, 'Only the person who posted this can see who’s interested.'); return; }
+    if (!isAdmin && String(me?.status || '').toLowerCase() !== 'approved') { sendError(res, 403, 'Your membership needs to be approved first.'); return; }
     const { data: ints, error } = await supabase.from('call_interests').select('*').eq('call_id', callId).neq('status', 'withdrawn').order('created_at', { ascending: true });
     if (error) { sendError(res, 500, 'Failed to load'); return; }
     const ids = (ints ?? []).map((i: any) => i.user_id);
@@ -890,7 +1057,7 @@ const handler_call_interests: H = async (req, res) => {
   const { data: prior } = await supabase.from('call_interests').select('status').eq('call_id', callId).eq('user_id', uid).maybeSingle();
   const { error } = await supabase.from('call_interests').upsert(payload, { onConflict: 'call_id,user_id' });
   if (error) { sendError(res, isMissingTableError(error) ? 503 : 500, 'Couldn’t save your interest. Try again.'); return; }
-  if (!prior || prior.status === 'withdrawn') {
+  if (!prior) {
     await notify(supabase, call.user_id, {
       kind: 'interest_new', title: `${memberNameOf(me)} is interested in “${quote(call.title)}”`,
       body: message || 'Open the call to see how to reach them.', link: '/dashboard?tab=volunteer',
@@ -982,7 +1149,10 @@ const handler_reports: H = async (req, res) => {
     const resolution = typeof body.resolution === 'string' ? body.resolution.trim().slice(0, 500) : '';
     // "Hide" takes the item off public pages: closes a call, or sends a project back to review.
     if (status === 'actioned' && body.hide === true && isUuid(String(rep.target_id))) {
-      if (rep.target_type === 'call') await supabase.from('volunteer_calls').update({ status: 'closed' }).eq('id', rep.target_id);
+      if (rep.target_type === 'call') {
+        let r = await supabase.from('volunteer_calls').update({ status: 'closed', admin_hidden: true }).eq('id', rep.target_id);
+        if (r.error) r = await supabase.from('volunteer_calls').update({ status: 'closed' }).eq('id', rep.target_id);
+      }
       else {
         await supabase.from('project_submissions').update({ status: 'pending', admin_note: resolution || 'Hidden after a report while an admin reviews it.' }).eq('id', rep.target_id);
         try { await invalidateCache('cache:projects:approved'); await invalidateCache('cache:projects:approved:merged'); } catch { /* noop */ }
@@ -993,6 +1163,7 @@ const handler_reports: H = async (req, res) => {
       // Close every open report on the same item at once.
       .eq('target_type', rep.target_type).eq('target_id', rep.target_id).eq('status', 'open');
     if (error) { sendError(res, 500, 'Couldn’t update'); return; }
+    await audit(supabase, req, uid, 'report.resolve', { type: rep.target_type, id: rep.target_id }, { status, hide: body.hide === true });
     sendJson(res, 200, { status });
     return;
   }
@@ -1128,6 +1299,8 @@ const handler_hours: H = async (req, res) => {
       return;
     }
     if (entry.user_id === uid) { sendError(res, 403, 'Someone else has to confirm your hours.'); return; }
+    if (entry.status !== 'pending') { sendError(res, 400, 'This entry was already decided.'); return; }
+    if (!isAdmin && String(me?.status || '').toLowerCase() !== 'approved') { sendError(res, 403, 'Only approved members can confirm hours.'); return; }
     let allowed = isAdmin;
     let where = 'your volunteering';
     if (!allowed && entry.project_id) { const t = await isTeamMember(supabase, entry.project_id, uid); allowed = t.head; where = t.project?.project_name ?? where; }
@@ -1157,6 +1330,10 @@ const handler_hours: H = async (req, res) => {
   if (!workedOn || Number.isNaN(day) || day > Date.now() + 86_400_000 || day < Date.now() - 366 * 86_400_000) {
     sendError(res, 400, 'Pick the day you did it (within the last year).'); return;
   }
+  // No more than 24 h logged for any one day, across all entries.
+  const { data: sameDay } = await supabase.from('volunteer_hours').select('hours, status').eq('user_id', uid).eq('worked_on', workedOn).neq('status', 'declined');
+  const dayTotal = (sameDay ?? []).reduce((a: number, r: any) => a + Number(r.hours), 0);
+  if (dayTotal + hours > 24) { sendError(res, 400, `That day already has ${dayTotal} h logged; a day has 24.`); return; }
   const projectId = typeof body.projectId === 'string' || typeof body.projectId === 'number' ? String(body.projectId) : '';
   const callId = typeof body.callId === 'string' && isUuid(body.callId) ? body.callId : '';
   let notifyId: string | null = null;
@@ -1431,7 +1608,7 @@ const handler_teams: H = async (req, res) => {
       available: !missing,
       project: {
         id: project.id, name: project.project_name ?? project.title ?? '', status: project.status ?? 'pending',
-        url: normalizeUrl(project.project_url ?? project.url ?? ''), repoUrl: project.repo_url ?? null,
+        url: safeHttpUrl(normalizeUrl(project.project_url ?? project.url ?? '')), repoUrl: project.repo_url ?? null,
         description: project.description ?? '', stage: project.stage ?? null, projType: project.proj_type ?? null,
         repo: project.repo_stats ?? null,
         // Group chats are for signed-in members only.
@@ -1484,7 +1661,8 @@ const handler_teams: H = async (req, res) => {
       ? await supabase.from('team_members').update(payload).eq('id', existing.id)
       : await supabase.from('team_members').insert(payload);
     if (error) { sendError(res, 500, 'Couldn’t send your request'); return; }
-    await notify(supabase, headId, {
+    // Only a first request (or a fresh one after a decline) notifies; cancel/re-join loops stay quiet.
+    if (!existing || existing.status === 'declined') await notify(supabase, headId, {
       kind: 'team_request', title: `${memberNameOf(me)} asked to join ${quote(project.project_name ?? project.title)}`,
       body: payload.message || undefined, link: `/projects/${project.id}`,
     });
@@ -1628,8 +1806,11 @@ const handler_me: H = async (req, res) => {
   if (typeof body.fullName === 'string') updates.full_name = body.fullName.trim().slice(0, 200);
   if (typeof body.specialization === 'string') updates.specialization = body.specialization.trim().slice(0, 100);
   if (typeof body.discordUsername === 'string') updates.discord_username = body.discordUsername.trim().slice(0, 64);
-  if (typeof body.yearJoined === 'number' && body.yearJoined >= 2020 && body.yearJoined <= 2100) updates.year_joined = body.yearJoined;
-  if (Array.isArray(body.skills) && body.skills.length <= 100) updates.skills = body.skills;
+  // The year drives the member ID (BGPH-YYYY-…), so keep it to the community's real years.
+  const thisYear = new Date().getFullYear();
+  if (typeof body.yearJoined === 'number' && Number.isInteger(body.yearJoined) && body.yearJoined >= 2025 && body.yearJoined <= thisYear) updates.year_joined = body.yearJoined;
+  const skills = sanitizeSkills(body.skills);
+  if (skills) updates.skills = skills;
   if (typeof body.experienceLevel === 'string') updates.experience_level = body.experienceLevel.trim().slice(0, 50);
   const links = sanitizeLinks(body.links);
   if (links) updates.links = links;
@@ -1639,7 +1820,8 @@ const handler_me: H = async (req, res) => {
   if (typeof body.showInDirectory === 'boolean') updates.show_in_directory = body.showInDirectory;
   if (typeof body.showFullName === 'boolean') updates.show_full_name = body.showFullName;
   if (typeof body.displayName === 'string') updates.display_name = cleanDisplayName(body.displayName) || null;
-  if (typeof body.role === 'string' && body.role.trim()) updates.role = body.role.replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 60);
+  // Community roles beyond "Member" (Fellow, Contributor, …) are given by admins, not self-chosen.
+  if (typeof body.role === 'string' && body.role.trim().toLowerCase() === 'member') updates.role = 'Member';
   if (body.acceptCoc === true) updates.coc_accepted_at = new Date().toISOString();
   if (Array.isArray(body.availability)) updates.availability = body.availability.filter((v: unknown) => typeof v === 'string' && AVAIL.includes(v as string)).slice(0, 3);
   if (typeof body.hoursPerWeek === 'string') updates.hours_per_week = HOURS_PW.includes(body.hoursPerWeek) ? body.hoursPerWeek : null;
@@ -1692,7 +1874,7 @@ const handler_me: H = async (req, res) => {
 
   // The name on an approved member's Volunteer Card is what /verify vouches for; only admins change it.
   // The name and community role on an approved card are what /verify vouches for; only admins change them.
-  if (existingUser && String(existingUser.status || '').toLowerCase() === 'approved') { delete updates.full_name; delete updates.role; }
+  if (existingUser && String(existingUser.status || '').toLowerCase() === 'approved') { delete updates.full_name; delete updates.role; delete updates.year_joined; }
   if (existingUser) {
     let { data: updatedRows, error: updateError } = await supabase
       .from('users').update(updates).eq('uid', uid).select('*');
@@ -1862,6 +2044,8 @@ const handler_admin: H = async (req, res) => {
     if (error) { sendError(res, 500, 'Failed to update user'); return; }
     if (!data || data.length === 0) { sendError(res, 404, 'User not found'); return; }
     try { await invalidateCache('cache:admin:stats'); await invalidateCache('cache:verify:*'); } catch { /* noop */ }
+    await audit(adminSup, req, callerUid, isAdmin !== undefined ? 'member.admin_rights' : 'member.status', { type: 'user', id: idUid },
+      { status: status ?? undefined, isAdmin: isAdmin ?? undefined, note: adminNotes ? true : undefined });
     if (status === 'Approved') {
       await notify(adminSup, idUid, { kind: 'member_approved', title: 'You’re approved — your Volunteer Card is ready', body: 'You can now join project teams.', link: '/dashboard' });
     } else if (status === 'Declined') {
@@ -1941,6 +2125,7 @@ const handler_admin: H = async (req, res) => {
       const { error: approveError } = await updateWithReview({ status: 'approved' });
       if (approveError) { sendError(res, 500, 'Failed to approve submission'); return; }
       await invalidateProjectCache();
+      await audit(adminSup, req, callerUid, 'project.approve', { type: 'project', id }, { note: !!note });
       await notify(adminSup, submission.user_id, {
         kind: 'project_approved', title: `${quote(submission.project_name)} is live`, body: note || 'Its team page is open for sign-ups.', link: `/projects/${submission.id}`,
       });
@@ -1952,6 +2137,7 @@ const handler_admin: H = async (req, res) => {
       const { error: rejectError } = await updateWithReview({ status: 'rejected' });
       if (rejectError) { sendError(res, 500, 'Failed to reject submission'); return; }
       await invalidateProjectCache();
+      await audit(adminSup, req, callerUid, 'project.send_back', { type: 'project', id });
       await notify(adminSup, submission.user_id, {
         kind: 'project_changes', title: `${quote(submission.project_name)} needs a few changes`, body: note, link: '/dashboard?tab=submit-project',
       });
@@ -1961,10 +2147,14 @@ const handler_admin: H = async (req, res) => {
     if (action === 'update') {
       const updateFields: Record<string, any> = {};
       if (typeof body.project_name === 'string') updateFields.project_name = body.project_name.trim();
-      if (typeof body.project_url === 'string') updateFields.project_url = body.project_url.trim();
-      if (typeof body.description === 'string') updateFields.description = body.description.trim();
-      if (typeof body.proj_type === 'string') updateFields.proj_type = body.proj_type.trim();
-      if (typeof body.repo_url === 'string') updateFields.repo_url = body.repo_url.trim() || null;
+      if (typeof body.project_url === 'string') {
+        const u = safeHttpUrl(body.project_url.trim());
+        if (!u) { sendError(res, 400, 'Use a full web link (https://…).'); return; }
+        updateFields.project_url = u;
+      }
+      if (typeof body.description === 'string') updateFields.description = body.description.trim().slice(0, 4000);
+      if (typeof body.proj_type === 'string') updateFields.proj_type = body.proj_type.trim().slice(0, 60);
+      if (typeof body.repo_url === 'string') updateFields.repo_url = body.repo_url.trim() && parseGithubRepo(body.repo_url) ? body.repo_url.trim() : null;
       if (typeof body.stage === 'string') updateFields.stage = body.stage.trim() || null;
       if (typeof body.admin_note === 'string') updateFields.admin_note = body.admin_note.trim() || null;
       if (typeof body.status === 'string' && ['pending', 'approved', 'rejected'].includes(body.status)) {
@@ -1974,6 +2164,7 @@ const handler_admin: H = async (req, res) => {
       const { error: updateError } = await adminSup.from('project_submissions').update(updateFields).eq('id', id);
       if (updateError) { sendError(res, 500, 'Failed to update submission'); return; }
       await invalidateProjectCache();
+      await audit(adminSup, req, callerUid, 'project.edit', { type: 'project', id }, { fields: Object.keys(updateFields) });
       sendJson(res, 200, { message: 'Updated submission' });
       return;
     }
@@ -1990,6 +2181,7 @@ const handler_admin: H = async (req, res) => {
         }
       }
       await invalidateProjectCache();
+      await audit(adminSup, req, callerUid, deleteUser ? 'project.delete_with_user' : 'project.delete', { type: 'project', id }, { name: submission.project_name });
       sendJson(res, 200, { message: deleteUser ? 'Deleted submission and user' : 'Deleted submission' });
       return;
     }
@@ -2054,6 +2246,30 @@ const handler_admin: H = async (req, res) => {
 
   // Erase a member's data after a deletion request (RA 10173, right to erasure). Admins only.
   // Approved public projects stay listed but move to the admin; everything personal is removed.
+  if (req.method === 'GET' && resource === 'audit') {
+    if (!supabaseUrl || !serviceRoleKey) { sendError(res, 500, 'Server not configured'); return; }
+    const token = getBearerToken(req.headers?.authorization);
+    if (!token) { sendError(res, 401, 'Missing Authorization bearer token'); return; }
+    const adminSup = createServiceClient(supabaseUrl, serviceRoleKey);
+    const { data: authData, error: authError } = await adminSup.auth.getUser(token);
+    const callerUid = authData?.user?.id ? String(authData.user.id) : '';
+    if (authError || !callerUid) { sendError(res, 401, 'Invalid token'); return; }
+    const adminCheck = await assertAdmin(adminSup, callerUid, authData?.user?.email ?? undefined);
+    if (!adminCheck.ok) { sendError(res, 403, adminCheck.error); return; }
+    const { data, error } = await adminSup.from('admin_audit_log').select('*').order('created_at', { ascending: false }).limit(100);
+    if (error) { sendJson(res, 200, { entries: [] }); return; }
+    const ids = Array.from(new Set((data ?? []).map((e: any) => e.actor_id)));
+    const { data: actors } = ids.length ? await adminSup.from('users').select('uid, full_name').in('uid', ids) : { data: [] as any[] };
+    const nameOf = new Map((actors ?? []).map((a: any) => [String(a.uid), a.full_name]));
+    sendJson(res, 200, {
+      entries: (data ?? []).map((e: any) => ({
+        id: e.id, action: e.action, targetType: e.target_type, targetId: e.target_id, details: e.details, at: e.created_at,
+        actor: nameOf.get(String(e.actor_id)) || 'Admin',
+      })),
+    });
+    return;
+  }
+
   if (req.method === 'POST' && resource === 'erase-user') {
     if (!supabaseUrl || !serviceRoleKey) { sendError(res, 500, 'Server not configured'); return; }
     const token = getBearerToken(req.headers?.authorization);
@@ -2097,6 +2313,7 @@ const handler_admin: H = async (req, res) => {
       await invalidateCache('cache:admin:stats'); await invalidateCache('cache:volunteers:directory:v2');
       await invalidateCache('cache:projects:approved'); await invalidateCache('cache:projects:approved:merged');
     } catch { /* noop */ }
+    await audit(adminSup, req, callerUid, 'member.erase', { type: 'user', id: uid }, { removed: done });
     sendJson(res, 200, { erased: true, removed: done });
     return;
   }
@@ -2146,6 +2363,7 @@ const handler_admin: H = async (req, res) => {
       })));
       try { await invalidateCache('cache:projects:approved'); await invalidateCache('cache:projects:approved:merged'); await invalidateCache('cache:admin:stats'); } catch { /* noop */ }
     }
+    await audit(adminSup, req, callerUid, 'projects.import', undefined, { imported: rows.length, skipped: skipped.length });
     sendJson(res, 200, { imported: rows.length, skipped });
     return;
   }
@@ -2169,6 +2387,7 @@ const handler_admin: H = async (req, res) => {
       return;
     }
     const { data: log } = await adminSup.from('consent_log').select('*').order('created_at', { ascending: false }).limit(5000);
+    await audit(adminSup, req, callerUid, 'privacy.export', undefined, { members: (users ?? []).length });
     sendJson(res, 200, { version: CONSENT_VERSION, members: users ?? [], log: log ?? [] });
     return;
   }
@@ -2179,7 +2398,7 @@ const handler_admin: H = async (req, res) => {
 const normalizeUrl = (value: unknown) => typeof value === 'string' ? value.replace(/`/g, '').trim() : '';
 const mapProjectRow = (row: any) => ({
   id: row.id, title: row.project_name ?? row.title ?? '',
-  description: row.description ?? '', url: normalizeUrl(row.project_url ?? row.url ?? ''),
+  description: row.description ?? '', url: safeHttpUrl(normalizeUrl(row.project_url ?? row.url ?? '')),
   projType: row.proj_type ?? row.tech_stack ?? undefined,
   createdAt: row.created_at ?? undefined,
   repoUrl: row.repo_url ?? undefined, stage: row.stage ?? undefined,
@@ -2424,6 +2643,7 @@ const handler_submit_project: H = async (req, res) => {
   if (repoUrl) {
     repoStats = await fetchRepoStats(repoUrl);
     if (!repoStats.ok) { sendError(res, 400, repoStats.error || 'Couldn’t read that repository.'); return; }
+    if (repoStats.isPrivate) { sendError(res, 400, 'That repository is private. Make it public to track it here.'); return; }
   }
   const chatRaw = typeof body.chat_url === 'string' ? body.chat_url : typeof body.chatUrl === 'string' ? body.chatUrl : '';
   if (chatRaw.trim() && !sanitizeChatUrl(chatRaw)) { sendError(res, 400, 'Use a Messenger, WhatsApp, Viber, Telegram or Discord invite link for the group chat.'); return; }
@@ -2602,9 +2822,6 @@ const callExtrasFrom = (body: any) => {
 const handler_volunteer_calls: H = async (req, res) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Version');
   if (req.method === 'OPTIONS') { res.statusCode = 204; res.end(); return; }
   if (req.method !== 'GET' && req.method !== 'POST' && req.method !== 'DELETE' && req.method !== 'PATCH' && req.method !== 'PUT') {
     sendError(res, 405, 'Method not allowed'); return;
@@ -2692,6 +2909,8 @@ const handler_volunteer_calls: H = async (req, res) => {
     sendJson(res, 200, {
       calls: rows.map((r: any) => ({
         ...mapCallRow(r, userMap.get(r.user_id)),
+        // Members only learn whether a call is theirs, not who else's uid posted it.
+        userId: isAdmin || r.user_id === uid ? r.user_id : '',
         myInterest: mineByCall.get(r.id) ?? null,
         interestCount: r.user_id === uid || isAdmin ? countByCall.get(r.id) ?? 0 : undefined,
       })),
@@ -2707,11 +2926,14 @@ const handler_volunteer_calls: H = async (req, res) => {
     const id = typeof body.id === 'string' ? body.id : getStringParam(req.query?.id) || '';
     if (!id) { sendError(res, 400, 'id is required'); return; }
     const { data: call, error: callError } = await supabase
-      .from('volunteer_calls').select('id, user_id').eq('id', id).maybeSingle();
+      .from('volunteer_calls').select('*').eq('id', id).maybeSingle();
     if (callError) { sendError(res, 500, 'Failed to load volunteer call'); return; }
     if (!call) { sendError(res, 404, 'Volunteer call not found'); return; }
     if (!isAdmin && (call as any).user_id !== uid) {
       sendError(res, 403, 'Forbidden: You do not own this volunteer call'); return;
+    }
+    if (!isAdmin && (call as any).admin_hidden === true && typeof body.status === 'string' && body.status.toLowerCase() === 'open') {
+      sendError(res, 403, 'An admin closed this call after a report. Ask an admin to reopen it.'); return;
     }
     const updateFields: Record<string, any> = {};
     if (typeof body.title === 'string') updateFields.title = body.title.trim().slice(0, 160);
@@ -2728,6 +2950,7 @@ const handler_volunteer_calls: H = async (req, res) => {
     if (typeof body.status === 'string' && ['open', 'closed'].includes(body.status.toLowerCase())) {
       updateFields.status = body.status.toLowerCase();
     }
+    if (isAdmin && updateFields.status === 'open') updateFields.admin_hidden = false;
     const extras = callExtrasFrom(body);
     if (extras.__chatError) { sendError(res, 400, 'Use a Messenger, WhatsApp, Viber, Telegram or Discord invite link for the group chat.'); return; }
     delete extras.__chatError;
@@ -2777,6 +3000,11 @@ const handler_volunteer_calls: H = async (req, res) => {
   const rolesNeeded = typeof body.roles_needed === 'string' ? body.roles_needed.trim().slice(0, 500) :
     typeof body.rolesNeeded === 'string' ? body.rolesNeeded.trim().slice(0, 500) : '';
   const contact = typeof body.contact === 'string' ? body.contact.trim().slice(0, 200) : '';
+  // Posting needs a vetted account: a throwaway login can't post calls to harvest volunteers' details.
+  const { data: poster } = await supabase.from('users').select('status').eq('uid', uid).maybeSingle();
+  if (!isAdmin && String(poster?.status || '').toLowerCase() !== 'approved') {
+    sendError(res, 403, 'You can post calls once your membership is approved.'); return;
+  }
   const extras = callExtrasFrom(body);
   if (extras.__chatError) { sendError(res, 400, 'Use a Messenger, WhatsApp, Viber, Telegram or Discord invite link for the group chat.'); return; }
   delete extras.__chatError;
@@ -2867,7 +3095,7 @@ const handler_verify: H = async (req, res) => {
 
   row = memberData ?? null;
 
-  if (!row && isUuid(lookupRaw.trim())) {
+  if (!row && isUuid(lookupRaw.trim()) && (isAdminCaller || callerUid === lookupRaw.trim())) {
     const { data: uidData } = await dbClient
       .from('users')
       .select('*')
@@ -2988,7 +3216,8 @@ const handler_discord: H = async (req, res) => {
         // the configured callback, else this site's own /discord-callback. If bettygo rejects
         // that address (not in its allowlist), retry without it and let bettygo use its default.
         const origin = String(req.headers?.origin || '').replace(/\/$/, '');
-        const redirectUri = callbackUrl || (origin ? `${origin}/discord-callback` : '');
+        // Only our own origins; anything else falls back to the configured callback (or bettygo's default).
+        const redirectUri = callbackUrl || (origin && isAllowedOrigin(origin) ? `${origin}/discord-callback` : '');
         const loginUrl = (withRedirect: boolean) => {
           const params = new URLSearchParams({ user_id: uid as string });
           if (withRedirect && redirectUri) params.set('redirect_uri', redirectUri);
@@ -3138,10 +3367,15 @@ const handler_contribution_scores: H = async (req, res) => {
   const supabase = createServiceClient(supabaseUrl, serviceKey);
   const { data: authData, error: authError } = await supabase.auth.getUser(bearerToken);
   if (authError || !authData?.user?.id) { sendError(res, 401, 'Invalid token'); return; }
+  const { data: caller } = await supabase.from('users').select('is_admin').eq('uid', authData.user.id).maybeSingle();
+  if (!caller?.is_admin) { sendError(res, 403, 'Admin only'); return; }
   const githubToken = process.env.GITHUB_TOKEN ?? '';
   if (!githubToken) { sendError(res, 500, 'Server not configured'); return; }
   try {
+    const cached = await getCache<any>('cache:contribution-scores').catch(() => null);
+    if (cached) { sendJson(res, 200, cached); return; }
     const scores = await getContributionScores(githubToken);
+    try { await setCache('cache:contribution-scores', { scores, generatedAt: new Date().toISOString() }, 3600); } catch { /* noop */ }
     res.setHeader('Cache-Control', 'public, max-age=3600');
     sendJson(res, 200, { scores, generatedAt: new Date().toISOString() });
   } catch { sendError(res, 500, 'Failed to compute scores'); }
@@ -3271,21 +3505,29 @@ const callHandler = async (key: HandlerKey, req: any, res: any) => {
 
 async function handleRequest(req: any, res: any) {
   try {
-    try {
-      res.setHeader('X-API-Version', LIB_API_VERSION);
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Version');
-    } catch { /* headers already sent */ }
+    try { res.setHeader('X-API-Version', LIB_API_VERSION); } catch { /* headers already sent */ }
+    const pathname = normalizePath(req);
+    applyCors(req, res, pathname);
 
-    if (bootFailure) { sendError(res, 500, bootFailure); return; }
+    if (bootFailure) { sendError(res, 500, 'Internal server error'); return; }
 
     if (req.method === 'OPTIONS') {
       try { res.statusCode = 204; res.end(); } catch { /* noop */ }
       return;
     }
 
-    const pathname = normalizePath(req);
+    // Writes must be JSON and small; a browser from another site can't post here.
+    const method = String(req.method || 'GET').toUpperCase();
+    if (method !== 'GET' && method !== 'HEAD') {
+      const len = Number(req.headers?.['content-length'] || 0);
+      if (len > MAX_BODY_BYTES) { sendError(res, 413, 'Request too large'); return; }
+      const ctype = String(req.headers?.['content-type'] || '');
+      if (len > 0 && !ctype.toLowerCase().includes('application/json')) { sendError(res, 415, 'Send JSON'); return; }
+      const origin = String(req.headers?.origin || '');
+      if (origin && !isAllowedOrigin(origin) && pathname !== '/cron/repo-sync') { sendError(res, 403, 'Origin not allowed'); return; }
+    }
+
+    if (!(await enforceRateLimits(req, res, pathname))) return;
 
     if (pathname === '/me' || pathname === '/') return callHandler('/me', req, res);
     if (pathname === '/admin') return callHandler('/admin', req, res);

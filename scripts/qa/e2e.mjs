@@ -31,14 +31,14 @@ const check = (name, ok, detail = '') => {
 const step = (title) => { section = title; console.log(`\n▶ ${title}`); };
 
 async function api(path, opts = {}, attempt = 0) {
-  const { token, method = 'GET', body } = opts;
+  const { token, method = 'GET', body, headers: extra = {} } = opts;
   const res = await fetch(API + path, {
     method,
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}) },
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}), ...extra },
     body: body ? JSON.stringify(body) : undefined,
   });
   // The local dev server rate-limits (100/min per IP). Wait for the window and retry; production has no such limiter.
-  if (res.status === 429 && attempt < 4) {
+  if (res.status === 429 && !res.headers.get('retry-after') && attempt < 4) {
     await new Promise((r) => setTimeout(r, 16_000));
     return api(path, opts, attempt + 1);
   }
@@ -97,6 +97,11 @@ async function cleanup() {
     // Notifications our test actions sent to real admins (new report, resubmitted project).
     for (const id of [...projectIds, ...callIds]) await admin.from('notifications').delete().like('link', `%${id}%`);
     await admin.from('notifications').delete().like('title', '%[QA test]%');
+    for (const id of ids) await admin.from('rate_limits').delete().like('bucket', `u:${id}:%`);
+    if (ids.length) await admin.from('admin_audit_log').delete().in('actor_id', ids);
+    await admin.from('rate_limits').delete().like('bucket', 'ip:::1:%');
+    await admin.from('rate_limits').delete().like('bucket', 'ip:127.0.0.1:%');
+    await admin.from('rate_limits').delete().like('bucket', 'ip:::ffff:127.0.0.1:%');
     if (ids.length) await admin.from('users').delete().in('uid', ids);
     for (const id of ids) { try { await admin.auth.admin.deleteUser(id); } catch { /* already gone */ } }
     const { count: leftUsers } = await admin.from('users').select('*', { count: 'exact', head: true }).in('uid', ids.length ? ids : ['00000000-0000-0000-0000-000000000000']);
@@ -130,7 +135,7 @@ async function main() {
   const reg = await register(ana, { name: T('Ana Santos'), display: `ana-${RUN}`, role: 'Contributor', spec: 'Full Stack Developer', secondary: 'Educator', directory: true });
   check('profile saved', reg.r1.status === 200, JSON.stringify(reg.r1.json));
   check('display name saved on first save', reg.r1.json?.user?.displayName === `ana-${RUN}`, reg.r1.json?.user?.displayName);
-  check('community role saved', reg.r1.json?.user?.role === 'Contributor', reg.r1.json?.user?.role);
+  check('members cannot award themselves a community role', reg.r1.json?.user?.role === 'Member', reg.r1.json?.user?.role);
   check('secondary role saved', reg.r1.json?.user?.secondarySpecialization === 'Educator');
   check('consent recorded at step 4', !!reg.r2.json?.user?.consentAt);
   check('code of conduct recorded', !!reg.r2.json?.user?.cocAcceptedAt);
@@ -157,7 +162,7 @@ async function main() {
   check('approved member has a member ID', /^BGPH-\d{4}-\d{3,4}$/.test(anaMe.json?.user?.memberId || ''), anaMe.json?.user?.memberId);
   const lockedName = await api('/me', { token: ana.token, method: 'POST', body: { fullName: 'Someone Else', role: 'Fellow' } });
   check('approved name stays locked', lockedName.json?.user?.fullName === T('Ana Santos'));
-  check('approved role stays locked', lockedName.json?.user?.role === 'Contributor', lockedName.json?.user?.role);
+  check('approved role stays locked', lockedName.json?.user?.role === 'Member', lockedName.json?.user?.role);
   const bellAna = await api('/notifications', { token: ana.token });
   check('member is notified of approval', (bellAna.json?.items || []).some((n) => n.kind === 'member_approved'));
   const overview = await api('/admin?resource=overview', { token: boss.token });
@@ -379,6 +384,46 @@ async function main() {
   check('admin can close the reported call', resolve.status === 200);
   const pubClosed = await api(`/volunteer-calls?id=${cid}`);
   check('closed call disappears from public browsing', pubClosed.status === 200 && Array.isArray(pubClosed.json?.calls) && pubClosed.json.calls.length === 0, String(pubClosed.status));
+
+  // ------------------------------------------------------------------ attacks
+  step('Security: attacks that must fail');
+  const danCall = await api('/volunteer-calls', { token: dan.token, method: 'POST', body: { title: T('spam'), description: 'harvest', call_type: 'venue' } });
+  check('unapproved accounts cannot post calls', danCall.status === 403, String(danCall.status));
+  const backdate = await api('/me', { token: dan.token, method: 'POST', body: { yearJoined: 2019, role: 'Core Team Lead' } });
+  check('join year cannot be backdated', backdate.json?.user?.yearJoined === 2026, String(backdate.json?.user?.yearJoined));
+  check('community role cannot be self-assigned', backdate.json?.user?.role === 'Member', backdate.json?.user?.role);
+  const evil = await api('/me', { token: dan.token, method: 'POST', body: { displayName: 'x' }, headers: { Origin: 'https://evil.example' } });
+  check('writes from other websites are refused', evil.status === 403, String(evil.status));
+  const notJson = await fetch(`${API}/me`, { method: 'POST', headers: { Authorization: `Bearer ${dan.token}`, 'Content-Type': 'text/plain' }, body: 'displayName=x' });
+  check('non-JSON writes are refused', notJson.status === 415, String(notJson.status));
+  const huge = await fetch(`${API}/me`, { method: 'POST', headers: { Authorization: `Bearer ${dan.token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ displayName: 'x'.repeat(70_000) }) });
+  check('oversized requests are refused', huge.status === 413, String(huge.status));
+  const uidLookup = await api(`/verify?id=${ben.id}`);
+  check('verify will not look people up by account id', uidLookup.status === 404, String(uidLookup.status));
+  const callsAsMember = await api('/volunteer-calls', { token: ben.token });
+  check("members don't receive other posters' account ids", (callsAsMember.json?.calls || []).every((c) => !c.userId || c.userId === ben.id));
+  const scores = await api('/contribution-scores', { token: ben.token });
+  check('GitHub-heavy contribution scores are admin only', scores.status === 403, String(scores.status));
+  const reopen = await api('/volunteer-calls', { token: ana.token, method: 'PATCH', body: { id: cid, status: 'open' } });
+  check('a call closed by moderation stays closed', reopen.status === 403, String(reopen.status));
+  const again = await api('/hours', { token: ana.token, method: 'POST', body: { action: 'decide', id: log.json?.id, decision: 'confirm' } });
+  check('a decision on hours cannot be replayed', again.status === 400, String(again.status));
+  const dbAnon = await anonDb.from('project_submissions').select('id').limit(1);
+  check('public key cannot read projects directly', !!dbAnon.error);
+  const asUser = createClient(URL_, ANON, { auth: { persistSession: false }, global: { headers: { Authorization: `Bearer ${ben.token}` } } });
+  const ownRow = await asUser.from('users').select('uid, is_admin').limit(1);
+  check('signed-in users cannot read tables directly', !!ownRow.error || (ownRow.data || []).length === 0);
+  const rpc = await asUser.rpc('rate_limit_hit', { p_bucket: 'x', p_limit: 1, p_window_seconds: 1 });
+  check('signed-in users cannot call internal functions', !!rpc.error);
+  // Rate limit: reports allow 10 an hour per person; the 11th must be refused with Retry-After
+  let limited = null;
+  for (let i = 0; i < 12; i++) {
+    const r = await api('/reports', { token: crowd[1].token, method: 'POST', body: { targetType: 'call', targetId: '00000000-0000-0000-0000-000000000000', reason: 'spam' } });
+    if (r.status === 429) { limited = { at: i + 1, retry: r.headers.get('retry-after') }; break; }
+  }
+  check('reports are rate limited per person', !!limited && limited.at === 11 && Number(limited.retry) > 0, JSON.stringify(limited));
+  const otherUser = await api('/reports', { token: crowd[2].token, method: 'POST', body: { targetType: 'call', targetId: '00000000-0000-0000-0000-000000000000', reason: 'spam' } });
+  check("one person's limit doesn't block others", otherUser.status !== 429, String(otherUser.status));
 
   // ------------------------------------------------------------------ privacy controls
   step('Privacy controls and erasure');

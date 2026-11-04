@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import { ArrowRight, BadgeCheck, FolderKanban, Hand, Inbox, Megaphone, ShieldAlert, Trash2, Upload, UserPlus, Users } from 'lucide-react';
 import { toast } from 'sonner';
-import { eraseUser, getAdminOverview } from '../../services/supabase';
+import { eraseUser, getAdminAudit, getAdminOverview } from '../../services/supabase';
 import type { AdminOverview as Overview } from '../../types';
 import { StatTile } from '../StatTile';
 import { timeAgo } from '../RepoHealth';
@@ -22,6 +22,8 @@ interface Props {
 export const AdminOverview: React.FC<Props> = ({ onGo, onImport, onExportRopa, ropaBusy, onPostCall }) => {
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState('');
+  const [auditLog, setAuditLog] = useState<Awaited<ReturnType<typeof getAdminAudit>>['entries'] | null>(null);
+  useEffect(() => { getAdminAudit().then((r) => setAuditLog(r.entries)).catch(() => setAuditLog([])); }, []);
   const [erasing, setErasing] = useState<{ uid: string; name: string; email: string; typed: string; busy: boolean } | null>(null);
 
   const load = useCallback(async () => {
@@ -220,6 +222,29 @@ export const AdminOverview: React.FC<Props> = ({ onGo, onImport, onExportRopa, r
                     </div>
                   </form>
                 )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* Admin activity (audit log) */}
+      <section className="s-card p-5 sm:p-6" aria-labelledby="audit-title">
+        <h2 id="audit-title" className="text-[16px] font-semibold text-slate-900">Admin activity</h2>
+        <p className="mt-0.5 text-[13px] text-slate-500">Every approval, review, erasure and privacy export, with who did it. Kept for accountability.</p>
+        {!auditLog ? (
+          <p className="mt-4 text-[13px] text-slate-500" role="status">Loading…</p>
+        ) : auditLog.length === 0 ? (
+          <p className="mt-4 text-[14px] text-slate-500">Nothing recorded yet.</p>
+        ) : (
+          <ul className="mt-3 max-h-80 divide-y divide-slate-200/80 overflow-y-auto thin-scroll">
+            {auditLog.map((e) => (
+              <li key={e.id} className="flex items-baseline gap-3 py-2 text-[13px]">
+                <span className="w-28 shrink-0 truncate font-medium text-slate-800">{e.actor}</span>
+                <span className="min-w-0 flex-1 truncate text-slate-600">
+                  {e.action.replace(/[._]/g, ' ')}{e.targetType ? ` · ${e.targetType}` : ''}
+                </span>
+                <span className="num shrink-0 text-[12px] text-slate-400">{timeAgo(e.at)}</span>
               </li>
             ))}
           </ul>

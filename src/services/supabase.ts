@@ -882,3 +882,8 @@ export const postProjectUpdate = (projectId: string, body: string) =>
   jsonPost('/api/v1/project-updates', { projectId, body }) as Promise<{ id: string }>;
 export const deleteProjectUpdate = (id: string) =>
   jsonPost('/api/v1/project-updates', { action: 'delete', id }) as Promise<{ deleted: boolean }>;
+
+/** Admin: recent admin actions (approvals, reviews, erasures, exports). */
+export const getAdminAudit = async () =>
+  apiRequest<{ entries: { id: string; action: string; targetType: string | null; targetId: string | null; details: Record<string, unknown>; at: string; actor: string }[] }>(
+    '/api/v1/admin?resource=audit', { headers: await authHeaders() });

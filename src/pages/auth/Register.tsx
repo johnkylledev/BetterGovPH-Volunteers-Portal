@@ -490,7 +490,8 @@ function LegacyRegister() {
         setError('');
 
         const primaryRole = formData.specialization;
-        const rl = formData.role === 'Other' ? formData.customRole : formData.role;
+        // Community roles beyond Member are given by admins; sign-up always starts as Member.
+        const rl = 'Member';
 
         if (!rl) {
             setError('Please provide role details.');
@@ -816,75 +817,10 @@ function LegacyRegister() {
                                             />
                                         </div>
 
-                                        <fieldset>
-                                            <legend className="text-[15px] font-semibold text-slate-900">Community role</legend>
-                                            <p className="mt-1 text-[13px] text-slate-500">Most people start as Member. Fellow and Contributor are earned over time.</p>
-                                            <div role="radiogroup" className="mt-4 grid grid-cols-2 gap-2.5">
-                                                {ROLES.map((role) => {
-                                                    const isSelected = formData.role === role;
-                                                    const sub: Record<string, string> = {
-                                                        Member: 'Start here',
-                                                        Fellow: 'Earned track',
-                                                        Contributor: 'Earned track',
-                                                        Other: 'Describe it',
-                                                    };
-                                                    return (
-                                                        <button
-                                                            key={role}
-                                                            type="button"
-                                                            role="radio"
-                                                            aria-checked={isSelected}
-                                                            onClick={() => setFormData({ ...formData, role })}
-                                                            className={clsx(
-                                                                'flex min-h-[56px] items-center justify-between gap-2 rounded-[12px] px-3.5 py-2.5 text-left transition-[box-shadow,background-color,transform] duration-150 active:scale-[0.99]',
-                                                                isSelected
-                                                                    ? 'bg-[#f4f7ff] shadow-[0_0_0_2px_var(--accent)]'
-                                                                    : 'bg-white shadow-[0_0_0_1px_rgb(15_23_42/0.12),0_1px_2px_rgb(15_23_42/0.04)] [@media(hover:hover)]:hover:shadow-[0_0_0_1px_rgb(15_23_42/0.2),0_4px_12px_-4px_rgb(15_23_42/0.12)]'
-                                                            )}
-                                                        >
-                                                            <span className="min-w-0">
-                                                                <span className="block text-[14px] font-semibold text-slate-900">{role}</span>
-                                                                <span className="block text-[12px] text-slate-500">{sub[role]}</span>
-                                                            </span>
-                                                            <span
-                                                                aria-hidden
-                                                                className={clsx(
-                                                                    'flex h-5 w-5 shrink-0 items-center justify-center rounded-full',
-                                                                    isSelected ? 'bg-[var(--accent)] text-white' : 'shadow-[inset_0_0_0_1.5px_rgb(148_163_184)]'
-                                                                )}
-                                                            >
-                                                                {isSelected && <Check size={12} strokeWidth={2.5} />}
-                                                            </span>
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-
-                                            <AnimatePresence initial={false}>
-                                                {formData.role === 'Other' && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, y: -4 }}
-                                                        animate={{ opacity: 1, y: 0 }}
-                                                        exit={{ opacity: 0, y: -4 }}
-                                                        transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
-                                                        className="mt-3"
-                                                    >
-                                                        <label htmlFor="field-custom-role" className="mb-1.5 block text-[13px] font-medium text-slate-900">Your role</label>
-                                                        <input
-                                                            id="field-custom-role"
-                                                            type="text"
-                                                            autoComplete="organization-title"
-                                                            placeholder="e.g. Mentor, Translator"
-                                                            value={formData.customRole}
-                                                            onChange={(e) => setFormData({ ...formData, customRole: e.target.value })}
-                                                            aria-invalid={!!(error && formData.role === 'Other' && !formData.customRole.trim())}
-                                                            aria-describedby={error ? 'register-form-error' : undefined}
-                                                            className="s-field h-11 text-[15px]"
-                                                        />
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
-                                        </fieldset>
+                                        <div className="rounded-[12px] bg-slate-50 px-4 py-3 shadow-[inset_0_0_0_1px_rgb(15_23_42/0.05)]">
+                                            <p className="text-[14px] font-medium text-slate-900">Everyone starts as a Member</p>
+                                            <p className="mt-0.5 text-[13px] text-slate-500">Fellow, Contributor and other community roles are given by the admins as you take part.</p>
+                                        </div>
 
                                         <fieldset>
                                             <legend className="text-[15px] font-semibold text-slate-900">Experience</legend>
