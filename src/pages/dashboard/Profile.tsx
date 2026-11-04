@@ -322,7 +322,7 @@ export default function Profile() {
           {/* Section menu: a scrolling row on phones, a sticky sidebar on desktop */}
           <aside className="lg:sticky lg:top-24 lg:self-start">
             <p className="mb-2 hidden px-3 text-[12px] font-medium text-slate-400 lg:block">Profile settings</p>
-            <div className="no-scrollbar -mx-4 overflow-x-auto px-4 lg:mx-0 lg:overflow-visible lg:px-0">
+            <div className="no-scrollbar -mx-4 -my-1.5 overflow-x-auto px-4 py-1.5 lg:m-0 lg:overflow-visible lg:p-0">
               <div role="tablist" aria-label="Profile sections" className="flex w-max gap-1 lg:w-full lg:flex-col">
                 {TABS.map((tab, idx) => {
                   const Icon = tab.icon;

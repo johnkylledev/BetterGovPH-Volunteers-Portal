@@ -181,7 +181,7 @@ export default function Volunteers() {
           </div>
 
           {roles.length > 1 && (
-            <div className="no-scrollbar -mx-4 overflow-x-auto px-4 pb-1" role="group" aria-label="Filter by role">
+            <div className="no-scrollbar -mx-4 -mt-1 overflow-x-auto px-4 pb-1 pt-1" role="group" aria-label="Filter by role">
               <div className="flex w-max gap-1.5">
                 {[{ role: 'All', n: total }, ...roles].map((r) => {
                   const active = role === r.role;
