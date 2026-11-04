@@ -10,10 +10,37 @@ import clsx from 'clsx';
 import { StatTile } from '../../components/StatTile';
 import { UserChip } from '../../components/UserChip';
 import { User, ApplicationStatus, ProjectSubmission } from '../../types';
-import { deleteProjectSubmission, editProjectSubmission, getAllUsers, getAdminStats, getProjectSubmissions, updateProjectSubmission, supabase, getConsentRecords } from '../../services/supabase';
+import { deleteProjectSubmission, editProjectSubmission, getAllUsers, getAdminStats, getProjectSubmissions, updateProjectSubmission, supabase, getConsentRecords, importProjects } from '../../services/supabase';
+import type { ImportProjectRow } from '../../types';
 import { ROPA_REGISTER, CONSENT_PURPOSES } from '../../constants/community';
 import { SkillIcon } from '../../components/SkillIcon';
 import { SPECIALIZATIONS } from '../../constants/specializations';
+
+
+/**
+ * Paste rows from a spreadsheet (tab-separated) or CSV: name, link, description, type, repo, chat, owner.
+ * A header row is detected and skipped. Quoted CSV fields may contain commas.
+ */
+const parseImportRows = (text: string): ImportProjectRow[] => {
+  const splitCsv = (line: string) => {
+    const out: string[] = []; let cur = ''; let q = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (q) { if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; } else if (ch === '"') q = false; else cur += ch; }
+      else if (ch === '"') q = true; else if (ch === ',') { out.push(cur); cur = ''; } else cur += ch;
+    }
+    out.push(cur);
+    return out;
+  };
+  return text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+    .map((l) => (l.includes('\t') ? l.split('\t') : splitCsv(l)).map((c) => c.trim()))
+    .filter((cols, i) => !(i === 0 && /^name$/i.test(cols[0] || '')))
+    .map(([name = '', url = '', description = '', type = '', repoUrl = '', chatUrl = '', ownerName = '']) => ({
+      name, url, description: description || undefined, type: type || undefined,
+      repoUrl: repoUrl || undefined, chatUrl: chatUrl || undefined, ownerName: ownerName || undefined,
+    }))
+    .filter((r) => r.name || r.url);
+};
 
 export default function AdminDashboard() {
   const { currentUser, users, updateUserStatus, setUsers, authInitialized } = useStore();
@@ -35,6 +62,10 @@ export default function AdminDashboard() {
   // Review dialog: the note goes back to the submitter (required when rejecting).
   const [review, setReview] = useState<{ id: string; name: string; action: 'approve' | 'reject'; note: string; error: string } | null>(null);
   const [ropaBusy, setRopaBusy] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [importBusy, setImportBusy] = useState(false);
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: { name: string; reason: string }[] } | null>(null);
   const [projectStats, setProjectStats] = useState({ total: 0, pending: 0, approved: 0, rejected: 0 });
   const [projectStatusFilter, setProjectStatusFilter] = useState<'All' | 'pending' | 'approved' | 'rejected'>('All');
   const [projectPage, setProjectPage] = useState(0);
@@ -688,6 +719,9 @@ export default function AdminDashboard() {
                       </button>
                     ))}
                   </div>
+                  <button type="button" onClick={() => { setImportOpen(true); setImportResult(null); }} className="s-btn s-btn-plain h-9 text-[13px]">
+                    Import from Discord
+                  </button>
                 </div>
               </div>
               <div className="overflow-x-auto">
@@ -1430,6 +1464,80 @@ export default function AdminDashboard() {
           </>
         )}
       </AnimatePresence>
+
+      {importOpen && (() => {
+        const rows = parseImportRows(importText);
+        return (
+          <div className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-900/50 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="import-title">
+            <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-[14px] bg-white shadow-[var(--e2)]">
+              <div className="border-b border-slate-100 p-5 sm:p-6">
+                <h2 id="import-title" className="text-[17px] font-semibold text-slate-900">Import existing projects</h2>
+                <p className="mt-1 text-[13px] text-slate-500">
+                  Paste one project per line from a spreadsheet or CSV, in this order: <span className="font-medium text-slate-700">name, link, description, type, GitHub repo, group chat, owner organisation</span>.
+                  Only name and link are required. They go live as approved projects, with you as team head. Hand the head role to the real lead once they join.
+                </p>
+              </div>
+              <div className="flex-1 space-y-4 overflow-y-auto p-5 sm:p-6">
+                <textarea
+                  aria-label="Projects to import"
+                  value={importText}
+                  onChange={(e) => { setImportText(e.target.value); setImportResult(null); }}
+                  className="s-field h-auto min-h-[160px] resize-y py-2.5 font-mono text-[12.5px]"
+                  placeholder={'name,link,description,type,repo,chat,owner\nBudget Tracker,https://budget.bettergov.ph,"Follow the national budget",dev,https://github.com/bettergovph/budget,https://chat.whatsapp.com/abc,'}
+                />
+                {rows.length > 0 && !importResult && (
+                  <div>
+                    <p className="mb-2 text-[13px] font-medium text-slate-700">{rows.length} {rows.length === 1 ? 'project' : 'projects'} ready</p>
+                    <ul className="max-h-48 divide-y divide-slate-100 overflow-y-auto rounded-[10px] shadow-[inset_0_0_0_1px_rgb(15_23_42/0.08)]">
+                      {rows.slice(0, 100).map((r, i) => (
+                        <li key={i} className="flex items-center justify-between gap-3 px-3 py-2 text-[13px]">
+                          <span className="min-w-0 truncate font-medium text-slate-900">{r.name || <span className="text-red-700">missing name</span>}</span>
+                          <span className={clsx('min-w-0 truncate', /^https?:\/\//.test(r.url) ? 'text-slate-500' : 'text-red-700')}>{r.url || 'missing link'}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {importResult && (
+                  <div role="status" className="rounded-[10px] bg-emerald-50 px-3.5 py-3 text-[13px] text-emerald-900 shadow-[inset_0_0_0_1px_rgb(16_185_129/0.25)]">
+                    Imported {importResult.imported}.
+                    {importResult.skipped.length > 0 && (
+                      <ul className="mt-1.5 list-disc pl-5 text-slate-700">
+                        {importResult.skipped.map((sk, i) => <li key={i}>{sk.name}: {sk.reason}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col-reverse gap-2 border-t border-slate-100 p-4 sm:flex-row sm:justify-end sm:p-6">
+                <button type="button" onClick={() => setImportOpen(false)} className="s-btn s-btn-plain">{importResult ? 'Done' : 'Cancel'}</button>
+                {!importResult && (
+                  <button
+                    type="button"
+                    disabled={importBusy || rows.length === 0 || rows.length > 100}
+                    onClick={async () => {
+                      setImportBusy(true);
+                      try {
+                        const r = await importProjects(rows);
+                        setImportResult(r);
+                        setImportText('');
+                        await loadProjectSubmissions();
+                      } catch (error) {
+                        alert(error instanceof Error ? error.message : 'Import failed.');
+                      } finally {
+                        setImportBusy(false);
+                      }
+                    }}
+                    className="s-btn s-btn-accent"
+                  >
+                    {importBusy ? 'Importing…' : rows.length > 100 ? 'Up to 100 at a time' : `Import ${rows.length || ''}`.trim()}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {review && (
         <div className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-900/50 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="review-title">

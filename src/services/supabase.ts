@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { CallType, MyTeam, Project, ProjectStage, ProjectSubmission, RepoStats, TeamInfo, User, VolunteerCall } from '../types';
+import { CallInterest, CallType, ImportProjectRow, MyTeam, Project, ProjectStage, ProjectSubmission, RepoStats, TeamInfo, User, VolunteerCall } from '../types';
 
 const isUuid = (value: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
@@ -282,6 +282,7 @@ export const createOrUpdateUserRecord = async (user: any) => {
       ...(typeof user.showFullName === 'boolean' ? { showFullName: user.showFullName } : {}),
       ...(user.consent ? { consent: user.consent } : {}),
       ...(typeof user.requestDeletion === 'boolean' ? { requestDeletion: user.requestDeletion } : {}),
+      ...(typeof user.displayName === 'string' ? { displayName: user.displayName } : {}),
     }),
   });
   return res.user;
@@ -388,6 +389,7 @@ export const submitProjectSubmission = async (input: {
   stage?: ProjectStage;
   ownerType?: 'member' | 'org';
   ownerName?: string;
+  chatUrl?: string;
 }) => {
   const token = await getAccessToken();
   if (!token) throw new Error('Not authenticated');
@@ -411,6 +413,7 @@ export const submitProjectSubmission = async (input: {
       stage: input.stage,
       ownerType: input.ownerType,
       ownerName: input.ownerName,
+      chatUrl: input.chatUrl || undefined,
     }),
   });
   return response;
@@ -515,6 +518,7 @@ export const createVolunteerCall = async (input: {
   commitment?: string;
   workMode?: string;
   goodFirst?: boolean;
+  chatUrl?: string;
 }) => {
   const token = await getAccessToken();
   if (!token) throw new Error('Not authenticated');
@@ -536,6 +540,7 @@ export const createVolunteerCall = async (input: {
       commitment: input.commitment,
       work_mode: input.workMode,
       good_first: input.goodFirst,
+      chat_url: input.chatUrl,
     }),
   });
   return response;
@@ -578,7 +583,7 @@ export const getAdminVolunteerCalls = async (filters?: { status?: 'open' | 'clos
 
 export const updateVolunteerCall = async (
   id: string,
-  fields: { title?: string; projectUrl?: string; description?: string; rolesNeeded?: string; contact?: string; status?: 'open' | 'closed'; callType?: CallType; location?: string; neededBy?: string; commitment?: string; workMode?: string; goodFirst?: boolean }
+  fields: { title?: string; projectUrl?: string; description?: string; rolesNeeded?: string; contact?: string; status?: 'open' | 'closed'; callType?: CallType; location?: string; neededBy?: string; commitment?: string; workMode?: string; goodFirst?: boolean; chatUrl?: string }
 ) => {
   const token = await getAccessToken();
   if (!token) throw new Error('Not authenticated');
@@ -600,6 +605,7 @@ export const updateVolunteerCall = async (
     commitment: fields.commitment,
     work_mode: fields.workMode,
     good_first: fields.goodFirst,
+    chat_url: fields.chatUrl,
   };
 
   try {
@@ -736,7 +742,8 @@ export type TeamAction =
   | { action: 'remove'; userId: string }
   | { action: 'transfer-head'; userId: string }
   | { action: 'set-owner'; ownerType: 'member'; ownerUserId: string }
-  | { action: 'set-owner'; ownerType: 'org'; ownerName: string };
+  | { action: 'set-owner'; ownerType: 'org'; ownerName: string }
+  | { action: 'set-chat'; chatUrl: string };
 
 export const teamAction = async (projectId: string, body: TeamAction) =>
   apiRequest<Record<string, unknown>>('/api/v1/teams', {
@@ -748,3 +755,47 @@ export const teamAction = async (projectId: string, body: TeamAction) =>
 /** Admin: consent records for the ROPA export. */
 export const getConsentRecords = async () =>
   apiRequest<{ version: string; members: any[]; log: any[] }>('/api/v1/admin?resource=consent', { headers: await authHeaders() });
+
+// ---------------------------------------------------------------------------
+// MVP: public calls and "I'm interested"
+// ---------------------------------------------------------------------------
+/** Open calls for anyone; signed-in members also get contact, chat links and their own interest status. */
+export const getOpenCalls = async (opts?: { id?: string }) => {
+  const params = new URLSearchParams();
+  if (opts?.id) params.set('id', opts.id);
+  return apiRequest<{ calls: VolunteerCall[]; totalCount: number }>(`/api/v1/volunteer-calls?${params.toString()}`, {
+    headers: await authHeaders(false),
+  });
+};
+
+export const expressInterest = async (callId: string, input: { message?: string; contact?: string }) =>
+  apiRequest<{ status: string }>('/api/v1/call-interests', {
+    method: 'POST',
+    headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ callId, ...input }),
+  });
+
+export const withdrawInterest = async (callId: string) =>
+  apiRequest<{ status: string }>('/api/v1/call-interests', {
+    method: 'POST',
+    headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'withdraw', callId }),
+  });
+
+export const getCallInterests = async (callId: string) =>
+  apiRequest<{ interests: CallInterest[] }>(`/api/v1/call-interests?call=${encodeURIComponent(callId)}`, { headers: await authHeaders() });
+
+export const markInterest = async (interestId: string, status: 'new' | 'contacted') =>
+  apiRequest<{ status: string }>('/api/v1/call-interests', {
+    method: 'POST',
+    headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'mark', interestId, status }),
+  });
+
+/** Admin: bring existing (Discord) projects into the portal as approved listings. */
+export const importProjects = async (projects: ImportProjectRow[]) =>
+  apiRequest<{ imported: number; skipped: { name: string; reason: string }[] }>('/api/v1/admin?resource=import-projects', {
+    method: 'POST',
+    headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projects }),
+  });

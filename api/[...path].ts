@@ -157,6 +157,7 @@ const mapUserRow = (row: any) => ({
   consentAt: row.consent_at ?? undefined,
   consentPurposes: Array.isArray(row.consent_purposes) ? row.consent_purposes : [],
   deletionRequestedAt: row.deletion_requested_at ?? undefined,
+  displayName: row.display_name ?? undefined,
 });
 
 // Profile links (YouTube, GitHub, …): known platforms only, https URLs only, short. Private to the member and admins.
@@ -548,8 +549,28 @@ const redactName = (full: string) => {
   const [first, ...rest] = words;
   return [first, ...rest.map((w) => `${(Array.from(w)[0] || '').toUpperCase()}****`)].join(' ');
 };
+/** Usernames and pseudonyms: printable, short, no markup. */
+const cleanDisplayName = (v: unknown) =>
+  typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60) : '';
+/** Public pages: the member's chosen display name, else their redacted (or opted-in full) legal name. */
 const publicNameOf = (row: any) =>
-  row?.show_full_name === true ? String(row.full_name || '').trim() || 'Member' : redactName(row?.full_name || '');
+  cleanDisplayName(row?.display_name) ||
+  (row?.show_full_name === true ? String(row?.full_name || '').trim() || 'Member' : redactName(row?.full_name || ''));
+/** Signed-in members: the display name if set, else the real name. Only admins always see the legal name. */
+const memberNameOf = (row: any) => cleanDisplayName(row?.display_name) || String(row?.full_name || '').trim() || 'Member';
+
+// Group chats are where many non-tech volunteers already are (meeting 2026-11-04): Messenger, WhatsApp, Viber…
+const CHAT_HOSTS = ['m.me', 'messenger.com', 'facebook.com', 'chat.whatsapp.com', 'wa.me', 'whatsapp.com', 'invite.viber.com', 'viber.com',
+  'vb.me', 't.me', 'telegram.me', 'discord.gg', 'discord.com', 'signal.group', 'chat.google.com', 'join.slack.com', 'slack.com'];
+const sanitizeChatUrl = (raw: unknown): string | null => {
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+  try {
+    const u = new URL(raw.trim().startsWith('http') ? raw.trim() : `https://${raw.trim()}`);
+    const host = u.hostname.replace(/^www\./, '').toLowerCase();
+    if (u.protocol !== 'https:' || !CHAT_HOSTS.some((h) => host === h || host.endsWith(`.${h}`))) return null;
+    return u.toString().slice(0, 300);
+  } catch { return null; }
+};
 
 const discordAvatarOf = (row: any, size = 96) =>
   /^\d+$/.test(String(row?.discord_id ?? '')) && /^(a_)?[a-f0-9]+$/i.test(String(row?.discord_avatar ?? ''))
@@ -743,6 +764,99 @@ const handler_cron_repo_sync: H = async (req, res) => {
   sendJson(res, 200, { refreshed });
 };
 
+// ---------- /call-interests ---------------------------------------------------
+// POST { callId, message?, contact? }          raise a hand (signed-in members)
+// POST { action: 'withdraw', callId }           take it back
+// POST { action: 'mark', interestId, status }   poster/admin: new | contacted
+// GET  ?call=ID                                  poster/admin: who is interested
+const handler_call_interests: H = async (req, res) => {
+  if (req.method !== 'GET' && req.method !== 'POST') { sendError(res, 405, 'Method not allowed'); return; }
+  const caller = await authCaller(req);
+  if ('error' in caller) { sendError(res, 500, caller.error); return; }
+  const { supabase, uid } = caller;
+  if (!uid) { sendError(res, 401, 'Sign in to continue'); return; }
+  const { data: me } = await supabase.from('users').select('*').eq('uid', uid).maybeSingle();
+  const isAdmin = !!me?.is_admin;
+
+  const loadCall = async (id: string) => {
+    if (!isUuid(id)) return null;
+    const { data } = await supabase.from('volunteer_calls').select('id, user_id, status, title').eq('id', id).maybeSingle();
+    return data ?? null;
+  };
+
+  if (req.method === 'GET') {
+    const callId = getStringParam(req.query?.call) || '';
+    const call = await loadCall(callId);
+    if (!call) { sendError(res, 404, 'Call not found'); return; }
+    if (call.user_id !== uid && !isAdmin) { sendError(res, 403, 'Only the person who posted this can see who’s interested.'); return; }
+    const { data: ints, error } = await supabase.from('call_interests').select('*').eq('call_id', callId).neq('status', 'withdrawn').order('created_at', { ascending: true });
+    if (error) { sendError(res, 500, 'Failed to load'); return; }
+    const ids = (ints ?? []).map((i: any) => i.user_id);
+    const { data: users } = ids.length ? await supabase.from('users').select('*').in('uid', ids) : { data: [] as any[] };
+    const byId = new Map((users ?? []).map((u: any) => [String(u.uid), u]));
+    sendJson(res, 200, {
+      interests: (ints ?? []).map((i: any) => {
+        const u: any = byId.get(String(i.user_id));
+        return {
+          id: i.id, status: i.status, message: i.message ?? '', contact: i.contact ?? '', createdAt: i.created_at,
+          person: {
+            name: u ? (isAdmin ? u.full_name : memberNameOf(u)) : 'Member',
+            role: u?.specialization ?? null, secondaryRole: u?.secondary_specialization ?? null,
+            memberId: u?.member_id ?? null, approved: String(u?.status || '').toLowerCase() === 'approved',
+            avatarUrl: discordAvatarOf(u), discordUsername: u?.discord_username || null,
+            skills: Array.isArray(u?.skills) ? u.skills.slice(0, 6).map((s: any) => s?.name).filter(Boolean) : [],
+          },
+        };
+      }),
+    });
+    return;
+  }
+
+  const body = getBody(req);
+  const action = typeof body.action === 'string' ? body.action : 'interest';
+  const now = new Date().toISOString();
+
+  if (action === 'mark') {
+    const interestId = typeof body.interestId === 'string' && isUuid(body.interestId) ? body.interestId : '';
+    const status = body.status === 'contacted' ? 'contacted' : body.status === 'new' ? 'new' : '';
+    if (!interestId || !status) { sendError(res, 400, 'interestId and status (new|contacted) are required'); return; }
+    const { data: row } = await supabase.from('call_interests').select('id, call_id').eq('id', interestId).maybeSingle();
+    const call = row ? await loadCall(row.call_id) : null;
+    if (!call) { sendError(res, 404, 'Not found'); return; }
+    if (call.user_id !== uid && !isAdmin) { sendError(res, 403, 'Only the poster can do that.'); return; }
+    const { error } = await supabase.from('call_interests').update({ status, updated_at: now }).eq('id', interestId);
+    if (error) { sendError(res, 500, 'Couldn’t update'); return; }
+    sendJson(res, 200, { status });
+    return;
+  }
+
+  const callId = typeof body.callId === 'string' ? body.callId : '';
+  const call = await loadCall(callId);
+  if (!call) { sendError(res, 404, 'Call not found'); return; }
+
+  if (action === 'withdraw') {
+    const { error } = await supabase.from('call_interests').update({ status: 'withdrawn', updated_at: now }).eq('call_id', callId).eq('user_id', uid);
+    if (error) { sendError(res, 500, 'Couldn’t update'); return; }
+    sendJson(res, 200, { status: 'withdrawn' });
+    return;
+  }
+
+  // Raise a hand. A finished profile is enough; membership approval isn't required to say "I'm interested".
+  if (!me || !String(me.full_name || '').trim() || !String(me.specialization || '').trim()) {
+    sendError(res, 409, 'Finish your profile first, then come back to this call.'); return;
+  }
+  if (call.status !== 'open') { sendError(res, 400, 'This call is closed.'); return; }
+  if (call.user_id === uid) { sendError(res, 400, 'This is your own call.'); return; }
+  const payload = {
+    call_id: callId, user_id: uid, status: 'new', updated_at: now,
+    message: typeof body.message === 'string' ? body.message.trim().slice(0, 500) || null : null,
+    contact: typeof body.contact === 'string' ? body.contact.trim().slice(0, 200) || null : null,
+  };
+  const { error } = await supabase.from('call_interests').upsert(payload, { onConflict: 'call_id,user_id' });
+  if (error) { sendError(res, isMissingTableError(error) ? 503 : 500, 'Couldn’t save your interest. Try again.'); return; }
+  sendJson(res, 200, { status: 'new' });
+};
+
 // ---------- /teams -----------------------------------------------------------
 const TEAM_STATUSES = ['pending', 'approved', 'declined', 'left'];
 
@@ -814,7 +928,7 @@ const handler_teams: H = async (req, res) => {
       const u: any = userById.get(String(userId));
       return {
         userId: canManage || full ? userId : undefined,
-        name: u ? (canManage || full ? String(u.full_name || '').trim() || 'Member' : publicNameOf(u)) : 'Member',
+        name: !u ? 'Member' : isAdmin ? String(u.full_name || '').trim() || 'Member' : canManage || full ? memberNameOf(u) : publicNameOf(u),
         role: u?.specialization || null,
         memberId: u?.member_id || null,
         avatarUrl: discordAvatarOf(u),
@@ -834,9 +948,12 @@ const handler_teams: H = async (req, res) => {
         url: normalizeUrl(project.project_url ?? project.url ?? ''), repoUrl: project.repo_url ?? null,
         description: project.description ?? '', stage: project.stage ?? null, projType: project.proj_type ?? null,
         repo: project.repo_stats ?? null,
+        // Group chats are for signed-in members only.
+        chatUrl: uid ? project.chat_url ?? null : null,
+        imported: project.imported === true,
       },
       owner: project.owner_type === 'member' && ownerUser
-        ? { type: 'member', name: canManage ? ownerUser.full_name : publicNameOf(ownerUser), userId: canManage ? ownerUser.uid : undefined }
+        ? { type: 'member', name: isAdmin ? ownerUser.full_name : canManage ? memberNameOf(ownerUser) : publicNameOf(ownerUser), userId: canManage ? ownerUser.uid : undefined }
         : project.owner_name ? { type: project.owner_type || 'org', name: project.owner_name } : null,
       members: members.map((m: any) => ({ ...personOf(m.user_id), isHead: m.user_id === headId, teamRole: m.team_role ?? null })),
       me: uid ? { status: mine?.status ?? (uid === headId ? 'approved' : null), isHead: uid === headId, canManage,
@@ -932,6 +1049,16 @@ const handler_teams: H = async (req, res) => {
     return;
   }
 
+  if (action === 'set-chat') {
+    const raw = typeof body.chatUrl === 'string' ? body.chatUrl : '';
+    const clean = raw.trim() ? sanitizeChatUrl(raw) : null;
+    if (raw.trim() && !clean) { sendError(res, 400, 'Use a Messenger, WhatsApp, Viber, Telegram or Discord invite link.'); return; }
+    const { error } = await supabase.from('project_submissions').update({ chat_url: clean }).eq('id', projectId);
+    if (error) { sendError(res, 500, 'Couldn’t save the chat link'); return; }
+    sendJson(res, 200, { chatUrl: clean });
+    return;
+  }
+
   if (action === 'set-owner') {
     const ownerType = body.ownerType === 'member' ? 'member' : body.ownerType === 'org' ? 'org' : '';
     if (!ownerType) { sendError(res, 400, 'ownerType must be member or org'); return; }
@@ -1007,6 +1134,7 @@ const handler_me: H = async (req, res) => {
   }
   if (typeof body.showInDirectory === 'boolean') updates.show_in_directory = body.showInDirectory;
   if (typeof body.showFullName === 'boolean') updates.show_full_name = body.showFullName;
+  if (typeof body.displayName === 'string') updates.display_name = cleanDisplayName(body.displayName) || null;
   // Right to erasure: the member asks, an admin completes it (approved projects may need a new owner first).
   if (body.requestDeletion === true) { updates.deletion_requested_at = new Date().toISOString(); updates.show_in_directory = false; }
   if (body.requestDeletion === false) updates.deletion_requested_at = null;
@@ -1059,7 +1187,7 @@ const handler_me: H = async (req, res) => {
       .from('users').update(updates).eq('uid', uid).select('*');
     // Before a migration runs, save everything else instead of failing the whole profile.
     if (updateError && isMissingColumnError(updateError)) {
-      for (const k of ['links', 'secondary_specialization', 'show_in_directory', 'show_full_name', 'consent_version', 'consent_at', 'consent_purposes', 'deletion_requested_at']) delete updates[k];
+      for (const k of ['links', 'secondary_specialization', 'show_in_directory', 'show_full_name', 'consent_version', 'consent_at', 'consent_purposes', 'deletion_requested_at', 'display_name']) delete updates[k];
       consentEvent = null;
       ({ data: updatedRows, error: updateError } = await supabase.from('users').update(updates).eq('uid', uid).select('*'));
     }
@@ -1073,7 +1201,7 @@ const handler_me: H = async (req, res) => {
         });
       } catch { /* table missing until migration */ }
     }
-    if (consentEvent || 'show_in_directory' in updates || 'show_full_name' in updates) {
+    if (consentEvent || 'show_in_directory' in updates || 'show_full_name' in updates || 'display_name' in updates) {
       try { await invalidateCache('cache:volunteers:directory:v2'); } catch { /* noop */ }
     }
     if (updated) { sendJson(res, 200, { user: mapUserRow(updated) }); return; }
@@ -1338,6 +1466,55 @@ const handler_admin: H = async (req, res) => {
       return;
     }
     sendError(res, 400, 'Unknown action');
+    return;
+  }
+
+  if (req.method === 'POST' && resource === 'import-projects') {
+    if (!supabaseUrl || !serviceRoleKey) { sendError(res, 500, 'Server not configured'); return; }
+    const token = getBearerToken(req.headers?.authorization);
+    if (!token) { sendError(res, 401, 'Missing Authorization bearer token'); return; }
+    const adminSup = createServiceClient(supabaseUrl, serviceRoleKey);
+    const { data: authData, error: authError } = await adminSup.auth.getUser(token);
+    const callerUid = authData?.user?.id ? String(authData.user.id) : '';
+    if (authError || !callerUid) { sendError(res, 401, 'Invalid token'); return; }
+    const adminCheck = await assertAdmin(adminSup, callerUid, authData?.user?.email ?? undefined);
+    if (!adminCheck.ok) { sendError(res, 403, adminCheck.error); return; }
+    const body = getBody(req);
+    const list: any[] = Array.isArray(body.projects) ? body.projects.slice(0, 100) : [];
+    if (!list.length) { sendError(res, 400, 'Send { projects: [...] } (up to 100).'); return; }
+    const { data: existing } = await adminSup.from('project_submissions').select('project_name, project_url');
+    const seen = new Set((existing ?? []).flatMap((e: any) => [String(e.project_name || '').toLowerCase().trim(), String(e.project_url || '').toLowerCase().trim()]));
+    const STAGES = ['idea', 'building', 'beta', 'live'];
+    const rows: any[] = [];
+    const skipped: { name: string; reason: string }[] = [];
+    for (const p of list) {
+      const name = typeof p?.name === 'string' ? p.name.trim().slice(0, 160) : '';
+      const url = safeHttpUrl(typeof p?.url === 'string' ? p.url.trim() : '');
+      if (!name || !url) { skipped.push({ name: name || '(no name)', reason: 'needs a name and an https link' }); continue; }
+      if (seen.has(name.toLowerCase()) || seen.has(url.toLowerCase())) { skipped.push({ name, reason: 'already listed' }); continue; }
+      seen.add(name.toLowerCase()); seen.add(url.toLowerCase());
+      const repo = typeof p?.repoUrl === 'string' && parseGithubRepo(p.repoUrl) ? p.repoUrl.trim() : parseGithubRepo(url) ? url : null;
+      const ownerName = typeof p?.ownerName === 'string' ? p.ownerName.trim().slice(0, 120) : '';
+      rows.push({
+        id: safeRandomUuid(), user_id: callerUid, team_head_id: callerUid, imported: true, status: 'approved',
+        project_name: name, project_url: url,
+        description: typeof p?.description === 'string' && p.description.trim() ? p.description.trim().slice(0, 4000) : 'Imported from the BetterGovPH Discord.',
+        proj_type: typeof p?.type === 'string' && p.type.trim() ? p.type.trim().slice(0, 60) : 'other',
+        repo_url: repo, stage: STAGES.includes(p?.stage) ? p.stage : null,
+        chat_url: sanitizeChatUrl(p?.chatUrl),
+        owner_type: ownerName ? 'org' : 'member', owner_name: ownerName || null, owner_user_id: ownerName ? null : callerUid,
+        reviewed_at: new Date().toISOString(),
+      });
+    }
+    if (rows.length) {
+      const { error } = await adminSup.from('project_submissions').insert(rows);
+      if (error) { sendError(res, 500, 'Import failed. Nothing was added.'); return; }
+      await adminSup.from('team_members').insert(rows.map((r) => ({
+        project_id: r.id, user_id: callerUid, role: 'head', status: 'approved', decided_at: new Date().toISOString(),
+      })));
+      try { await invalidateCache('cache:projects:approved'); await invalidateCache('cache:projects:approved:merged'); await invalidateCache('cache:admin:stats'); } catch { /* noop */ }
+    }
+    sendJson(res, 200, { imported: rows.length, skipped });
     return;
   }
 
@@ -1606,6 +1783,8 @@ const handler_submit_project: H = async (req, res) => {
     repoStats = await fetchRepoStats(repoUrl);
     if (!repoStats.ok) { sendError(res, 400, repoStats.error || 'Couldn’t read that repository.'); return; }
   }
+  const chatRaw = typeof body.chat_url === 'string' ? body.chat_url : typeof body.chatUrl === 'string' ? body.chatUrl : '';
+  if (chatRaw.trim() && !sanitizeChatUrl(chatRaw)) { sendError(res, 400, 'Use a Messenger, WhatsApp, Viber, Telegram or Discord invite link for the group chat.'); return; }
   const STAGES = ['idea', 'building', 'beta', 'live'];
   const stage = typeof body.stage === 'string' && STAGES.includes(body.stage) ? body.stage : null;
   const ownerType = body.owner_type === 'org' || body.ownerType === 'org' ? 'org' : 'member';
@@ -1615,6 +1794,7 @@ const handler_submit_project: H = async (req, res) => {
     owner_type: ownerType, owner_name: ownerType === 'org' ? ownerNameRaw.trim().slice(0, 120) || null : null,
     owner_user_id: ownerType === 'member' ? uid : null,
     repo_stats: repoStats, repo_checked_at: repoStats?.checkedAt ?? null,
+    chat_url: sanitizeChatUrl(body.chat_url ?? body.chatUrl),
   };
   const supabaseDb = createServiceClient(supabaseUrl, serviceRoleKey);
   let r = await tryInsertSubmission(supabaseDb, {
@@ -1717,6 +1897,7 @@ const mapCallRow = (row: any, postedBy?: { fullName: string; email: string }) =>
   rolesNeeded: row.roles_needed ?? undefined, contact: row.contact ?? undefined,
   callType: row.call_type ?? 'people', location: row.location ?? undefined, neededBy: row.needed_by ?? undefined,
   commitment: row.commitment ?? undefined, workMode: row.work_mode ?? undefined, goodFirst: row.good_first === true,
+  chatUrl: row.chat_url ?? undefined,
   status: row.status ?? 'open', createdAt: row.created_at, postedBy,
 });
 
@@ -1733,6 +1914,8 @@ const callExtrasFrom = (body: any) => {
   if (wm !== undefined) out.work_mode = ['remote', 'onsite', 'hybrid'].includes(wm) ? wm : null;
   const gf = typeof body.good_first === 'boolean' ? body.good_first : typeof body.goodFirst === 'boolean' ? body.goodFirst : undefined;
   if (gf !== undefined) out.good_first = gf;
+  const chat = body.chat_url ?? body.chatUrl;
+  if (typeof chat === 'string') out.chat_url = chat.trim() ? sanitizeChatUrl(chat) : null;
   return out;
 };
 
@@ -1749,13 +1932,43 @@ const handler_volunteer_calls: H = async (req, res) => {
   const { url: supabaseUrl, serviceKey: serviceRoleKey } = getSupabaseConfig();
   if (!supabaseUrl || !serviceRoleKey) { sendError(res, 500, 'Server not configured'); return; }
   const token = getBearerToken(req.headers?.authorization);
-  if (!token) { sendError(res, 401, 'Missing Authorization bearer token'); return; }
   const supabase = createServiceClient(supabaseUrl, serviceRoleKey);
-  const { data: authData, error: authError } = await supabase.auth.getUser(token);
-  const uid = authData?.user?.id ? String(authData.user.id) : '';
-  if (authError || !uid) { sendError(res, 401, 'Invalid token'); return; }
-  const { data: callerRow } = await supabase.from('users').select('is_admin').eq('uid', uid).maybeSingle();
+  let uid = '';
+  if (token) {
+    const { data: authData } = await supabase.auth.getUser(token);
+    uid = authData?.user?.id ? String(authData.user.id) : '';
+  }
+  // Browsing open calls needs no account (MVP). Everything else does.
+  if (!uid && req.method !== 'GET') { sendError(res, 401, token ? 'Invalid token' : 'Missing Authorization bearer token'); return; }
+  const { data: callerRow } = uid ? await supabase.from('users').select('is_admin').eq('uid', uid).maybeSingle() : { data: null };
   const isAdmin = !!callerRow?.is_admin;
+
+  if (req.method === 'GET' && !uid) {
+    // Public view: open calls only; no contact details, chat links or emails; posters by public name.
+    if (getStringParam(req.query?.mine) || getStringParam(req.query?.admin)) { sendError(res, 401, 'Sign in first'); return; }
+    let query: any = supabase.from('volunteer_calls').select('*', { count: 'exact' }).eq('status', 'open').order('created_at', { ascending: false });
+    const one = getStringParam(req.query?.id);
+    if (one) { if (!isUuid(one)) { sendJson(res, 200, { calls: [], totalCount: 0 }); return; } query = query.eq('id', one); }
+    const { data, error, count } = await query.limit(100);
+    if (error) { sendError(res, 500, 'Failed to load volunteer calls'); return; }
+    const rows = data ?? [];
+    const ids = Array.from(new Set(rows.map((r: any) => r.user_id).filter(Boolean)));
+    const names = new Map<string, string>();
+    if (ids.length) {
+      const { data: us } = await supabase.from('users').select('*').in('uid', ids);
+      for (const u of us ?? []) names.set(String(u.uid), publicNameOf(u));
+    }
+    res.setHeader('Cache-Control', 'public, max-age=60');
+    sendJson(res, 200, {
+      calls: rows.map((r: any) => {
+        const c: any = mapCallRow(r, { fullName: names.get(String(r.user_id)) || 'Member', email: '' });
+        delete c.contact; delete c.chatUrl; delete c.userId;
+        return { ...c, contactHidden: !!(r.contact || r.chat_url) };
+      }),
+      totalCount: count ?? 0,
+    });
+    return;
+  }
 
   if (req.method === 'GET') {
     const mine = getStringParam(req.query?.mine);
@@ -1770,18 +1983,37 @@ const handler_volunteer_calls: H = async (req, res) => {
       else query = query.eq('status', 'open');
     }
     if (wantsAdmin && statusFilter && statusFilter !== 'All') query = query.eq('status', statusFilter);
-    const { data, error, count } = await query.limit(50);
+    const one = getStringParam(req.query?.id);
+    if (one && isUuid(one)) query = query.eq('id', one);
+    const { data, error, count } = await query.limit(100);
     if (error) { sendError(res, 500, 'Failed to load volunteer calls'); return; }
     const rows = data ?? [];
     const userIds = Array.from(new Set(rows.map((r: any) => r.user_id).filter(Boolean)));
     const userMap = new Map<string, { fullName: string; email: string }>();
     if (userIds.length > 0) {
-      const { data: usersData } = await supabase.from('users').select('uid, full_name, email').in('uid', userIds);
-      // Emails stay with admins; members see who posted, and reach them through the contact field.
-      if (usersData) for (const u of usersData) userMap.set(u.uid, { fullName: u.full_name ?? '', email: isAdmin ? u.email ?? '' : '' });
+      const { data: usersData } = await supabase.from('users').select('*').in('uid', userIds);
+      // Emails stay with admins; members see who posted (by display name), and reach them via contact/chat.
+      if (usersData) for (const u of usersData) {
+        userMap.set(u.uid, { fullName: isAdmin ? u.full_name ?? '' : memberNameOf(u), email: isAdmin ? u.email ?? '' : '' });
+      }
+    }
+    // "I'm interested": my own status on each call, and a count on calls I posted.
+    const callIds = rows.map((r: any) => r.id);
+    const mineByCall = new Map<string, string>();
+    const countByCall = new Map<string, number>();
+    if (callIds.length) {
+      const { data: ints } = await supabase.from('call_interests').select('call_id, user_id, status').in('call_id', callIds);
+      for (const i of ints ?? []) {
+        if (i.user_id === uid) mineByCall.set(i.call_id, i.status);
+        if (i.status !== 'withdrawn') countByCall.set(i.call_id, (countByCall.get(i.call_id) ?? 0) + 1);
+      }
     }
     sendJson(res, 200, {
-      calls: rows.map((r: any) => mapCallRow(r, userMap.get(r.user_id))),
+      calls: rows.map((r: any) => ({
+        ...mapCallRow(r, userMap.get(r.user_id)),
+        myInterest: mineByCall.get(r.id) ?? null,
+        interestCount: r.user_id === uid || isAdmin ? countByCall.get(r.id) ?? 0 : undefined,
+      })),
       totalCount: count ?? 0,
     });
     return;
@@ -2308,7 +2540,7 @@ const handler_volunteers: H = async (req, res) => {
 type HandlerKey =
   | '/me' | '/admin' | '/projects' | '/submit-project' | '/my-project-submissions'
   | '/volunteer-calls' | '/verify' | '/discord' | '/discord-username-taken' | '/contribution-scores' | '/volunteers'
-  | '/repo-tracker' | '/teams' | '/cron/repo-sync';
+  | '/repo-tracker' | '/teams' | '/cron/repo-sync' | '/call-interests';
 
 const HANDLERS: Record<HandlerKey, H> = {
   '/me': handler_me,
@@ -2325,6 +2557,7 @@ const HANDLERS: Record<HandlerKey, H> = {
   '/repo-tracker': handler_repo_tracker,
   '/teams': handler_teams,
   '/cron/repo-sync': handler_cron_repo_sync,
+  '/call-interests': handler_call_interests,
 };
 
 const callHandler = async (key: HandlerKey, req: any, res: any) => {
@@ -2381,6 +2614,7 @@ async function handleRequest(req: any, res: any) {
     if (pathname === '/repo-tracker') return callHandler('/repo-tracker', req, res);
     if (pathname === '/teams') return callHandler('/teams', req, res);
     if (pathname === '/cron/repo-sync') return callHandler('/cron/repo-sync', req, res);
+    if (pathname === '/call-interests') return callHandler('/call-interests', req, res);
 
     sendError(res, 404, 'API endpoint not found');
   } catch (err) {

@@ -50,7 +50,7 @@ export const PrivacySettings: React.FC<{ user: User; onSaved: (u: User) => void 
   const hasConsent = !!user.consentAt && purposes.includes('membership');
   const inDirectory = user.showInDirectory !== false;
   const fullName = user.showFullName === true;
-  const publicName = fullName ? user.fullName : redactName(user.fullName || '');
+  const publicName = user.displayName?.trim() || (fullName ? user.fullName : redactName(user.fullName || ''));
 
   const save = async (key: string, patch: Record<string, unknown>, ok: string) => {
     setBusy(key);
@@ -139,7 +139,7 @@ export const PrivacySettings: React.FC<{ user: User; onSaved: (u: User) => void 
             disabled={busy !== null}
             onChange={(v) => save('fullname', { showFullName: v }, v ? 'Your full name is now public' : 'Your name is redacted publicly')}
             label="Show my full name publicly"
-            hint="Off: “Juan D****” on the directory, your card’s verify page and team pages. Admins always see your full name."
+            hint={user.displayName ? 'You use a display name, so this only matters if you clear it. Admins always see your full name.' : 'Off: “Juan D****” on the directory, your card’s verify page and team pages. Admins always see your full name.'}
           />
           <Switch
             id="pv-comms"

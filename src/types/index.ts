@@ -51,6 +51,14 @@ export interface VolunteerCall {
   workMode?: 'remote' | 'onsite' | 'hybrid';
   /** Small, well-described task a newcomer can pick up. */
   goodFirst?: boolean;
+  /** Messenger / WhatsApp / Viber / Telegram / Discord invite. Members only. */
+  chatUrl?: string;
+  /** Signed-in member's own "I'm interested" status on this call. */
+  myInterest?: 'new' | 'contacted' | 'withdrawn' | null;
+  /** On calls you posted: how many people raised a hand. */
+  interestCount?: number;
+  /** Public view: contact details exist but are shown after signing in. */
+  contactHidden?: boolean;
   status: VolunteerCallStatus;
   createdAt: string;
   postedBy?: {
@@ -110,6 +118,8 @@ export interface User {
   consentAt?: string;
   consentPurposes?: string[];
   deletionRequestedAt?: string;
+  /** Optional username or pseudonym shown instead of the legal name. */
+  displayName?: string;
 }
 
 export interface RepoStats {
@@ -136,7 +146,7 @@ export interface TeamPerson {
 }
 export interface TeamInfo {
   available: boolean;
-  project: { id: string; name: string; status: string; url: string; repoUrl: string | null; description: string; stage: ProjectStage | null; projType: string | null; repo?: RepoStats | null };
+  project: { id: string; name: string; status: string; url: string; repoUrl: string | null; description: string; stage: ProjectStage | null; projType: string | null; repo?: RepoStats | null; chatUrl?: string | null; imported?: boolean };
   owner: { type: 'member' | 'org'; name: string; userId?: string } | null;
   members: (TeamPerson & { isHead: boolean; teamRole: string | null })[];
   me: { status: 'pending' | 'approved' | 'declined' | 'left' | null; isHead: boolean; canManage: boolean; approvedMember: boolean } | null;
@@ -145,4 +155,16 @@ export interface TeamInfo {
 export interface MyTeam {
   projectId: string; projectName: string; projectStatus: string; role: 'head' | 'member';
   status: 'pending' | 'approved' | 'declined' | 'left'; teamRole: string | null; requestedAt: string; decidedAt: string | null;
+}
+
+export interface CallInterest {
+  id: string; status: 'new' | 'contacted' | 'withdrawn'; message: string; contact: string; createdAt: string;
+  person: {
+    name: string; role: string | null; secondaryRole: string | null; memberId: string | null; approved: boolean;
+    avatarUrl: string | null; discordUsername: string | null; skills: string[];
+  };
+}
+
+export interface ImportProjectRow {
+  name: string; url: string; description?: string; type?: string; repoUrl?: string; chatUrl?: string; stage?: ProjectStage; ownerName?: string;
 }
