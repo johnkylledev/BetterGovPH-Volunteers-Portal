@@ -302,47 +302,9 @@ export const getUserByMemberIdOrId = async (id: string) => {
     const data = await apiRequest<any>(`/api/v1/verify?id=${encodeURIComponent(cleanId)}`, { method: 'GET' });
     if (data && (data.fullName || data.memberId)) return data;
   } catch {
-    /* fallback to direct client query below */
+    /* not found or network error */
   }
-
-  try {
-    const upperId = cleanId.toUpperCase();
-    const exactMemberId = upperId.startsWith('BGPH-') ? upperId : `BGPH-${upperId}`;
-    
-    let query = supabase
-      .from('users')
-      .select('*');
-
-    if (isUuid(cleanId)) {
-      query = query.eq('uid', cleanId);
-    } else {
-      query = query.or(`member_id.eq.${exactMemberId},member_id.eq.${cleanId},member_id.ilike.%${cleanId}%`);
-    }
-
-    const { data: dbData } = await query.maybeSingle();
-
-    if (dbData) {
-      const rawStatus = String(dbData.status || 'Pending').trim();
-      const statusNormalized = dbData.is_admin
-        ? 'Approved'
-        : rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1).toLowerCase();
-
-      const resultObj: Record<string, any> = {
-        memberId: dbData.member_id ?? null,
-        fullName: dbData.full_name ?? '',
-        specialization: dbData.specialization ?? '',
-        role: dbData.role ?? 'Member',
-        status: statusNormalized,
-        yearJoined: dbData.year_joined ?? null,
-      };
-
-      if (dbData.discord_username && String(dbData.discord_username).trim()) {
-        resultObj.discordUsername = String(dbData.discord_username).trim();
-      }
-
-      return resultObj;
-    }
-  } catch {}
+  // No direct-database fallback: the API is the only place that applies public-name redaction.
   return null;
 };
 
