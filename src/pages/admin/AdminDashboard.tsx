@@ -77,7 +77,7 @@ export default function AdminDashboard() {
         search: search
       };
       const { users: fetchedUsers, totalCount: fetchedTotal } = await getAllUsers(page, pageSize, filters);
-      const validUsers = fetchedUsers.filter(u => u.status === 'Approved' || u.discordConnected === true || (u.discordUsername && u.discordUsername.trim().length > 0));
+      const validUsers = fetchedUsers.filter(u => u.status === 'Approved' || (typeof u.specialization === 'string' && u.specialization.trim().length > 0));
       setUsers(validUsers);
       setTotalCount(fetchedTotal);
     } catch {

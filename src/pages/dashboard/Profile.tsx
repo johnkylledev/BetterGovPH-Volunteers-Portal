@@ -469,7 +469,7 @@ export default function Profile() {
                               Connected
                             </span>
                           ) : (
-                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">Required</span>
+                            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 shadow-[inset_0_0_0_1px_rgb(245_158_11/0.25)]">Not connected yet</span>
                           )}
                         </p>
                         <p className="mt-0.5 text-[13px] leading-snug text-slate-500">
@@ -479,7 +479,7 @@ export default function Profile() {
                               {currentUser.discordVerified ? ' · BetterGovPH server member' : ''}
                             </>
                           ) : (
-                            'Confirms you’re in the community server. We only read your username.'
+                            'Connect when you’re ready — it lets the team reach you in the community server. We only read your username.'
                           )}
                         </p>
                       </div>

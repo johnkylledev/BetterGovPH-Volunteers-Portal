@@ -125,7 +125,7 @@ function LegacyRegister() {
 
     useEffect(() => {
         if (hasSession) {
-            if (currentUser && currentUser.fullName && currentUser.specialization && currentUser.yearJoined && currentUser.discordConnected === true) {
+            if (currentUser && currentUser.fullName && currentUser.specialization && currentUser.yearJoined && (currentUser.discordConnected === true || currentStep !== 4)) {
                 if (currentUser.isAdmin) {
                     navigate('/admin', { replace: true });
                 } else {
@@ -153,7 +153,7 @@ function LegacyRegister() {
                         customRole: profile.role && !ROLES.includes(profile.role) ? profile.role : prev.customRole,
                         links: profile.links && Object.keys(profile.links).length ? { ...profile.links } : prev.links,
                     }));
-                    const isComplete = profile.fullName && profile.specialization && profile.yearJoined && profile.discordConnected === true;
+                    const isComplete = profile.fullName && profile.specialization && profile.yearJoined && (profile.discordConnected === true || currentStep !== 4);
                     if (isComplete) {
                         if (profile.isAdmin) {
                             navigate('/admin', { replace: true });
@@ -272,7 +272,7 @@ function LegacyRegister() {
                                 ['Account', 'Sign in with Google and confirm your name.'],
                                 ['Profile', 'Your main role and experience level.'],
                                 ['Skills', 'What you can help with, and how well.'],
-                                ['Connect', 'Link Discord so the team can reach you.'],
+                                ['Connect', 'Add your links. Discord is optional for now.'],
                             ].map(([t, d], i) => (
                                 <li key={t} className="flex gap-4 border-b border-[var(--line)] py-3.5">
                                     <span className="num w-4 shrink-0 text-[13px] text-[var(--fg-3)]">{i + 1}</span>
@@ -518,7 +518,7 @@ function LegacyRegister() {
                             'The name here goes on your Volunteer Card.',
                             'This helps us match you with the right projects.',
                             'Pick what you can help with and how comfortable you are.',
-                            'Link Discord so the team can reach you and give you access.',
+                            'Add where people can find your work. Discord is optional for now — you can connect it later.',
                         ][currentStep - 1]}
                     </p>
                 </div>
@@ -528,7 +528,7 @@ function LegacyRegister() {
                         {steps.map((step, i) => {
                             const done = currentStep > step.id;
                             const current = currentStep === step.id;
-                            const desc = ['Name & year', 'Role & experience', 'What you know', 'Link Discord'][i];
+                            const desc = ['Name & year', 'Role & experience', 'What you know', 'Links & Discord'][i];
                             return (
                                 <li key={step.id} className="relative">
                                     {i > 0 && (
@@ -870,7 +870,7 @@ function LegacyRegister() {
                                         transition={{ duration: 0.28, ease: [0.23, 1, 0.32, 1] }}
                                         className="space-y-3"
                                     >
-                                        {/* Discord — required */}
+                                        {/* Discord — optional while the integration is unavailable */}
                                         <div
                                             className={clsx(
                                                 'rounded-[14px] p-4 transition-[box-shadow,background-color] duration-200 sm:p-5',
@@ -889,7 +889,9 @@ function LegacyRegister() {
                                                     <div className="min-w-0">
                                                         <p className="flex flex-wrap items-center gap-x-2 text-[15px] font-semibold text-slate-900">
                                                             Discord
-                                                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">Required</span>
+                                                            {!discordConnected && (
+                                                                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">Optional for now</span>
+                                                            )}
                                                         </p>
                                                         <p className="mt-0.5 text-[13px] leading-snug text-slate-500">
                                                             {discordConnected ? (
@@ -898,7 +900,7 @@ function LegacyRegister() {
                                                                     {discordUsername ? `Connected as @${discordUsername}` : 'Connected'}
                                                                 </span>
                                                             ) : (
-                                                                'Confirms you’re in the community server. We only read your username.'
+                                                                'You can skip this and connect later from your Profile. We only read your username.'
                                                             )}
                                                         </p>
                                                     </div>
@@ -987,13 +989,13 @@ function LegacyRegister() {
                                                 key="complete-step"
                                                 type="button"
                                                 onClick={handleComplete}
-                                                disabled={!discordConnected || completing}
+                                                disabled={completing}
                                                 className="s-btn s-btn-accent min-w-[180px]"
                                             >
                                                 {completing ? 'Saving…' : 'Submit application'}
                                             </button>
                                             {!discordConnected && (
-                                                <p className="text-[12px] text-[var(--fg-3)]">Connect Discord to submit.</p>
+                                                <p className="text-[12px] text-[var(--fg-3)]">You can connect Discord later from Profile.</p>
                                             )}
                                         </div>
                                     )}
