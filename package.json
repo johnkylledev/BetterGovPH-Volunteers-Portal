@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "check": "tsc -b --noEmit",
     "test": "vitest run",
-    "test:live": "vitest run --config vitest.live.config.ts"
+    "test:live": "vitest run --config vitest.live.config.ts",
+    "qa:e2e": "node --env-file=.env scripts/qa/e2e.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.104.1",

@@ -876,10 +876,12 @@ const handler_call_interests: H = async (req, res) => {
   }
   if (call.status !== 'open') { sendError(res, 400, 'This call is closed.'); return; }
   if (call.user_id === uid) { sendError(res, 400, 'This is your own call.'); return; }
-  const payload = {
+  // Raising a hand again keeps the earlier note and contact unless new ones are given.
+  const message = typeof body.message === 'string' ? body.message.trim().slice(0, 500) : '';
+  const contact = typeof body.contact === 'string' ? body.contact.trim().slice(0, 200) : '';
+  const payload: Record<string, any> = {
     call_id: callId, user_id: uid, status: 'new', updated_at: now,
-    message: typeof body.message === 'string' ? body.message.trim().slice(0, 500) || null : null,
-    contact: typeof body.contact === 'string' ? body.contact.trim().slice(0, 200) || null : null,
+    ...(message ? { message } : {}), ...(contact ? { contact } : {}),
   };
   const { data: prior } = await supabase.from('call_interests').select('status').eq('call_id', callId).eq('user_id', uid).maybeSingle();
   const { error } = await supabase.from('call_interests').upsert(payload, { onConflict: 'call_id,user_id' });
@@ -887,7 +889,7 @@ const handler_call_interests: H = async (req, res) => {
   if (!prior || prior.status === 'withdrawn') {
     await notify(supabase, call.user_id, {
       kind: 'interest_new', title: `${memberNameOf(me)} is interested in “${quote(call.title)}”`,
-      body: payload.message || 'Open the call to see how to reach them.', link: '/dashboard?tab=volunteer',
+      body: message || 'Open the call to see how to reach them.', link: '/dashboard?tab=volunteer',
     });
   }
   sendJson(res, 200, { status: 'new' });
