@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import clsx from 'clsx';
-import { AlertCircle, BadgeCheck, Briefcase, CheckCircle2, Clock, Link2, Lock, Star, User as UserIcon, Wrench } from 'lucide-react';
+import { AlertCircle, BadgeCheck, Briefcase, CheckCircle2, Clock, ShieldCheck, Link2, Lock, Star, User as UserIcon, Wrench } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
 import { UserChip } from '../../components/UserChip';
@@ -17,6 +17,7 @@ import { EXPERIENCE_LEVELS } from '../../constants/experience';
 import { connectDiscord, createOrUpdateUserRecord } from '../../services/supabase';
 import { DISCORD_AVAILABLE, COMING_SOON_PILL } from '../../constants/integrations';
 import { Avatar, useSessionPhoto } from '../../components/Avatar';
+import { PrivacySettings } from '../../components/PrivacySettings';
 import type { ExperienceLevel, UserSkill } from '../../types';
 
 const TABS = [
@@ -24,6 +25,7 @@ const TABS = [
   { id: 'role', label: 'Role', icon: Briefcase },
   { id: 'skills', label: 'Skills', icon: Wrench },
   { id: 'connections', label: 'Connections', icon: Link2 },
+  { id: 'privacy', label: 'Privacy', icon: ShieldCheck },
 ] as const;
 type TabId = (typeof TABS)[number]['id'];
 const isTabId = (v: string | null): v is TabId => TABS.some((t) => t.id === v);
@@ -66,6 +68,7 @@ export default function Profile() {
 
   const [fullName, setFullName] = useState('');
   const [specialization, setSpecialization] = useState('');
+  const [secondary, setSecondary] = useState('');
   const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel | ''>('');
   const [skills, setSkills] = useState<UserSkill[]>([]);
   const [links, setLinks] = useState<ProfileLinks>({});
@@ -84,6 +87,7 @@ export default function Profile() {
     if (!currentUser) return;
     setFullName(currentUser.fullName ?? '');
     setSpecialization(currentUser.specialization ?? '');
+    setSecondary(currentUser.secondarySpecialization ?? '');
     setExperienceLevel((currentUser.experienceLevel as ExperienceLevel) ?? '');
     // Copy whole skill objects so `featured` (and any future fields) survive a save.
     setSkills((currentUser.skills ?? []).map((s) => ({ ...s })));
@@ -137,16 +141,18 @@ export default function Profile() {
   const nameLocked = currentUser?.status === 'Approved';
 
   const changed = useMemo(() => {
-    if (!currentUser) return { personal: false, role: false, skills: false, connections: false };
+    if (!currentUser) return { personal: false, role: false, skills: false, connections: false, privacy: false };
     return {
       personal: !nameLocked && fullName.trim() !== (currentUser.fullName ?? ''),
       role:
         specialization !== (currentUser.specialization ?? '') ||
+        secondary !== (currentUser.secondarySpecialization ?? '') ||
         experienceLevel !== (currentUser.experienceLevel ?? ''),
       skills: skillsKey(skills) !== skillsKey(currentUser.skills ?? []),
       connections: linksKey(links) !== linksKey(currentUser.links),
+      privacy: false, // privacy switches save the moment they change
     };
-  }, [currentUser, nameLocked, fullName, specialization, experienceLevel, skills, links]);
+  }, [currentUser, nameLocked, fullName, specialization, secondary, experienceLevel, skills, links]);
   const dirty = changed.personal || changed.role || changed.skills || changed.connections;
 
   if (!currentUser) return <LoadingOverlay />;
@@ -196,6 +202,7 @@ export default function Profile() {
       const updated = await createOrUpdateUserRecord({
         ...(nameLocked ? {} : { fullName: fullName.trim() }),
         specialization,
+        secondarySpecialization: secondary && secondary !== specialization ? secondary : '',
         experienceLevel: experienceLevel || undefined,
         // Featured skills are stored first so every view can show them up front.
         skills: [...skills.filter((s) => s.featured), ...skills.filter((s) => !s.featured)],
@@ -374,7 +381,7 @@ export default function Profile() {
 
         {activeTab === 'role' && (
           <div role="tabpanel" id="panel-role" aria-labelledby="tab-role">
-            <Card title="Role & experience" description="Your primary role drives skill recommendations and shows on your Volunteer Card.">
+            <Card title="Role & experience" description="Your primary role drives skill recommendations and shows on your Volunteer Card. Add a second role if you also do something else, like a developer who makes videos.">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label id="specialization-label" htmlFor="specialization" className={labelClass}>Primary role</label>
@@ -384,7 +391,20 @@ export default function Profile() {
                     value={specialization}
                     placeholder="Select a role"
                     options={roleOptions}
-                    onChange={(v) => { setSpecialization(v); touch(); }}
+                    onChange={(v) => { setSpecialization(v); if (v === secondary) setSecondary(''); touch(); }}
+                  />
+                </div>
+                <div>
+                  <label id="secondary-label" htmlFor="secondary" className={labelClass}>
+                    Secondary role <span className="font-normal text-slate-400">optional</span>
+                  </label>
+                  <SelectMenu
+                    id="secondary"
+                    labelledBy="secondary-label"
+                    value={secondary}
+                    placeholder="None"
+                    options={[{ value: '', label: 'None' }, ...roleOptions.filter((o) => o.value !== specialization)]}
+                    onChange={(v) => { setSecondary(v); touch(); }}
                   />
                 </div>
                 <div>
@@ -436,6 +456,14 @@ export default function Profile() {
               specialization={specialization}
               onSpecializationChange={(label) => { setSpecialization(label); touch(); }}
             />
+          </div>
+        )}
+
+        {activeTab === 'privacy' && (
+          <div role="tabpanel" id="panel-privacy" aria-labelledby="tab-privacy">
+            <Card title="Privacy" description="Choose what the public sees. These switches save straight away.">
+              <PrivacySettings user={currentUser} onSaved={(u) => setCurrentUser(u)} />
+            </Card>
           </div>
         )}
 

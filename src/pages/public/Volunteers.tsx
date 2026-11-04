@@ -9,6 +9,7 @@ import { SkillIcon } from '../../components/SkillIcon';
 interface Volunteer {
   name: string;
   role: string | null;
+  secondaryRole?: string | null;
   memberId: string;
   yearJoined: number | null;
   isAdmin: boolean;
@@ -17,7 +18,7 @@ interface Volunteer {
   avatarUrl: string | null;
 }
 
-const CACHE_KEY = 'bgph:volunteers:v1';
+const CACHE_KEY = 'bgph:volunteers:v2'; // v2: names are redacted server-side
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
 const readCache = (): Volunteer[] | null => {
@@ -44,6 +45,7 @@ const VolunteerCard: React.FC<{ v: Volunteer }> = ({ v }) => {
           </p>
           <p className="truncate text-[13px] text-[var(--fg-3)]">
             {v.role || 'Volunteer'}
+            {v.secondaryRole ? <> · {v.secondaryRole}</> : null}
             {v.yearJoined ? <span className="num"> · since {v.yearJoined}</span> : null}
           </p>
         </div>
@@ -116,11 +118,12 @@ export default function Volunteers() {
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     return (volunteers ?? []).filter((v) => {
-      if (role !== 'All' && v.role !== role) return false;
+      if (role !== 'All' && v.role !== role && v.secondaryRole !== role) return false;
       if (!q) return true;
       return (
         v.name.toLowerCase().includes(q) ||
         (v.role ?? '').toLowerCase().includes(q) ||
+        (v.secondaryRole ?? '').toLowerCase().includes(q) ||
         v.skills.some((s) => s.toLowerCase().includes(q))
       );
     });

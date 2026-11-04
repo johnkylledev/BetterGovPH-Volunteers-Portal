@@ -5,6 +5,8 @@ import { getApprovedProjects, supabase } from '../../services/supabase';
 import { Project } from '../../types';
 import { SiteLayout, PageIntro } from '../../components/site/SiteLayout';
 import { workTypeLabel } from '../../constants/tracks';
+import { stageLabel } from '../../constants/community';
+import { RepoChip } from '../../components/RepoHealth';
 
 const hostnameFromUrl = (url: string) => {
   try {
@@ -156,14 +158,12 @@ export default function Projects() {
             </div>
           ) : (
             <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {filtered.map((p) => (
-                <li key={p.id}>
-                  <a
-                    href={p.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="s-card group flex h-full flex-col p-5 transition-[box-shadow,transform] duration-200 [@media(hover:hover)]:hover:shadow-[var(--e2)] [@media(hover:hover)]:hover:-translate-y-px active:scale-[0.99]"
-                  >
+              {filtered.map((p) => {
+                // Portal projects open their own page (team, progress); bettergov.ph ones link out.
+                const local = p.source === 'local';
+                const cardClass = 's-card group flex h-full flex-col p-5 transition-[box-shadow,transform] duration-200 [@media(hover:hover)]:hover:shadow-[var(--e2)] [@media(hover:hover)]:hover:-translate-y-px active:scale-[0.99]';
+                const body = (
+                  <>
                     <div className="flex items-start justify-between gap-3">
                       <h2 className="min-w-0 truncate text-[16px] font-semibold tracking-[-0.012em]">{p.title}</h2>
                       <ArrowUpRight
@@ -174,6 +174,12 @@ export default function Projects() {
                     </div>
                     {p.host && <p className="mt-0.5 truncate text-[13px] text-[var(--fg-3)]">{p.host}</p>}
                     <p className="mt-3 flex-1 text-[14px] leading-relaxed text-[var(--fg-2)] line-clamp-3">{p.description}</p>
+                    {(p.repo || p.stage) && (
+                      <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+                        {p.stage && <span className="rounded-full bg-[#eef3ff] px-2 py-0.5 text-[11.5px] font-medium text-[var(--accent)]">{stageLabel(p.stage)}</span>}
+                        <RepoChip repo={p.repo} />
+                      </p>
+                    )}
                     <div className="mt-5 flex items-center justify-between gap-3 border-t border-[var(--line)] pt-3 text-[12px] text-[var(--fg-3)]">
                       <span className="truncate">
                         {workTypeLabel(p.projType) || ((p as any).source === 'bettergov.ph' ? 'bettergov.ph' : 'Community')}
@@ -184,9 +190,18 @@ export default function Projects() {
                         </time>
                       )}
                     </div>
-                  </a>
-                </li>
-              ))}
+                  </>
+                );
+                return (
+                  <li key={p.id}>
+                    {local ? (
+                      <Link to={`/projects/${encodeURIComponent(String(p.id))}`} className={cardClass}>{body}</Link>
+                    ) : (
+                      <a href={p.url} target="_blank" rel="noreferrer" className={cardClass}>{body}</a>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

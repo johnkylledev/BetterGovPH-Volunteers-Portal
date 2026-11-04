@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { AccessCard } from '../../components/AccessCard';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
@@ -12,6 +12,9 @@ import { AppHeader, MEMBER_NAV } from '../../components/AppHeader';
 import { SelectMenu } from '../../components/SelectMenu';
 import { trackForRole, memberNav, workTypeOptions, workTypeLabel, callFitsMember } from '../../constants/tracks';
 import { RolesNeededPicker, parseRoles } from '../../components/RolesNeededPicker';
+import { CallMeta, CallMetaFields, CallTypePicker, EMPTY_CALL_EXTRAS, extrasFromCall, type CallExtras } from '../../components/CallFields';
+import { RepoChip, RepoPanel } from '../../components/RepoHealth';
+import { STAGES, callTypeOf } from '../../constants/community';
 import { RefreshButton } from '../../components/RefreshButton';
 import { DISCORD_AVAILABLE, COMING_SOON_PILL } from '../../constants/integrations';
 import { MerchTab } from '../../components/merch/MerchTab';
@@ -20,8 +23,8 @@ import { AwardCard } from '../../components/awards/AwardCard';
 import { evaluateAwards } from '../../components/awards/awards';
 import { toast } from 'sonner';
 import { SkillIcon } from '../../components/SkillIcon';
-import { createVolunteerCall, deleteVolunteerCall, updateVolunteerCall, getMyProjectSubmissions, getVolunteerCalls, submitProjectSubmission, supabase } from '../../services/supabase';
-import { ProjectSubmission, VolunteerCall } from '../../types';
+import { createVolunteerCall, deleteVolunteerCall, updateVolunteerCall, getMyProjectSubmissions, getVolunteerCalls, submitProjectSubmission, supabase, checkRepo, getMyTeams } from '../../services/supabase';
+import { MyTeam, ProjectStage, ProjectSubmission, RepoStats, VolunteerCall } from '../../types';
 import { formatExternalUrl } from '../../utils/skillUtils';
 
 const SkeletonBars = () => (
@@ -69,6 +72,7 @@ export default function UserDashboard() {
     setVolunteerDescription('');
     setVolunteerRolesNeeded('');
     setVolunteerContact('');
+    setCallExtras(EMPTY_CALL_EXTRAS);
     setVolunteerSubmitStatus('idle');
   };
 
@@ -102,6 +106,15 @@ export default function UserDashboard() {
   const [modalActionStatus, setModalActionStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [confirmDeleteCallId, setConfirmDeleteCallId] = useState<string | null>(null);
   const [volunteerFilter, setVolunteerFilter] = useState<'all' | 'fits' | 'mine'>('all');
+  const [callKind, setCallKind] = useState<'all' | 'people' | 'things' | 'first'>('all');
+  const [callExtras, setCallExtras] = useState<CallExtras>(EMPTY_CALL_EXTRAS);
+  const [editExtras, setEditExtras] = useState<CallExtras>(EMPTY_CALL_EXTRAS);
+  const [projectRepoUrl, setProjectRepoUrl] = useState('');
+  const [repoCheck, setRepoCheck] = useState<{ state: 'idle' | 'checking' | 'done'; repo: RepoStats | null; for: string }>({ state: 'idle', repo: null, for: '' });
+  const [projectStage, setProjectStage] = useState<ProjectStage | ''>('');
+  const [projectOwnerType, setProjectOwnerType] = useState<'member' | 'org'>('member');
+  const [projectOwnerName, setProjectOwnerName] = useState('');
+  const [myTeams, setMyTeams] = useState<{ teams: MyTeam[]; pendingForMe: number } | null>(null);
 
   const openManageModal = (call: VolunteerCall) => {
     setSelectedCallForModal(call);
@@ -111,6 +124,7 @@ export default function UserDashboard() {
     setEditRolesNeeded(call.rolesNeeded || '');
     setEditContact(call.contact || '');
     setEditStatus((call.status as 'open' | 'closed') || 'open');
+    setEditExtras(extrasFromCall(call));
     setModalActionStatus('idle');
     setConfirmDeleteCallId(null);
   };
@@ -123,8 +137,8 @@ export default function UserDashboard() {
   const handleUpdateCall = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCallForModal) return;
-    if (!editTitle.trim() || !editProjectUrl.trim() || !editDescription.trim()) {
-      toast.error('Title, URL, and Description are required.');
+    if (!editTitle.trim() || !editDescription.trim() || (editExtras.callType === 'people' && !editProjectUrl.trim())) {
+      toast.error(editExtras.callType === 'people' ? 'Title, project link and details are required.' : 'Title and details are required.');
       setModalActionStatus('error');
       return;
     }
@@ -134,9 +148,15 @@ export default function UserDashboard() {
         title: editTitle.trim(),
         projectUrl: editProjectUrl.trim(),
         description: editDescription.trim(),
-        rolesNeeded: editRolesNeeded.trim() || undefined,
+        rolesNeeded: editExtras.callType === 'people' ? editRolesNeeded.trim() : '',
         contact: editContact.trim() || undefined,
         status: editStatus,
+        callType: editExtras.callType,
+        location: editExtras.location.trim(),
+        neededBy: editExtras.neededBy,
+        commitment: editExtras.commitment,
+        workMode: editExtras.workMode,
+        goodFirst: editExtras.callType === 'people' && editExtras.goodFirst,
       });
       toast.success('Volunteer call updated');
       closeManageModal();
@@ -454,6 +474,7 @@ export default function UserDashboard() {
     } else if (activeTab === 'dashboard') {
       loadMySubmissions(false);
       loadVolunteerCalls(false);
+      getMyTeams().then((r) => setMyTeams({ teams: r.teams, pendingForMe: r.pendingForMe })).catch(() => setMyTeams(null));
     } else if (activeTab === 'volunteer') {
       loadVolunteerCalls(true);
     }
@@ -501,8 +522,14 @@ export default function UserDashboard() {
 
   const handleVolunteerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!volunteerTitle.trim() || !volunteerProjectUrl.trim() || !volunteerDescription.trim()) {
-      toast.error('Title, URL, and Description are required.');
+    const isPeople = callExtras.callType === 'people';
+    if (!volunteerTitle.trim() || !volunteerDescription.trim() || (isPeople && !volunteerProjectUrl.trim())) {
+      toast.error(isPeople ? 'Title, project link and details are required.' : 'Title and details are required.');
+      setVolunteerSubmitStatus('error');
+      return;
+    }
+    if (isPeople && callExtras.goodFirst && !volunteerContact.trim()) {
+      toast.error('Good first tasks need a contact, so a newcomer knows who to ask.');
       setVolunteerSubmitStatus('error');
       return;
     }
@@ -512,10 +539,16 @@ export default function UserDashboard() {
         title: volunteerTitle.trim(),
         projectUrl: volunteerProjectUrl.trim(),
         description: volunteerDescription.trim(),
-        rolesNeeded: volunteerRolesNeeded.trim() || undefined,
+        rolesNeeded: isPeople ? volunteerRolesNeeded.trim() || undefined : undefined,
         contact: volunteerContact.trim() || undefined,
+        callType: callExtras.callType,
+        location: callExtras.location.trim() || undefined,
+        neededBy: callExtras.neededBy || undefined,
+        commitment: isPeople ? callExtras.commitment || undefined : undefined,
+        workMode: isPeople ? callExtras.workMode || undefined : undefined,
+        goodFirst: isPeople && callExtras.goodFirst,
       });
-      toast.success(res?.message || 'Volunteer call posted');
+      toast.success(res?.message || 'Posted');
       resetVolunteerForm();
       if (activeTab === 'volunteer') {
         loadVolunteerCalls(false);
@@ -536,17 +569,31 @@ export default function UserDashboard() {
     }
     setProjectSubmitStatus('loading');
     try {
+      if (projectOwnerType === 'org' && !projectOwnerName.trim()) {
+        setProjectSubmitStatus('error');
+        toast.error('Enter the organisation or agency this is for.');
+        return;
+      }
       const res = await submitProjectSubmission({
         projectName: projectName.trim(),
         projectUrl: projectUrl.trim(),
         description: projectDescription.trim(),
         projType: (projectProjType || track.defaultType).trim() || undefined,
+        repoUrl: projectRepoUrl.trim() || undefined,
+        stage: projectStage || undefined,
+        ownerType: projectOwnerType,
+        ownerName: projectOwnerType === 'org' ? projectOwnerName.trim() : undefined,
       });
       toast.success(res?.message || 'Project submitted');
       setProjectName('');
       setProjectUrl('');
       setProjectDescription('');
       setProjectProjType('');
+      setProjectRepoUrl('');
+      setRepoCheck({ state: 'idle', repo: null, for: '' });
+      setProjectStage('');
+      setProjectOwnerType('member');
+      setProjectOwnerName('');
       setProjectSubmitStatus('idle');
       if (activeTab === 'submit-project') {
         loadMySubmissions();
@@ -558,7 +605,12 @@ export default function UserDashboard() {
     }
   };
 
-  const callFits = (c: VolunteerCall) => callFitsMember(track, currentUser.specialization, c);
+  const secondaryRole = currentUser.secondarySpecialization;
+  const callFits = (c: VolunteerCall) =>
+    (c.callType ?? 'people') === 'people' && (
+      callFitsMember(track, currentUser.specialization, c) ||
+      (!!secondaryRole && callFitsMember(trackForRole(secondaryRole), secondaryRole, c))
+    );
   const fitsCount = volunteerCalls.filter((c) => c.status !== 'closed' && callFits(c)).length;
   const filteredVolunteerCalls = volunteerCalls.filter((c) => {
     if (volunteerFilter === 'mine') {
@@ -566,7 +618,24 @@ export default function UserDashboard() {
     }
     if (volunteerFilter === 'fits') return callFits(c);
     return true;
-  });
+  }).filter((c) => {
+    const kind = c.callType ?? 'people';
+    if (callKind === 'people') return kind === 'people';
+    if (callKind === 'things') return kind !== 'people';
+    if (callKind === 'first') return !!c.goodFirst;
+    return true;
+  }).sort((a, b) => Number(!!b.goodFirst && b.status !== 'closed') - Number(!!a.goodFirst && a.status !== 'closed'));
+  const repoCheckFor = async (raw: string) => {
+    const url = raw.trim();
+    if (!url) { setRepoCheck({ state: 'idle', repo: null, for: '' }); return; }
+    if (url === repoCheck.for) return;
+    setRepoCheck({ state: 'checking', repo: null, for: url });
+    try {
+      setRepoCheck({ state: 'done', repo: await checkRepo(url), for: url });
+    } catch {
+      setRepoCheck({ state: 'idle', repo: null, for: '' });
+    }
+  };
 
   const firstName = (currentUser.fullName || '').trim().split(' ')[0] || 'there';
   const statusMeta = currentUser.status === 'Approved'
@@ -698,6 +767,50 @@ export default function UserDashboard() {
                     >
                       Connect Discord
                     </button>
+                  </section>
+                )}
+
+                {!currentUser.consentAt && (
+                  <section className="flex flex-col gap-3 rounded-[14px] bg-amber-50/70 p-5 shadow-[inset_0_0_0_1px_rgb(245_158_11/0.3)] sm:flex-row sm:items-center sm:p-6">
+                    <div className="min-w-0 flex-1">
+                      <h2 className="text-[15px] font-semibold text-slate-900">Review your privacy choices</h2>
+                      <p className="mt-0.5 text-[13px] text-slate-600">We need your go-ahead under the Data Privacy Act, and you choose what the public sees.</p>
+                    </div>
+                    <Link to="/profile?tab=privacy" className="s-btn s-btn-accent h-10 shrink-0">Review now</Link>
+                  </section>
+                )}
+
+                {myTeams && (myTeams.teams.length > 0 || myTeams.pendingForMe > 0) && (
+                  <section className="s-card p-5 sm:p-6" aria-labelledby="teams-title">
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                      <h2 id="teams-title" className={sectionTitle}>Your teams</h2>
+                      {myTeams.pendingForMe > 0 && (
+                        <p className="text-[13px] font-medium text-amber-800">
+                          {myTeams.pendingForMe} {myTeams.pendingForMe === 1 ? 'person wants' : 'people want'} to join
+                        </p>
+                      )}
+                    </div>
+                    <ul className="mt-3 divide-y divide-slate-200/80">
+                      {myTeams.teams.map((t) => (
+                        <li key={t.projectId}>
+                          <Link to={`/projects/${encodeURIComponent(t.projectId)}`} className="flex items-center justify-between gap-3 py-3 hover:text-[var(--accent)]">
+                            <span className="min-w-0">
+                              <span className="block truncate text-[14px] font-medium text-slate-900">{t.projectName}</span>
+                              <span className="block text-[12.5px] text-slate-500">
+                                {t.role === 'head' ? 'Team head' : t.teamRole || 'Member'}
+                                {t.projectStatus !== 'approved' ? ' · project in review' : ''}
+                              </span>
+                            </span>
+                            <span className={clsx(
+                              'shrink-0 rounded-full px-2 py-0.5 text-[12px] font-medium',
+                              t.status === 'approved' ? 'bg-emerald-50 text-emerald-800' : t.status === 'pending' ? 'bg-amber-50 text-amber-800' : 'bg-slate-100 text-slate-600'
+                            )}>
+                              {t.status === 'approved' ? 'On the team' : t.status === 'pending' ? 'Requested' : 'Declined'}
+                            </span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
                   </section>
                 )}
 
@@ -1070,6 +1183,51 @@ export default function UserDashboard() {
                       <p className="mt-1.5 text-[12px] text-slate-500">{track.linkHint}</p>
                     </div>
                     <div>
+                      <label htmlFor="proj-repo" className="mb-1.5 block text-[13px] font-medium text-slate-900">
+                        GitHub repository <span className="font-normal text-slate-400">optional</span>
+                      </label>
+                      <input
+                        id="proj-repo"
+                        type="url"
+                        inputMode="url"
+                        value={projectRepoUrl}
+                        onChange={(e) => setProjectRepoUrl(e.target.value)}
+                        onBlur={(e) => repoCheckFor(e.target.value)}
+                        className="s-field"
+                        placeholder="https://github.com/owner/repo"
+                        disabled={projectSubmitStatus === 'loading'}
+                      />
+                      <p className="mt-1.5 text-[12px] text-slate-500">We check it’s public and track its progress on the project page.</p>
+                      {repoCheck.state === 'checking' && <p className="mt-2 text-[12.5px] text-slate-500" role="status">Checking the repository…</p>}
+                      {repoCheck.state === 'done' && repoCheck.repo && (
+                        <div className="mt-3"><RepoPanel repo={repoCheck.repo} compact /></div>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-1">
+                      <div>
+                        <label htmlFor="proj-stage" className="mb-1.5 block text-[13px] font-medium text-slate-900">Stage</label>
+                        <select id="proj-stage" value={projectStage} onChange={(e) => setProjectStage(e.target.value as ProjectStage | '')} className="s-field h-11" disabled={projectSubmitStatus === 'loading'}>
+                          <option value="">Choose a stage</option>
+                          {STAGES.map((st) => <option key={st.id} value={st.id}>{st.label} — {st.hint}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <p id="proj-owner-label" className="mb-1.5 block text-[13px] font-medium text-slate-900">Who owns it?</p>
+                        <div role="radiogroup" aria-labelledby="proj-owner-label" className="grid grid-cols-2 gap-1 rounded-[10px] bg-slate-200/60 p-1">
+                          {(['member', 'org'] as const).map((o) => (
+                            <button key={o} type="button" role="radio" aria-checked={projectOwnerType === o} onClick={() => setProjectOwnerType(o)}
+                              className={clsx('min-h-[36px] rounded-[8px] text-[13px]', projectOwnerType === o ? 'bg-white font-medium text-slate-900 shadow-[var(--e1)]' : 'text-slate-500')}>
+                              {o === 'member' ? 'Me' : 'An organisation'}
+                            </button>
+                          ))}
+                        </div>
+                        {projectOwnerType === 'org' && (
+                          <input aria-label="Organisation name" maxLength={120} value={projectOwnerName} onChange={(e) => setProjectOwnerName(e.target.value)} className="s-field mt-2" placeholder="Barangay, agency, school or NGO" />
+                        )}
+                        <p className="mt-1.5 text-[12px] text-slate-500">You lead the team either way, and can hand it over later.</p>
+                      </div>
+                    </div>
+                    <div>
                       <label htmlFor="proj-desc" className="mb-1.5 block text-[13px] font-medium text-slate-900">Description</label>
                       <textarea
                         id="proj-desc"
@@ -1150,7 +1308,16 @@ export default function UserDashboard() {
                         {s.description && (
                           <p className="mt-3 whitespace-pre-wrap break-words text-[14px] leading-relaxed text-slate-600">{s.description}</p>
                         )}
+                        {s.adminNote && (
+                          <div className={clsx('mt-3 rounded-[10px] px-3.5 py-2.5 text-[13.5px]', s.status === 'rejected' ? 'bg-red-50 text-red-900 shadow-[inset_0_0_0_1px_rgb(254_202_202)]' : 'bg-slate-50 text-slate-800 shadow-[inset_0_0_0_1px_rgb(15_23_42/0.06)]')} role="note">
+                            <p className="text-[11.5px] font-medium text-slate-500">Note from the reviewer</p>
+                            <p className="mt-0.5 whitespace-pre-wrap break-words">{s.adminNote}</p>
+                          </div>
+                        )}
+                        {s.repo && <RepoChip repo={s.repo} className="mt-3" />}
                         <p className="mt-3 flex flex-wrap items-center gap-x-2 text-[12px] text-slate-500">
+                          <Link to={`/projects/${encodeURIComponent(String(s.id))}`} className="font-medium text-[var(--accent)] hover:underline">Project page & team</Link>
+                          <span aria-hidden>·</span>
                           {s.projType && <span>{workTypeLabel(s.projType)}</span>}
                           {s.projType && s.createdAt && <span aria-hidden>·</span>}
                           {s.createdAt && (
@@ -1178,8 +1345,9 @@ export default function UserDashboard() {
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-[380px_minmax(0,1fr)] lg:gap-10">
               <section className="order-2 min-w-0 lg:order-1" aria-labelledby="post-title">
                 <div className="s-card p-5 sm:p-6 lg:sticky lg:top-24">
-                  <h2 id="post-title" className="text-[16px] font-semibold">Post a call</h2>
+                  <h2 id="post-title" className="text-[16px] font-semibold">Post a call or request</h2>
                   <form onSubmit={handleVolunteerSubmit} className="mt-5 space-y-4">
+                    <CallTypePicker idPrefix="vc" value={callExtras.callType} onChange={(t) => setCallExtras({ ...callExtras, callType: t })} disabled={volunteerSubmitStatus === 'loading'} />
                     <div>
                       <label htmlFor="vc-title" className="mb-1.5 block text-[13px] font-medium text-slate-900">Title</label>
                       <input
@@ -1188,12 +1356,15 @@ export default function UserDashboard() {
                         value={volunteerTitle}
                         onChange={(e) => setVolunteerTitle(e.target.value)}
                         className="s-field"
-                        placeholder="Writer or frontend developer for a budget tracker"
+                        placeholder={callTypeOf(callExtras.callType).titlePlaceholder}
+                        maxLength={160}
                         disabled={volunteerSubmitStatus === 'loading'}
                       />
                     </div>
                     <div>
-                      <label htmlFor="vc-url" className="mb-1.5 block text-[13px] font-medium text-slate-900">Project link</label>
+                      <label htmlFor="vc-url" className="mb-1.5 block text-[13px] font-medium text-slate-900">
+                        Project link {callExtras.callType !== 'people' && <span className="font-normal text-slate-400">optional</span>}
+                      </label>
                       <input
                         id="vc-url"
                         type="url"
@@ -1212,11 +1383,14 @@ export default function UserDashboard() {
                         value={volunteerDescription}
                         onChange={(e) => setVolunteerDescription(e.target.value)}
                         className="s-field h-auto min-h-[120px] resize-y py-2.5"
-                        placeholder="What needs doing, how long it takes, what someone should know."
+                        placeholder={callTypeOf(callExtras.callType).detailsPlaceholder}
+                        maxLength={4000}
                         disabled={volunteerSubmitStatus === 'loading'}
                       />
                     </div>
+                    <CallMetaFields idPrefix="vc" value={callExtras} onChange={setCallExtras} disabled={volunteerSubmitStatus === 'loading'} />
                     <div className="grid grid-cols-1 gap-4">
+                      {callExtras.callType === 'people' && (
                       <div>
                         <label id="vc-roles-label" htmlFor="vc-roles" className="mb-1.5 block text-[13px] font-medium text-slate-900">
                           Roles needed <span className="font-normal text-slate-400">optional</span>
@@ -1229,6 +1403,7 @@ export default function UserDashboard() {
                           disabled={volunteerSubmitStatus === 'loading'}
                         />
                       </div>
+                      )}
                       <div>
                         <label htmlFor="vc-contact" className="mb-1.5 block text-[13px] font-medium text-slate-900">
                           Contact <span className="font-normal text-slate-400">optional</span>
@@ -1239,13 +1414,14 @@ export default function UserDashboard() {
                           value={volunteerContact}
                           onChange={(e) => setVolunteerContact(e.target.value)}
                           className="s-field"
-                          placeholder="Discord handle or email"
+                          placeholder="Discord handle, or a group chat link"
+                          maxLength={200}
                           disabled={volunteerSubmitStatus === 'loading'}
                         />
                       </div>
                     </div>
                     <button type="submit" disabled={volunteerSubmitStatus === 'loading'} className="s-btn s-btn-accent h-11 w-full">
-                      {volunteerSubmitStatus === 'loading' ? 'Posting…' : 'Post call'}
+                      {volunteerSubmitStatus === 'loading' ? 'Posting…' : callExtras.callType === 'people' ? 'Post call' : 'Post request'}
                     </button>
                   </form>
                 </div>
@@ -1280,6 +1456,15 @@ export default function UserDashboard() {
                     ))}
                   </div>
                   <RefreshButton onRefresh={() => loadVolunteerCalls(true)} loading={volunteerCallsLoading} />
+                </div>
+                <div className="-mt-1 mb-4 flex flex-wrap gap-1.5" role="group" aria-label="Show">
+                  {([['all', 'Everything'], ['people', 'Volunteers'], ['things', 'Venues & resources'], ['first', 'Good first tasks']] as const).map(([k, label]) => (
+                    <button key={k} type="button" aria-pressed={callKind === k} onClick={() => setCallKind(k)}
+                      className={clsx('min-h-[32px] rounded-full px-3 text-[12.5px] transition-[background-color,box-shadow,color] duration-150',
+                        callKind === k ? 'bg-slate-900 font-medium text-white' : 'bg-white text-slate-600 shadow-[inset_0_0_0_1px_rgb(15_23_42/0.12)] hover:text-slate-900')}>
+                      {label}
+                    </button>
+                  ))}
                 </div>
 
                 {volunteerCallsLoading ? (
@@ -1319,6 +1504,7 @@ export default function UserDashboard() {
                               {c.postedBy?.fullName && (
                                 <p className="mt-0.5 text-[13px] text-slate-500">Posted by {c.postedBy.fullName}</p>
                               )}
+                              <CallMeta call={c} />
                             </div>
                             <div className="flex shrink-0 items-center gap-2">
                               {isOwner ? (
@@ -1432,6 +1618,7 @@ export default function UserDashboard() {
               </div>
 
               <form onSubmit={handleUpdateCall} className="p-6 space-y-4 overflow-y-auto flex-1">
+                <CallTypePicker idPrefix="edit" value={editExtras.callType} onChange={(t) => setEditExtras({ ...editExtras, callType: t })} />
                 <div>
                   <label className="block text-[13px] font-medium text-slate-900 mb-1.5">
                     Project / Role Title
@@ -1454,7 +1641,7 @@ export default function UserDashboard() {
                     value={editProjectUrl}
                     onChange={(e) => setEditProjectUrl(e.target.value)}
                     className="s-field"
-                    required
+                    required={editExtras.callType === 'people'}
                   />
                 </div>
 
@@ -1470,6 +1657,9 @@ export default function UserDashboard() {
                   />
                 </div>
 
+                <CallMetaFields idPrefix="edit" value={editExtras} onChange={setEditExtras} />
+
+                {editExtras.callType === 'people' && (
                 <div>
                   <label id="edit-roles-label" htmlFor="edit-roles" className="block text-[13px] font-medium text-slate-900 mb-1.5">
                     Roles needed
@@ -1481,6 +1671,7 @@ export default function UserDashboard() {
                     onChange={setEditRolesNeeded}
                   />
                 </div>
+                )}
 
                 <div>
                   <label className="block text-[13px] font-medium text-slate-900 mb-1.5">

@@ -13,6 +13,9 @@ import { trackForRole } from '../../constants/tracks';
 import { DISCORD_AVAILABLE, COMING_SOON_PILL } from '../../constants/integrations';
 import type { LinkKey, ProfileLinks } from '../../constants/socialLinks';
 import { LinksFields, LINKS_INTRO, validateLinks } from '../../components/LinksFields';
+import { SelectMenu } from '../../components/SelectMenu';
+import { ConsentFields, requiredConsentMissing } from '../../components/ConsentFields';
+import { CONSENT_VERSION, type ConsentPurposeId } from '../../constants/community';
 import { SKILL_CATEGORIES } from '../../constants/skills';
 import { createOrUpdateUserRecord, getUserData, signInWithGoogle, supabase, connectDiscord, getDiscordStatus } from '../../services/supabase';
 
@@ -50,8 +53,11 @@ function LegacyRegister() {
         role: 'Member',
         customRole: '',
         specialization: '',
+        secondarySpecialization: '',
         links: {} as ProfileLinks,
+        consent: [] as ConsentPurposeId[],
     });
+    const [consentError, setConsentError] = useState('');
     const [linkErrors, setLinkErrors] = useState<Partial<Record<LinkKey, string>>>({});
     const [completing, setCompleting] = useState(false);
 
@@ -110,6 +116,7 @@ function LegacyRegister() {
                 customRole: typeof draft.data.customRole === 'string' ? draft.data.customRole : prev.customRole,
                 specialization: typeof draft.data.specialization === 'string' ? draft.data.specialization : prev.specialization,
                 links: draft.data.links && typeof draft.data.links === 'object' ? draft.data.links : prev.links,
+                secondarySpecialization: typeof draft.data.secondarySpecialization === 'string' ? draft.data.secondarySpecialization : prev.secondarySpecialization,
             }));
         }
     }, []);
@@ -153,6 +160,7 @@ function LegacyRegister() {
                         experienceLevel: profile.experienceLevel || prev.experienceLevel,
                         customRole: profile.role && !ROLES.includes(profile.role) ? profile.role : prev.customRole,
                         links: profile.links && Object.keys(profile.links).length ? { ...profile.links } : prev.links,
+                        secondarySpecialization: profile.secondarySpecialization || prev.secondarySpecialization,
                     }));
                     const isComplete = profile.fullName && profile.specialization && profile.yearJoined && (profile.discordConnected === true || currentStep !== 4);
                     if (isComplete) {
@@ -216,7 +224,14 @@ function LegacyRegister() {
     };
 
     const handleComplete = async () => {
-        // Optional channels (YouTube, GitHub, …): save them if any were added, but never block on the server.
+        // Data Privacy Act consent is required to submit; optional channels are validated but never required.
+        if (requiredConsentMissing(formData.consent)) {
+            setConsentError('Tick the two required items to submit your application.');
+            setShouldShake(true);
+            setTimeout(() => setShouldShake(false), 500);
+            document.getElementById('reg-consent-membership')?.focus();
+            return;
+        }
         const { clean, errors } = validateLinks(formData.links);
         setLinkErrors(errors);
         if (Object.keys(errors).length > 0) {
@@ -225,16 +240,19 @@ function LegacyRegister() {
             setTimeout(() => setShouldShake(false), 500);
             return;
         }
-        if (Object.keys(clean).length > 0) {
-            setCompleting(true);
-            try {
-                const saved = await createOrUpdateUserRecord({ links: clean });
-                if (saved) setCurrentUser(saved as any);
-            } catch {
-                /* links can be added later from Profile */
-            }
+        setCompleting(true);
+        try {
+            const saved = await createOrUpdateUserRecord({
+                ...(Object.keys(clean).length > 0 ? { links: clean } : {}),
+                consent: { version: CONSENT_VERSION, purposes: formData.consent },
+            });
+            if (saved) setCurrentUser(saved as any);
+        } catch (err: any) {
             setCompleting(false);
+            setError(err?.message || 'Could not save your choices. Try again.');
+            return;
         }
+        setCompleting(false);
         clearDraft();
         navigate('/dashboard');
     };
@@ -476,6 +494,7 @@ function LegacyRegister() {
                 uid: sessionUserId,
                 fullName: formData.fullName.trim(),
                 specialization: primaryRole,
+                secondarySpecialization: formData.secondarySpecialization && formData.secondarySpecialization !== primaryRole ? formData.secondarySpecialization : '',
                 role: rl,
                 yearJoined: Number(formData.yearJoined),
                 skills: formData.skills,
@@ -707,7 +726,7 @@ function LegacyRegister() {
                                                             type="button"
                                                             role="radio"
                                                             aria-checked={isSelected}
-                                                            onClick={() => setFormData({ ...formData, specialization: spec.label })}
+                                                            onClick={() => setFormData({ ...formData, specialization: spec.label, secondarySpecialization: formData.secondarySpecialization === spec.label ? '' : formData.secondarySpecialization })}
                                                             className={clsx(
                                                                 'group relative flex min-h-[64px] items-start gap-3 rounded-[12px] p-3.5 text-left transition-[box-shadow,background-color,transform] duration-150 active:scale-[0.99]',
                                                                 isSelected
@@ -742,6 +761,28 @@ function LegacyRegister() {
                                                 ])}
                                             </div>
                                         </fieldset>
+
+                                        <div>
+                                            <label id="label-secondary" htmlFor="field-secondary" className="text-[15px] font-semibold text-slate-900">
+                                                Secondary role <span className="text-[13px] font-normal text-slate-400">optional</span>
+                                            </label>
+                                            <p className="mb-3 mt-1 text-[13px] text-slate-500">Do something else too? A developer who makes videos, a lawyer who teaches. It matches you to more calls.</p>
+                                            <SelectMenu
+                                                id="field-secondary"
+                                                labelledBy="label-secondary"
+                                                value={formData.secondarySpecialization}
+                                                placeholder="None"
+                                                options={[
+                                                    { value: '', label: 'None' },
+                                                    ...SPECIALIZATIONS.filter((sp) => sp.label !== formData.specialization).map((sp) => ({
+                                                        value: sp.label, label: sp.label, icon: sp.icon,
+                                                        hint: sp.suggestedSkills.slice(0, 3).join(' · '),
+                                                        group: ROLE_GROUPS.find((g) => g.id === (sp.group ?? 'tech'))?.label,
+                                                    })),
+                                                ]}
+                                                onChange={(v) => setFormData({ ...formData, secondarySpecialization: v })}
+                                            />
+                                        </div>
 
                                         <fieldset>
                                             <legend className="text-[15px] font-semibold text-slate-900">Community role</legend>
@@ -922,6 +963,20 @@ function LegacyRegister() {
                                                     </button>
                                                 )}
                                             </div>
+                                        </div>
+
+                                        {/* Data Privacy Act consent — required to submit */}
+                                        <div className="rounded-[14px] bg-white p-4 shadow-[0_0_0_1px_rgb(15_23_42/0.12),0_2px_6px_-2px_rgb(15_23_42/0.08)] sm:p-5">
+                                            <p className="text-[15px] font-semibold text-slate-900">How we use your information</p>
+                                            <p className="mb-4 mt-0.5 text-[13px] leading-snug text-slate-500">
+                                                Under the Data Privacy Act we only use your details for what you agree to here.
+                                            </p>
+                                            <ConsentFields
+                                                idPrefix="reg-consent"
+                                                value={formData.consent}
+                                                onChange={(consent) => { setFormData({ ...formData, consent }); setConsentError(''); }}
+                                                error={consentError}
+                                            />
                                         </div>
 
                                         {/* Channels & links — optional, platforms picked for the chosen role */}

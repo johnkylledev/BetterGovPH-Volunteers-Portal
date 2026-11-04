@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Project, ProjectSubmission, User, VolunteerCall } from '../types';
+import { CallType, MyTeam, Project, ProjectStage, ProjectSubmission, RepoStats, TeamInfo, User, VolunteerCall } from '../types';
 
 const isUuid = (value: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
@@ -151,8 +151,13 @@ const mapProjectRow = (row: any): Project => ({
   title: row?.project_name ?? row?.title ?? '',
   description: row?.description ?? '',
   url: normalizeUrl(row?.project_url ?? row?.url ?? ''),
-  projType: row?.proj_type ?? row?.tech_stack ?? undefined,
-  createdAt: row?.created_at ?? undefined,
+  projType: row?.projType ?? row?.proj_type ?? row?.tech_stack ?? undefined,
+  createdAt: row?.createdAt ?? row?.created_at ?? undefined,
+  repoUrl: row?.repoUrl ?? row?.repo_url ?? undefined,
+  stage: row?.stage ?? undefined,
+  ownerName: row?.ownerName ?? undefined,
+  repo: row?.repo ?? row?.repo_stats ?? undefined,
+  source: row?.source ?? undefined,
 });
 
 const mapToAppUser = (dbUser: any): User | null => {
@@ -272,6 +277,11 @@ export const createOrUpdateUserRecord = async (user: any) => {
       experienceLevel: user.experienceLevel,
       authProvider: user.authProvider,
       ...(user.links ? { links: user.links } : {}),
+      ...(typeof user.secondarySpecialization === 'string' ? { secondarySpecialization: user.secondarySpecialization } : {}),
+      ...(typeof user.showInDirectory === 'boolean' ? { showInDirectory: user.showInDirectory } : {}),
+      ...(typeof user.showFullName === 'boolean' ? { showFullName: user.showFullName } : {}),
+      ...(user.consent ? { consent: user.consent } : {}),
+      ...(typeof user.requestDeletion === 'boolean' ? { requestDeletion: user.requestDeletion } : {}),
     }),
   });
   return res.user;
@@ -374,6 +384,10 @@ export const submitProjectSubmission = async (input: {
   projectUrl: string;
   description: string;
   projType?: string;
+  repoUrl?: string;
+  stage?: ProjectStage;
+  ownerType?: 'member' | 'org';
+  ownerName?: string;
 }) => {
   const token = await getAccessToken();
   if (!token) throw new Error('Not authenticated');
@@ -393,6 +407,10 @@ export const submitProjectSubmission = async (input: {
       description: input.description,
       proj_type: input.projType,
       projType: input.projType,
+      repoUrl: input.repoUrl || undefined,
+      stage: input.stage,
+      ownerType: input.ownerType,
+      ownerName: input.ownerName,
     }),
   });
   return response;
@@ -440,7 +458,7 @@ export const getProjectSubmissions = async (
   return response;
 };
 
-export const updateProjectSubmission = async (id: string, action: 'approve' | 'reject') => {
+export const updateProjectSubmission = async (id: string, action: 'approve' | 'reject', note?: string) => {
   const token = await getAccessToken();
   if (!token) throw new Error('Not authenticated');
   const response = await apiRequest<{ message: string }>('/api/v1/admin?resource=submissions', {
@@ -449,7 +467,7 @@ export const updateProjectSubmission = async (id: string, action: 'approve' | 'r
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ id, action }),
+    body: JSON.stringify({ id, action, note }),
   });
   return response;
 };
@@ -491,6 +509,12 @@ export const createVolunteerCall = async (input: {
   description: string;
   rolesNeeded?: string;
   contact?: string;
+  callType?: CallType;
+  location?: string;
+  neededBy?: string;
+  commitment?: string;
+  workMode?: string;
+  goodFirst?: boolean;
 }) => {
   const token = await getAccessToken();
   if (!token) throw new Error('Not authenticated');
@@ -506,6 +530,12 @@ export const createVolunteerCall = async (input: {
       description: input.description,
       roles_needed: input.rolesNeeded,
       contact: input.contact,
+      call_type: input.callType,
+      location: input.location,
+      needed_by: input.neededBy,
+      commitment: input.commitment,
+      work_mode: input.workMode,
+      good_first: input.goodFirst,
     }),
   });
   return response;
@@ -548,7 +578,7 @@ export const getAdminVolunteerCalls = async (filters?: { status?: 'open' | 'clos
 
 export const updateVolunteerCall = async (
   id: string,
-  fields: { title?: string; projectUrl?: string; description?: string; rolesNeeded?: string; contact?: string; status?: 'open' | 'closed' }
+  fields: { title?: string; projectUrl?: string; description?: string; rolesNeeded?: string; contact?: string; status?: 'open' | 'closed'; callType?: CallType; location?: string; neededBy?: string; commitment?: string; workMode?: string; goodFirst?: boolean }
 ) => {
   const token = await getAccessToken();
   if (!token) throw new Error('Not authenticated');
@@ -564,6 +594,12 @@ export const updateVolunteerCall = async (
     rolesNeeded: fields.rolesNeeded,
     contact: fields.contact,
     status: fields.status,
+    call_type: fields.callType,
+    location: fields.location,
+    needed_by: fields.neededBy,
+    commitment: fields.commitment,
+    work_mode: fields.workMode,
+    good_first: fields.goodFirst,
   };
 
   try {
@@ -661,3 +697,54 @@ export const onAuthStateChange = (callback: (user: any) => void) => {
   });
   return () => subscription.unsubscribe();
 };
+
+
+// ---------------------------------------------------------------------------
+// Repo tracker, teams, privacy
+// ---------------------------------------------------------------------------
+const authHeaders = async (required = true): Promise<Record<string, string>> => {
+  const token = await getAccessToken();
+  if (!token && required) throw new Error('Not authenticated');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+/** Live check of a GitHub repo while filling the submit form. */
+export const checkRepo = async (url: string) => {
+  const res = await apiRequest<{ repo: RepoStats }>(`/api/v1/repo-tracker?url=${encodeURIComponent(url)}`, { headers: await authHeaders() });
+  return res.repo;
+};
+
+/** Stored (and lazily refreshed) repo stats for approved projects. */
+export const getRepoStats = async (ids: string[]) => {
+  if (!ids.length) return {} as Record<string, RepoStats | null>;
+  const res = await apiRequest<{ repos: Record<string, RepoStats | null> }>(
+    `/api/v1/repo-tracker?ids=${encodeURIComponent(ids.slice(0, 60).join(','))}`,
+  );
+  return res.repos ?? {};
+};
+
+export const getTeam = async (projectId: string) =>
+  apiRequest<TeamInfo>(`/api/v1/teams?project=${encodeURIComponent(projectId)}`, { headers: await authHeaders(false) });
+
+export const getMyTeams = async () =>
+  apiRequest<{ available: boolean; pendingForMe: number; teams: MyTeam[] }>('/api/v1/teams?mine=1', { headers: await authHeaders() });
+
+export type TeamAction =
+  | { action: 'join'; message?: string; teamRole?: string }
+  | { action: 'cancel' } | { action: 'leave' }
+  | { action: 'decide'; requestId: string; decision: 'approve' | 'decline' }
+  | { action: 'remove'; userId: string }
+  | { action: 'transfer-head'; userId: string }
+  | { action: 'set-owner'; ownerType: 'member'; ownerUserId: string }
+  | { action: 'set-owner'; ownerType: 'org'; ownerName: string };
+
+export const teamAction = async (projectId: string, body: TeamAction) =>
+  apiRequest<Record<string, unknown>>('/api/v1/teams', {
+    method: 'POST',
+    headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectId, ...body }),
+  });
+
+/** Admin: consent records for the ROPA export. */
+export const getConsentRecords = async () =>
+  apiRequest<{ version: string; members: any[]; log: any[] }>('/api/v1/admin?resource=consent', { headers: await authHeaders() });

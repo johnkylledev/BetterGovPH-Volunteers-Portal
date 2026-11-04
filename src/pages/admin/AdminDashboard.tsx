@@ -10,7 +10,8 @@ import clsx from 'clsx';
 import { StatTile } from '../../components/StatTile';
 import { UserChip } from '../../components/UserChip';
 import { User, ApplicationStatus, ProjectSubmission } from '../../types';
-import { deleteProjectSubmission, editProjectSubmission, getAllUsers, getAdminStats, getProjectSubmissions, updateProjectSubmission, supabase } from '../../services/supabase';
+import { deleteProjectSubmission, editProjectSubmission, getAllUsers, getAdminStats, getProjectSubmissions, updateProjectSubmission, supabase, getConsentRecords } from '../../services/supabase';
+import { ROPA_REGISTER, CONSENT_PURPOSES } from '../../constants/community';
 import { SkillIcon } from '../../components/SkillIcon';
 import { SPECIALIZATIONS } from '../../constants/specializations';
 
@@ -31,6 +32,9 @@ export default function AdminDashboard() {
   const [projectSubmissionsTotal, setProjectSubmissionsTotal] = useState(0);
   const [projectSubmissionsLoading, setProjectSubmissionsLoading] = useState(false);
   const [projectActionLoadingId, setProjectActionLoadingId] = useState<string | null>(null);
+  // Review dialog: the note goes back to the submitter (required when rejecting).
+  const [review, setReview] = useState<{ id: string; name: string; action: 'approve' | 'reject'; note: string; error: string } | null>(null);
+  const [ropaBusy, setRopaBusy] = useState(false);
   const [projectStats, setProjectStats] = useState({ total: 0, pending: 0, approved: 0, rejected: 0 });
   const [projectStatusFilter, setProjectStatusFilter] = useState<'All' | 'pending' | 'approved' | 'rejected'>('All');
   const [projectPage, setProjectPage] = useState(0);
@@ -234,17 +238,49 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleProjectAction = async (submissionId: string, action: 'approve' | 'reject') => {
-    if (!submissionId) return;
+  const handleProjectAction = async (submissionId: string, action: 'approve' | 'reject', note?: string) => {
+    if (!submissionId) return false;
     setProjectActionLoadingId(submissionId);
     try {
-      await updateProjectSubmission(submissionId, action);
+      await updateProjectSubmission(submissionId, action, note);
       await loadProjectSubmissions();
+      return true;
     } catch (error) {
-      console.error('Error updating project submission:', error);
-      alert('Failed to update project submission.');
+      setReview((r) => (r ? { ...r, error: error instanceof Error ? error.message : 'Failed to update project submission.' } : r));
+      return false;
     } finally {
       setProjectActionLoadingId(null);
+    }
+  };
+
+  // Record of Processing Activities (RA 10173): the processing register plus every member's consent, in one workbook.
+  const exportRopa = async () => {
+    setRopaBusy(true);
+    try {
+      const [{ members, log, version }, XLSX] = await Promise.all([getConsentRecords(), import('xlsx-js-style')]);
+      const purposeLabel = (id: string) => CONSENT_PURPOSES.find((p) => p.id === id)?.label || id;
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ROPA_REGISTER.map((r) => ({
+        'Processing activity': r.activity, Purpose: r.purpose, 'Data subjects': r.subjects, 'Personal data': r.data,
+        'Lawful basis': r.basis, Recipients: r.recipients, Retention: r.retention,
+      }))), 'Processing register');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(members.map((m: any) => ({
+        'Member ID': m.member_id || '', Name: m.full_name, Email: m.email, Status: m.status,
+        'Consent version': m.consent_version || 'none', 'Consented at': m.consent_at ? new Date(m.consent_at).toLocaleString() : 'not yet',
+        Purposes: (Array.isArray(m.consent_purposes) ? m.consent_purposes : []).map(purposeLabel).join('; '),
+        'In directory': m.show_in_directory === false ? 'No' : 'Yes', 'Full name public': m.show_full_name ? 'Yes' : 'No',
+        'Deletion requested': m.deletion_requested_at ? new Date(m.deletion_requested_at).toLocaleDateString() : '',
+        'Joined': m.created_at ? new Date(m.created_at).toLocaleDateString() : '',
+      }))), 'Consent by member');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(log.map((l: any) => ({
+        When: new Date(l.created_at).toLocaleString(), 'User ID': l.user_id, Action: l.action, Version: l.consent_version,
+        Purposes: (Array.isArray(l.purposes) ? l.purposes : []).map(purposeLabel).join('; '),
+      }))), 'Consent log');
+      XLSX.writeFile(wb, `BetterGovPH_ROPA_${version}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Could not export privacy records.');
+    } finally {
+      setRopaBusy(false);
     }
   };
 
@@ -334,6 +370,7 @@ export default function AdminDashboard() {
         : 'N/A',
       'Status': member.status,
       'Admin Notes': member.adminNotes || 'N/A',
+      'Deletion Requested': (member as any).deletionRequestedAt ? new Date((member as any).deletionRequestedAt).toLocaleDateString() : '',
       'Joined Date': new Date(member.createdAt).toLocaleDateString(),
     }));
 
@@ -743,7 +780,7 @@ export default function AdminDashboard() {
                               {submission.status === 'pending' && (
                                 <>
                                   <button
-                                    onClick={() => handleProjectAction(submission.id, 'approve')}
+                                    onClick={() => setReview({ id: submission.id, name: submission.projectName, action: 'approve', note: '', error: '' })}
                                     disabled={projectActionLoadingId === submission.id}
                                     className="s-btn s-btn-accent"
                                   >
@@ -751,7 +788,7 @@ export default function AdminDashboard() {
                                     Approve
                                   </button>
                                   <button
-                                    onClick={() => handleProjectAction(submission.id, 'reject')}
+                                    onClick={() => setReview({ id: submission.id, name: submission.projectName, action: 'reject', note: '', error: '' })}
                                     disabled={projectActionLoadingId === submission.id}
                                     className="s-btn bg-red-600 text-white [@media(hover:hover)]:hover:bg-red-700"
                                   >
@@ -850,6 +887,9 @@ export default function AdminDashboard() {
                         <span>Export {searchTerm ? 'Filtered' : 'All'} to Excel</span>
                       </button>
                     )}
+                    <button onClick={exportRopa} disabled={ropaBusy} className="s-btn s-btn-plain justify-center" title="Processing register and consent records (Data Privacy Act)">
+                      {ropaBusy ? 'Preparing…' : 'Privacy records (ROPA)'}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1390,6 +1430,47 @@ export default function AdminDashboard() {
           </>
         )}
       </AnimatePresence>
+
+      {review && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-900/50 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="review-title">
+          <form
+            className="w-full max-w-md rounded-[14px] bg-white p-5 shadow-[var(--e2)] sm:p-6"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (review.action === 'reject' && !review.note.trim()) { setReview({ ...review, error: 'Say what to change so the submitter can fix it.' }); return; }
+              const ok = await handleProjectAction(review.id, review.action, review.note.trim() || undefined);
+              if (ok) setReview(null);
+            }}
+          >
+            <h2 id="review-title" className="text-[17px] font-semibold text-slate-900">
+              {review.action === 'approve' ? 'Approve' : 'Send back'} “{review.name}”
+            </h2>
+            <p className="mt-1 text-[13px] text-slate-500">
+              {review.action === 'approve' ? 'It goes live on the Projects page and its team opens for sign-ups.' : 'The submitter sees your note on their dashboard.'}
+            </p>
+            <label htmlFor="review-note" className="mb-1.5 mt-4 block text-[13px] font-medium text-slate-900">
+              Note to the submitter {review.action === 'approve' && <span className="font-normal text-slate-400">optional</span>}
+            </label>
+            <textarea
+              id="review-note"
+              autoFocus
+              maxLength={1000}
+              value={review.note}
+              onChange={(e) => setReview({ ...review, note: e.target.value, error: '' })}
+              className="s-field h-auto min-h-[110px] resize-y py-2.5"
+              placeholder={review.action === 'approve' ? 'Nice work — one thing to consider…' : 'What’s missing or needs changing (e.g. add a README, make the repo public).'}
+            />
+            {review.error && <p role="alert" className="mt-2 text-[13px] text-red-700">{review.error}</p>}
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button type="button" onClick={() => setReview(null)} className="s-btn s-btn-plain">Cancel</button>
+              <button type="submit" disabled={projectActionLoadingId === review.id}
+                className={review.action === 'approve' ? 's-btn s-btn-accent' : 's-btn bg-red-600 text-white [@media(hover:hover)]:hover:bg-red-700'}>
+                {projectActionLoadingId === review.id ? 'Saving…' : review.action === 'approve' ? 'Approve' : 'Send back'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
