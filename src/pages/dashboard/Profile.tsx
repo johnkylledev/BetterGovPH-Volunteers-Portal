@@ -16,6 +16,7 @@ import { SelectMenu, type SelectOption } from '../../components/SelectMenu';
 import { EXPERIENCE_LEVELS } from '../../constants/experience';
 import { connectDiscord, createOrUpdateUserRecord } from '../../services/supabase';
 import { DISCORD_AVAILABLE, COMING_SOON_PILL } from '../../constants/integrations';
+import { Avatar, useSessionPhoto } from '../../components/Avatar';
 import type { ExperienceLevel, UserSkill } from '../../types';
 
 const TABS = [
@@ -53,6 +54,7 @@ export default function Profile() {
   const setCurrentUser = useStore((s) => s.setCurrentUser);
   const logout = useStore((s) => s.logout);
   const [searchParams, setSearchParams] = useSearchParams();
+  const sessionPhoto = useSessionPhoto();
   const navigate = useNavigate();
 
   const tabParam = searchParams.get('tab');
@@ -150,11 +152,6 @@ export default function Profile() {
   if (!currentUser) return <LoadingOverlay />;
 
   const verified = currentUser.status === 'Approved' || !!currentUser.isAdmin;
-  const avatarUrl =
-    currentUser.discordId && currentUser.discordAvatar
-      ? `https://cdn.discordapp.com/avatars/${currentUser.discordId}/${currentUser.discordAvatar}.png?size=128`
-      : null;
-  const initials = (currentUser.fullName || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('');
   const touch = () => setSaveState('idle');
   const featuredCount = skills.filter((s) => s.featured).length;
 
@@ -271,13 +268,14 @@ export default function Profile() {
       <main className="mx-auto max-w-6xl px-4 sm:px-6 pt-10 sm:pt-14">
         {/* Who this profile belongs to, at the same scale as the dashboard's welcome */}
         <div className="mb-8 flex items-center gap-4 sm:mb-10 sm:gap-5">
-          {avatarUrl ? (
-            <img src={avatarUrl} alt="" className="h-14 w-14 shrink-0 rounded-full object-cover shadow-[0_0_0_1px_rgb(15_23_42/0.08)] sm:h-16 sm:w-16" />
-          ) : (
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[20px] font-semibold text-white sm:h-16 sm:w-16 sm:text-[22px]">
-              {initials}
-            </span>
-          )}
+          <Avatar
+            name={currentUser.fullName}
+            seed={currentUser.uid || currentUser.id}
+            discordId={currentUser.discordId}
+            discordAvatar={currentUser.discordAvatar}
+            photos={[sessionPhoto]}
+            size={64}
+          />
           <div className="min-w-0">
             <h1 className="flex items-center gap-2 text-[28px] sm:text-[36px]">
               <span className="truncate">{currentUser.fullName || 'Your profile'}</span>
