@@ -577,6 +577,7 @@ const RATE_RULES: { match: (m: string, p: string, q: any) => boolean; limits: Li
   { match: (m, p) => m === 'POST' && p === '/hours', limits: [{ key: 'user', name: 'hours', max: 60, windowSec: 86400 }] },
   { match: (m, p) => m === 'POST' && p === '/project-updates', limits: [{ key: 'user', name: 'update', max: 30, windowSec: 86400 }] },
   { match: (m, p) => m === 'POST' && p === '/teams', limits: [{ key: 'user', name: 'teams', max: 60, windowSec: 3600 }] },
+  { match: (m, p, q) => m === 'GET' && p === '/me' && q?.export === '1', limits: [{ key: 'user', name: 'export', max: 10, windowSec: 3600 }] },
   { match: (m, p) => m === 'POST' && p === '/me', limits: [{ key: 'user', name: 'profile', max: 60, windowSec: 3600 }] },
   { match: (m, p) => m === 'POST' && p === '/discord', limits: [{ key: 'user', name: 'discord', max: 20, windowSec: 3600 }] },
 ];
@@ -1786,6 +1787,38 @@ const handler_me: H = async (req, res) => {
   const uid = authData?.user?.id ? String(authData.user.id) : '';
   const email = authData?.user?.email ? String(authData.user.email) : '';
   if (authError || !uid) { sendError(res, 401, 'Invalid token'); return; }
+
+  // Right of access and data portability (RA 10173 Sec. 16(c) and 18): everything held about the caller, in one file.
+  if (req.method === 'GET' && getStringParam(req.query?.export) === '1') {
+    const safe = async (q: PromiseLike<{ data: any; error: any }>) => {
+      try { const r = await q; return r.error ? [] : (r.data ?? []); } catch { return []; }
+    };
+    const { data: profileRow } = await supabase.from('users').select('*').eq('uid', uid).maybeSingle();
+    // Admins' internal moderation notes and the admin flag are not the member's own data entries.
+    const profile = profileRow ? { ...profileRow } : null;
+    if (profile) { delete (profile as any).admin_notes; delete (profile as any).is_admin; }
+    const [projects, calls, interests, teams, hours, updates, consent, notifications, reports] = await Promise.all([
+      safe(supabase.from('project_submissions').select('*').eq('user_id', uid)),
+      safe(supabase.from('volunteer_calls').select('*').eq('user_id', uid)),
+      safe(supabase.from('call_interests').select('*').eq('user_id', uid)),
+      safe(supabase.from('team_members').select('*').eq('user_id', uid)),
+      safe(supabase.from('volunteer_hours').select('*').eq('user_id', uid)),
+      safe(supabase.from('project_updates').select('*').eq('author_id', uid)),
+      safe(supabase.from('consent_log').select('*').eq('user_id', uid)),
+      safe(supabase.from('notifications').select('*').eq('user_id', uid)),
+      safe(supabase.from('reports').select('id, target_type, target_id, reason, details, status, created_at, resolved_at').eq('reporter_id', uid)),
+    ]);
+    res.setHeader('Content-Disposition', `attachment; filename="bettergovph-my-data-${new Date().toISOString().slice(0, 10)}.json"`);
+    sendJson(res, 200, {
+      exportedAt: new Date().toISOString(),
+      controller: 'BetterGovPH community (personal information controller)',
+      note: 'Everything the BetterGovPH Volunteers portal holds about you (RA 10173: right to access and data portability). Sign-in is handled by Google; your Google account data stays with Google.',
+      account: { uid, email },
+      profile, projectSubmissions: projects, volunteerCalls: calls, callInterests: interests, teamMemberships: teams,
+      volunteerHours: hours, projectUpdates: updates, consentRecords: consent, notifications, reportsFiled: reports,
+    });
+    return;
+  }
 
   if (req.method === 'GET') {
     const { data, error } = await supabase.from('users').select('*').eq('uid', uid).maybeSingle();

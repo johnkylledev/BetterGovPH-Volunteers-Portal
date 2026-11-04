@@ -809,6 +809,10 @@ export const importProjects = async (projects: ImportProjectRow[]) =>
 // ---------------------------------------------------------------------------
 // Notifications and reports
 // ---------------------------------------------------------------------------
+/** Everything the portal holds about the signed-in member (right of access / portability). */
+export const exportMyData = async () =>
+  apiRequest<Record<string, unknown>>('/api/v1/me?export=1', { headers: await authHeaders() });
+
 export const getNotifications = async () =>
   apiRequest<{ items: AppNotification[]; unread: number; available?: boolean }>('/api/v1/notifications', { headers: await authHeaders() });
 

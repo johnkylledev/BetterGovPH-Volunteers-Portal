@@ -3,7 +3,7 @@ import clsx from 'clsx';
 import { Download, Eye, ShieldCheck, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { User } from '../types';
-import { createOrUpdateUserRecord, getMyProjectSubmissions, getMyTeams, getVolunteerCalls } from '../services/supabase';
+import { createOrUpdateUserRecord, exportMyData } from '../services/supabase';
 import { CONSENT_VERSION, type ConsentPurposeId } from '../constants/community';
 import { ConsentFields, requiredConsentMissing } from './ConsentFields';
 
@@ -68,19 +68,7 @@ export const PrivacySettings: React.FC<{ user: User; onSaved: (u: User) => void 
   const downloadMyData = async () => {
     setBusy('export');
     try {
-      const [subs, calls, teams] = await Promise.all([
-        getMyProjectSubmissions(0, 100).catch(() => ({ submissions: [] })),
-        getVolunteerCalls({ mine: true }).catch(() => ({ calls: [] })),
-        getMyTeams().catch(() => ({ teams: [] })),
-      ]);
-      const data = {
-        exportedAt: new Date().toISOString(),
-        note: 'Your BetterGovPH Volunteers data (RA 10173: right to access and data portability).',
-        profile: user,
-        projectSubmissions: subs.submissions,
-        calls: calls.calls,
-        teams: teams.teams,
-      };
+      const data = await exportMyData();
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

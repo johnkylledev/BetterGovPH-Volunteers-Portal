@@ -169,3 +169,22 @@ export const ROPA_REGISTER = [
     retention: '3 years after the membership ends',
   },
 ] as const;
+
+/**
+ * Data Protection Officer (RA 10173 IRR Sec. 26). Fill these in once the DPO is designated and registered with the NPC;
+ * the privacy notice shows them as soon as they're set and points to the admins on Discord until then.
+ */
+export const DPO_CONTACT: { name: string; email: string; npcRegistration: string } = {
+  name: '',
+  email: '',
+  npcRegistration: '',
+};
+
+/** Who handles personal data for us (personal information processors) and where. Shown on /privacy. */
+export const PROCESSORS = [
+  { name: 'Supabase', role: 'Database and sign-in sessions', data: 'All portal data', location: 'Tokyo, Japan (AWS ap-northeast-1)' },
+  { name: 'Vercel', role: 'Website hosting and the portal API', data: 'Requests in transit and short-lived logs (IP address, path)', location: 'United States, with a global edge network' },
+  { name: 'Google', role: 'Sign-in with your Google account', data: 'Name, email and profile photo you allow at sign-in', location: 'Google data centres worldwide' },
+  { name: 'Discord', role: 'Optional community verification', data: 'Discord user ID, username and avatar', location: 'United States' },
+  { name: 'GitHub', role: 'Public repository statistics for submitted projects', data: 'Public repository data only; no member data is sent', location: 'United States' },
+] as const;
