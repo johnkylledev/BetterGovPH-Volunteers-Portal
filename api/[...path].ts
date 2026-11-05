@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { createHmac, timingSafeEqual } from 'crypto';
+import { syncMemberRoles, syncTeamRole } from './_lib/discordRoles';
 
 let _crypto: any = null;
 let _cryptoInit = false;
@@ -124,6 +125,12 @@ const sendError = (res: any, statusCode: number, message: string) =>
   sendJson(res, statusCode, { error: message });
 
 /** Supabase reports the provider on the verified user; the portal stores that instead of guessing. */
+/**
+ * Whether joining the Discord server by itself approves a member. Off by default: approval is an
+ * admin decision, and the verified role is granted from that decision (see syncMemberRoles).
+ */
+const discordAutoApprove = (): boolean => String(process.env.DISCORD_AUTO_APPROVE || '').toLowerCase() === 'true';
+
 const authProviderOf = (user: any): 'google' | 'github' | 'traditional' => {
   const provider = String(user?.app_metadata?.provider || '').toLowerCase();
   if (provider === 'github') return 'github';
@@ -1534,6 +1541,20 @@ const handler_og: H = async (req, res) => {
 // ---------- /teams -----------------------------------------------------------
 const TEAM_STATUSES = ['pending', 'approved', 'declined', 'left'];
 
+
+/** Team role sync needs the member's Discord id; failures are silent by design. */
+const discordRowFor = async (client: any, uid: string) => {
+  try {
+    const { data } = await client.from('users').select('discord_id, status, is_admin').eq('uid', uid).maybeSingle();
+    return data ?? null;
+  } catch { return null; }
+};
+
+const applyTeamRole = async (client: any, projectId: string, userId: string, member: boolean) => {
+  const row = await discordRowFor(client, userId);
+  if (row) await syncTeamRole(row, projectId, member);
+};
+
 const handler_teams: H = async (req, res) => {
   if (req.method !== 'GET' && req.method !== 'POST') { sendError(res, 405, 'Method not allowed'); return; }
   const caller = await authCaller(req);
@@ -1688,6 +1709,7 @@ const handler_teams: H = async (req, res) => {
     if (!existing) { sendError(res, 404, 'You’re not on this team'); return; }
     const { error } = await supabase.from('team_members').update({ status: 'left', decided_at: now }).eq('id', existing.id);
     if (error) { sendError(res, 500, 'Couldn’t update your membership'); return; }
+    await applyTeamRole(supabase, projectId, uid, false);
     sendJson(res, 200, { status: 'left' });
     return;
   }
@@ -1701,6 +1723,7 @@ const handler_teams: H = async (req, res) => {
     if (!target || !decision) { sendError(res, 400, 'requestId and decision (approve|decline) are required'); return; }
     const { error } = await supabase.from('team_members').update({ status: decision, decided_at: now }).eq('id', requestId);
     if (error) { sendError(res, 500, 'Couldn’t save the decision'); return; }
+    await applyTeamRole(supabase, projectId, target.user_id, decision === 'approved');
     const pname = quote(project.project_name ?? project.title);
     await notify(supabase, target.user_id, decision === 'approved'
       ? { kind: 'team_approved', title: `You’re on the team for ${pname}`, body: 'Say hi in the team’s group chat.', link: `/projects/${project.id}` }
@@ -1714,6 +1737,7 @@ const handler_teams: H = async (req, res) => {
     if (!userId || userId === headId) { sendError(res, 400, 'Pick a member to remove (not the head).'); return; }
     const { error } = await supabase.from('team_members').update({ status: 'left', decided_at: now }).eq('project_id', projectId).eq('user_id', userId);
     if (error) { sendError(res, 500, 'Couldn’t remove that member'); return; }
+    await applyTeamRole(supabase, projectId, userId, false);
     sendJson(res, 200, { status: 'left' });
     return;
   }
@@ -2090,6 +2114,8 @@ const handler_admin: H = async (req, res) => {
     try { await invalidateCache('cache:admin:stats'); await invalidateCache('cache:verify:*'); } catch { /* noop */ }
     await audit(adminSup, req, callerUid, isAdmin !== undefined ? 'member.admin_rights' : 'member.status', { type: 'user', id: idUid },
       { status: status ?? undefined, isAdmin: isAdmin ?? undefined, note: adminNotes ? true : undefined });
+    // Approved members get the community role; declined or demoted members lose it. Best effort.
+    await syncMemberRoles(data[0]);
     if (status === 'Approved') {
       await notify(adminSup, idUid, { kind: 'member_approved', title: 'You’re approved — your Volunteer Card is ready', body: 'You can now join project teams.', link: '/dashboard' });
     } else if (status === 'Declined') {
@@ -2328,7 +2354,7 @@ const handler_admin: H = async (req, res) => {
     const uid = typeof body.uid === 'string' && isUuid(body.uid) ? body.uid : '';
     if (!uid) { sendError(res, 400, 'uid is required'); return; }
     if (uid === callerUid) { sendError(res, 400, 'You can’t erase your own account here.'); return; }
-    const { data: target } = await adminSup.from('users').select('uid, is_admin, email, deletion_requested_at').eq('uid', uid).maybeSingle();
+    const { data: target } = await adminSup.from('users').select('uid, is_admin, email, discord_id, deletion_requested_at').eq('uid', uid).maybeSingle();
     if (!target) { sendError(res, 404, 'Member not found'); return; }
     if (target.is_admin) { sendError(res, 400, 'Remove admin rights first.'); return; }
     // Typed confirmation: the member's email, so this can't happen by a stray click.
@@ -2349,6 +2375,8 @@ const handler_admin: H = async (req, res) => {
     await step('consent records', () => adminSup.from('consent_log').delete().eq('user_id', uid));
     await step('volunteer hours', () => adminSup.from('volunteer_hours').delete().eq('user_id', uid));
     await step('project updates', () => adminSup.from('project_updates').delete().eq('author_id', uid));
+    // Take the Discord roles away while the Discord id is still known.
+    await syncMemberRoles({ discord_id: target.discord_id, status: 'deleted', is_admin: false });
     const { error: delErr } = await adminSup.from('users').delete().eq('uid', uid);
     if (delErr) { sendError(res, 500, 'Couldn’t remove the profile. Related data may already be removed; try again.'); return; }
     done.push('profile');
@@ -3266,12 +3294,17 @@ const handler_discord: H = async (req, res) => {
       if (!bettygoRes.ok) { sendJson(res, 502, { connected: true, discord_id: discordId, error: 'Failed to check Discord status' }); return; }
       const d = await bettygoRes.json();
       const verified = d?.verified ?? false;
-      if (verified) {
+      if (verified && discordAutoApprove()) {
         const { data: currentUser } = await supabase.from('users').select('status').eq('uid', uid).maybeSingle();
         if (currentUser && currentUser.status !== 'Approved') {
           await supabase.from('users').update({ status: 'Approved', updated_at: new Date().toISOString() }).eq('uid', uid);
           try { await ensureUserHasMemberId(supabase, uid); } catch { /* noop */ }
         }
+      }
+      if (verified) {
+        // Joiners get the verified role only when the account is approved; sync keeps them in step.
+        const { data: after } = await supabase.from('users').select('discord_id, status, is_admin').eq('uid', uid).maybeSingle();
+        if (after) await syncMemberRoles(after);
       }
       sendJson(res, 200, { connected: true, discord_id: discordId, discord_username: resolvedUsername,
         discord_display_name: discordDisplayName, discord_avatar: discordAvatar, ...d });
@@ -3390,10 +3423,14 @@ const handler_discord: H = async (req, res) => {
           discord_avatar: discordAvatar, discord_connected: true, discord_verified: !!verified,
           updated_at: new Date().toISOString(),
         };
-        if (verified) updateFields.status = 'Approved';
+        if (verified && discordAutoApprove()) updateFields.status = 'Approved';
         await supabase.from('users').update(updateFields).eq('uid', uid);
         let memberId: string | null = null;
-        if (verified) { try { memberId = await ensureUserHasMemberId(supabase, uid); } catch { /* noop */ } }
+        if (verified && discordAutoApprove()) { try { memberId = await ensureUserHasMemberId(supabase, uid); } catch { /* noop */ } }
+        if (verified) {
+          const { data: after } = await supabase.from('users').select('discord_id, status, is_admin').eq('uid', uid).maybeSingle();
+          if (after) await syncMemberRoles(after);
+        }
         sendJson(res, 200, { connected: true, discord_id: discordId, discord_username: discordUsername,
           discord_display_name: discordDisplayName, discord_avatar: discordAvatar, verified, memberId });
         return;
