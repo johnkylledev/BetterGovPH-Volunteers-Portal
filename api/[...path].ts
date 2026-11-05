@@ -563,7 +563,7 @@ const isAllowedOrigin = (o: string) =>
   ALLOWED_ORIGINS.includes(o) ||
   /^https:\/\/better-gov-ph-access-card(-[a-z0-9-]+)?\.vercel\.app$/i.test(o) ||
   (process.env.VERCEL_ENV !== 'production' && LOOPBACK_ORIGIN.test(o));
-const PUBLIC_READ = new Set(['/projects', '/volunteers', '/verify', '/og']);
+const PUBLIC_READ = new Set(['/projects', '/volunteers', '/verify', '/og', '/contributors']);
 
 const applyCors = (req: any, res: any, pathname: string) => {
   const origin = String(req.headers?.origin || '');
@@ -973,6 +973,8 @@ const handler_cron_repo_sync: H = async (req, res) => {
   }
   try { await invalidateCache('cache:projects:approved'); await invalidateCache('cache:projects:approved:merged'); } catch { /* noop */ }
   try { await supabase.from('rate_limits').delete().lt('window_ends', new Date(Date.now() - 86_400_000).toISOString()); } catch { /* noop */ }
+  // Refresh the contributors list daily, so it never waits on the first visitor.
+  try { await setCache(CONTRIBUTORS_CACHE, await buildContributors(), 3600); } catch { /* the next visitor rebuilds it */ }
   sendJson(res, 200, { refreshed });
 };
 
@@ -3583,11 +3585,98 @@ const handler_volunteers: H = async (req, res) => {
   sendJson(res, 200, payload);
 };
 
+// ---------- /contributors (public) ---------------------------------------------
+// People who built this portal. GitHub's /contributors list is computed lazily and can lag (after the
+// history rewrite it dropped some authors), so it's merged with the commit authors on the default
+// branch. Built once an hour on the server with GITHUB_TOKEN, so visitors never spend their own
+// 60-an-hour unauthenticated GitHub quota.
+const PORTAL_REPO = 'johnkylledev/BetterGovPH-Volunteers-Portal';
+const CONTRIBUTORS_CACHE = 'cache:contributors:v2';
+const NON_HUMAN_LOGIN = /\[bot\]$|^(dependabot|renovate|github-actions|copilot|claude|anthropic|codex|devin|cursor)/i;
+
+const githubHeaders = (): Record<string, string> => {
+  const token = process.env.GITHUB_TOKEN ?? '';
+  return {
+    Accept: 'application/vnd.github+json',
+    'User-Agent': 'bettergovph-volunteers-portal',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+};
+
+type ContributorRow = { login: string; avatar: string; url: string; contributions: number };
+
+const buildContributors = async () => {
+  const headers = githubHeaders();
+  const people = new Map<string, ContributorRow>();
+  const isPerson = (u: any) => !!u?.login && u.type === 'User' && !NON_HUMAN_LOGIN.test(u.login);
+  // Every commit on the default branch (up to 1,000), counted by linked GitHub author.
+  for (let page = 1; page <= 10; page++) {
+    const r = await fetch(`https://api.github.com/repos/${PORTAL_REPO}/commits?per_page=100&page=${page}`, { headers, signal: AbortSignal.timeout(8000) });
+    if (!r.ok) { if (page === 1) throw new Error(`GitHub commits ${r.status}`); break; }
+    const list = (await r.json()) as any[];
+    for (const c of list) {
+      if (!isPerson(c.author)) continue;
+      const cur = people.get(c.author.login);
+      if (cur) cur.contributions += 1;
+      else people.set(c.author.login, { login: c.author.login, avatar: c.author.avatar_url, url: c.author.html_url, contributions: 1 });
+    }
+    if (list.length < 100) break;
+  }
+  // GitHub's own list fills in anyone the commit walk missed; the larger count wins.
+  try {
+    const r = await fetch(`https://api.github.com/repos/${PORTAL_REPO}/contributors?per_page=100`, { headers, signal: AbortSignal.timeout(8000) });
+    if (r.ok) {
+      for (const c of (await r.json()) as any[]) {
+        if (!isPerson(c)) continue;
+        const cur = people.get(c.login);
+        if (cur) cur.contributions = Math.max(cur.contributions, c.contributions);
+        else people.set(c.login, { login: c.login, avatar: c.avatar_url, url: c.html_url, contributions: c.contributions });
+      }
+    }
+  } catch { /* commits alone are enough */ }
+
+  const sorted = [...people.values()]
+    .sort((a, b) => b.contributions - a.contributions || a.login.localeCompare(b.login))
+    .slice(0, 60);
+  // Display names live on each profile; fall back to the login.
+  const contributors = await Promise.all(sorted.map(async (p) => {
+    let name: string | null = null;
+    try {
+      const r = await fetch(`https://api.github.com/users/${encodeURIComponent(p.login)}`, { headers, signal: AbortSignal.timeout(5000) });
+      if (r.ok) name = ((await r.json()) as any).name ?? null;
+    } catch { /* the login is fine */ }
+    return {
+      login: p.login,
+      name,
+      avatarUrl: `${p.avatar}${String(p.avatar).includes('?') ? '&' : '?'}s=96`,
+      profileUrl: safeHttpUrl(p.url) || `https://github.com/${encodeURIComponent(p.login)}`,
+      contributions: p.contributions,
+    };
+  }));
+  return { contributors, generatedAt: new Date().toISOString() };
+};
+
+const handler_contributors: H = async (req, res) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
+  if (req.method !== 'GET') { sendError(res, 405, 'Method not allowed'); return; }
+  try { const cached = await getCache<any>(CONTRIBUTORS_CACHE); if (cached) { sendJson(res, 200, cached); return; } }
+  catch { /* noop */ }
+  try {
+    const payload = await buildContributors();
+    try { await setCache(CONTRIBUTORS_CACHE, payload, 3600); } catch { /* noop */ }
+    sendJson(res, 200, payload);
+  } catch (err) {
+    console.error('[contributors]', err instanceof Error ? err.message : err);
+    sendError(res, 502, 'Could not reach GitHub');
+  }
+};
+
 type HandlerKey =
   | '/me' | '/admin' | '/projects' | '/submit-project' | '/my-project-submissions'
   | '/volunteer-calls' | '/verify' | '/discord' | '/discord-username-taken' | '/contribution-scores' | '/volunteers'
   | '/repo-tracker' | '/teams' | '/cron/repo-sync' | '/call-interests' | '/notifications' | '/reports'
-  | '/hours' | '/certificate' | '/project-updates' | '/og';
+  | '/hours' | '/certificate' | '/project-updates' | '/og' | '/contributors';
 
 const HANDLERS: Record<HandlerKey, H> = {
   '/me': handler_me,
@@ -3601,6 +3690,7 @@ const HANDLERS: Record<HandlerKey, H> = {
   '/discord-username-taken': handler_discord_username_taken,
   '/contribution-scores': handler_contribution_scores,
   '/volunteers': handler_volunteers,
+  '/contributors': handler_contributors,
   '/repo-tracker': handler_repo_tracker,
   '/teams': handler_teams,
   '/cron/repo-sync': handler_cron_repo_sync,
@@ -3672,6 +3762,7 @@ async function handleRequest(req: any, res: any) {
     if (pathname === '/discord-username-taken') return callHandler('/discord-username-taken', req, res);
     if (pathname === '/contribution-scores') return callHandler('/contribution-scores', req, res);
     if (pathname === '/volunteers') return callHandler('/volunteers', req, res);
+    if (pathname === '/contributors') return callHandler('/contributors', req, res);
     if (pathname === '/repo-tracker') return callHandler('/repo-tracker', req, res);
     if (pathname === '/teams') return callHandler('/teams', req, res);
     if (pathname === '/cron/repo-sync') return callHandler('/cron/repo-sync', req, res);

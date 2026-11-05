@@ -19,7 +19,7 @@ interface GitHubContributor {
   contributions: number;
 }
 
-const CACHE_KEY = 'bgph:contributors:v1';
+const CACHE_KEY = 'bgph:contributors:v2';
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 // Automation and AI co-authors that GitHub lists next to people.
 const NON_HUMAN = /\[bot\]$|^(dependabot|renovate|github-actions|copilot|claude|anthropic|codex|devin|cursor)/i;
@@ -35,7 +35,21 @@ const readCache = (): Contributor[] | null => {
   }
 };
 
+/** Built on the server once an hour (commit authors + GitHub's list); falls back to GitHub directly. */
 const loadContributors = async (signal: AbortSignal): Promise<Contributor[]> => {
+  try {
+    const r = await fetch('/api/v1/contributors', { signal });
+    if (r.ok) {
+      const { contributors } = (await r.json()) as { contributors?: Contributor[] };
+      if (Array.isArray(contributors) && contributors.length) return contributors;
+    }
+  } catch (err) {
+    if ((err as Error)?.name === 'AbortError') throw err;
+  }
+  return loadFromGitHub(signal);
+};
+
+const loadFromGitHub = async (signal: AbortSignal): Promise<Contributor[]> => {
   const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contributors?per_page=100`, { signal });
   if (!res.ok) throw new Error(`GitHub responded ${res.status}`);
   const list = (await res.json()) as GitHubContributor[];
