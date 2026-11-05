@@ -19,7 +19,7 @@ import { ConsentFields, requiredConsentMissing } from '../../components/ConsentF
 import { CONSENT_VERSION, type ConsentPurposeId } from '../../constants/community';
 import { takeReturnTo } from '../../utils/returnTo';
 import { SKILL_CATEGORIES } from '../../constants/skills';
-import { createOrUpdateUserRecord, getUserData, signInWithGithub, signInWithGoogle, supabase, connectDiscord, getDiscordStatus } from '../../services/supabase';
+import { createOrUpdateUserRecord, getSignInProviders, getUserData, signInWithGithub, signInWithGoogle, supabase, connectDiscord, getDiscordStatus } from '../../services/supabase';
 
 const LEVEL_CONFIG: Record<SkillLevel, { label: string; icon: any; desc: string }> = {
     'Learner': {
@@ -43,6 +43,17 @@ const LEVEL_CONFIG: Record<SkillLevel, { label: string; icon: any; desc: string 
 const ROLES = ['Member', 'Fellow', 'Contributor', 'Other'];
 
 type Step = 1 | 2 | 3 | 4;
+
+/** True once Supabase reports the GitHub provider as enabled. */
+const useGithubSignIn = () => {
+  const [enabled, setEnabled] = useState(false);
+  useEffect(() => {
+    let live = true;
+    getSignInProviders().then((p) => { if (live) setEnabled(p.github === true); });
+    return () => { live = false; };
+  }, []);
+  return enabled;
+};
 
 function LegacyRegister() {
     const [currentStep, setCurrentStep] = useState<Step>(1);
@@ -69,6 +80,7 @@ function LegacyRegister() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [githubLoading, setGithubLoading] = useState(false);
+    const githubEnabled = useGithubSignIn();
     const [shouldShake, setShouldShake] = useState(false);
     const [discordConnecting, setDiscordConnecting] = useState(false);
     const [discordConnected, setDiscordConnected] = useState(false);
@@ -373,6 +385,7 @@ function LegacyRegister() {
                             {loading ? 'Redirecting to Google…' : 'Continue with Google'}
                         </button>
 
+                        {githubEnabled && (
                         <button
                             id="btn-github-signin"
                             type="button"
@@ -396,6 +409,7 @@ function LegacyRegister() {
                             </span>
                             {githubLoading ? 'Redirecting to GitHub…' : 'Continue with GitHub'}
                         </button>
+                        )}
 
                         <p className="mt-4 text-[13px] leading-relaxed text-[var(--fg-3)]">
                             By continuing you agree to the <Link to="/terms" className="s-link">Terms</Link> and{' '}

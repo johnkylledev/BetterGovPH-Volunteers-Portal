@@ -47,7 +47,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' https://cdn.discordapp.com https://lh3.googleusercontent.com https://cdn.simpleicons.org https://assets.bettergov.ph https://upload.wikimedia.org https://i0.wp.com data:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://accounts.google.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' https://cdn.discordapp.com https://lh3.googleusercontent.com https://avatars.githubusercontent.com https://cdn.simpleicons.org https://assets.bettergov.ph https://upload.wikimedia.org https://i0.wp.com data:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://accounts.google.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
         }
       ]
     }

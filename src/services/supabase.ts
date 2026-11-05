@@ -216,6 +216,29 @@ export const signOut = async () => {
   await supabase.auth.signOut();
 };
 
+let providersPromise: Promise<Record<string, boolean>> | null = null;
+/**
+ * Which OAuth providers are switched on in Supabase (public GoTrue settings, anon key only).
+ * Sign-in buttons render from this, so a provider shows up the moment it's enabled in the dashboard
+ * and never appears as a button that fails. Fails closed: on any error only Google is assumed.
+ */
+export const getSignInProviders = (): Promise<Record<string, boolean>> => {
+  if (!providersPromise) {
+    const url = import.meta.env.VITE_SUPABASE_URL;
+    const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    providersPromise = (url && key
+      ? fetch(`${url}/auth/v1/settings`, { headers: { apikey: key } })
+          .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+          .then((s: { external?: Record<string, boolean> }) => s.external ?? { google: true })
+      : Promise.resolve({ google: true })
+    ).catch(() => {
+      providersPromise = null; // try again next time
+      return { google: true };
+    });
+  }
+  return providersPromise;
+};
+
 export const signInWithGoogle = async (redirectTo: string) => {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',

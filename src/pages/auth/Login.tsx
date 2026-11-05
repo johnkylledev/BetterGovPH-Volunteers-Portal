@@ -1,16 +1,28 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
 import { useStore } from '../../store/useStore';
-import { signInWithGithub, signInWithGoogle } from '../../services/supabase';
+import { getSignInProviders, signInWithGithub, signInWithGoogle } from '../../services/supabase';
 import { DISCORD_INVITE } from '../../components/site/links';
+
+/** True once Supabase reports the GitHub provider as enabled. */
+const useGithubSignIn = () => {
+  const [enabled, setEnabled] = useState(false);
+  useEffect(() => {
+    let live = true;
+    getSignInProviders().then((p) => { if (live) setEnabled(p.github === true); });
+    return () => { live = false; };
+  }, []);
+  return enabled;
+};
 
 export default function Login() {
   const { authInitialized, sessionUserId } = useStore();
   const [loading, setLoading] = useState<'' | 'google' | 'github'>('');
   const [error, setError] = useState('');
+  const githubEnabled = useGithubSignIn();
 
   if (!authInitialized) return <LoadingOverlay />;
 
@@ -78,6 +90,7 @@ export default function Login() {
             {loading === 'google' ? 'Redirecting to Google…' : 'Continue with Google'}
           </button>
 
+          {githubEnabled && (
           <button
             type="button"
             disabled={!!loading || !!sessionUserId}
@@ -89,6 +102,7 @@ export default function Login() {
             </svg>
             {loading === 'github' ? 'Redirecting to GitHub…' : 'Continue with GitHub'}
           </button>
+          )}
 
           <p className="mt-4 text-[13px] leading-relaxed text-[var(--fg-3)]">
             By continuing you agree to the <Link to="/terms" className="s-link">Terms</Link> and{' '}
