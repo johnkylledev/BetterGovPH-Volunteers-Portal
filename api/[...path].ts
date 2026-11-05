@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { createHmac, timingSafeEqual } from 'crypto';
-import { syncMemberRoles, syncTeamRole } from './_lib/discordRoles';
+import { syncMemberRoles, syncTeamRole } from './_lib/discordRoles.js';
 
 let _crypto: any = null;
 let _cryptoInit = false;
