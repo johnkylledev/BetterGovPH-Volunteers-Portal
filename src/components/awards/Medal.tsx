@@ -33,9 +33,47 @@ interface MedalProps {
   pips?: boolean;
   size?: number;
   title?: string;
+  /** Award id: when badge artwork exists for it, the artwork is shown instead of the drawn medal. */
+  artId?: string;
 }
 
-export const Medal: React.FC<MedalProps> = ({ icon: Icon, tier, pips = true, size = 64, title }) => {
+/** Pixel-art badges in /public/awards: one per tier for tiered awards, one image for single awards. */
+const TIERED_ART = new Set(['builder', 'bayanihan', 'team-assembled', 'toolkit', 'tenure']);
+const SINGLE_ART = new Set(['verified', 'connected', 'recognized']);
+
+const artSrc = (id: string | undefined, tier: Tier | null): string | null => {
+  if (!id) return null;
+  // Locked tiered awards show their bronze art, greyed out, so you can see what you're working toward.
+  if (TIERED_ART.has(id)) return `/awards/${id}-${tier ?? 'bronze'}.webp`;
+  if (SINGLE_ART.has(id)) return `/awards/${id}.webp`;
+  return null;
+};
+
+export const Medal: React.FC<MedalProps> = ({ artId, ...rest }) => {
+  const src = artSrc(artId, rest.tier);
+  if (!src) return <DrawnMedal {...rest} />;
+  const { tier, size = 64, title } = rest;
+  return (
+    <span
+      className="relative inline-flex shrink-0 rounded-full"
+      style={{
+        width: size,
+        height: size,
+        // A hairline ring keeps the badge's white border visible on white cards.
+        boxShadow: '0 0 0 1px rgb(15 23 42 / 0.08)',
+        filter: tier ? 'drop-shadow(0 2px 4px rgb(15 23 42 / 0.18))' : 'grayscale(1)',
+        opacity: tier ? 1 : 0.45,
+      }}
+      role="img"
+      aria-label={title}
+      title={title}
+    >
+      <img src={src} alt="" width={size} height={size} loading="lazy" decoding="async" draggable={false} className="h-full w-full select-none rounded-full" />
+    </span>
+  );
+};
+
+const DrawnMedal: React.FC<Omit<MedalProps, 'artId'>> = ({ icon: Icon, tier, pips = true, size = 64, title }) => {
   const uid = useId().replace(/:/g, '');
   const finish: Finish = tier ?? 'locked';
   const m = METAL[finish];

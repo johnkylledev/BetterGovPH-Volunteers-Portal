@@ -25,7 +25,7 @@ import { FormSheet, useCompactLayout } from '../../components/FormSheet';
 import { DISCORD_AVAILABLE, COMING_SOON_PILL } from '../../constants/integrations';
 import { MerchTab } from '../../components/merch/MerchTab';
 import { Medal } from '../../components/awards/Medal';
-import { AwardCard } from '../../components/awards/AwardCard';
+import { Achievements } from '../../components/awards/Achievements';
 import { evaluateAwards } from '../../components/awards/awards';
 import { toast } from 'sonner';
 import { SkillIcon } from '../../components/SkillIcon';
@@ -291,7 +291,6 @@ export default function UserDashboard() {
     days: daysSinceJoin,
   });
   const earnedAwards = awards.filter(a => a.earned);
-  const awardById = (id: string) => awards.find(a => a.def.id === id)!;
 
   const activityDayKeys = new Set<string>();
   const activityCountPerDay = new Map<string, number>();
@@ -737,14 +736,14 @@ export default function UserDashboard() {
                 {displayName.startsWith('@') && <span className="text-slate-400"> Signed in as {displayName}.</span>}
               </p>
               {earnedAwards.length > 0 && (
-                <a href="#awards" className="group mt-5 inline-flex items-center gap-3" aria-label={`${earnedAwards.length} awards earned — see all`}>
+                <a href="#achievements" className="group mt-5 inline-flex items-center gap-3" aria-label={`${earnedAwards.length} achievements — see all`}>
                   <span className="flex -space-x-2">
                     {earnedAwards.slice(0, 6).map((a) => (
-                      <Medal key={a.def.id} icon={a.def.icon} tier={a.tier} pips={a.def.kind === 'tiered'} size={36} title={a.def.name} />
+                      <Medal key={a.def.id} artId={a.def.id} icon={a.def.icon} tier={a.tier} pips={a.def.kind === 'tiered'} size={36} title={a.def.name} />
                     ))}
                   </span>
                   <span className="num text-[13px] text-slate-500 group-hover:text-slate-900">
-                    {earnedAwards.length} of {awards.length} awards
+                    {earnedAwards.length} {earnedAwards.length === 1 ? 'achievement' : 'achievements'}
                   </span>
                 </a>
               )}
@@ -989,16 +988,11 @@ export default function UserDashboard() {
                 </section>
 
                 {/* Awards */}
-                <section id="awards" className="scroll-mt-24" aria-labelledby="awards-title">
-                  <div className="mb-3 flex items-baseline justify-between gap-3">
-                    <h2 id="awards-title" className={sectionTitle}>Awards</h2>
-                    <span className="num text-[12px] text-slate-500">{earnedAwards.length} of {awards.length} earned</span>
-                  </div>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {[...awards].sort((x, y) => Number(y.earned) - Number(x.earned)).map((a) => (
-                      <AwardCard key={a.def.id} award={a} />
-                    ))}
-                  </div>
+                <section id="achievements" className="s-card scroll-mt-24 p-5 sm:p-6" aria-labelledby="achievements-title">
+                  <h2 id="achievements-title" className={clsx(sectionTitle, 'mb-4')}>
+                    Achievements {earnedAwards.length > 0 && <span className="num font-normal text-slate-400">{earnedAwards.length}</span>}
+                  </h2>
+                  <Achievements awards={awards} />
                 </section>
 
                 {/* Profile */}
@@ -1321,9 +1315,6 @@ export default function UserDashboard() {
               </FormSheet>
 
               <section className={clsx('order-1 min-w-0 lg:order-2', compactForms && 'pb-20')} aria-labelledby="mine-title">
-                <div className="mb-6">
-                  <AwardCard award={awardById('builder')} />
-                </div>
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <h2 id="mine-title" className="text-[16px] font-semibold">
                     Your submissions <span className="num font-normal text-slate-400">{mySubmissions.length}</span>
@@ -1497,10 +1488,6 @@ export default function UserDashboard() {
               </FormSheet>
 
               <section className={clsx('order-1 min-w-0 lg:order-2', compactForms && 'pb-20')} aria-labelledby="calls-title">
-                <div className="s-card mb-6 grid grid-cols-1 gap-5 p-4 sm:grid-cols-2 sm:p-5">
-                  <AwardCard award={awardById('bayanihan')} compact />
-                  <AwardCard award={awardById('team-assembled')} compact />
-                </div>
                 <div className="mb-4 flex items-center justify-between gap-2">
                   <h2 id="calls-title" className="sr-only">Calls</h2>
                   <div className="inline-flex rounded-[10px] bg-slate-200/60 p-1" role="tablist" aria-label="Filter calls">
