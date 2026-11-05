@@ -551,8 +551,11 @@ const ALLOWED_ORIGINS = [
   'https://volunteers.bettergov.ph',
   'http://localhost:3000', 'http://localhost:5173', 'http://localhost:5187',
 ];
+const LOOPBACK_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i;
 const isAllowedOrigin = (o: string) =>
-  ALLOWED_ORIGINS.includes(o) || /^https:\/\/better-gov-ph-access-card(-[a-z0-9-]+)?\.vercel\.app$/i.test(o);
+  ALLOWED_ORIGINS.includes(o) ||
+  /^https:\/\/better-gov-ph-access-card(-[a-z0-9-]+)?\.vercel\.app$/i.test(o) ||
+  (process.env.VERCEL_ENV !== 'production' && LOOPBACK_ORIGIN.test(o));
 const PUBLIC_READ = new Set(['/projects', '/volunteers', '/verify', '/og']);
 
 const applyCors = (req: any, res: any, pathname: string) => {
@@ -3222,7 +3225,11 @@ const handler_discord: H = async (req, res) => {
     const callbackUrl = (process.env.DISCORD_CALLBACK_URL || '').trim();
     const discordBotToken = process.env.DISCORD_BOT_TOKEN || '';
     if (!supabaseUrl || !serviceRoleKey) { sendError(res, 500, 'Server not configured'); return; }
-    if (!bettygoBaseUrl) { sendError(res, 500, 'BETTYGO_BASE_URL is not configured'); return; }
+    if (!bettygoBaseUrl) {
+      if (req.method === 'GET') { sendJson(res, 200, { connected: false }); return; }
+      sendError(res, 503, 'Discord sign-in is not configured');
+      return;
+    }
     const supabase = createServiceClient(supabaseUrl, serviceRoleKey);
     const token = getBearerToken(req.headers?.authorization);
     if (!token && req.method !== 'GET') { sendError(res, 401, 'Missing Authorization bearer token'); return; }

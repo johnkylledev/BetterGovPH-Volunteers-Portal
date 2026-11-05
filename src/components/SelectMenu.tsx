@@ -43,7 +43,6 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
   const [active, setActive] = useState(-1);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const listRef = useRef<HTMLUListElement>(null);
   const typed = useRef({ text: '', at: 0 });
   const place = usePopoverPlacement(triggerRef, open);
 
@@ -79,7 +78,7 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
 
   useEffect(() => {
     if (!open) return;
-    listRef.current?.focus();
+    document.getElementById(listId)?.focus();
     const onDown = (e: MouseEvent | TouchEvent) => {
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) close(false);
     };
@@ -89,13 +88,13 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
       document.removeEventListener('mousedown', onDown);
       document.removeEventListener('touchstart', onDown);
     };
-  }, [open]);
+  }, [open, listId]);
 
   // Keep the highlighted option in view while moving with the keyboard.
   useEffect(() => {
     if (!open || active < 0) return;
-    listRef.current?.querySelector<HTMLElement>(`[data-index="${active}"]`)?.scrollIntoView({ block: 'nearest' });
-  }, [open, active]);
+    document.getElementById(listId)?.querySelector<HTMLElement>(`[data-index="${active}"]`)?.scrollIntoView({ block: 'nearest' });
+  }, [open, active, listId]);
 
   const onListKeyDown = (e: React.KeyboardEvent) => {
     const last = options.length - 1;
@@ -152,7 +151,6 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
       <AnimatePresence>
         {open && (
           <motion.ul
-            ref={listRef}
             id={listId}
             role="listbox"
             tabIndex={-1}
