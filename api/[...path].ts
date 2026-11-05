@@ -123,6 +123,14 @@ const sendJson = (res: any, statusCode: number, body: Record<string, unknown>) =
 const sendError = (res: any, statusCode: number, message: string) =>
   sendJson(res, statusCode, { error: message });
 
+/** Supabase reports the provider on the verified user; the portal stores that instead of guessing. */
+const authProviderOf = (user: any): 'google' | 'github' | 'traditional' => {
+  const provider = String(user?.app_metadata?.provider || '').toLowerCase();
+  if (provider === 'github') return 'github';
+  if (provider === 'email' || provider === 'phone') return 'traditional';
+  return provider ? 'google' : 'traditional';
+};
+
 const mapUserRow = (row: any) => ({
   id: row.uid,
   uid: row.uid,
@@ -1863,7 +1871,7 @@ const handler_me: H = async (req, res) => {
   // Right to erasure: the member asks, an admin completes it (approved projects may need a new owner first).
   if (body.requestDeletion === true) { updates.deletion_requested_at = new Date().toISOString(); updates.show_in_directory = false; }
   if (body.requestDeletion === false) updates.deletion_requested_at = null;
-  updates.auth_provider = 'google';
+  updates.auth_provider = authProviderOf(authData?.user);
 
   if (typeof updates.discord_username === 'string' && updates.discord_username.trim()) {
     const { data: unameDup } = await supabase
@@ -1946,7 +1954,7 @@ const handler_me: H = async (req, res) => {
     skills: updates.skills ?? [],
     experience_level: updates.experience_level ?? null,
     year_joined: updates.year_joined ?? null,
-    auth_provider: 'google',
+    auth_provider: authProviderOf(authData?.user),
   };
   let { data: insertResult, error: insertError } = await supabase
     .from('users').insert(insertRow).select('*').maybeSingle();

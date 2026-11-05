@@ -174,7 +174,7 @@ const mapToAppUser = (dbUser: any): User | null => {
     memberId: dbUser.member_id ? (dbUser.member_id.startsWith('BGPH-') ? dbUser.member_id : `BGPH-${dbUser.member_id}`) : undefined,
     adminNotes: dbUser.admin_notes,
     isAdmin: !!dbUser.is_admin,
-    authProvider: (dbUser.auth_provider as 'traditional' | 'google') || 'traditional',
+    authProvider: (dbUser.auth_provider as 'traditional' | 'google' | 'github') || 'traditional',
     yearJoined: dbUser.year_joined,
     skills: dbUser.skills || [],
     experienceLevel: dbUser.experience_level,
@@ -220,6 +220,14 @@ export const signInWithGoogle = async (redirectTo: string) => {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo },
+  });
+  if (error) throw error;
+};
+
+export const signInWithGithub = async (redirectTo: string) => {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'github',
+    options: { redirectTo, scopes: 'read:user user:email' },
   });
   if (error) throw error;
 };
