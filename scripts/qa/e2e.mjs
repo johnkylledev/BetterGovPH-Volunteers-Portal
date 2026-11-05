@@ -400,6 +400,15 @@ async function main() {
   check('oversized requests are refused', huge.status === 413, String(huge.status));
   const uidLookup = await api(`/verify?id=${ben.id}`);
   check('verify will not look people up by account id', uidLookup.status === 404, String(uidLookup.status));
+  // #48: the Discord username check goes through a security-definer function (anon table access is revoked)
+  const qaName = `qa-${Date.now().toString(36)}`;
+  const freeName = await api(`/discord-username-taken?username=${qaName}`);
+  check('username check answers for a free name', freeName.status === 200 && freeName.json?.taken === false, `${freeName.status} ${JSON.stringify(freeName.json)}`);
+  await api('/me', { token: dan.token, method: 'POST', body: { discordUsername: qaName } });
+  const takenName = await api(`/discord-username-taken?username=${qaName.toUpperCase()}`);
+  check('username check finds a taken name, ignoring case', takenName.status === 200 && takenName.json?.taken === true, `${takenName.status} ${JSON.stringify(takenName.json)}`);
+  const me = await api('/me', { token: dan.token });
+  check('email sign-ins are not labelled Google', me.json?.user?.authProvider === 'traditional', me.json?.user?.authProvider);
   const callsAsMember = await api('/volunteer-calls', { token: ben.token });
   check("members don't receive other posters' account ids", (callsAsMember.json?.calls || []).every((c) => !c.userId || c.userId === ben.id));
   const scores = await api('/contribution-scores', { token: ben.token });
