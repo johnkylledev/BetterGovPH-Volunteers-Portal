@@ -70,7 +70,7 @@ export default function Opportunities() {
           lede="Open calls from BetterGovPH projects: roles that need people, and venues, equipment or support a project is looking for. Browse freely; say you’re interested and the team gets in touch."
           actions={
             signedIn ? (
-              <Link to="/dashboard" state={{ tab: 'volunteer' }} className="s-btn s-btn-plain">
+              <Link to="/dashboard/calls" className="s-btn s-btn-plain">
                 <Plus size={16} strokeWidth={1.75} />
                 Post a call
               </Link>

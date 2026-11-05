@@ -4,7 +4,8 @@ import { ReportsQueue } from '../../components/ReportsQueue';
 import { AdminOverview } from '../../components/admin/AdminOverview';
 import { AdminCalls } from '../../components/admin/AdminCalls';
 import { NotificationBell } from '../../components/NotificationBell';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { adminTabFromSection, adminTabPath, type AdminTab } from '../../constants/dashboardRoutes';
 import { useStore } from '../../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, CheckCircle2, XCircle, CreditCard, Copy, Code, Check, ChevronLeft, ChevronRight, Trash2, Inbox, FolderKanban, Clock, BadgeCheck } from 'lucide-react';
@@ -58,15 +59,25 @@ export default function AdminDashboard() {
   const { currentUser, users, updateUserStatus, setUsers, authInitialized } = useStore();
   const logout = useStore((s) => s.logout);
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'overview' | 'applications' | 'members' | 'projects' | 'calls'>(() => {
-    const t = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null;
-    return t === 'applications' || t === 'members' || t === 'projects' || t === 'calls' ? t : 'overview';
-  });
+  // The tab comes from the URL (/admin, /admin/applications, /admin/members, /admin/projects, /admin/calls).
+  const { section } = useParams<{ section?: string }>();
+  const activeTab: AdminTab = adminTabFromSection(section) ?? 'overview';
   const adminLocation = useLocation();
+  const setActiveTab = useCallback((tab: AdminTab) => {
+    if (tab !== activeTab) navigate(adminTabPath(tab));
+  }, [activeTab, navigate]);
+  // Old ?tab= links and unknown sections redirect to the new URL; other query params (e.g. ?reports) stay.
   useEffect(() => {
-    const t = new URLSearchParams(adminLocation.search).get('tab');
-    if (t === 'applications' || t === 'members' || t === 'projects' || t === 'calls' || t === 'overview') setActiveTab(t);
-  }, [adminLocation.search]);
+    const params = new URLSearchParams(adminLocation.search);
+    const legacy = adminTabFromSection(params.get('tab') ?? undefined);
+    if (params.has('tab')) {
+      params.delete('tab');
+      const rest = params.toString();
+      navigate(`${adminTabPath(legacy ?? 'overview')}${rest ? `?${rest}` : ''}`, { replace: true });
+    } else if (section && !adminTabFromSection(section)) {
+      navigate('/admin', { replace: true });
+    }
+  }, [adminLocation.search, section, navigate]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'All'>('All');
   const [roleFilter, setRoleFilter] = useState<string>('All');

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { memberTabFromLegacy, memberTabFromSection, memberTabPath, type MemberTab } from '../../constants/dashboardRoutes';
 import { useStore } from '../../store/useStore';
 import { AccessCard } from '../../components/AccessCard';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
@@ -9,7 +10,7 @@ import { DoneIcon, PendingIcon, DeclinedIcon, FeaturedIcon } from '../../compone
 import clsx from 'clsx';
 import { StatTile } from '../../components/StatTile';
 import { UserChip } from '../../components/UserChip';
-import { AppHeader, MEMBER_NAV } from '../../components/AppHeader';
+import { AppHeader } from '../../components/AppHeader';
 import { SelectMenu } from '../../components/SelectMenu';
 import { trackForRole, memberNav, workTypeOptions, workTypeLabel, callFitsMember } from '../../constants/tracks';
 import { RolesNeededPicker, parseRoles } from '../../components/RolesNeededPicker';
@@ -51,16 +52,25 @@ export default function UserDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const [copyStatus, setCopyStatus] = React.useState<'idle' | 'copied' | 'embed-copied'>('idle');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'submit-project' | 'volunteer' | 'merch'>(() => {
-    // Profile's nav links here with the section to open.
-    const wanted = (location.state as { tab?: string } | null)?.tab ?? new URLSearchParams(location.search).get('tab') ?? undefined;
-    return MEMBER_NAV.some((n) => n.id === wanted) ? (wanted as 'dashboard') : 'dashboard';
-  });
-  // Notification links and other pages can point at a tab while the dashboard is already open.
+  // The tab comes from the URL (/dashboard, /dashboard/projects, /dashboard/calls, /dashboard/merch),
+  // so a refresh or a shared link opens the same tab.
+  const { section } = useParams<{ section?: string }>();
+  const activeTab: MemberTab = memberTabFromSection(section) ?? 'dashboard';
+  const setActiveTab = React.useCallback((tab: MemberTab) => {
+    if (tab !== activeTab) navigate(memberTabPath(tab));
+  }, [activeTab, navigate]);
+  // Old links (?tab=volunteer, or navigate state { tab }) and unknown sections redirect to the new URL.
   useEffect(() => {
-    const wanted = (location.state as { tab?: string } | null)?.tab ?? new URLSearchParams(location.search).get('tab') ?? undefined;
-    if (wanted && MEMBER_NAV.some((n) => n.id === wanted)) setActiveTab(wanted as 'dashboard');
-  }, [location.search, location.state]);
+    const params = new URLSearchParams(location.search);
+    const legacy = memberTabFromLegacy((location.state as { tab?: string } | null)?.tab ?? params.get('tab'));
+    if (legacy) {
+      params.delete('tab');
+      const rest = params.toString();
+      navigate(`${memberTabPath(legacy)}${rest ? `?${rest}` : ''}${location.hash}`, { replace: true, state: null });
+    } else if (section && !memberTabFromSection(section)) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [location.search, location.state, location.hash, section, navigate]);
   const [projectName, setProjectName] = useState('');
   const [projectUrl, setProjectUrl] = useState('');
   const [projectDescription, setProjectDescription] = useState('');
@@ -209,7 +219,7 @@ export default function UserDashboard() {
   };
 
   // Admins land on /admin, unless they came here for a member tool (posting a call, submitting a project).
-  const adminWantsTab = !!((location.state as { tab?: string } | null)?.tab || new URLSearchParams(location.search).get('tab'));
+  const adminWantsTab = !!(section || (location.state as { tab?: string } | null)?.tab || new URLSearchParams(location.search).get('tab'));
   useEffect(() => {
     if (authInitialized && currentUser?.isAdmin && !isRedirecting && !adminWantsTab) {
       setIsRedirecting(true);

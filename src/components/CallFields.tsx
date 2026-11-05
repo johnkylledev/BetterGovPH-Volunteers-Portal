@@ -26,7 +26,8 @@ const labelClass = 'mb-1.5 block text-[13px] font-medium text-slate-900';
 export const CallTypePicker: React.FC<{ value: CallType; onChange: (t: CallType) => void; idPrefix: string; disabled?: boolean }> = ({ value, onChange, idPrefix, disabled }) => (
   <div>
     <p id={`${idPrefix}-type-label`} className={labelClass}>What are you asking for?</p>
-    <div role="radiogroup" aria-labelledby={`${idPrefix}-type-label`} className="grid grid-cols-4 gap-1.5">
+    {/* Same language as the call filters: plain pills, the chosen one solid dark. */}
+    <div role="radiogroup" aria-labelledby={`${idPrefix}-type-label`} className="flex flex-wrap gap-1.5">
       {CALL_TYPES.map((t) => {
         const on = value === t.id;
         return (
@@ -39,11 +40,14 @@ export const CallTypePicker: React.FC<{ value: CallType; onChange: (t: CallType)
             onClick={() => onChange(t.id)}
             title={t.label}
             className={clsx(
-              'flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-[10px] px-1 py-2 text-[11.5px] leading-tight transition-[background-color,box-shadow,color] duration-150',
-              on ? 'bg-[#f4f7ff] font-medium text-[var(--accent)] shadow-[inset_0_0_0_1.5px_var(--accent)]' : 'bg-white text-slate-600 shadow-[inset_0_0_0_1px_rgb(15_23_42/0.12)] hover:text-slate-900'
+              'inline-flex min-h-[36px] items-center gap-1.5 rounded-full pl-2.5 pr-3 text-[13px] transition-[background-color,box-shadow,color] duration-150',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1 disabled:opacity-50',
+              on
+                ? 'bg-slate-900 font-medium text-white'
+                : 'bg-white text-slate-600 shadow-[inset_0_0_0_1px_rgb(15_23_42/0.12)] hover:text-slate-900 hover:shadow-[inset_0_0_0_1px_rgb(15_23_42/0.25)]'
             )}
           >
-            <t.icon size={17} strokeWidth={1.75} aria-hidden />
+            <t.icon size={15} strokeWidth={on ? 2 : 1.75} className={on ? 'text-white' : 'text-slate-400'} aria-hidden />
             {t.short}
           </button>
         );

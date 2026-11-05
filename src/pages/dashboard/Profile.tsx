@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { memberTabPath, type MemberTab } from '../../constants/dashboardRoutes';
 import clsx from 'clsx';
 import { AlertCircle, Lock, Star } from 'lucide-react';
 import { VerifiedIcon, DoneIcon, FeaturedIcon, TabIcon } from '../../components/icons';
@@ -274,7 +275,7 @@ export default function Profile() {
       <AppHeader
         items={currentUser.isAdmin ? [] : memberNav(trackForRole(currentUser.specialization))}
         activeId={null}
-        onSelect={(id) => navigate('/dashboard', { state: { tab: id } })}
+        onSelect={(id) => navigate(memberTabPath(id as MemberTab))}
         mobileNav={false}
         account={
           <UserChip

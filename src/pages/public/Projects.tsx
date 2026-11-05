@@ -94,7 +94,7 @@ export default function Projects() {
           title="What the community has shipped."
           lede="Approved projects from members — live tools, datasets, and the repositories behind them."
           actions={
-            <Link to="/dashboard?tab=submit-project" className="s-btn s-btn-plain">
+            <Link to="/dashboard/projects" className="s-btn s-btn-plain">
               <Plus size={16} strokeWidth={1.75} />
               Submit a project
             </Link>
@@ -166,7 +166,7 @@ export default function Projects() {
                     Clear search
                   </button>
                 )}
-                <Link to="/dashboard?tab=submit-project" className="s-btn s-btn-accent">
+                <Link to="/dashboard/projects" className="s-btn s-btn-accent">
                   Submit a project
                 </Link>
               </div>

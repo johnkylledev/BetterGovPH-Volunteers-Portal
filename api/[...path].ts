@@ -1082,7 +1082,7 @@ const handler_call_interests: H = async (req, res) => {
   if (!prior) {
     await notify(supabase, call.user_id, {
       kind: 'interest_new', title: `${memberNameOf(me)} is interested in “${quote(call.title)}”`,
-      body: message || 'Open the call to see how to reach them.', link: '/dashboard?tab=volunteer',
+      body: message || 'Open the call to see how to reach them.', link: '/dashboard/calls',
     });
   }
   sendJson(res, 200, { status: 'new' });
@@ -2212,7 +2212,7 @@ const handler_admin: H = async (req, res) => {
       await invalidateProjectCache();
       await audit(adminSup, req, callerUid, 'project.send_back', { type: 'project', id });
       await notify(adminSup, submission.user_id, {
-        kind: 'project_changes', title: `${quote(submission.project_name)} needs a few changes`, body: note, link: '/dashboard?tab=submit-project',
+        kind: 'project_changes', title: `${quote(submission.project_name)} needs a few changes`, body: note, link: '/dashboard/projects',
       });
       sendJson(res, 200, { message: 'Rejected submission' });
       return;

@@ -267,8 +267,8 @@ export default function App() {
           <Route path="/" element={<HomeRoute><Landing /></HomeRoute>} />
           <Route path="/login/*" element={<PublicRoute><Login /></PublicRoute>} />
           <Route path="/register/*" element={<RegisterRoute><Register /></RegisterRoute>} />
-          <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
-          <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/dashboard/:section?" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
+          <Route path="/admin/:section?" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/certificate" element={<ProtectedRoute><Certificate /></ProtectedRoute>} />
           <Route path="/verify" element={<Verify />} />
