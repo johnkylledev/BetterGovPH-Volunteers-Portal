@@ -4,7 +4,8 @@ import { useStore } from '../../store/useStore';
 import { AccessCard } from '../../components/AccessCard';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
 import { motion } from 'framer-motion';
-import { ShieldAlert, CheckCircle2, Clock, Copy, Code, Check, ExternalLink, Edit3, Trash2, X, Lock, Unlock, CalendarDays, Wrench, BadgeCheck, Pencil, SlidersHorizontal, Star, Flame, Trophy } from 'lucide-react';
+import { ShieldAlert, Clock, Copy, Code, Check, ExternalLink, Edit3, Trash2, X, Lock, Unlock, CalendarDays, Wrench, BadgeCheck, Pencil, SlidersHorizontal, Flame, Trophy } from 'lucide-react';
+import { DoneIcon, PendingIcon, DeclinedIcon, FeaturedIcon } from '../../components/icons';
 import clsx from 'clsx';
 import { StatTile } from '../../components/StatTile';
 import { UserChip } from '../../components/UserChip';
@@ -227,9 +228,9 @@ export default function UserDashboard() {
 
   const getStatusIcon = () => {
     switch (currentUser.status) {
-      case 'Approved': return <CheckCircle2 className="w-5 h-5 text-green-500" />;
-      case 'Declined': return <ShieldAlert className="w-5 h-5 text-red-500" />;
-      default: return <Clock className="w-5 h-5 text-yellow-500" />;
+      case 'Approved': return <DoneIcon size={20} className="text-green-500" />;
+      case 'Declined': return <DeclinedIcon size={20} className="text-red-500" />;
+      default: return <PendingIcon size={20} className="text-yellow-500" />;
     }
   };
 
@@ -1079,7 +1080,7 @@ export default function UserDashboard() {
                                 <span className="block truncate text-[14px] font-semibold text-slate-900">{skill.name}</span>
                                 <span className="block text-[12px] text-slate-500">{skill.level}</span>
                               </span>
-                              <Star size={14} strokeWidth={1.75} className="shrink-0 fill-amber-400 text-amber-500" aria-label="Featured" />
+                              <FeaturedIcon size={14} className="shrink-0 text-amber-500" aria-label="Featured" />
                             </li>
                           ))}
                         </ul>

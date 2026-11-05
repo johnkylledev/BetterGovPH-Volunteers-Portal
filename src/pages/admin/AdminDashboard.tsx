@@ -7,7 +7,8 @@ import { NotificationBell } from '../../components/NotificationBell';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, CheckCircle2, XCircle, CreditCard, Copy, Code, Check, Briefcase, ChevronLeft, ChevronRight, Trash2, Inbox, FolderKanban, Clock, BadgeCheck } from 'lucide-react';
+import { Search, CheckCircle2, XCircle, CreditCard, Copy, Code, Check, ChevronLeft, ChevronRight, Trash2, Inbox, FolderKanban, Clock, BadgeCheck } from 'lucide-react';
+import { DoneIcon } from '../../components/icons';
 import { AccessCard } from '../../components/AccessCard';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
 import clsx from 'clsx';
@@ -1175,7 +1176,7 @@ export default function AdminDashboard() {
                 <div className="p-4 sm:p-6 border-t border-slate-100 bg-slate-50 flex flex-col-reverse sm:flex-row justify-end gap-2.5">
                   {selectedUser.status === 'Approved' ? (
                     <div className="flex items-center gap-2 text-sm font-semibold text-blue-600 px-4 py-2.5 bg-blue-50 rounded-[10px] border border-blue-100">
-                      <CheckCircle2 className="w-4 h-4" />
+                      <DoneIcon size={16} />
                       <span>Member Approved</span>
                     </div>
                   ) : (

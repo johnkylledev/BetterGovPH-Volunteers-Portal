@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import clsx from 'clsx';
-import { AlertCircle, BadgeCheck, Briefcase, CheckCircle2, Clock, ShieldCheck, Link2, Lock, Star, User as UserIcon, Wrench } from 'lucide-react';
+import { AlertCircle, Lock, Star } from 'lucide-react';
+import { VerifiedIcon, DoneIcon, FeaturedIcon, TabIcon } from '../../components/icons';
 import { useStore } from '../../store/useStore';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
 import { UserChip } from '../../components/UserChip';
@@ -23,11 +24,11 @@ import { AVAILABILITY, HOURS_PER_WEEK, LANGUAGES, PH_REGIONS } from '../../const
 import type { ExperienceLevel, UserSkill } from '../../types';
 
 const TABS = [
-  { id: 'personal', label: 'Personal', icon: UserIcon },
-  { id: 'role', label: 'Role', icon: Briefcase },
-  { id: 'skills', label: 'Skills', icon: Wrench },
-  { id: 'connections', label: 'Connections', icon: Link2 },
-  { id: 'privacy', label: 'Privacy', icon: ShieldCheck },
+  { id: 'personal', label: 'Personal', glyph: 'user' },
+  { id: 'role', label: 'Role', glyph: 'briefcase' },
+  { id: 'skills', label: 'Skills', glyph: 'wrench' },
+  { id: 'connections', label: 'Connections', glyph: 'link' },
+  { id: 'privacy', label: 'Privacy', glyph: 'shield' },
 ] as const;
 type TabId = (typeof TABS)[number]['id'];
 const isTabId = (v: string | null): v is TabId => TABS.some((t) => t.id === v);
@@ -304,7 +305,7 @@ export default function Profile() {
           <div className="min-w-0">
             <h1 className="flex items-center gap-2 text-[28px] sm:text-[36px]">
               <span className="truncate">{currentUser.fullName || 'Your profile'}</span>
-              {verified && <BadgeCheck size={24} strokeWidth={2} className="shrink-0 text-[var(--accent)]" aria-label="Verified" />}
+              {verified && <VerifiedIcon size={24} className="shrink-0 text-[var(--accent)]" aria-label="Verified" />}
             </h1>
             <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[14px] text-slate-500">
               <span>{currentUser.isAdmin ? 'Administrator' : currentUser.specialization || currentUser.role || 'Member'}</span>
@@ -325,7 +326,6 @@ export default function Profile() {
             <div className="no-scrollbar -mx-4 -my-1.5 overflow-x-auto px-4 py-1.5 lg:m-0 lg:overflow-visible lg:p-0">
               <div role="tablist" aria-label="Profile sections" className="flex w-max gap-1 lg:w-full lg:flex-col">
                 {TABS.map((tab, idx) => {
-                  const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
                   const hasChanges = changed[tab.id];
                   return (
@@ -347,7 +347,7 @@ export default function Profile() {
                           : 'text-slate-500 hover:bg-slate-900/[0.04] hover:text-slate-900'
                       )}
                     >
-                      <Icon size={16} strokeWidth={1.75} className={isActive ? 'text-[var(--accent)]' : ''} aria-hidden />
+                      <TabIcon glyph={tab.glyph} active={isActive} className={isActive ? 'text-[var(--accent)]' : ''} />
                       <span className="lg:flex-1">{tab.label}</span>
                       {hasChanges && <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-label="Unsaved changes" />}
                     </button>
@@ -527,7 +527,7 @@ export default function Profile() {
                             : 'bg-white text-slate-700 shadow-[inset_0_0_0_1px_rgb(15_23_42/0.12)] hover:shadow-[inset_0_0_0_1px_rgb(15_23_42/0.25)]'
                         )}
                       >
-                        <Star size={14} strokeWidth={1.75} className={s.featured ? 'fill-amber-400 text-amber-500' : 'text-slate-300'} aria-hidden />
+                        {s.featured ? <FeaturedIcon size={14} className="text-amber-500" /> : <Star size={14} strokeWidth={1.75} className="text-slate-300" aria-hidden />}
                         <SkillIcon skillName={s.name} size={13} />
                         <span className="font-medium">{s.name}</span>
                       </button>
@@ -598,7 +598,7 @@ export default function Profile() {
                           Discord
                           {discordLinked ? (
                             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800">
-                              <CheckCircle2 size={12} strokeWidth={2} aria-hidden />
+                              <DoneIcon size={12} />
                               Connected
                             </span>
                           ) : (
@@ -665,7 +665,7 @@ export default function Profile() {
                 </span>
               ) : saveState === 'saved' && !dirty ? (
                 <span className="inline-flex items-center gap-1.5 font-medium text-emerald-700" role="status">
-                  <CheckCircle2 size={16} strokeWidth={1.75} /> Saved
+                  <DoneIcon size={16} /> Saved
                 </span>
               ) : (
                 <span className="text-slate-600">You have unsaved changes</span>

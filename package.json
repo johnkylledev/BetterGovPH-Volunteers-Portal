@@ -15,6 +15,7 @@
     "qa:e2e": "node --env-file=.env scripts/qa/e2e.mjs"
   },
   "dependencies": {
+    "@phosphor-icons/react": "2.1.7",
     "@supabase/supabase-js": "^2.104.1",
     "clsx": "^2.1.1",
     "dotenv": "^17.4.2",

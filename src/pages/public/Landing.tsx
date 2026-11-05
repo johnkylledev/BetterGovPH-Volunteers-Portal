@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, BadgeCheck, ClipboardList, Clock, Hammer, Heart, LockOpen, Rocket, SearchCheck, Smartphone, Users } from 'lucide-react';
+import { ArrowRight, ClipboardList, Clock, Hammer, Heart, LockOpen, Rocket, SearchCheck, Smartphone, Users } from 'lucide-react';
+import { VerifiedIcon } from '../../components/icons';
 import { motion, useReducedMotion } from 'framer-motion';
 import { AccessCard } from '../../components/AccessCard';
 import { User } from '../../types';
@@ -337,7 +338,7 @@ const Landing: React.FC = () => {
             {/* Where the steps lead */}
             <div className="mt-6 flex flex-col gap-3 rounded-[14px] bg-[linear-gradient(135deg,#eef3ff,#f7f9ff)] p-5 shadow-[inset_0_0_0_1px_rgb(30_58_138/0.12)] sm:flex-row sm:items-center sm:justify-between sm:p-6">
               <p className="flex items-start gap-3 text-[15px] text-[var(--fg-2)]">
-                <BadgeCheck size={20} strokeWidth={1.75} className="mt-0.5 shrink-0 text-[var(--accent)]" aria-hidden />
+                <VerifiedIcon size={20} className="mt-0.5 shrink-0 text-[var(--accent)]" />
                 <span>
                   <span className="font-semibold text-[var(--fg)]">Once approved, you get a Volunteer Card</span>
                   {' '}with a member ID and a QR anyone can scan to verify you.

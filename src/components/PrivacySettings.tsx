@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import clsx from 'clsx';
-import { Download, Eye, ShieldCheck, Trash2 } from 'lucide-react';
+import { Download, Eye, Trash2 } from 'lucide-react';
+import { PrivacyIcon } from './icons';
 import { toast } from 'sonner';
 import type { User } from '../types';
 import { createOrUpdateUserRecord, exportMyData } from '../services/supabase';
@@ -144,7 +145,7 @@ export const PrivacySettings: React.FC<{ user: User; onSaved: (u: User) => void 
 
       <div className="rounded-[14px] bg-white p-4 shadow-[0_0_0_1px_rgb(15_23_42/0.1)] sm:p-5">
         <p className="flex items-center gap-2 text-[14px] font-semibold text-slate-900">
-          <ShieldCheck size={16} strokeWidth={1.75} className="text-[var(--accent)]" aria-hidden />
+          <PrivacyIcon size={16} className="text-[var(--accent)]" />
           Your data rights
         </p>
         <p className="mt-1 text-[12.5px] leading-snug text-slate-500">

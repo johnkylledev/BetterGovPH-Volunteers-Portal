@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
-import { Bell, X } from 'lucide-react';
+import { X } from 'lucide-react';
+import { BellIcon } from './icons';
 import { getNotifications, markNotificationsRead } from '../services/supabase';
 import type { AppNotification } from '../types';
 import { timeAgo } from './RepoHealth';
@@ -102,7 +103,7 @@ export const NotificationBell: React.FC = () => {
         onClick={() => { if (!open) { place(); load(); } setOpen((o) => !o); }}
         className="relative flex h-9 w-9 items-center justify-center rounded-full text-slate-600 transition-colors hover:bg-slate-900/[0.05] hover:text-slate-900"
       >
-        <Bell size={18} strokeWidth={1.75} />
+        <BellIcon unread={unread > 0} />
         {unread > 0 && (
           <span className="num absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[10.5px] font-semibold text-white shadow-[0_0_0_2px_white]">
             {unread > 9 ? '9+' : unread}

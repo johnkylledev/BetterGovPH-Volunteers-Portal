@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import { ArrowRight, BadgeCheck, FolderKanban, Hand, Inbox, Megaphone, ShieldAlert, Trash2, Upload, UserPlus, Users } from 'lucide-react';
+import { DoneIcon } from '../icons';
 import { toast } from 'sonner';
 import { eraseUser, getAdminAudit, getAdminOverview } from '../../services/supabase';
 import type { AdminOverview as Overview } from '../../types';
@@ -70,7 +71,7 @@ export const AdminOverview: React.FC<Props> = ({ onGo, onImport, onExportRopa, r
         </div>
         {needsAction.length === 0 ? (
           <div className="s-card flex items-center gap-3 px-5 py-4 text-[14px] text-slate-600">
-            <BadgeCheck size={18} strokeWidth={1.75} className="text-emerald-600" />
+            <DoneIcon size={18} className="text-emerald-600" />
             All caught up. Nothing is waiting for a decision.
           </div>
         ) : (

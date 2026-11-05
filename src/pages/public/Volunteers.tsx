@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Avatar } from '../../components/Avatar';
 import { Link } from 'react-router-dom';
 import clsx from 'clsx';
-import { ArrowRight, ArrowUpRight, BadgeCheck, Search as SearchIcon, X as XIcon } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Search as SearchIcon, X as XIcon } from 'lucide-react';
+import { VerifiedIcon } from '../../components/icons';
 import { SiteLayout, PageIntro } from '../../components/site/SiteLayout';
 import { SkillIcon } from '../../components/SkillIcon';
 
@@ -41,7 +42,7 @@ const VolunteerCard: React.FC<{ v: Volunteer }> = ({ v }) => {
         <div className="min-w-0">
           <p className="flex items-center gap-1.5 text-[15px] font-semibold text-[var(--fg)]">
             <span className="truncate">{v.name}</span>
-            <BadgeCheck size={15} strokeWidth={2} className="shrink-0 text-[var(--accent)]" aria-label="Verified member" />
+            <VerifiedIcon size={15} className="shrink-0 text-[var(--accent)]" aria-label="Verified member" />
           </p>
           <p className="truncate text-[13px] text-[var(--fg-3)]">
             {v.role || 'Volunteer'}

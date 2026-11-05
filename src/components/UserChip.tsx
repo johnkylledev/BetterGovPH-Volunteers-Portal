@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { ArrowUpRight, BadgeCheck, Check, ChevronDown, IdCard, LayoutDashboard, Link2, LogOut, MessageCircle, UserCog } from 'lucide-react';
+import { ArrowUpRight, Check, ChevronDown, IdCard, LayoutDashboard, Link2, LogOut, MessageCircle, UserCog } from 'lucide-react';
+import { VerifiedIcon } from './icons';
 import { DISCORD_INVITE } from './site/links';
 import { Avatar, useSessionPhoto } from './Avatar';
 
@@ -149,7 +150,7 @@ export const UserChip: React.FC<UserChipProps> = ({
               <div className="min-w-0">
                 <p className="flex items-center gap-1.5 text-[14px] font-semibold text-slate-900">
                   <span className="truncate">{name}</span>
-                  {verified && <BadgeCheck size={15} strokeWidth={2} className="shrink-0 text-[var(--accent)]" aria-label="Verified" />}
+                  {verified && <VerifiedIcon size={15} className="shrink-0 text-[var(--accent)]" aria-label="Verified" />}
                 </p>
                 {email && <p className="truncate text-[12.5px] text-slate-500">{email}</p>}
                 {memberId && <p className="mt-0.5 truncate font-mono text-[11.5px] text-slate-400">{memberId}</p>}
