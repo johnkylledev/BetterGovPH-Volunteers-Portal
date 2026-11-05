@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { createHmac, timingSafeEqual } from 'crypto';
+import { syncMemberRoles, syncTeamRole } from './_lib/discordRoles';
 
 let _crypto: any = null;
 let _cryptoInit = false;
@@ -122,6 +123,20 @@ const sendJson = (res: any, statusCode: number, body: Record<string, unknown>) =
 
 const sendError = (res: any, statusCode: number, message: string) =>
   sendJson(res, statusCode, { error: message });
+
+/**
+ * Whether joining the Discord server by itself approves a member. Off by default: approval is an
+ * admin decision, and the verified role is granted from that decision (see syncMemberRoles).
+ */
+const discordAutoApprove = (): boolean => String(process.env.DISCORD_AUTO_APPROVE || '').toLowerCase() === 'true';
+
+/** Supabase reports the provider on the verified user; the portal stores that instead of guessing. */
+const authProviderOf = (user: any): 'google' | 'github' | 'traditional' => {
+  const provider = String(user?.app_metadata?.provider || '').toLowerCase();
+  if (provider === 'github') return 'github';
+  if (provider === 'google') return 'google';
+  return 'traditional';
+};
 
 const mapUserRow = (row: any) => ({
   id: row.uid,
@@ -543,8 +558,11 @@ const ALLOWED_ORIGINS = [
   'https://volunteers.bettergov.ph',
   'http://localhost:3000', 'http://localhost:5173', 'http://localhost:5187',
 ];
+const LOOPBACK_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i;
 const isAllowedOrigin = (o: string) =>
-  ALLOWED_ORIGINS.includes(o) || /^https:\/\/better-gov-ph-access-card(-[a-z0-9-]+)?\.vercel\.app$/i.test(o);
+  ALLOWED_ORIGINS.includes(o) ||
+  /^https:\/\/better-gov-ph-access-card(-[a-z0-9-]+)?\.vercel\.app$/i.test(o) ||
+  (process.env.VERCEL_ENV !== 'production' && LOOPBACK_ORIGIN.test(o));
 const PUBLIC_READ = new Set(['/projects', '/volunteers', '/verify', '/og']);
 
 const applyCors = (req: any, res: any, pathname: string) => {
@@ -566,6 +584,7 @@ const applyCors = (req: any, res: any, pathname: string) => {
 // per IP because schools and mobile networks put many people behind one address (CGNAT).
 interface Limit { key: 'ip' | 'user'; name: string; max: number; windowSec: number }
 const RATE_RULES: { match: (m: string, p: string, q: any) => boolean; limits: Limit[] }[] = [
+  { match: (m, p) => m === 'GET' && p === '/discord-username-taken', limits: [{ key: 'ip', name: 'username-check', max: 30, windowSec: 600 }] },
   { match: (m, p) => m === 'GET' && p.startsWith('/verify'), limits: [{ key: 'ip', name: 'verify', max: 60, windowSec: 600 }] },
   { match: (m, p, q) => m === 'GET' && p === '/repo-tracker' && !!q?.url, limits: [{ key: 'user', name: 'repo-check', max: 30, windowSec: 3600 }] },
   { match: (m, p) => m === 'GET' && p === '/repo-tracker', limits: [{ key: 'ip', name: 'repo-ids', max: 60, windowSec: 600 }] },
@@ -1523,6 +1542,20 @@ const handler_og: H = async (req, res) => {
 // ---------- /teams -----------------------------------------------------------
 const TEAM_STATUSES = ['pending', 'approved', 'declined', 'left'];
 
+
+/** Team role sync needs the member's Discord id; failures are silent by design. */
+const discordRowFor = async (client: any, uid: string) => {
+  try {
+    const { data } = await client.from('users').select('discord_id, status, is_admin').eq('uid', uid).maybeSingle();
+    return data ?? null;
+  } catch { return null; }
+};
+
+const applyTeamRole = async (client: any, projectId: string, userId: string, member: boolean) => {
+  const row = await discordRowFor(client, userId);
+  if (row) await syncTeamRole(row, projectId, member);
+};
+
 const handler_teams: H = async (req, res) => {
   if (req.method !== 'GET' && req.method !== 'POST') { sendError(res, 405, 'Method not allowed'); return; }
   const caller = await authCaller(req);
@@ -1677,6 +1710,7 @@ const handler_teams: H = async (req, res) => {
     if (!existing) { sendError(res, 404, 'You’re not on this team'); return; }
     const { error } = await supabase.from('team_members').update({ status: 'left', decided_at: now }).eq('id', existing.id);
     if (error) { sendError(res, 500, 'Couldn’t update your membership'); return; }
+    await applyTeamRole(supabase, projectId, uid, false);
     sendJson(res, 200, { status: 'left' });
     return;
   }
@@ -1690,6 +1724,7 @@ const handler_teams: H = async (req, res) => {
     if (!target || !decision) { sendError(res, 400, 'requestId and decision (approve|decline) are required'); return; }
     const { error } = await supabase.from('team_members').update({ status: decision, decided_at: now }).eq('id', requestId);
     if (error) { sendError(res, 500, 'Couldn’t save the decision'); return; }
+    await applyTeamRole(supabase, projectId, target.user_id, decision === 'approved');
     const pname = quote(project.project_name ?? project.title);
     await notify(supabase, target.user_id, decision === 'approved'
       ? { kind: 'team_approved', title: `You’re on the team for ${pname}`, body: 'Say hi in the team’s group chat.', link: `/projects/${project.id}` }
@@ -1703,6 +1738,7 @@ const handler_teams: H = async (req, res) => {
     if (!userId || userId === headId) { sendError(res, 400, 'Pick a member to remove (not the head).'); return; }
     const { error } = await supabase.from('team_members').update({ status: 'left', decided_at: now }).eq('project_id', projectId).eq('user_id', userId);
     if (error) { sendError(res, 500, 'Couldn’t remove that member'); return; }
+    await applyTeamRole(supabase, projectId, userId, false);
     sendJson(res, 200, { status: 'left' });
     return;
   }
@@ -1863,7 +1899,7 @@ const handler_me: H = async (req, res) => {
   // Right to erasure: the member asks, an admin completes it (approved projects may need a new owner first).
   if (body.requestDeletion === true) { updates.deletion_requested_at = new Date().toISOString(); updates.show_in_directory = false; }
   if (body.requestDeletion === false) updates.deletion_requested_at = null;
-  updates.auth_provider = 'google';
+  updates.auth_provider = authProviderOf(authData?.user);
 
   if (typeof updates.discord_username === 'string' && updates.discord_username.trim()) {
     const { data: unameDup } = await supabase
@@ -1946,7 +1982,7 @@ const handler_me: H = async (req, res) => {
     skills: updates.skills ?? [],
     experience_level: updates.experience_level ?? null,
     year_joined: updates.year_joined ?? null,
-    auth_provider: 'google',
+    auth_provider: authProviderOf(authData?.user),
   };
   let { data: insertResult, error: insertError } = await supabase
     .from('users').insert(insertRow).select('*').maybeSingle();
@@ -2079,6 +2115,8 @@ const handler_admin: H = async (req, res) => {
     try { await invalidateCache('cache:admin:stats'); await invalidateCache('cache:verify:*'); } catch { /* noop */ }
     await audit(adminSup, req, callerUid, isAdmin !== undefined ? 'member.admin_rights' : 'member.status', { type: 'user', id: idUid },
       { status: status ?? undefined, isAdmin: isAdmin ?? undefined, note: adminNotes ? true : undefined });
+    // Approved members get the community role; declined or demoted members lose it. Best effort.
+    await syncMemberRoles(data[0]);
     if (status === 'Approved') {
       await notify(adminSup, idUid, { kind: 'member_approved', title: 'You’re approved — your Volunteer Card is ready', body: 'You can now join project teams.', link: '/dashboard' });
     } else if (status === 'Declined') {
@@ -2317,7 +2355,7 @@ const handler_admin: H = async (req, res) => {
     const uid = typeof body.uid === 'string' && isUuid(body.uid) ? body.uid : '';
     if (!uid) { sendError(res, 400, 'uid is required'); return; }
     if (uid === callerUid) { sendError(res, 400, 'You can’t erase your own account here.'); return; }
-    const { data: target } = await adminSup.from('users').select('uid, is_admin, email, deletion_requested_at').eq('uid', uid).maybeSingle();
+    const { data: target } = await adminSup.from('users').select('uid, is_admin, email, discord_id, deletion_requested_at').eq('uid', uid).maybeSingle();
     if (!target) { sendError(res, 404, 'Member not found'); return; }
     if (target.is_admin) { sendError(res, 400, 'Remove admin rights first.'); return; }
     // Typed confirmation: the member's email, so this can't happen by a stray click.
@@ -2338,6 +2376,8 @@ const handler_admin: H = async (req, res) => {
     await step('consent records', () => adminSup.from('consent_log').delete().eq('user_id', uid));
     await step('volunteer hours', () => adminSup.from('volunteer_hours').delete().eq('user_id', uid));
     await step('project updates', () => adminSup.from('project_updates').delete().eq('author_id', uid));
+    // Take the Discord roles away while the Discord id is still known.
+    await syncMemberRoles({ discord_id: target.discord_id, status: 'deleted', is_admin: false });
     const { error: delErr } = await adminSup.from('users').delete().eq('uid', uid);
     if (delErr) { sendError(res, 500, 'Couldn’t remove the profile. Related data may already be removed; try again.'); return; }
     done.push('profile');
@@ -3099,14 +3139,28 @@ const handler_verify: H = async (req, res) => {
     ? createServiceClient(supabaseUrl, serviceKey)
     : createAnonClient(supabaseUrl, anonKey);
 
+  // Cards are read through verify_member(): one exact match, card columns only, never the
+  // whole row. Until that function exists (migration not applied) the old read is used.
+  const cardFor = async (lookup: string): Promise<{ row: any | null; viaRpc: boolean }> => {
+    try {
+      const { data, error } = await dbClient.rpc('verify_member', { p_lookup: lookup });
+      if (error) return { row: null, viaRpc: false };
+      return { row: Array.isArray(data) ? data[0] ?? null : data ?? null, viaRpc: true };
+    } catch { return { row: null, viaRpc: false }; }
+  };
+
   if (token && serviceKey) {
     try {
       const { data: authData } = await dbClient.auth.getUser(token);
       if (authData?.user) {
         callerUid = authData.user.id;
-        const { data: callerRow } = await dbClient
-          .from('users').select('is_admin').eq('uid', callerUid).maybeSingle();
-        isAdminCaller = !!callerRow?.is_admin;
+        const caller = await cardFor(callerUid);
+        if (caller.viaRpc) isAdminCaller = !!caller.row?.is_admin;
+        else {
+          const { data: callerRow } = await dbClient
+            .from('users').select('is_admin').eq('uid', callerUid).maybeSingle();
+          isAdminCaller = !!callerRow?.is_admin;
+        }
       }
     } catch { isAdminCaller = false; }
   }
@@ -3118,22 +3172,31 @@ const handler_verify: H = async (req, res) => {
   // so a visitor can't add their own filters (e.g. ",email.eq.someone@x") or enumerate members.
   if (!isSafeMemberId(exactMemberId) && !isUuid(cleanLookup)) { sendError(res, 404, 'Not found'); return; }
 
+  // A uid lookup only answers the member themself or an admin.
+  const lookupValue = isSafeMemberId(exactMemberId)
+    ? exactMemberId
+    : (isAdminCaller || callerUid === cleanLookup ? cleanLookup : '');
+  if (!lookupValue) { sendError(res, 404, 'Not found'); return; }
+
   let row: any | null = null;
 
-  const { data: memberData } = await dbClient
-    .from('users')
-    .select('*')
-    .eq('member_id', isSafeMemberId(exactMemberId) ? exactMemberId : '__none__')
-    .maybeSingle();
+  const card = await cardFor(lookupValue);
+  row = card.row;
 
-  row = memberData ?? null;
-
-  if (!row && isUuid(lookupRaw.trim()) && (isAdminCaller || callerUid === lookupRaw.trim())) {
-    const { data: uidData } = await dbClient
+  if (!row && !card.viaRpc) {
+    const { data: memberData } = await dbClient
       .from('users')
       .select('*')
-      .eq('uid', lookupRaw.trim()).maybeSingle();
-    row = uidData ?? null;
+      .eq('member_id', isSafeMemberId(exactMemberId) ? exactMemberId : '__none__')
+      .maybeSingle();
+    row = memberData ?? null;
+    if (!row && lookupValue === cleanLookup) {
+      const { data: uidData } = await dbClient
+        .from('users')
+        .select('*')
+        .eq('uid', cleanLookup).maybeSingle();
+      row = uidData ?? null;
+    }
   }
 
   if (!row) { sendError(res, 404, 'Not found'); return; }
@@ -3191,7 +3254,11 @@ const handler_discord: H = async (req, res) => {
     const callbackUrl = (process.env.DISCORD_CALLBACK_URL || '').trim();
     const discordBotToken = process.env.DISCORD_BOT_TOKEN || '';
     if (!supabaseUrl || !serviceRoleKey) { sendError(res, 500, 'Server not configured'); return; }
-    if (!bettygoBaseUrl) { sendError(res, 500, 'BETTYGO_BASE_URL is not configured'); return; }
+    if (!bettygoBaseUrl) {
+      if (req.method === 'GET') { sendJson(res, 200, { connected: false }); return; }
+      sendError(res, 503, 'Discord sign-in is not configured');
+      return;
+    }
     const supabase = createServiceClient(supabaseUrl, serviceRoleKey);
     const token = getBearerToken(req.headers?.authorization);
     if (!token && req.method !== 'GET') { sendError(res, 401, 'Missing Authorization bearer token'); return; }
@@ -3228,11 +3295,20 @@ const handler_discord: H = async (req, res) => {
       if (!bettygoRes.ok) { sendJson(res, 502, { connected: true, discord_id: discordId, error: 'Failed to check Discord status' }); return; }
       const d = await bettygoRes.json();
       const verified = d?.verified ?? false;
-      if (verified) {
+      if (verified && discordAutoApprove()) {
         const { data: currentUser } = await supabase.from('users').select('status').eq('uid', uid).maybeSingle();
         if (currentUser && currentUser.status !== 'Approved') {
           await supabase.from('users').update({ status: 'Approved', updated_at: new Date().toISOString() }).eq('uid', uid);
           try { await ensureUserHasMemberId(supabase, uid); } catch { /* noop */ }
+        }
+      }
+      if (verified) {
+        // Status checks run on every dashboard load, so roles are synced once, the first time the member
+        // shows up as verified. Approvals, declines and admin changes sync on their own.
+        const { data: after } = await supabase.from('users').select('discord_id, status, is_admin, discord_verified').eq('uid', uid).maybeSingle();
+        if (after && after.discord_verified !== true) {
+          await supabase.from('users').update({ discord_verified: true }).eq('uid', uid);
+          await syncMemberRoles(after);
         }
       }
       sendJson(res, 200, { connected: true, discord_id: discordId, discord_username: resolvedUsername,
@@ -3352,10 +3428,14 @@ const handler_discord: H = async (req, res) => {
           discord_avatar: discordAvatar, discord_connected: true, discord_verified: !!verified,
           updated_at: new Date().toISOString(),
         };
-        if (verified) updateFields.status = 'Approved';
+        if (verified && discordAutoApprove()) updateFields.status = 'Approved';
         await supabase.from('users').update(updateFields).eq('uid', uid);
         let memberId: string | null = null;
-        if (verified) { try { memberId = await ensureUserHasMemberId(supabase, uid); } catch { /* noop */ } }
+        if (verified && discordAutoApprove()) { try { memberId = await ensureUserHasMemberId(supabase, uid); } catch { /* noop */ } }
+        if (verified) {
+          const { data: after } = await supabase.from('users').select('discord_id, status, is_admin').eq('uid', uid).maybeSingle();
+          if (after) await syncMemberRoles(after);
+        }
         sendJson(res, 200, { connected: true, discord_id: discordId, discord_username: discordUsername,
           discord_display_name: discordDisplayName, discord_avatar: discordAvatar, verified, memberId });
         return;
@@ -3375,12 +3455,19 @@ const handler_discord_username_taken: H = async (req, res) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'GET') { sendError(res, 405, 'Method not allowed'); return; }
-  const { url: supabaseUrl, anonKey } = getSupabaseConfig();
-  if (!supabaseUrl || !anonKey) { sendError(res, 500, 'Server not configured'); return; }
+  const { url: supabaseUrl, anonKey, serviceKey } = getSupabaseConfig();
+  if (!supabaseUrl || (!anonKey && !serviceKey)) { sendError(res, 500, 'Server not configured'); return; }
   const usernameRaw = getStringParam(req.query?.username);
   const username = (usernameRaw ?? '').trim();
   if (!username || username.length < 2 || username.length > 64) {
     sendError(res, 400, 'Invalid username'); return;
+  }
+  // Table access is revoked for the public roles, so the availability check goes through
+  // discord_username_taken(); the anon read stays as the pre-migration fallback.
+  if (serviceKey) {
+    const svc = createServiceClient(supabaseUrl, serviceKey);
+    const { data: takenData, error: takenError } = await svc.rpc('discord_username_taken', { p_username: username });
+    if (!takenError) { sendJson(res, 200, { taken: takenData === true }); return; }
   }
   const supabase = createAnonClient(supabaseUrl, anonKey);
   const { data, error } = await supabase

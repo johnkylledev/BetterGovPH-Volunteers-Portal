@@ -95,7 +95,7 @@ export interface User {
   memberId?: string;
   adminNotes?: string;
   isAdmin: boolean;
-  authProvider?: 'traditional' | 'google';
+  authProvider?: 'traditional' | 'google' | 'github';
   yearJoined?: number;
   skills?: UserSkill[];
   experienceLevel?: ExperienceLevel;
