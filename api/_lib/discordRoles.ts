@@ -67,8 +67,11 @@ export const syncMemberRoles = async (row: { discord_id?: unknown; status?: unkn
   const verifiedRole = roleIdFor('verified');
   const adminRole = roleIdFor('admin');
 
-  if (verifiedRole) await (approved ? grantRole(discordId, verifiedRole) : revokeRole(discordId, verifiedRole));
-  if (adminRole) await (row?.is_admin === true ? grantRole(discordId, adminRole) : revokeRole(discordId, adminRole));
+  // Side by side, so a slow worker costs one timeout, not two.
+  await Promise.all([
+    verifiedRole ? (approved ? grantRole(discordId, verifiedRole) : revokeRole(discordId, verifiedRole)) : null,
+    adminRole ? (row?.is_admin === true ? grantRole(discordId, adminRole) : revokeRole(discordId, adminRole)) : null,
+  ]);
 };
 
 /** Team membership is independent of approval: grant while the member is on the team, revoke when they leave. */

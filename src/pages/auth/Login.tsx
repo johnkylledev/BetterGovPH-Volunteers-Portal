@@ -21,8 +21,8 @@ export default function Login() {
       const redirectTo = `${window.location.origin}/register`;
       if (provider === 'github') await signInWithGithub(redirectTo);
       else await signInWithGoogle(redirectTo);
-    } catch (e: any) {
-      setError(e?.message || 'Sign-in didn’t go through. Try again.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Sign-in didn’t go through. Try again.');
       setLoading('');
     }
   };

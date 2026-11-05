@@ -125,7 +125,7 @@ const sections: LegalSection[] = [
         <p>
           <Strong>Technical:</Strong> encryption in transit (HTTPS) and at rest; row-level security on every table, so the browser
           can’t read the database directly and every request goes through our API, which checks who is asking; rate limits and request
-          checks against abuse; and sign-in through Google, so we store no passwords.
+          checks against abuse; and sign-in through Google or GitHub, so we store no passwords.
         </p>
       </div>
     ),

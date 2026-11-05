@@ -37,7 +37,8 @@ as $$
     u.discord_username,
     coalesce(u.is_admin, false)
   from public.users u
-  where u.member_id = p_lookup or u.uid::text = p_lookup
+  where u.member_id = p_lookup
+     or (p_lookup ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' and u.uid = p_lookup::uuid)
   limit 1;
 $$;
 

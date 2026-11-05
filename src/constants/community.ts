@@ -109,7 +109,7 @@ export const ROPA_REGISTER = [
     activity: 'Member registration and Volunteer Card',
     purpose: 'Admit volunteers, issue member IDs, verify cards',
     subjects: 'Applicants and members',
-    data: 'Name, Google account email, primary and secondary role, experience level, year joined, member ID, status',
+    data: 'Name, sign-in email (Google or GitHub), primary and secondary role, experience level, year joined, member ID, status',
     basis: 'Consent (RA 10173 Sec. 12(a))',
     recipients: 'BetterGovPH admins; public verify page shows redacted name, role and status only',
     retention: 'While a member; declined applications deleted after 12 months',
@@ -185,6 +185,6 @@ export const PROCESSORS = [
   { name: 'Supabase', role: 'Database and sign-in sessions', data: 'All portal data', location: 'Tokyo, Japan (AWS ap-northeast-1)' },
   { name: 'Vercel', role: 'Website hosting and the portal API', data: 'Requests in transit and short-lived logs (IP address, path)', location: 'United States, with a global edge network' },
   { name: 'Google', role: 'Sign-in with your Google account', data: 'Name, email and profile photo you allow at sign-in', location: 'Google data centres worldwide' },
+  { name: 'GitHub', role: 'Sign-in with your GitHub account, and public repository statistics for submitted projects', data: 'Your GitHub name, username, email and avatar at sign-in; public repository data for projects', location: 'United States' },
   { name: 'Discord', role: 'Optional community verification', data: 'Discord user ID, username and avatar', location: 'United States' },
-  { name: 'GitHub', role: 'Public repository statistics for submitted projects', data: 'Public repository data only; no member data is sent', location: 'United States' },
 ] as const;

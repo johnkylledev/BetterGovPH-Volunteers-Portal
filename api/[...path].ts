@@ -124,18 +124,18 @@ const sendJson = (res: any, statusCode: number, body: Record<string, unknown>) =
 const sendError = (res: any, statusCode: number, message: string) =>
   sendJson(res, statusCode, { error: message });
 
-/** Supabase reports the provider on the verified user; the portal stores that instead of guessing. */
 /**
  * Whether joining the Discord server by itself approves a member. Off by default: approval is an
  * admin decision, and the verified role is granted from that decision (see syncMemberRoles).
  */
 const discordAutoApprove = (): boolean => String(process.env.DISCORD_AUTO_APPROVE || '').toLowerCase() === 'true';
 
+/** Supabase reports the provider on the verified user; the portal stores that instead of guessing. */
 const authProviderOf = (user: any): 'google' | 'github' | 'traditional' => {
   const provider = String(user?.app_metadata?.provider || '').toLowerCase();
   if (provider === 'github') return 'github';
-  if (provider === 'email' || provider === 'phone') return 'traditional';
-  return provider ? 'google' : 'traditional';
+  if (provider === 'google') return 'google';
+  return 'traditional';
 };
 
 const mapUserRow = (row: any) => ({
@@ -584,6 +584,7 @@ const applyCors = (req: any, res: any, pathname: string) => {
 // per IP because schools and mobile networks put many people behind one address (CGNAT).
 interface Limit { key: 'ip' | 'user'; name: string; max: number; windowSec: number }
 const RATE_RULES: { match: (m: string, p: string, q: any) => boolean; limits: Limit[] }[] = [
+  { match: (m, p) => m === 'GET' && p === '/discord-username-taken', limits: [{ key: 'ip', name: 'username-check', max: 30, windowSec: 600 }] },
   { match: (m, p) => m === 'GET' && p.startsWith('/verify'), limits: [{ key: 'ip', name: 'verify', max: 60, windowSec: 600 }] },
   { match: (m, p, q) => m === 'GET' && p === '/repo-tracker' && !!q?.url, limits: [{ key: 'user', name: 'repo-check', max: 30, windowSec: 3600 }] },
   { match: (m, p) => m === 'GET' && p === '/repo-tracker', limits: [{ key: 'ip', name: 'repo-ids', max: 60, windowSec: 600 }] },
@@ -3302,9 +3303,13 @@ const handler_discord: H = async (req, res) => {
         }
       }
       if (verified) {
-        // Joiners get the verified role only when the account is approved; sync keeps them in step.
-        const { data: after } = await supabase.from('users').select('discord_id, status, is_admin').eq('uid', uid).maybeSingle();
-        if (after) await syncMemberRoles(after);
+        // Status checks run on every dashboard load, so roles are synced once, the first time the member
+        // shows up as verified. Approvals, declines and admin changes sync on their own.
+        const { data: after } = await supabase.from('users').select('discord_id, status, is_admin, discord_verified').eq('uid', uid).maybeSingle();
+        if (after && after.discord_verified !== true) {
+          await supabase.from('users').update({ discord_verified: true }).eq('uid', uid);
+          await syncMemberRoles(after);
+        }
       }
       sendJson(res, 200, { connected: true, discord_id: discordId, discord_username: resolvedUsername,
         discord_display_name: discordDisplayName, discord_avatar: discordAvatar, ...d });
