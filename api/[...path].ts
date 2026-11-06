@@ -1865,8 +1865,7 @@ const handler_me: H = async (req, res) => {
     if ((!data.email || String(data.email).trim() === '') && email) {
       const { data: updated } = await supabase
         .from('users').update({ email, updated_at: new Date().toISOString() }).eq('uid', uid).select('*').maybeSingle();
-      if (updated) { sendJson(res, 200, { user: mapUserRow(updated) }); return;
-    }
+      if (updated) { sendJson(res, 200, { user: mapUserRow(updated) }); return; }
     }
     sendJson(res, 200, { user: mapUserRow(data) });
     return;
@@ -2388,6 +2387,7 @@ const handler_admin: H = async (req, res) => {
     await step('project updates', () => adminSup.from('project_updates').delete().eq('author_id', uid));
     // Take the Discord roles away while the Discord id is still known.
     await syncMemberRoles({ discord_id: target.discord_id, status: 'deleted', is_admin: false });
+    await syncSkillRoles({ discord_id: target.discord_id, status: 'deleted', skills: [] });
     const { error: delErr } = await adminSup.from('users').delete().eq('uid', uid);
     if (delErr) { sendError(res, 500, 'Couldn’t remove the profile. Related data may already be removed; try again.'); return; }
     done.push('profile');

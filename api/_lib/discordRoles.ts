@@ -58,6 +58,7 @@ const skillNames = (skills: unknown): string[] => {
     .map((s) => s.trim().toLowerCase());
   return Array.from(new Set(names));
 };
+
 export const discordRolesEnabled = (): boolean => Boolean(worker() && (roleIdFor('verified') || roleIdFor('admin')));
 
 const call = async (discordId: string, method: 'POST' | 'DELETE', path: string, body?: unknown): Promise<boolean> => {
@@ -144,15 +145,19 @@ export const currentRoles = async (discordId: string): Promise<string[] | null> 
  * Skill roles follow the profile: mapped skills are granted, mapped roles the member no longer
  * qualifies for are taken away. Roles outside the map are never touched, and a failed membership
  * read aborts the whole pass so a Discord hiccup cannot strip anyone.
+ *
+ * Only approved members hold skill roles. Pending, declined and erased accounts get none, and any
+ * mapped roles they already hold are taken away (same rule as the verified role).
  */
-export const syncSkillRoles = async (row: { discord_id?: unknown; skills?: unknown }): Promise<void> => {
+export const syncSkillRoles = async (row: { discord_id?: unknown; skills?: unknown; status?: unknown }): Promise<void> => {
   const map = skillRoleMap();
   const managed = managedSkillRoles();
   const discordId = typeof row?.discord_id === 'string' ? row.discord_id.trim() : '';
   if (!discordId || managed.size === 0) return;
 
+  const approved = String(row?.status || '').toLowerCase() === 'approved';
   const desired = new Set<string>();
-  for (const name of skillNames(row?.skills)) {
+  for (const name of approved ? skillNames(row?.skills) : []) {
     const roleId = map[name];
     if (roleId) desired.add(roleId);
   }
