@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { createHmac, timingSafeEqual } from 'crypto';
-import { syncMemberRoles, syncTeamRole } from './_lib/discordRoles.js';
+import { syncMemberRoles, syncSkillRoles, syncTeamRole } from './_lib/discordRoles.js';
 
 let _crypto: any = null;
 let _cryptoInit = false;
@@ -1968,7 +1968,12 @@ const handler_me: H = async (req, res) => {
     if (consentEvent || 'show_in_directory' in updates || 'show_full_name' in updates || 'display_name' in updates) {
       try { await invalidateCache('cache:volunteers:directory:v2'); } catch { /* noop */ }
     }
-    if (updated) { sendJson(res, 200, { user: mapUserRow(updated) }); return; }
+    if (updated) {
+      // Skills drive the volunteer's Discord roles, so keep them in step with the profile.
+      if (Array.isArray(body.skills)) await syncSkillRoles(updated);
+      sendJson(res, 200, { user: mapUserRow(updated) });
+      return;
+    }
   }
   const now = new Date().toISOString();
   const { updated_at: _u, ...sent } = updates;
@@ -2117,8 +2122,10 @@ const handler_admin: H = async (req, res) => {
     try { await invalidateCache('cache:admin:stats'); await invalidateCache('cache:verify:*'); } catch { /* noop */ }
     await audit(adminSup, req, callerUid, isAdmin !== undefined ? 'member.admin_rights' : 'member.status', { type: 'user', id: idUid },
       { status: status ?? undefined, isAdmin: isAdmin ?? undefined, note: adminNotes ? true : undefined });
-    // Approved members get the community role; declined or demoted members lose it. Best effort.
+    // Approved members get the community role; declined or demoted members lose it. Skill roles
+    // follow the profile they applied with. Both are best effort.
     await syncMemberRoles(data[0]);
+    await syncSkillRoles(data[0]);
     if (status === 'Approved') {
       await notify(adminSup, idUid, { kind: 'member_approved', title: 'You’re approved — your Volunteer Card is ready', body: 'You can now join project teams.', link: '/dashboard' });
     } else if (status === 'Declined') {
@@ -2380,6 +2387,7 @@ const handler_admin: H = async (req, res) => {
     await step('project updates', () => adminSup.from('project_updates').delete().eq('author_id', uid));
     // Take the Discord roles away while the Discord id is still known.
     await syncMemberRoles({ discord_id: target.discord_id, status: 'deleted', is_admin: false });
+    await syncSkillRoles({ discord_id: target.discord_id, status: 'deleted', skills: [] });
     const { error: delErr } = await adminSup.from('users').delete().eq('uid', uid);
     if (delErr) { sendError(res, 500, 'Couldn’t remove the profile. Related data may already be removed; try again.'); return; }
     done.push('profile');
@@ -3307,10 +3315,11 @@ const handler_discord: H = async (req, res) => {
       if (verified) {
         // Status checks run on every dashboard load, so roles are synced once, the first time the member
         // shows up as verified. Approvals, declines and admin changes sync on their own.
-        const { data: after } = await supabase.from('users').select('discord_id, status, is_admin, discord_verified').eq('uid', uid).maybeSingle();
+        const { data: after } = await supabase.from('users').select('discord_id, status, is_admin, discord_verified, skills').eq('uid', uid).maybeSingle();
         if (after && after.discord_verified !== true) {
           await supabase.from('users').update({ discord_verified: true }).eq('uid', uid);
           await syncMemberRoles(after);
+          await syncSkillRoles(after);
         }
       }
       sendJson(res, 200, { connected: true, discord_id: discordId, discord_username: resolvedUsername,
@@ -3435,8 +3444,8 @@ const handler_discord: H = async (req, res) => {
         let memberId: string | null = null;
         if (verified && discordAutoApprove()) { try { memberId = await ensureUserHasMemberId(supabase, uid); } catch { /* noop */ } }
         if (verified) {
-          const { data: after } = await supabase.from('users').select('discord_id, status, is_admin').eq('uid', uid).maybeSingle();
-          if (after) await syncMemberRoles(after);
+          const { data: after } = await supabase.from('users').select('discord_id, status, is_admin, skills').eq('uid', uid).maybeSingle();
+          if (after) { await syncMemberRoles(after); await syncSkillRoles(after); }
         }
         sendJson(res, 200, { connected: true, discord_id: discordId, discord_username: discordUsername,
           discord_display_name: discordDisplayName, discord_avatar: discordAvatar, verified, memberId });

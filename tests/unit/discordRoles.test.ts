@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
-  roleIdFor, grantRole, revokeRole, syncMemberRoles, syncTeamRole, discordRolesEnabled,
+  roleIdFor, grantRole, revokeRole, syncMemberRoles, syncSkillRoles, syncTeamRole, discordRolesEnabled,
 } from '../../api/_lib/discordRoles';
 
 const calls: { url: string; init: RequestInit }[] = [];
@@ -111,6 +111,114 @@ describe('syncTeamRole', () => {
 
   it('skips projects without a mapped role', async () => {
     await syncTeamRole({ discord_id: '123456789012345678' }, '99', true);
+    expect(calls).toHaveLength(0);
+  });
+});
+
+describe('skill roles', () => {
+  const setSkills = (map: Record<string, string>) => {
+    process.env.DISCORD_SKILL_ROLES = JSON.stringify(map);
+  };
+
+  afterEach(() => { delete process.env.DISCORD_SKILL_ROLES; });
+
+  it('maps skill names case-insensitively', () => {
+    setSkills({ React: '555555555555555555', 'figma ': '666666666666666666' });
+    expect(roleIdFor('skill', 'react')).toBe('555555555555555555');
+    expect(roleIdFor('skill', 'FIGMA')).toBe('666666666666666666');
+    expect(roleIdFor('skill', 'cobol')).toBe('');
+  });
+
+  it('grants only the new skills and ignores unmapped ones', async () => {
+    setSkills({ React: '555555555555555555', Figma: '666666666666666666' });
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit = {}) => {
+      calls.push({ url: String(url), init });
+      if (String(url).endsWith('/discord') && (init.method ?? 'GET') === 'GET') {
+        return new Response(JSON.stringify({ verified: true, roles: ['666666666666666666', '777777777777777777'] }), {
+          status: 200, headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(null, { status: 200 });
+    });
+
+    await syncSkillRoles({ discord_id: '123456789012345678', status: 'Approved', skills: [{ name: 'React' }, { name: 'Cobol' }] });
+
+    const writes = calls.filter((c) => c.url.includes('/discord/roles'));
+    const summary = writes.map((c) => {
+      const body = typeof c.init.body === 'string' ? JSON.parse(c.init.body) : null;
+      return `${c.init.method} ${body?.roleId ?? c.url.split('/').pop()}`;
+    });
+    expect(summary).toEqual(['POST 555555555555555555', 'DELETE 666666666666666666']);
+  });
+
+  it('never touches roles outside the skill map', async () => {
+    setSkills({ React: '555555555555555555' });
+    calls.length = 0;
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit = {}) => {
+      calls.push({ url: String(url), init });
+      if (String(url).endsWith('/discord') && (init.method ?? 'GET') === 'GET') {
+        return new Response(JSON.stringify({ verified: true, roles: ['999999999999999999'] }), {
+          status: 200, headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(null, { status: 200 });
+    });
+
+    await syncSkillRoles({ discord_id: '123456789012345678', status: 'Approved', skills: [{ name: 'React' }] });
+    const writes = calls.filter((c) => c.url.includes('/discord/roles'));
+    // React is granted; the unrelated role 999 is not removed because the map does not own it.
+    expect(writes.map((c) => `${c.init.method} ${c.url.split('/').pop()}`)).toEqual(['POST roles']);
+  });
+
+  it('does nothing when the membership read fails', async () => {
+    setSkills({ React: '555555555555555555' });
+    calls.length = 0;
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit = {}) => {
+      calls.push({ url: String(url), init });
+      return new Response(JSON.stringify({ error: 'guild_check_failed' }), { status: 502 });
+    });
+
+    await syncSkillRoles({ discord_id: '123456789012345678', status: 'Approved', skills: [{ name: 'React' }] });
+    // The failed read aborts the pass: no grant, no revoke.
+    expect(calls.filter((c) => c.url.includes('/discord/roles'))).toHaveLength(0);
+  });
+
+  const holding = (roles: string[]) => vi.stubGlobal('fetch', async (url: string, init: RequestInit = {}) => {
+    calls.push({ url: String(url), init });
+    if (String(url).endsWith('/discord') && (init.method ?? 'GET') === 'GET') {
+      return new Response(JSON.stringify({ verified: true, roles }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    return new Response(null, { status: 200 });
+  });
+  const writesOf = () => calls.filter((c) => c.url.includes('/discord/roles')).map((c) => {
+    const body = typeof c.init.body === 'string' ? JSON.parse(c.init.body) : null;
+    return `${c.init.method} ${body?.roleId ?? c.url.split('/').pop()}`;
+  });
+
+  it('gives pending or declined members no skill roles, and takes away mapped ones they hold', async () => {
+    setSkills({ React: '555555555555555555', Figma: '666666666666666666' });
+    calls.length = 0;
+    holding(['666666666666666666', '999999999999999999']);
+    for (const status of ['Pending', 'Declined']) {
+      calls.length = 0;
+      await syncSkillRoles({ discord_id: '123456789012345678', status, skills: [{ name: 'React' }, { name: 'Figma' }] });
+      // No grant for React; the held Figma role goes; the unrelated 999 role stays.
+      expect(writesOf()).toEqual(['DELETE 666666666666666666']);
+    }
+  });
+
+  it('removes every mapped skill role when an account is erased', async () => {
+    setSkills({ React: '555555555555555555', Figma: '666666666666666666' });
+    calls.length = 0;
+    holding(['555555555555555555', '666666666666666666', '999999999999999999']);
+    await syncSkillRoles({ discord_id: '123456789012345678', status: 'deleted', skills: [] });
+    expect(writesOf().sort()).toEqual(['DELETE 555555555555555555', 'DELETE 666666666666666666']);
+  });
+
+  it('skips members who have not linked Discord', async () => {
+    setSkills({ React: '555555555555555555' });
+    calls.length = 0;
+    await syncSkillRoles({ discord_id: null, skills: [{ name: 'React' }] });
     expect(calls).toHaveLength(0);
   });
 });
