@@ -153,6 +153,7 @@ const mapUserRow = (row: any) => ({
   experienceLevel: row.experience_level ?? undefined,
   adminNotes: row.admin_notes ?? undefined,
   isAdmin: !!row.is_admin,
+  adminRoleId: row.admin_role_id ?? null,
   authProvider: row.auth_provider ?? 'traditional',
   createdAt: row.created_at,
   updatedAt: row.updated_at,
@@ -523,16 +524,54 @@ const ensureUserHasMemberId = async (client: any, uid: string) => {
   return id;
 };
 
-const assertAdmin = async (supabaseAdmin: any, uid: string, email?: string) => {
-  let { data: callerRow, error: callerError } = await supabaseAdmin
-    .from('users').select('uid, is_admin, email').eq('uid', uid).maybeSingle();
-  if (!callerRow && email) {
-    ({ data: callerRow, error: callerError } = await supabaseAdmin
-      .from('users').select('uid, is_admin, email').eq('email', email).maybeSingle());
+// ---------- Role-based admin access ------------------------------------------
+// Super admins (users.is_admin) hold every permission, including managing roles. Anyone else can
+// hold one custom role (users.admin_role_id -> admin_roles.permissions). Every admin endpoint names
+// the permission it needs; endpoints that name none stay super-admin only. Responses carry only
+// what the caller's permissions cover, so nothing extra shows up even in intercepted traffic.
+const ADMIN_PERMISSIONS = [
+  'members.view', 'members.decide', 'projects.review', 'projects.import',
+  'calls.moderate', 'reports.handle', 'privacy.records', 'privacy.erase', 'audit.view',
+] as const;
+type AdminPermission = (typeof ADMIN_PERMISSIONS)[number];
+const isAdminPermission = (p: unknown): p is AdminPermission => typeof p === 'string' && (ADMIN_PERMISSIONS as readonly string[]).includes(p);
+
+type AdminAccess =
+  | { ok: true; error?: undefined; superAdmin: boolean; permissions: Set<AdminPermission>; roleId: string | null; roleName: string | null }
+  | { ok: false; error: string };
+
+const adminAccessOf = async (supabaseAdmin: any, uid: string, email?: string): Promise<AdminAccess> => {
+  const pick = (col: 'uid' | 'email', v: string) => supabaseAdmin.from('users').select('uid, is_admin, email, admin_role_id').eq(col, v).maybeSingle();
+  let { data: callerRow, error: callerError } = await pick('uid', uid);
+  if (!callerRow && !callerError && email) ({ data: callerRow, error: callerError } = await pick('email', email));
+  if (callerError) return { ok: false, error: 'Failed to validate admin' };
+  if (callerRow?.is_admin) {
+    return { ok: true, superAdmin: true, permissions: new Set(ADMIN_PERMISSIONS), roleId: null, roleName: 'Super admin' };
   }
-  if (callerError) return { ok: false as const, error: 'Failed to validate admin' };
-  if (!callerRow?.is_admin) return { ok: false as const, error: 'Admin only' };
-  return { ok: true as const };
+  if (callerRow?.admin_role_id) {
+    const { data: role } = await supabaseAdmin.from('admin_roles').select('id, name, permissions').eq('id', callerRow.admin_role_id).maybeSingle();
+    const permissions = new Set<AdminPermission>(((role?.permissions as unknown[]) ?? []).filter(isAdminPermission));
+    if (role && permissions.size) return { ok: true, superAdmin: false, permissions, roleId: String(role.id), roleName: String(role.name) };
+  }
+  return { ok: false, error: 'Admin only' };
+};
+
+/** Gate for admin endpoints. No permission named means super admins only; 'any' means any admin access. */
+const assertAdmin = async (supabaseAdmin: any, uid: string, email?: string, need?: AdminPermission | 'any'): Promise<AdminAccess> => {
+  const access = await adminAccessOf(supabaseAdmin, uid, email);
+  if (!access.ok) return access;
+  if (need === 'any' || (need ? access.permissions.has(need) : access.superAdmin)) return access;
+  return { ok: false, error: 'Admin only' };
+};
+
+/** What /me tells the app about its own admin access (never other people's). */
+const accessFieldsFor = async (supabaseAdmin: any, row: any) => {
+  if (!row) return {};
+  if (row.is_admin) return { adminRoleName: 'Super admin', adminPermissions: [...ADMIN_PERMISSIONS, 'roles.manage'] };
+  if (!row.admin_role_id) return {};
+  const { data: role } = await supabaseAdmin.from('admin_roles').select('name, permissions').eq('id', row.admin_role_id).maybeSingle();
+  const permissions = ((role?.permissions as unknown[]) ?? []).filter(isAdminPermission);
+  return role && permissions.length ? { adminRoleName: String(role.name), adminPermissions: permissions } : {};
 };
 
 // ============================================================================
@@ -1127,7 +1166,8 @@ const handler_reports: H = async (req, res) => {
   const { supabase, uid } = caller;
   if (!uid) { sendError(res, 401, 'Sign in to report'); return; }
   const { data: me } = await supabase.from('users').select('*').eq('uid', uid).maybeSingle();
-  const isAdmin = !!me?.is_admin;
+  const reportAccess = await adminAccessOf(supabase, uid);
+  const isAdmin = reportAccess.ok && reportAccess.permissions.has('reports.handle');
 
   const titleOf = async (type: string, id: string) => {
     if (type === 'call') {
@@ -1865,9 +1905,9 @@ const handler_me: H = async (req, res) => {
     if ((!data.email || String(data.email).trim() === '') && email) {
       const { data: updated } = await supabase
         .from('users').update({ email, updated_at: new Date().toISOString() }).eq('uid', uid).select('*').maybeSingle();
-      if (updated) { sendJson(res, 200, { user: mapUserRow(updated) }); return; }
+      if (updated) { sendJson(res, 200, { user: { ...mapUserRow(updated), ...(await accessFieldsFor(supabase, updated)) } }); return; }
     }
-    sendJson(res, 200, { user: mapUserRow(data) });
+    sendJson(res, 200, { user: { ...mapUserRow(data), ...(await accessFieldsFor(supabase, data)) } });
     return;
   }
 
@@ -2036,7 +2076,7 @@ const handler_admin: H = async (req, res) => {
     const email = authData?.user?.email ? String(authData.user.email) : '';
     if (authError || !uid) { sendError(res, 401, 'Invalid token'); return; }
     const adminSup = createServiceClient(supabaseUrl, serviceRoleKey);
-    const adminCheck = await assertAdmin(adminSup, uid, email);
+    const adminCheck = await assertAdmin(adminSup, uid, email, 'members.view');
     if (!adminCheck.ok) { sendError(res, 403, adminCheck.error); return; }
     const cacheKey = 'cache:admin:stats';
     try { const c = await getCache<any>(cacheKey); if (c) { sendJson(res, 200, c); return; } } catch { /* noop */ }
@@ -2060,7 +2100,7 @@ const handler_admin: H = async (req, res) => {
     const uid = authData?.user?.id ? String(authData.user.id) : '';
     const email = authData?.user?.email ? String(authData.user.email) : '';
     if (authError || !uid) { sendError(res, 401, 'Invalid token'); return; }
-    const adminCheck = await assertAdmin(adminSup, uid, email);
+    const adminCheck = await assertAdmin(adminSup, uid, email, 'members.view');
     if (!adminCheck.ok) { sendError(res, 403, adminCheck.error); return; }
     const page = Math.max(0, getNumberParam(req.query?.page, 0));
     const pageSize = Math.min(100, Math.max(1, getNumberParam(req.query?.pageSize, 20)));
@@ -2095,7 +2135,7 @@ const handler_admin: H = async (req, res) => {
     const callerEmail = authData?.user?.email ? String(authData.user.email) : '';
     if (authError || !callerUid) { sendError(res, 401, 'Invalid token'); return; }
     const adminSup = createServiceClient(supabaseUrl, serviceRoleKey);
-    const adminCheck = await assertAdmin(adminSup, callerUid, callerEmail);
+    const adminCheck = await assertAdmin(adminSup, callerUid, callerEmail, 'any');
     if (!adminCheck.ok) { sendError(res, adminCheck.error === 'Admin only' ? 403 : 401, adminCheck.error); return; }
     const body = getBody(req);
     const idUid = typeof body.uid === 'string' ? body.uid : typeof body.id === 'string' ? body.id : null;
@@ -2104,6 +2144,14 @@ const handler_admin: H = async (req, res) => {
     const isAdmin = typeof body.isAdmin === 'boolean' ? body.isAdmin : undefined;
     if (!idUid) { sendError(res, 400, 'Missing uid'); return; }
     if (!status && isAdmin === undefined) { sendError(res, 400, 'Must provide status or isAdmin'); return; }
+    if ((status || adminNotes !== undefined) && !adminCheck.permissions.has('members.decide')) {
+      sendError(res, 403, 'Your role can’t approve or decline members.'); return;
+    }
+    if (isAdmin !== undefined && !adminCheck.superAdmin) { sendError(res, 403, 'Only super admins can change admin rights.'); return; }
+    if (!adminCheck.superAdmin) {
+      const { data: target } = await adminSup.from('users').select('is_admin, admin_role_id').eq('uid', idUid).maybeSingle();
+      if (target?.is_admin || target?.admin_role_id) { sendError(res, 403, 'Only super admins can change another admin’s account.'); return; }
+    }
     const updates: any = { updated_at: new Date().toISOString() };
     if (status) updates.status = status;
     if (adminNotes !== undefined) updates.admin_notes = adminNotes;
@@ -2144,7 +2192,7 @@ const handler_admin: H = async (req, res) => {
     const callerUid = authData?.user?.id ? String(authData.user.id) : '';
     const callerEmail = authData?.user?.email ? String(authData.user.email) : '';
     if (authError || !callerUid) { sendError(res, 401, 'Invalid token'); return; }
-    const adminCheck = await assertAdmin(adminSup, callerUid, callerEmail);
+    const adminCheck = await assertAdmin(adminSup, callerUid, callerEmail, 'projects.review');
     if (!adminCheck.ok) { sendError(res, 403, adminCheck.error); return; }
     const page = Math.max(0, getNumberParam(req.query?.page, 0));
     const pageSize = Math.min(100, Math.max(1, getNumberParam(req.query?.pageSize, 20)));
@@ -2176,7 +2224,7 @@ const handler_admin: H = async (req, res) => {
     const callerUid = authData?.user?.id ? String(authData.user.id) : '';
     const callerEmail = authData?.user?.email ? String(authData.user.email) : '';
     if (authError || !callerUid) { sendError(res, 401, 'Invalid token'); return; }
-    const adminCheck = await assertAdmin(adminSup, callerUid, callerEmail);
+    const adminCheck = await assertAdmin(adminSup, callerUid, callerEmail, 'projects.review');
     if (!adminCheck.ok) { sendError(res, 403, adminCheck.error); return; }
     const body = getBody(req);
     const id = typeof body.id === 'string' ? body.id : '';
@@ -2278,7 +2326,7 @@ const handler_admin: H = async (req, res) => {
     const { data: authData, error: authError } = await adminSup.auth.getUser(token);
     const callerUid = authData?.user?.id ? String(authData.user.id) : '';
     if (authError || !callerUid) { sendError(res, 401, 'Invalid token'); return; }
-    const adminCheck = await assertAdmin(adminSup, callerUid, authData?.user?.email ?? undefined);
+    const adminCheck = await assertAdmin(adminSup, callerUid, authData?.user?.email ?? undefined, 'any');
     if (!adminCheck.ok) { sendError(res, 403, adminCheck.error); return; }
     const head = (table: string) => adminSup.from(table).select('*', { count: 'exact', head: true });
     const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
@@ -2314,13 +2362,117 @@ const handler_admin: H = async (req, res) => {
       ...(recentProjects ?? []).map((p: any) => ({ kind: 'project', text: `${p.imported ? 'Imported' : 'Submitted'}: ${p.project_name}`, status: p.status, at: p.created_at, link: `/projects/${p.id}` })),
       ...(recentCalls ?? []).map((c: any) => ({ kind: 'call', text: `${c.call_type && c.call_type !== 'people' ? 'Request' : 'Call'}: ${c.title}`, at: c.created_at, link: `/opportunities?call=${c.id}` })),
     ].sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 12);
+    // Each part only for roles that cover it; anything else is left out of the response entirely.
+    const can = (p: AdminPermission) => adminCheck.permissions.has(p);
+    const only = <T,>(ok: boolean, v: T) => (ok ? v : undefined);
     sendJson(res, 200, {
-      queue: { pendingApps, pendingProjects, openReports, deletionRequests: (deletions ?? []).length, noConsent },
+      queue: {
+        pendingApps: only(can('members.view') || can('members.decide'), pendingApps),
+        pendingProjects: only(can('projects.review'), pendingProjects),
+        openReports: only(can('reports.handle'), openReports),
+        deletionRequests: only(can('privacy.erase') || can('privacy.records'), (deletions ?? []).length),
+        noConsent: only(can('privacy.records'), noConsent),
+      },
       numbers: { members, approvedProjects, importedProjects, openCalls, interests7d, newMembers7d },
       roles: Array.from(roleCount.entries()).sort((a, b) => b[1] - a[1]).map(([role, count]) => ({ role, count })),
-      deletions: (deletions ?? []).map((d: any) => ({ uid: d.uid, name: d.full_name, email: d.email, memberId: d.member_id, status: d.status, requestedAt: d.deletion_requested_at })),
-      feed,
+      deletions: can('privacy.erase')
+        ? (deletions ?? []).map((d: any) => ({ uid: d.uid, name: d.full_name, email: d.email, memberId: d.member_id, status: d.status, requestedAt: d.deletion_requested_at }))
+        : [],
+      feed: can('members.view') ? feed : feed.filter((f) => f.kind !== 'member'),
+      access: { superAdmin: adminCheck.superAdmin, roleName: adminCheck.roleName, permissions: adminCheck.superAdmin ? [...ADMIN_PERMISSIONS, 'roles.manage'] : [...adminCheck.permissions] },
     });
+    return;
+  }
+
+  // Roles: list, create/update/delete, and assign. Super admins only (roles.manage is never grantable).
+  if ((resource === 'roles' && (req.method === 'GET' || req.method === 'POST')) || (resource === 'assign-role' && req.method === 'POST')) {
+    if (!supabaseUrl || !serviceRoleKey) { sendError(res, 500, 'Server not configured'); return; }
+    const token = getBearerToken(req.headers?.authorization);
+    if (!token) { sendError(res, 401, 'Missing Authorization bearer token'); return; }
+    const adminSup = createServiceClient(supabaseUrl, serviceRoleKey);
+    const { data: authData, error: authError } = await adminSup.auth.getUser(token);
+    const callerUid = authData?.user?.id ? String(authData.user.id) : '';
+    if (authError || !callerUid) { sendError(res, 401, 'Invalid token'); return; }
+    const adminCheck = await assertAdmin(adminSup, callerUid, authData?.user?.email ?? undefined);
+    if (!adminCheck.ok) { sendError(res, 403, 'Only super admins can manage roles.'); return; }
+
+    if (req.method === 'GET') {
+      const [{ data: roles, error: rErr }, { data: holders }] = await Promise.all([
+        adminSup.from('admin_roles').select('id, name, description, permissions, created_at, updated_at').order('name', { ascending: true }),
+        adminSup.from('users').select('uid, full_name, email, member_id, admin_role_id').not('admin_role_id', 'is', null).limit(500),
+      ]);
+      if (rErr) { sendError(res, 500, 'Couldn’t load roles'); return; }
+      sendJson(res, 200, {
+        permissions: ADMIN_PERMISSIONS,
+        roles: (roles ?? []).map((r: any) => ({
+          id: r.id, name: r.name, description: r.description ?? '', permissions: ((r.permissions as unknown[]) ?? []).filter(isAdminPermission),
+          updatedAt: r.updated_at,
+          members: (holders ?? []).filter((h: any) => h.admin_role_id === r.id).map((h: any) => ({ uid: h.uid, name: h.full_name, email: h.email, memberId: h.member_id })),
+        })),
+      });
+      return;
+    }
+
+    const body = getBody(req);
+    if (resource === 'assign-role') {
+      const uid = typeof body.uid === 'string' && isUuid(body.uid) ? body.uid : '';
+      const roleId = body.roleId === null || body.roleId === '' ? null : typeof body.roleId === 'string' && isUuid(body.roleId) ? body.roleId : undefined;
+      if (!uid || roleId === undefined) { sendError(res, 400, 'uid and roleId (or null) are required'); return; }
+      const { data: target } = await adminSup.from('users').select('uid, is_admin, full_name').eq('uid', uid).maybeSingle();
+      if (!target) { sendError(res, 404, 'Member not found'); return; }
+      if (target.is_admin) { sendError(res, 400, 'Super admins already have every permission.'); return; }
+      let roleName: string | null = null;
+      if (roleId) {
+        const { data: role } = await adminSup.from('admin_roles').select('id, name').eq('id', roleId).maybeSingle();
+        if (!role) { sendError(res, 404, 'Role not found'); return; }
+        roleName = role.name;
+      }
+      const { error } = await adminSup.from('users').update({ admin_role_id: roleId, updated_at: new Date().toISOString() }).eq('uid', uid);
+      if (error) { sendError(res, 500, 'Couldn’t assign the role'); return; }
+      await audit(adminSup, req, callerUid, roleId ? 'member.role_assigned' : 'member.role_removed', { type: 'user', id: uid }, { role: roleName ?? undefined });
+      await notify(adminSup, uid, roleId
+        ? { kind: 'admin_role', title: `You now have the ${roleName} role`, body: 'Admin tools for your role are under Admin in your account menu.', link: '/admin' }
+        : { kind: 'admin_role', title: 'Your admin role was removed', link: '/dashboard' });
+      sendJson(res, 200, { ok: true, uid, roleId, roleName });
+      return;
+    }
+
+    const action = typeof body.action === 'string' ? body.action : '';
+    if (action === 'delete') {
+      const id = typeof body.id === 'string' && isUuid(body.id) ? body.id : '';
+      if (!id) { sendError(res, 400, 'id is required'); return; }
+      const { data: role } = await adminSup.from('admin_roles').select('id, name').eq('id', id).maybeSingle();
+      if (!role) { sendError(res, 404, 'Role not found'); return; }
+      const { error } = await adminSup.from('admin_roles').delete().eq('id', id);
+      if (error) { sendError(res, 500, 'Couldn’t delete the role'); return; }
+      await audit(adminSup, req, callerUid, 'role.deleted', { type: 'role', id }, { name: role.name });
+      sendJson(res, 200, { ok: true, id });
+      return;
+    }
+    if (action === 'save') {
+      const id = typeof body.id === 'string' && isUuid(body.id) ? body.id : '';
+      const name = typeof body.name === 'string' ? body.name.replace(/[\u0000-\u001f<>]/g, '').trim() : '';
+      const description = typeof body.description === 'string' ? body.description.replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 200) : '';
+      const raw: unknown[] = Array.isArray(body.permissions) ? body.permissions : [];
+      if (raw.some((p) => !isAdminPermission(p))) { sendError(res, 400, 'Unknown permission. Managing roles stays with super admins.'); return; }
+      const permissions = Array.from(new Set(raw.filter(isAdminPermission)));
+      if (name.length < 2 || name.length > 40) { sendError(res, 400, 'Give the role a name (2 to 40 characters).'); return; }
+      if (!permissions.length) { sendError(res, 400, 'Pick at least one permission.'); return; }
+      const fields = { name, description, permissions, updated_at: new Date().toISOString() };
+      const q = id
+        ? adminSup.from('admin_roles').update(fields).eq('id', id).select('id').maybeSingle()
+        : adminSup.from('admin_roles').insert({ ...fields, created_by: callerUid }).select('id').maybeSingle();
+      const { data: saved, error } = await q;
+      if (error) {
+        if (String(error.code) === '23505') { sendError(res, 409, 'A role with that name already exists.'); return; }
+        sendError(res, 500, 'Couldn’t save the role'); return;
+      }
+      if (!saved) { sendError(res, 404, 'Role not found'); return; }
+      await audit(adminSup, req, callerUid, id ? 'role.updated' : 'role.created', { type: 'role', id: String(saved.id) }, { name, permissions });
+      sendJson(res, 200, { ok: true, id: saved.id });
+      return;
+    }
+    sendError(res, 400, 'action must be save or delete');
     return;
   }
 
@@ -2334,7 +2486,7 @@ const handler_admin: H = async (req, res) => {
     const { data: authData, error: authError } = await adminSup.auth.getUser(token);
     const callerUid = authData?.user?.id ? String(authData.user.id) : '';
     if (authError || !callerUid) { sendError(res, 401, 'Invalid token'); return; }
-    const adminCheck = await assertAdmin(adminSup, callerUid, authData?.user?.email ?? undefined);
+    const adminCheck = await assertAdmin(adminSup, callerUid, authData?.user?.email ?? undefined, 'audit.view');
     if (!adminCheck.ok) { sendError(res, 403, adminCheck.error); return; }
     const { data, error } = await adminSup.from('admin_audit_log').select('*').order('created_at', { ascending: false }).limit(100);
     if (error) { sendJson(res, 200, { entries: [] }); return; }
@@ -2358,7 +2510,7 @@ const handler_admin: H = async (req, res) => {
     const { data: authData, error: authError } = await adminSup.auth.getUser(token);
     const callerUid = authData?.user?.id ? String(authData.user.id) : '';
     if (authError || !callerUid) { sendError(res, 401, 'Invalid token'); return; }
-    const adminCheck = await assertAdmin(adminSup, callerUid, authData?.user?.email ?? undefined);
+    const adminCheck = await assertAdmin(adminSup, callerUid, authData?.user?.email ?? undefined, 'privacy.erase');
     if (!adminCheck.ok) { sendError(res, 403, adminCheck.error); return; }
     const body = getBody(req);
     const uid = typeof body.uid === 'string' && isUuid(body.uid) ? body.uid : '';
@@ -2409,7 +2561,7 @@ const handler_admin: H = async (req, res) => {
     const { data: authData, error: authError } = await adminSup.auth.getUser(token);
     const callerUid = authData?.user?.id ? String(authData.user.id) : '';
     if (authError || !callerUid) { sendError(res, 401, 'Invalid token'); return; }
-    const adminCheck = await assertAdmin(adminSup, callerUid, authData?.user?.email ?? undefined);
+    const adminCheck = await assertAdmin(adminSup, callerUid, authData?.user?.email ?? undefined, 'projects.import');
     if (!adminCheck.ok) { sendError(res, 403, adminCheck.error); return; }
     const body = getBody(req);
     const list: any[] = Array.isArray(body.projects) ? body.projects.slice(0, 100) : [];
@@ -2459,7 +2611,7 @@ const handler_admin: H = async (req, res) => {
     const { data: authData, error: authError } = await adminSup.auth.getUser(token);
     const callerUid = authData?.user?.id ? String(authData.user.id) : '';
     if (authError || !callerUid) { sendError(res, 401, 'Invalid token'); return; }
-    const adminCheck = await assertAdmin(adminSup, callerUid, authData?.user?.email ?? undefined);
+    const adminCheck = await assertAdmin(adminSup, callerUid, authData?.user?.email ?? undefined, 'privacy.records');
     if (!adminCheck.ok) { sendError(res, 403, adminCheck.error); return; }
     const { data: users, error: usersError } = await adminSup.from('users')
       .select('uid, full_name, email, member_id, status, created_at, consent_version, consent_at, consent_purposes, show_in_directory, show_full_name, deletion_requested_at')
@@ -2921,7 +3073,11 @@ const handler_volunteer_calls: H = async (req, res) => {
   // Browsing open calls needs no account (MVP). Everything else does.
   if (!uid && req.method !== 'GET') { sendError(res, 401, token ? 'Invalid token' : 'Missing Authorization bearer token'); return; }
   const { data: callerRow } = uid ? await supabase.from('users').select('is_admin').eq('uid', uid).maybeSingle() : { data: null };
-  const isAdmin = !!callerRow?.is_admin;
+  const isSuper = !!callerRow?.is_admin;
+  const callAccess = uid ? await adminAccessOf(supabase, uid) : null;
+  // Moderators close/hide/delete calls; posters' emails only for roles that can view members.
+  const isAdmin = !!callAccess?.ok && callAccess.permissions.has('calls.moderate');
+  const canSeeContacts = !!callAccess?.ok && callAccess.permissions.has('members.view');
 
   if (req.method === 'GET' && !uid) {
     // Public view: open calls only; no contact details, chat links or emails; posters by public name.
@@ -2975,7 +3131,7 @@ const handler_volunteer_calls: H = async (req, res) => {
       const { data: usersData } = await supabase.from('users').select('*').in('uid', userIds);
       // Emails stay with admins; members see who posted (by display name), and reach them via contact/chat.
       if (usersData) for (const u of usersData) {
-        userMap.set(u.uid, { fullName: isAdmin ? u.full_name ?? '' : memberNameOf(u), email: isAdmin ? u.email ?? '' : '' });
+        userMap.set(u.uid, { fullName: isAdmin ? u.full_name ?? '' : memberNameOf(u), email: isAdmin && canSeeContacts ? u.email ?? '' : '' });
       }
     }
     // "I'm interested": my own status on each call, and a count on calls I posted.
@@ -3060,7 +3216,7 @@ const handler_volunteer_calls: H = async (req, res) => {
     }
     const { error: deleteError } = await supabase.from('volunteer_calls').delete().eq('id', id);
     if (deleteError) { sendError(res, 500, 'Failed to delete volunteer call'); return; }
-    if (deleteUser && isAdmin) {
+    if (deleteUser && isSuper) {
       const userId = typeof (call as any).user_id === 'string' ? String((call as any).user_id) : '';
       if (userId) {
         await supabase.from('project_submissions').delete().eq('user_id', userId);
@@ -3069,7 +3225,7 @@ const handler_volunteer_calls: H = async (req, res) => {
         try { await supabase.auth.admin.deleteUser(userId); } catch { /* noop */ }
       }
     }
-    sendJson(res, 200, { message: deleteUser && isAdmin ? 'Deleted volunteer call and user' : 'Deleted volunteer call' });
+    sendJson(res, 200, { message: deleteUser && isSuper ? 'Deleted volunteer call and user' : 'Deleted volunteer call' });
     return;
   }
 
@@ -3085,7 +3241,7 @@ const handler_volunteer_calls: H = async (req, res) => {
   const contact = typeof body.contact === 'string' ? body.contact.trim().slice(0, 200) : '';
   // Posting needs a vetted account: a throwaway login can't post calls to harvest volunteers' details.
   const { data: poster } = await supabase.from('users').select('status').eq('uid', uid).maybeSingle();
-  if (!isAdmin && String(poster?.status || '').toLowerCase() !== 'approved') {
+  if (!isSuper && String(poster?.status || '').toLowerCase() !== 'approved') {
     sendError(res, 403, 'You can post calls once your membership is approved.'); return;
   }
   const extras = callExtrasFrom(body);

@@ -7,12 +7,13 @@
  *   /dashboard/calls      Volunteer calls   /admin/members       Members
  *   /dashboard/merch      Merch             /admin/projects      Projects
  *                                           /admin/calls         Calls
+ *                                           /admin/roles         Roles (super admins)
  *
  * Old links (?tab=volunteer, navigate state { tab }) still work: they redirect to the new URL.
  */
 
 export type MemberTab = 'dashboard' | 'submit-project' | 'volunteer' | 'merch';
-export type AdminTab = 'overview' | 'applications' | 'members' | 'projects' | 'calls';
+export type AdminTab = 'overview' | 'applications' | 'members' | 'projects' | 'calls' | 'roles';
 
 const MEMBER_SEGMENT: Record<MemberTab, string> = {
   dashboard: '',
@@ -20,7 +21,7 @@ const MEMBER_SEGMENT: Record<MemberTab, string> = {
   volunteer: 'calls',
   merch: 'merch',
 };
-const ADMIN_TABS: AdminTab[] = ['overview', 'applications', 'members', 'projects', 'calls'];
+const ADMIN_TABS: AdminTab[] = ['overview', 'applications', 'members', 'projects', 'calls', 'roles'];
 
 export const memberTabPath = (tab: MemberTab) => (MEMBER_SEGMENT[tab] ? `/dashboard/${MEMBER_SEGMENT[tab]}` : '/dashboard');
 

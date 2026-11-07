@@ -95,6 +95,11 @@ export interface User {
   memberId?: string;
   adminNotes?: string;
   isAdmin: boolean;
+  /** Custom admin role (role-based access). Super admins have isAdmin instead. */
+  adminRoleId?: string | null;
+  /** Your own role's name and permissions, from /me only. */
+  adminRoleName?: string;
+  adminPermissions?: string[];
   authProvider?: 'traditional' | 'google' | 'github';
   yearJoined?: number;
   skills?: UserSkill[];
@@ -188,7 +193,8 @@ export interface ReportItem {
 }
 
 export interface AdminOverview {
-  queue: { pendingApps: number; pendingProjects: number; openReports: number; deletionRequests: number; noConsent: number };
+  // Counts your role doesn't cover are left out by the server.
+  queue: { pendingApps?: number; pendingProjects?: number; openReports?: number; deletionRequests?: number; noConsent?: number };
   numbers: { members: number; approvedProjects: number; importedProjects: number; openCalls: number; interests7d: number; newMembers7d: number };
   roles: { role: string; count: number }[];
   deletions: { uid: string; name: string; email: string; memberId: string | null; status: string; requestedAt: string }[];

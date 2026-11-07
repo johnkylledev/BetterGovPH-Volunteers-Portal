@@ -3,6 +3,8 @@ import { Avatar } from '../../components/Avatar';
 import { ReportsQueue } from '../../components/ReportsQueue';
 import { AdminOverview } from '../../components/admin/AdminOverview';
 import { AdminCalls } from '../../components/admin/AdminCalls';
+import { AdminRoles } from '../../components/admin/AdminRoles';
+import { can, hasAdminAccess, isSuperAdmin, type AdminPermission } from '../../utils/adminAccess';
 import { NotificationBell } from '../../components/NotificationBell';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { adminTabFromSection, adminTabPath, type AdminTab } from '../../constants/dashboardRoutes';
@@ -123,19 +125,18 @@ export default function AdminDashboard() {
   }, [searchTerm]);
 
   useEffect(() => {
-    if (authInitialized && (!currentUser || !currentUser.isAdmin)) {
-      navigate('/login');
-    }
+    if (authInitialized && !currentUser) navigate('/login');
+    else if (authInitialized && !hasAdminAccess(currentUser)) navigate('/dashboard');
   }, [currentUser, navigate, authInitialized]);
 
   const loadStats = async () => {
-    if (!currentUser?.isAdmin) return;
+    if (!can(currentUser, 'members.view')) return;
     const s = await getAdminStats();
     setStats(s);
   };
 
   const loadUsers = async (page: number, showLoading = true, search = debouncedSearch) => {
-    if (!currentUser?.isAdmin) return;
+    if (!can(currentUser, 'members.view')) return;
     if (activeTab !== 'applications' && activeTab !== 'members') return;
     if (showLoading) setIsDataLoading(true);
     try {
@@ -155,7 +156,7 @@ export default function AdminDashboard() {
   };
 
   const loadProjectSubmissions = async (showLoading = true) => {
-    if (!currentUser?.isAdmin) return;
+    if (!can(currentUser, 'projects.review')) return;
     if (showLoading) setProjectSubmissionsLoading(true);
     try {
       const [mainRes, totalRes, pendingRes, approvedRes, rejectedRes] = await Promise.all([
@@ -194,7 +195,7 @@ export default function AdminDashboard() {
   }, [activeTab, statusFilter, roleFilter, debouncedSearch, projectStatusFilter]);
 
   useEffect(() => {
-    if (!currentUser?.isAdmin) return;
+    if (!hasAdminAccess(currentUser)) return;
     if (activeTab === 'projects') {
       loadProjectSubmissions(true);
     } else if (activeTab === 'applications' || activeTab === 'members') {
@@ -256,7 +257,7 @@ export default function AdminDashboard() {
     navigate('/login');
     return null;
   }
-  if (!currentUser.isAdmin) {
+  if (!hasAdminAccess(currentUser)) {
     navigate('/dashboard');
     return null;
   }
@@ -470,13 +471,20 @@ export default function AdminDashboard() {
     return (users || []).filter(u => u && !u.isAdmin && u.status === 'Approved');
   }, [users]);
 
-  const adminTabs = [
+  // Only the tabs this person's permissions cover. The server refuses the rest anyway.
+  const tabNeeds: Record<AdminTab, AdminPermission | null> = {
+    overview: null, applications: 'members.view', members: 'members.view', projects: 'projects.review', calls: 'calls.moderate', roles: 'roles.manage',
+  };
+  const allowedTab = (t: AdminTab) => (t === 'roles' ? isSuperAdmin(currentUser) : !tabNeeds[t] || can(currentUser, tabNeeds[t]!));
+  const canDecide = can(currentUser, 'members.decide');
+  const adminTabs = ([
     { id: 'overview' as const, label: 'Overview', count: undefined as number | undefined },
     { id: 'applications' as const, label: 'Applications', count: stats.pending },
     { id: 'members' as const, label: 'Members', count: stats.approved },
     { id: 'projects' as const, label: 'Projects', count: projectSubmissionsTotal || undefined },
     { id: 'calls' as const, label: 'Calls', count: undefined as number | undefined },
-  ];
+    { id: 'roles' as const, label: 'Roles', count: undefined as number | undefined },
+  ] as { id: AdminTab; label: string; count: number | undefined }[]).filter((t) => allowedTab(t.id));
   const tileSource = activeTab === 'projects' ? projectStats : stats;
   const isProjects = activeTab === 'projects';
   const pctApproved = tileSource.total > 0 ? Math.round((tileSource.approved / tileSource.total) * 100) : 0;
@@ -519,7 +527,9 @@ export default function AdminDashboard() {
           </nav>
 
           <div className="flex items-center gap-1.5">
-          <ReportsQueue initiallyOpen={typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('reports')} />
+          {can(currentUser, 'reports.handle') && (
+            <ReportsQueue initiallyOpen={typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('reports')} />
+          )}
           <NotificationBell />
           <UserChip
             name={currentUser.fullName}
@@ -567,13 +577,25 @@ export default function AdminDashboard() {
                   ? 'Everyone with an active card.'
                   : activeTab === 'calls'
                     ? 'Every call and request members have posted.'
-                    : 'Moderate project submissions before they appear on the public list.'}
+                    : activeTab === 'roles'
+                      ? 'Who can use which admin tools.'
+                      : 'Moderate project submissions before they appear on the public list.'}
           </p>
         </div>
 
-        {activeTab === 'overview' ? (
-          <AdminOverview onGo={setActiveTab} onImport={() => { setImportOpen(true); setImportResult(null); }} onExportRopa={exportRopa} ropaBusy={ropaBusy}
-            onPostCall={() => { setPostingCall(true); setActiveTab('calls'); }} />
+        {!allowedTab(activeTab) ? (
+          <div className="s-card px-6 py-10 text-center">
+            <p className="text-[15px] font-semibold">Not part of your role</p>
+            <p className="mt-1 text-[14px] text-slate-500">Ask a super admin if you need access to this.</p>
+          </div>
+        ) : activeTab === 'roles' ? (
+          <AdminRoles />
+        ) : activeTab === 'overview' ? (
+          <AdminOverview
+            onGo={(t) => { if (allowedTab(t)) setActiveTab(t); }}
+            can={(p) => can(currentUser, p)}
+            onImport={() => { setImportOpen(true); setImportResult(null); }} onExportRopa={exportRopa} ropaBusy={ropaBusy}
+            onPostCall={() => { setPostingCall(true); setActiveTab(allowedTab('calls') ? 'calls' : 'overview'); }} />
         ) : (
         <>
         {activeTab !== 'calls' && (
@@ -1190,6 +1212,8 @@ export default function AdminDashboard() {
                       <DoneIcon size={16} />
                       <span>Member Approved</span>
                     </div>
+                  ) : !canDecide ? (
+                    <p className="px-1 py-2 text-[13px] text-slate-500">Your role can view applications but not decide them.</p>
                   ) : (
                     <>
                       {selectedUser.status !== 'Declined' && (

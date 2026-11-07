@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Check, ChevronDown } from 'lucide-react';
@@ -80,7 +81,10 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
     if (!open) return;
     document.getElementById(listId)?.focus();
     const onDown = (e: MouseEvent | TouchEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) close(false);
+      // The menu is drawn in a portal, so a click inside it isn't inside the trigger's wrapper.
+      const t = e.target as Node;
+      if (rootRef.current?.contains(t) || document.getElementById(listId)?.contains(t)) return;
+      close(false);
     };
     document.addEventListener('mousedown', onDown);
     document.addEventListener('touchstart', onDown);
@@ -117,6 +121,24 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
 
   const SelectedIcon = selected?.icon;
 
+  // Fixed position from the trigger's rect, clamped to the viewport.
+  const menuStyle = useMemo<React.CSSProperties>(() => {
+    const { anchor } = place;
+    const vw = typeof window === 'undefined' ? 1024 : window.innerWidth;
+    const vh = typeof window === 'undefined' ? 768 : window.innerHeight;
+    const width = Math.min(Math.max(anchor.width, 260), Math.max(240, vw - 24));
+    const wanted = align === 'right' ? anchor.right - width : anchor.left;
+    const left = Math.min(Math.max(12, wanted), Math.max(12, vw - width - 12));
+    return {
+      position: 'fixed',
+      left,
+      width,
+      maxHeight: place.maxHeight,
+      ...(place.side === 'down' ? { top: anchor.bottom + 8 } : { bottom: vh - anchor.top + 8 }),
+      transformOrigin: place.side === 'down' ? 'top center' : 'bottom center',
+    };
+  }, [place, align]);
+
   return (
     <div ref={rootRef} className={clsx('relative', className)}>
       <button
@@ -148,6 +170,8 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
         />
       </button>
 
+      {/* Drawn over the page: cards with `overflow-hidden` and blurred headers can't clip it. */}
+      {createPortal(
       <AnimatePresence>
         {open && (
           <motion.ul
@@ -161,12 +185,8 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={reduce ? { opacity: 0 } : { opacity: 0, y: place.side === 'down' ? -2 : 2, scale: 0.99 }}
             transition={{ duration: 0.14, ease: [0.23, 1, 0.32, 1] }}
-            style={{ transformOrigin: place.side === 'down' ? 'top center' : 'bottom center', maxHeight: place.maxHeight }}
-            className={clsx(
-              align === 'right' ? 'right-0' : 'left-0',
-              'thin-scroll absolute z-50 w-full min-w-[260px] overflow-y-auto overscroll-contain rounded-[14px] bg-white p-1.5 shadow-[0_0_0_1px_rgb(15_23_42/0.08),0_16px_40px_-12px_rgb(15_23_42/0.3)] focus:outline-none',
-              place.side === 'down' ? 'top-full mt-2' : 'bottom-full mb-2'
-            )}
+            style={menuStyle}
+            className="site thin-scroll z-[70] overflow-y-auto overscroll-contain rounded-[14px] bg-white p-1.5 shadow-[0_0_0_1px_rgb(15_23_42/0.08),0_16px_40px_-12px_rgb(15_23_42/0.3)] focus:outline-none"
           >
             {rows.map((row) =>
               row.kind === 'group' ? (
@@ -220,7 +240,9 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
             )}
           </motion.ul>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+      )}
     </div>
   );
 };

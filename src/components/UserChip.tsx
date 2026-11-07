@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { ArrowUpRight, Check, ChevronDown, IdCard, LayoutDashboard, Link2, LogOut, MessageCircle, UserCog } from 'lucide-react';
+import { ArrowUpRight, Check, ChevronDown, IdCard, LayoutDashboard, Link2, LogOut, MessageCircle, ShieldCheck, UserCog } from 'lucide-react';
+import { useStore } from '../store/useStore';
+import { hasAdminAccess } from '../utils/adminAccess';
 import { VerifiedIcon } from './icons';
 import { DISCORD_INVITE } from './site/links';
 import { Avatar, useSessionPhoto } from './Avatar';
@@ -87,6 +89,9 @@ export const UserChip: React.FC<UserChipProps> = ({
 
   const go = (path: string) => { setOpen(false); navigate(path); };
   const homePath = isAdmin ? '/admin' : '/dashboard';
+  // Members with an admin role (e.g. Legal) keep the member dashboard as home and reach their tools here.
+  const me = useStore((s) => s.currentUser);
+  const showAdminTools = !isAdmin && hasAdminAccess(me) && !pathname.startsWith('/admin');
   const onProfile = pathname.startsWith('/profile');
   const cardUrl = memberId && typeof window !== 'undefined' ? `${window.location.origin}/verify/${memberId}` : '';
 
@@ -187,6 +192,13 @@ export const UserChip: React.FC<UserChipProps> = ({
                     <Link2 size={16} strokeWidth={1.75} className={icon} aria-hidden />
                   )}
                   <span aria-live="polite">{copied ? 'Link copied' : 'Copy verification link'}</span>
+                </button>
+              )}
+              {showAdminTools && (
+                <button type="button" role="menuitem" className={item} onClick={() => go('/admin')}>
+                  <ShieldCheck size={16} strokeWidth={1.75} className={icon} aria-hidden />
+                  <span className="flex-1">Admin tools</span>
+                  {me?.adminRoleName && <span className="text-[11.5px] text-slate-400">{me.adminRoleName}</span>}
                 </button>
               )}
               {!onProfile && (

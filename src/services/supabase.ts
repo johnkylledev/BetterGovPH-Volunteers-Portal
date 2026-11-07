@@ -877,6 +877,29 @@ export const resolveReport = async (id: string, status: 'dismissed' | 'actioned'
 export const getAdminOverview = async () =>
   apiRequest<import('../types').AdminOverview>('/api/v1/admin?resource=overview', { headers: await authHeaders() });
 
+// --- Admin roles (super admins only; the server refuses everyone else) ---
+export interface AdminRoleRow {
+  id: string; name: string; description: string; permissions: string[]; updatedAt: string;
+  members: { uid: string; name: string; email: string; memberId: string | null }[];
+}
+export const getAdminRoles = async () =>
+  apiRequest<{ roles: AdminRoleRow[]; permissions: string[] }>('/api/v1/admin?resource=roles', { headers: await authHeaders() });
+export const saveAdminRole = async (role: { id?: string; name: string; description: string; permissions: string[] }) =>
+  apiRequest<{ ok: boolean; id: string }>('/api/v1/admin?resource=roles', {
+    method: 'POST', headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'save', ...role }),
+  });
+export const deleteAdminRole = async (id: string) =>
+  apiRequest<{ ok: boolean }>('/api/v1/admin?resource=roles', {
+    method: 'POST', headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'delete', id }),
+  });
+export const assignAdminRole = async (uid: string, roleId: string | null) =>
+  apiRequest<{ ok: boolean; roleName: string | null }>('/api/v1/admin?resource=assign-role', {
+    method: 'POST', headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uid, roleId }),
+  });
+
 /** Completes a deletion request. `confirm` must be the member's email. */
 export const eraseUser = async (uid: string, confirm: string) =>
   apiRequest<{ erased: boolean; removed: string[] }>('/api/v1/admin?resource=erase-user', {

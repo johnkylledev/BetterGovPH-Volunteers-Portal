@@ -102,6 +102,7 @@ async function cleanup() {
     await admin.from('rate_limits').delete().like('bucket', 'ip:::1:%');
     await admin.from('rate_limits').delete().like('bucket', 'ip:127.0.0.1:%');
     await admin.from('rate_limits').delete().like('bucket', 'ip:::ffff:127.0.0.1:%');
+    await admin.from('admin_roles').delete().like('name', '[QA test]%');
     if (ids.length) await admin.from('users').delete().in('uid', ids);
     for (const id of ids) { try { await admin.auth.admin.deleteUser(id); } catch { /* already gone */ } }
     const { count: leftUsers } = await admin.from('users').select('*', { count: 'exact', head: true }).in('uid', ids.length ? ids : ['00000000-0000-0000-0000-000000000000']);
@@ -433,6 +434,53 @@ async function main() {
   check('reports are rate limited per person', !!limited && limited.at === 11 && Number(limited.retry) > 0, JSON.stringify(limited));
   const otherUser = await api('/reports', { token: crowd[2].token, method: 'POST', body: { targetType: 'call', targetId: '00000000-0000-0000-0000-000000000000', reason: 'spam' } });
   check("one person's limit doesn't block others", otherUser.status !== 429, String(otherUser.status));
+
+  // ------------------------------------------------------------------ role-based admin access
+  step('Roles: a Legal role sees and does only what it is given');
+  const badRole = await api('/admin?resource=roles', { token: boss.token, method: 'POST', body: { action: 'save', name: T('Sneaky'), permissions: ['members.view', 'roles.manage'] } });
+  check('managing roles can never be granted to a role', badRole.status === 400, String(badRole.status));
+  const mkRole = await api('/admin?resource=roles', { token: boss.token, method: 'POST', body: { action: 'save', name: T('Legal'), description: 'QA', permissions: ['members.view', 'privacy.records', 'audit.view', 'reports.handle'] } });
+  check('a super admin creates a role', mkRole.status === 200 && !!mkRole.json?.id, `${mkRole.status} ${JSON.stringify(mkRole.json)}`);
+  const roleId = mkRole.json?.id;
+  const roleBefore = await api('/admin?resource=users', { token: ben.token });
+  check('without a role, admin data is refused', roleBefore.status === 403, String(roleBefore.status));
+  const assign = await api('/admin?resource=assign-role', { token: boss.token, method: 'POST', body: { uid: ben.id, roleId } });
+  check('the role is assigned to a member', assign.status === 200, `${assign.status} ${JSON.stringify(assign.json)}`);
+  const roleMe = await api('/me', { token: ben.token });
+  const rolePerms = roleMe.json?.user?.adminPermissions || [];
+  check('the member’s own /me lists exactly the role’s permissions', roleMe.json?.user?.adminRoleName === T('Legal') && rolePerms.length === 4 && rolePerms.includes('privacy.records') && !rolePerms.includes('roles.manage'), JSON.stringify(rolePerms));
+  check('a role holder is not a super admin', roleMe.json?.user?.isAdmin === false);
+  const allowed = await Promise.all([
+    api('/admin?resource=users', { token: ben.token }),
+    api('/admin?resource=consent', { token: ben.token }),
+    api('/admin?resource=audit', { token: ben.token }),
+    api('/reports', { token: ben.token }),
+  ]);
+  check('allowed: members, consent records, audit log, reports', allowed.every((r) => r.status === 200), allowed.map((r) => r.status).join(','));
+  const denied = {
+    approve: await api('/admin?resource=user-status', { token: ben.token, method: 'POST', body: { uid: dan.id, status: 'Approved' } }),
+    makeAdmin: await api('/admin?resource=user-status', { token: ben.token, method: 'POST', body: { uid: dan.id, isAdmin: true } }),
+    projects: await api('/admin?resource=submissions', { token: ben.token }),
+    review: await api('/admin?resource=submissions', { token: ben.token, method: 'POST', body: { id: '1', action: 'approve' } }),
+    importProjects: await api('/admin?resource=import-projects', { token: ben.token, method: 'POST', body: { projects: [] } }),
+    erase: await api('/admin?resource=erase-user', { token: ben.token, method: 'POST', body: { uid: dan.id, confirm: dan.email } }),
+    roles: await api('/admin?resource=roles', { token: ben.token }),
+    saveRole: await api('/admin?resource=roles', { token: ben.token, method: 'POST', body: { action: 'save', name: T('Mine'), permissions: ['members.decide'] } }),
+    selfPromote: await api('/admin?resource=assign-role', { token: ben.token, method: 'POST', body: { uid: ben.id, roleId: null } }),
+    moderateCalls: await api('/volunteer-calls?admin=1', { token: ben.token }),
+  };
+  const deniedBad = Object.entries(denied).filter(([, r]) => r.status !== 403).map(([k, r]) => `${k}:${r.status}`);
+  check('everything outside the role is refused (403)', deniedBad.length === 0, deniedBad.join(' '));
+  const roleOv = await api('/admin?resource=overview', { token: ben.token });
+  const q = roleOv.json?.queue || {};
+  check('overview leaves out what the role doesn’t cover (no project queue, no deletion list)', roleOv.status === 200 && q.pendingProjects === undefined && Array.isArray(roleOv.json?.deletions) && roleOv.json.deletions.length === 0 && typeof q.openReports === 'number', `${roleOv.status} ${JSON.stringify(q)}`);
+  check('overview names the caller’s own permissions only', JSON.stringify(roleOv.json?.access?.permissions || []) === JSON.stringify(rolePerms), JSON.stringify(roleOv.json?.access));
+  const unassign = await api('/admin?resource=assign-role', { token: boss.token, method: 'POST', body: { uid: ben.id, roleId: null } });
+  const roleAfter = await api('/admin?resource=users', { token: ben.token });
+  const roleMe2 = await api('/me', { token: ben.token });
+  check('removing the role cuts access on the next request', unassign.status === 200 && roleAfter.status === 403 && !roleMe2.json?.user?.adminPermissions, `${unassign.status} ${roleAfter.status}`);
+  const delRole = await api('/admin?resource=roles', { token: boss.token, method: 'POST', body: { action: 'delete', id: roleId } });
+  check('a super admin deletes the role', delRole.status === 200, String(delRole.status));
 
   // ------------------------------------------------------------------ privacy controls
   step('Privacy controls and erasure');

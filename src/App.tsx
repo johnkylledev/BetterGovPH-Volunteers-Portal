@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Suspense, lazy, useEffect, useState } from "react";
 import { useStore } from "./store/useStore";
+import { hasAdminAccess } from "./utils/adminAccess";
 import { peekReturnTo, takeReturnTo } from "./utils/returnTo";
 import { LoadingOverlay } from "./components/LoadingOverlay";
 import { getUserData, supabase, resetSupabaseClient } from "./services/supabase";
@@ -69,7 +70,7 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
   if (!authInitialized) return <LoadingOverlay />;
   if (!sessionUserId) return <GatedRedirect to="/login" forceReplace />;
   if (!currentUser) return <LoadingOverlay />;
-  if (adminOnly && !currentUser?.isAdmin) return <GatedRedirect to="/dashboard" />;
+  if (adminOnly && !hasAdminAccess(currentUser)) return <GatedRedirect to="/dashboard" />;
   if (!adminOnly && !currentUser?.isAdmin && !isProfileComplete(currentUser)) return <GatedRedirect to="/register" />;
 
   return <>{children}</>;

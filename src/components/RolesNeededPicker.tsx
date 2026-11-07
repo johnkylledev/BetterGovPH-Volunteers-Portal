@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Check, ChevronDown, X } from 'lucide-react';
@@ -58,7 +59,10 @@ export const RolesNeededPicker: React.FC<RolesNeededPickerProps> = ({ id, value,
     if (!open) return;
     listRef.current?.focus();
     const onDown = (e: MouseEvent | TouchEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+      // The list is drawn in a portal, so it is not inside the trigger's wrapper.
+      const t = e.target as Node;
+      if (rootRef.current?.contains(t) || listRef.current?.contains(t)) return;
+      setOpen(false);
     };
     document.addEventListener('mousedown', onDown);
     document.addEventListener('touchstart', onDown);
@@ -73,6 +77,23 @@ export const RolesNeededPicker: React.FC<RolesNeededPickerProps> = ({ id, value,
   }, [open, active]);
 
   const close = () => { setOpen(false); triggerRef.current?.focus(); };
+
+  // Fixed position from the trigger's rect, clamped to the viewport (never clipped by a card).
+  const menuStyle = useMemo<React.CSSProperties>(() => {
+    const { anchor } = place;
+    const vw = typeof window === 'undefined' ? 1024 : window.innerWidth;
+    const vh = typeof window === 'undefined' ? 768 : window.innerHeight;
+    const width = Math.min(Math.max(anchor.width, 260), Math.max(240, vw - 24));
+    const left = Math.min(Math.max(12, anchor.left), Math.max(12, vw - width - 12));
+    return {
+      position: 'fixed',
+      left,
+      width,
+      maxHeight: place.maxHeight,
+      ...(place.side === 'down' ? { top: anchor.bottom + 8 } : { bottom: vh - anchor.top + 8 }),
+      transformOrigin: place.side === 'down' ? 'top center' : 'bottom center',
+    };
+  }, [place]);
 
   const onListKeyDown = (e: React.KeyboardEvent) => {
     const last = OPTIONS.length - 1;
@@ -128,6 +149,8 @@ export const RolesNeededPicker: React.FC<RolesNeededPickerProps> = ({ id, value,
         </ul>
       )}
 
+      {/* Drawn over the page, like SelectMenu: cards with `overflow-hidden` can't clip it. */}
+      {createPortal(
       <AnimatePresence>
         {open && (
           <motion.ul
@@ -143,11 +166,8 @@ export const RolesNeededPicker: React.FC<RolesNeededPickerProps> = ({ id, value,
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={reduce ? { opacity: 0 } : { opacity: 0, y: place.side === 'down' ? -2 : 2, scale: 0.99 }}
             transition={{ duration: 0.14, ease: [0.23, 1, 0.32, 1] }}
-            style={{ transformOrigin: place.side === 'down' ? 'top center' : 'bottom center', maxHeight: place.maxHeight }}
-            className={clsx(
-              'thin-scroll absolute left-0 right-0 z-50 min-w-[260px] overflow-y-auto overscroll-contain rounded-[14px] bg-white p-1.5 shadow-[0_0_0_1px_rgb(15_23_42/0.08),0_16px_40px_-12px_rgb(15_23_42/0.3)] focus:outline-none',
-              place.side === 'down' ? 'top-[52px]' : 'bottom-[calc(100%+8px)]'
-            )}
+            style={menuStyle}
+            className="site thin-scroll z-[70] overflow-y-auto overscroll-contain rounded-[14px] bg-white p-1.5 shadow-[0_0_0_1px_rgb(15_23_42/0.08),0_16px_40px_-12px_rgb(15_23_42/0.3)] focus:outline-none"
           >
             {rows.map((row) => {
               if (row.kind === 'group') {
@@ -193,7 +213,9 @@ export const RolesNeededPicker: React.FC<RolesNeededPickerProps> = ({ id, value,
             </li>
           </motion.ul>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+      )}
     </div>
   );
 };

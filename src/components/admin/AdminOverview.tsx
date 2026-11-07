@@ -10,9 +10,12 @@ import { StatTile } from '../StatTile';
 import { timeAgo } from '../RepoHealth';
 
 type Tab = 'applications' | 'members' | 'projects' | 'calls';
+type Perm = import('../../utils/adminAccess').AdminPermission;
 
 interface Props {
   onGo: (tab: Tab) => void;
+  /** What the signed-in admin's role allows; sections outside it aren't shown or requested. */
+  can: (p: Perm) => boolean;
   onImport: () => void;
   onExportRopa: () => void;
   ropaBusy: boolean;
@@ -20,11 +23,12 @@ interface Props {
 }
 
 /** Admin home: what needs a decision first, then how the community is doing. */
-export const AdminOverview: React.FC<Props> = ({ onGo, onImport, onExportRopa, ropaBusy, onPostCall }) => {
+export const AdminOverview: React.FC<Props> = ({ onGo, can, onImport, onExportRopa, ropaBusy, onPostCall }) => {
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState('');
   const [auditLog, setAuditLog] = useState<Awaited<ReturnType<typeof getAdminAudit>>['entries'] | null>(null);
-  useEffect(() => { getAdminAudit().then((r) => setAuditLog(r.entries)).catch(() => setAuditLog([])); }, []);
+  const canAudit = can('audit.view');
+  useEffect(() => { if (canAudit) getAdminAudit().then((r) => setAuditLog(r.entries)).catch(() => setAuditLog([])); }, [canAudit]);
   const [erasing, setErasing] = useState<{ uid: string; name: string; email: string; typed: string; busy: boolean } | null>(null);
 
   const load = useCallback(async () => {
@@ -51,14 +55,14 @@ export const AdminOverview: React.FC<Props> = ({ onGo, onImport, onExportRopa, r
   }
 
   const { queue, numbers } = data;
-  const queueItems: { key: string; label: string; count: number; hint: string; icon: React.ElementType; tone: string; action: () => void }[] = [
+  const queueItems: { key: string; label: string; count?: number; hint: string; icon: React.ElementType; tone: string; action: () => void }[] = [
     { key: 'apps', label: 'Applications to review', count: queue.pendingApps, hint: 'Approve to issue a Volunteer Card', icon: Inbox, tone: 'amber', action: () => onGo('applications') },
     { key: 'projects', label: 'Projects to review', count: queue.pendingProjects, hint: 'Approve, or send back with a note', icon: FolderKanban, tone: 'amber', action: () => onGo('projects') },
     { key: 'reports', label: 'Open reports', count: queue.openReports, hint: 'Use the Reports button in the header', icon: ShieldAlert, tone: 'red', action: () => document.getElementById('reports-button')?.click() },
     { key: 'deletions', label: 'Deletion requests', count: queue.deletionRequests, hint: 'Members asking to have their data erased', icon: Trash2, tone: 'red', action: () => document.getElementById('deletion-requests')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
     { key: 'consent', label: 'Members without consent', count: queue.noConsent, hint: 'They see a prompt on their dashboard', icon: BadgeCheck, tone: 'slate', action: () => onGo('members') },
   ];
-  const needsAction = queueItems.filter((q) => q.count > 0);
+  const needsAction = queueItems.filter((q) => (q.count ?? 0) > 0);
   const maxRole = Math.max(1, ...data.roles.map((r) => r.count));
 
   return (
@@ -169,6 +173,7 @@ export const AdminOverview: React.FC<Props> = ({ onGo, onImport, onExportRopa, r
       </div>
 
       {/* Deletion requests */}
+      {can('privacy.erase') && (
       <section id="deletion-requests" className="s-card p-5 sm:p-6" aria-labelledby="del-title">
         <h2 id="del-title" className="text-[16px] font-semibold text-slate-900">
           Deletion requests <span className="num font-normal text-slate-400">{data.deletions.length}</span>
@@ -229,7 +234,10 @@ export const AdminOverview: React.FC<Props> = ({ onGo, onImport, onExportRopa, r
         )}
       </section>
 
+      )}
+
       {/* Admin activity (audit log) */}
+      {canAudit && (
       <section className="s-card p-5 sm:p-6" aria-labelledby="audit-title">
         <h2 id="audit-title" className="text-[16px] font-semibold text-slate-900">Admin activity</h2>
         <p className="mt-0.5 text-[13px] text-slate-500">Every approval, review, erasure and privacy export, with who did it. Kept for accountability.</p>
@@ -252,14 +260,16 @@ export const AdminOverview: React.FC<Props> = ({ onGo, onImport, onExportRopa, r
         )}
       </section>
 
+      )}
+
       {/* Quick actions */}
       <section aria-labelledby="actions-title">
         <h2 id="actions-title" className="mb-3 text-[16px] font-semibold text-slate-900">Quick actions</h2>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={onImport} className="s-btn s-btn-plain"><Upload size={15} strokeWidth={1.75} />Import projects</button>
-          <button type="button" onClick={onExportRopa} disabled={ropaBusy} className="s-btn s-btn-plain">{ropaBusy ? 'Preparing…' : 'Privacy records (ROPA)'}</button>
+          {can('projects.import') && <button type="button" onClick={onImport} className="s-btn s-btn-plain"><Upload size={15} strokeWidth={1.75} />Import projects</button>}
+          {can('privacy.records') && <button type="button" onClick={onExportRopa} disabled={ropaBusy} className="s-btn s-btn-plain">{ropaBusy ? 'Preparing…' : 'Privacy records (ROPA)'}</button>}
           <button type="button" onClick={onPostCall} className="s-btn s-btn-plain"><Megaphone size={15} strokeWidth={1.75} />Post a call</button>
-          <button type="button" onClick={() => onGo('calls')} className="s-btn s-btn-plain">Moderate calls</button>
+          {can('calls.moderate') && <button type="button" onClick={() => onGo('calls')} className="s-btn s-btn-plain">Moderate calls</button>}
         </div>
       </section>
     </div>

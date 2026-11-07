@@ -1132,10 +1132,11 @@ export default function UserDashboard() {
               {/* Volunteer Card */}
               <aside id="digital-card-section" className="order-1 min-w-0 lg:order-2">
                 <div className="lg:sticky lg:top-24">
-                  <div className="mb-4 flex items-baseline justify-between gap-3">
-                    <h2 className={sectionTitle}>Your Volunteer Card</h2>
+                  {/* The status pill keeps its width; the heading wraps instead of pushing it off-screen. */}
+                  <div className="mb-4 flex items-baseline justify-between gap-2">
+                    <h2 className={clsx(sectionTitle, 'min-w-0')}>Your Volunteer Card</h2>
                     {currentUser.status !== 'Approved' && (
-                      <span className={clsx('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium', statusMeta.tone)}>
+                      <span className={clsx('inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[12px] font-medium', statusMeta.tone)}>
                         <StatusIcon size={13} strokeWidth={2} aria-hidden />
                         {statusMeta.word}
                       </span>
