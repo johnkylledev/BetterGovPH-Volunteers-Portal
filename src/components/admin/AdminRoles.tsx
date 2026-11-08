@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { Plus, Search, ShieldCheck, Trash2, UserMinus, X } from 'lucide-react';
 import { toast } from 'sonner';
@@ -20,10 +21,32 @@ const SUPER_PERMISSIONS = [...ADMIN_PERMISSIONS.map((p) => p.label), 'Manage rol
 /** Create a role with the permission boxes it needs, then add the people who should hold it. */
 const RoleEditor: React.FC<{ draft: Draft; busy: boolean; onChange: (d: Draft) => void; onSave: () => void; onCancel: () => void }> = ({ draft, busy, onChange, onSave, onCancel }) => {
   const toggle = (p: string) => onChange({ ...draft, permissions: draft.permissions.includes(p) ? draft.permissions.filter((x) => x !== p) : [...draft.permissions, p] });
-  return (
-    <form className="s-card space-y-5 p-5 sm:p-6" onSubmit={(e) => { e.preventDefault(); onSave(); }} aria-label={draft.id ? `Edit ${draft.name}` : 'New role'}>
+
+  // Escape closes it, and the page behind doesn't scroll while it's open.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !busy) onCancel(); };
+    document.addEventListener('keydown', onKey);
+    return () => { document.body.style.overflow = prev; document.removeEventListener('keydown', onKey); };
+  }, [busy, onCancel]);
+
+  const title = draft.id ? `Edit ${draft.name || 'role'}` : 'New role';
+  return createPortal(
+    <div className="site" style={{ background: 'transparent' }}>
+    <div
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-900/50 p-4 sm:items-center"
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onCancel(); }}
+    >
+    <form
+      className="thin-scroll flex max-h-[90vh] w-full max-w-2xl flex-col gap-5 overflow-y-auto rounded-[14px] bg-white p-5 shadow-[var(--e2)] sm:p-6"
+      onSubmit={(e) => { e.preventDefault(); onSave(); }}
+    >
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-[16px] font-semibold">{draft.id ? `Edit ${draft.name || 'role'}` : 'New role'}</h3>
+        <h3 className="text-[17px] font-semibold text-slate-900">{title}</h3>
         <button type="button" aria-label="Close" onClick={onCancel} className="-mr-2 flex h-9 w-9 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700"><X size={17} strokeWidth={1.75} /></button>
       </div>
       {!draft.id && (
@@ -75,6 +98,9 @@ const RoleEditor: React.FC<{ draft: Draft; busy: boolean; onChange: (d: Draft) =
         </button>
       </div>
     </form>
+    </div>
+    </div>,
+    document.body,
   );
 };
 

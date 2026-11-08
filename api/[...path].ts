@@ -2057,6 +2057,20 @@ const mapSubmissionRow = (row: any, submittedBy?: { fullName: string; email: str
   ...projectExtrasOf(row),
 });
 
+/** Adds the admin role each row holds ("Super admin", or the custom role's name) to a user list. */
+const withRoleNames = async (adminSup: any, rows: any[]) => {
+  const roleIds = Array.from(new Set(rows.map((r) => r.admin_role_id).filter(Boolean)));
+  let names = new Map<string, string>();
+  if (roleIds.length) {
+    const { data } = await adminSup.from('admin_roles').select('id, name').in('id', roleIds);
+    names = new Map((data ?? []).map((r: any) => [String(r.id), String(r.name)]));
+  }
+  return rows.map((r) => ({
+    ...mapUserRow(r),
+    adminRoleName: r.is_admin ? 'Super admin' : (r.admin_role_id ? names.get(String(r.admin_role_id)) ?? 'Admin role' : undefined),
+  }));
+};
+
 const handler_admin: H = async (req, res) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
@@ -2117,7 +2131,8 @@ const handler_admin: H = async (req, res) => {
     const isDelta = !!since && !Number.isNaN(Date.parse(since));
 
     const applyFilters = (q: any) => {
-      let query = q.eq('is_admin', false).not('full_name', 'eq', '').or('specialization.neq."",status.eq.Approved,status.eq.approved');
+      // Admins are members too: they stay in the list, marked by adminRoleName below.
+      let query = q.not('full_name', 'eq', '').or('specialization.neq."",status.eq.Approved,status.eq.approved');
       if (statusFilter && statusFilter !== 'All') {
         const variants = Array.from(new Set([statusFilter, statusFilter.toLowerCase(), statusFilter.toUpperCase(),
           statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1).toLowerCase()]));
@@ -2139,7 +2154,7 @@ const handler_admin: H = async (req, res) => {
       // A delta runs on the base visibility rules only, not the tab filter, so a row that LEAVES the
       // filter (an application that was just approved) is still reported — as `removed`, so the
       // client drops it instead of showing a stale row until the next full load.
-      const base = (q: any) => q.eq('is_admin', false).not('full_name', 'eq', '').or('specialization.neq."",status.eq.Approved,status.eq.approved');
+      const base = (q: any) => q.not('full_name', 'eq', '').or('specialization.neq."",status.eq.Approved,status.eq.approved');
       const [{ data, error }, countRes] = await Promise.all([
         base(adminSup.from('users').select('*')).gt('updated_at', since).order('updated_at', { ascending: true }).limit(200),
         applyFilters(adminSup.from('users').select('uid', { count: 'exact', head: true })),
@@ -2170,7 +2185,7 @@ const handler_admin: H = async (req, res) => {
       const kept = changed.filter(stillMatches);
       const removed = changed.filter((r: any) => !stillMatches(r)).map((r: any) => String(r.uid));
       sendJson(res, 200, {
-        users: kept.map(mapUserRow),
+        users: await withRoleNames(adminSup, kept),
         removed,
         totalCount: countRes.count ?? 0,
         serverTime,
@@ -2199,7 +2214,7 @@ const handler_admin: H = async (req, res) => {
     const rows = listRes.data ?? [];
     const last = rows[rows.length - 1];
     sendJson(res, 200, {
-      users: rows.map(mapUserRow),
+      users: await withRoleNames(adminSup, rows),
       ...(countRes.count === null || countRes.count === undefined ? {} : { totalCount: countRes.count }),
       nextCursor: rows.length === pageSize && last ? `${last.created_at}|${last.uid}` : null,
       serverTime,

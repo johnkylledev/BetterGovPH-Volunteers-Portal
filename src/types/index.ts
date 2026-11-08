@@ -97,7 +97,7 @@ export interface User {
   isAdmin: boolean;
   /** Custom admin role (role-based access). Super admins have isAdmin instead. */
   adminRoleId?: string | null;
-  /** Your own role's name and permissions, from /me only. */
+  /** The admin role this person holds: "Super admin" or a custom role's name. */
   adminRoleName?: string;
   adminPermissions?: string[];
   authProvider?: 'traditional' | 'google' | 'github';

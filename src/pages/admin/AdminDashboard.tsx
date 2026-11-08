@@ -436,10 +436,10 @@ export default function AdminDashboard() {
     XLSX.writeFile(workbook, fileName);
   };
 
-  const filteredUsers = useMemo(() => memberList.rows.filter((u) => u && !u.isAdmin), [memberList.rows]);
+  const filteredUsers = useMemo(() => memberList.rows.filter(Boolean), [memberList.rows]);
 
   const filteredApprovedMembers = useMemo(() => {
-    return memberList.rows.filter((u) => u && !u.isAdmin && u.status === 'Approved');
+    return memberList.rows.filter((u) => u && u.status === 'Approved');
   }, [memberList.rows]);
 
   // Only the tabs this person's permissions cover. The server refuses the rest anyway.
@@ -664,7 +664,14 @@ export default function AdminDashboard() {
                             <div className="flex min-w-0 items-center gap-3">
                               <Avatar name={user.fullName} seed={user.uid || user.id} discordId={user.discordId} discordAvatar={user.discordAvatar} size={32} />
                               <div className="min-w-0">
-                                <div className="font-semibold text-slate-900 max-sm:break-words sm:truncate">{user.fullName}</div>
+                                <div className="font-semibold text-slate-900 max-sm:break-words sm:truncate">
+                                  {user.fullName}
+                                  {(user.adminRoleName || user.isAdmin) && (
+                                  <span className="ml-1.5 inline-flex shrink-0 items-center rounded-full bg-[#eef3ff] px-1.5 py-px align-middle text-[11px] font-medium text-[var(--accent)]">
+                                    {user.adminRoleName || 'Super admin'}
+                                  </span>
+                                )}
+                                </div>
                                 <div className="text-xs text-slate-500 max-sm:break-all sm:truncate">{user.email}</div>
                               </div>
                             </div>
@@ -983,7 +990,14 @@ export default function AdminDashboard() {
                             className={RWD_ROW}
                           >
                             <td className={clsx(RWD_CELL_ID, 'pl-6 max-sm:pl-0')}>
-                              <div className="font-semibold text-slate-900 max-sm:break-words sm:truncate">{member.fullName}</div>
+                              <div className="font-semibold text-slate-900 max-sm:break-words sm:truncate">
+                                {member.fullName}
+                                {(member.adminRoleName || member.isAdmin) && (
+                                  <span className="ml-1.5 inline-flex shrink-0 items-center rounded-full bg-[#eef3ff] px-1.5 py-px align-middle text-[11px] font-medium text-[var(--accent)]">
+                                    {member.adminRoleName || 'Super admin'}
+                                  </span>
+                                )}
+                              </div>
                               <div className="text-xs text-slate-500 max-sm:break-all sm:truncate">{member.email}</div>
                             </td>
                             <td className={clsx(RWD_CELL, 'font-semibold text-slate-700')} data-label="Primary role">{member.specialization}</td>
