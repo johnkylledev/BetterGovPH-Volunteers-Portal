@@ -509,8 +509,6 @@ export default function AdminDashboard() {
             memberId={currentUser.memberId}
             verified={currentUser.status === 'Approved' || !!currentUser.isAdmin}
             isAdmin={!!currentUser.isAdmin}
-            discordId={currentUser.discordId}
-            discordAvatar={currentUser.discordAvatar}
             onOpen={() => setShowMyCard(true)}
             openLabel="View my card"
             onSignOut={handleLogout}
@@ -662,7 +660,7 @@ export default function AdminDashboard() {
                         >
                           <td className={clsx(RWD_CELL_ID, 'pl-6 max-sm:pl-0')}>
                             <div className="flex min-w-0 items-center gap-3">
-                              <Avatar name={user.fullName} seed={user.uid || user.id} discordId={user.discordId} discordAvatar={user.discordAvatar} photos={[user.photoUrl]} size={32} />
+                              <Avatar name={user.fullName} seed={user.uid || user.id} photos={[user.photoUrl]} size={32} />
                               <div className="min-w-0">
                                 <div className="font-semibold text-slate-900 max-sm:break-words sm:truncate">
                                   {user.fullName}
@@ -1091,7 +1089,7 @@ export default function AdminDashboard() {
                     <div>
                       <p className="text-[12px] font-semibold text-slate-400 mb-1">Discord</p>
                       <div className="flex items-center gap-2">
-                        <Avatar name={selectedUser.fullName} seed={selectedUser.uid || selectedUser.id} discordId={selectedUser.discordId} discordAvatar={selectedUser.discordAvatar} photos={[selectedUser.photoUrl]} size={24} />
+                        <Avatar name={selectedUser.fullName} seed={selectedUser.uid || selectedUser.id} photos={[selectedUser.photoUrl]} size={24} />
                         <div>
                           <p className="text-sm font-semibold text-blue-600">
                             {selectedUser.discordDisplayName || selectedUser.discordUsername || 'N/A'}
@@ -1332,7 +1330,7 @@ export default function AdminDashboard() {
                         <div>
                           <p className="text-[12px] font-semibold text-slate-400 mb-1">Discord</p>
                           <div className="flex items-center gap-2">
-                            <Avatar name={selectedMember.fullName} seed={selectedMember.uid || selectedMember.id} discordId={selectedMember.discordId} discordAvatar={selectedMember.discordAvatar} photos={[selectedMember.photoUrl]} size={24} />
+                            <Avatar name={selectedMember.fullName} seed={selectedMember.uid || selectedMember.id} photos={[selectedMember.photoUrl]} size={24} />
                             <div>
                               <p className="text-sm font-semibold text-blue-600">
                                 {selectedMember.discordDisplayName || selectedMember.discordUsername || 'N/A'}

@@ -285,8 +285,6 @@ export default function Profile() {
             memberId={currentUser.memberId}
             verified={verified}
             isAdmin={!!currentUser.isAdmin}
-            discordId={currentUser.discordId}
-            discordAvatar={currentUser.discordAvatar}
             onSignOut={logout}
           />
         }
@@ -298,9 +296,7 @@ export default function Profile() {
           <Avatar
             name={currentUser.fullName}
             seed={currentUser.uid || currentUser.id}
-            discordId={currentUser.discordId}
-            discordAvatar={currentUser.discordAvatar}
-            photos={[sessionPhoto]}
+            photos={[currentUser.photoUrl, sessionPhoto]}
             size={64}
           />
           <div className="min-w-0">

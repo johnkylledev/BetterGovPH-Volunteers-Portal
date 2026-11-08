@@ -565,6 +565,15 @@ const assertAdmin = async (supabaseAdmin: any, uid: string, email?: string, need
   return { ok: false, error: 'Admin only' };
 };
 
+/** Your own sign-in picture, read from the verified token (no query, always current). */
+const ownPhotoOf = (user: any): string | undefined => {
+  const meta = user?.user_metadata ?? {};
+  const raw = meta.avatar_url ?? meta.picture;
+  if (typeof raw !== 'string') return undefined;
+  const url = safeHttpUrl(raw.trim());
+  return url && url.startsWith('https://') ? url : undefined;
+};
+
 /** What /me tells the app about its own admin access (never other people's). */
 const accessFieldsFor = async (supabaseAdmin: any, row: any) => {
   if (!row) return {};
@@ -800,6 +809,13 @@ const sanitizeChatUrl = (raw: unknown): string | null => {
     return u.toString().slice(0, 300);
   } catch { return null; }
 };
+
+/**
+ * Someone else's picture, for lists where members see each other. Follows the same opt-in as the
+ * public directory: nothing unless they switched it on. The caller supplies the live photos map.
+ */
+const sharedPhotoOf = (row: any, photos: Map<string, string>): string | null =>
+  row?.show_photo === true ? photos.get(String(row.uid)) ?? null : null;
 
 const discordAvatarOf = (row: any, size = 96) =>
   /^\d+$/.test(String(row?.discord_id ?? '')) && /^(a_)?[a-f0-9]+$/i.test(String(row?.discord_avatar ?? ''))
@@ -1049,6 +1065,7 @@ const handler_call_interests: H = async (req, res) => {
     const ids = (ints ?? []).map((i: any) => i.user_id);
     const { data: users } = ids.length ? await supabase.from('users').select('*').in('uid', ids) : { data: [] as any[] };
     const byId = new Map((users ?? []).map((u: any) => [String(u.uid), u]));
+    const interestPhotos = await providerPhotos(supabase, (users ?? []).filter((u: any) => u.show_photo === true).map((u: any) => String(u.uid)));
     sendJson(res, 200, {
       interests: (ints ?? []).map((i: any) => {
         const u: any = byId.get(String(i.user_id));
@@ -1058,7 +1075,7 @@ const handler_call_interests: H = async (req, res) => {
             name: u ? (isAdmin ? u.full_name : memberNameOf(u)) : 'Member',
             role: u?.specialization ?? null, secondaryRole: u?.secondary_specialization ?? null,
             memberId: u?.member_id ?? null, approved: String(u?.status || '').toLowerCase() === 'approved',
-            avatarUrl: discordAvatarOf(u), discordUsername: u?.discord_username || null, ...availabilityOf(u),
+            avatarUrl: sharedPhotoOf(u, interestPhotos), discordUsername: u?.discord_username || null, ...availabilityOf(u),
             skills: Array.isArray(u?.skills) ? u.skills.slice(0, 6).map((s: any) => s?.name).filter(Boolean) : [],
           },
         };
@@ -1484,11 +1501,12 @@ const handler_project_updates: H = async (req, res) => {
     const ids = Array.from(new Set((data ?? []).map((u: any) => u.author_id)));
     const { data: us } = ids.length ? await supabase.from('users').select('*').in('uid', ids) : { data: [] as any[] };
     const by = new Map((us ?? []).map((u: any) => [String(u.uid), u]));
+    const updatePhotos = await providerPhotos(supabase, (us ?? []).filter((u: any) => u.show_photo === true).map((u: any) => String(u.uid)));
     sendJson(res, 200, {
       available: true,
       updates: (data ?? []).map((u: any) => ({
         id: u.id, body: u.body, createdAt: u.created_at, mine: !!uid && u.author_id === uid,
-        author: publicNameOf(by.get(String(u.author_id))), avatarUrl: discordAvatarOf(by.get(String(u.author_id))),
+        author: publicNameOf(by.get(String(u.author_id))), avatarUrl: sharedPhotoOf(by.get(String(u.author_id)), updatePhotos),
       })),
     });
     return;
@@ -1662,6 +1680,7 @@ const handler_teams: H = async (req, res) => {
     const userIds = Array.from(new Set([...rows.map((r: any) => r.user_id), headId, project.owner_user_id].filter(Boolean)));
     const { data: users } = userIds.length ? await supabase.from('users').select('*').in('uid', userIds) : { data: [] as any[] };
     const userById = new Map((users ?? []).map((u: any) => [String(u.uid), u]));
+    const teamPhotos = await providerPhotos(supabase, (users ?? []).filter((u: any) => u.show_photo === true).map((u: any) => String(u.uid)));
     // Team pages are public: names are redacted unless the member opted in, except for the head/admins.
     const personOf = (userId: string, full = false) => {
       const u: any = userById.get(String(userId));
@@ -1670,7 +1689,7 @@ const handler_teams: H = async (req, res) => {
         name: !u ? 'Member' : isAdmin ? String(u.full_name || '').trim() || 'Member' : canManage || full ? memberNameOf(u) : publicNameOf(u),
         role: u?.specialization || null,
         memberId: u?.member_id || null,
-        avatarUrl: discordAvatarOf(u),
+        avatarUrl: sharedPhotoOf(u, teamPhotos),
         discordUsername: canManage ? u?.discord_username || null : undefined,
         skills: canManage && Array.isArray(u?.skills) ? u.skills.slice(0, 6).map((s: any) => s?.name).filter(Boolean) : undefined,
         ...(canManage ? availabilityOf(u) : {}),
@@ -1906,9 +1925,9 @@ const handler_me: H = async (req, res) => {
     if ((!data.email || String(data.email).trim() === '') && email) {
       const { data: updated } = await supabase
         .from('users').update({ email, updated_at: new Date().toISOString() }).eq('uid', uid).select('*').maybeSingle();
-      if (updated) { sendJson(res, 200, { user: { ...mapUserRow(updated), ...(await accessFieldsFor(supabase, updated)) } }); return; }
+      if (updated) { sendJson(res, 200, { user: { ...mapUserRow(updated), photoUrl: ownPhotoOf(authData?.user), ...(await accessFieldsFor(supabase, updated)) } }); return; }
     }
-    sendJson(res, 200, { user: { ...mapUserRow(data), ...(await accessFieldsFor(supabase, data)) } });
+    sendJson(res, 200, { user: { ...mapUserRow(data), photoUrl: ownPhotoOf(authData?.user), ...(await accessFieldsFor(supabase, data)) } });
     return;
   }
 
@@ -2013,7 +2032,7 @@ const handler_me: H = async (req, res) => {
     if (updated) {
       // Skills drive the volunteer's Discord roles, so keep them in step with the profile.
       if (Array.isArray(body.skills)) await syncSkillRoles(updated);
-      sendJson(res, 200, { user: mapUserRow(updated) });
+      sendJson(res, 200, { user: { ...mapUserRow(updated), photoUrl: ownPhotoOf(authData?.user) } });
       return;
     }
   }
@@ -2040,7 +2059,7 @@ const handler_me: H = async (req, res) => {
     ({ data: insertResult, error: insertError } = await supabase.from('users').insert(insertRow).select('*').maybeSingle());
   }
   if (insertError || !insertResult) { sendError(res, 500, 'Failed to create profile'); return; }
-  sendJson(res, 200, { user: mapUserRow(insertResult) });
+  sendJson(res, 200, { user: { ...mapUserRow(insertResult), photoUrl: ownPhotoOf(authData?.user) } });
 };
 
 // ---------- /admin (api/_handlers/admin.ts) ----------------------------------
@@ -3875,8 +3894,8 @@ const handler_volunteers: H = async (req, res) => {
       isAdmin: !!r.is_admin,
       skills: ordered.map((s) => String(s?.name || '')).filter(Boolean).slice(0, 4),
       skillCount: skills.length,
-      // Discord avatar as before; the sign-in photo only for members who opted in, pulled live.
-      avatarUrl: discordAvatarOf(r) || (r.show_photo === true ? photos.get(String(r.uid)) ?? null : null),
+      // The sign-in picture (Google or GitHub), only for members who switched it on. Pulled live.
+      avatarUrl: r.show_photo === true ? photos.get(String(r.uid)) ?? null : null,
     };
   });
   const payload = { volunteers, count: volunteers.length };

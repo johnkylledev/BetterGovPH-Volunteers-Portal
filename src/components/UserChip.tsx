@@ -83,14 +83,16 @@ export const UserChip: React.FC<UserChipProps> = ({
     return () => window.clearTimeout(t);
   }, [copied]);
 
+  // Your own account, for the picture and the admin-tools link below.
+  const me = useStore((s) => s.currentUser);
+
   const avatar = (px: number) => (
-    <Avatar name={name} seed={seed || memberId || email} discordId={discordId} discordAvatar={discordAvatar} photos={[sessionPhoto]} size={px} />
+    <Avatar name={name} seed={seed || memberId || email} photos={[me?.photoUrl, sessionPhoto]} size={px} />
   );
 
   const go = (path: string) => { setOpen(false); navigate(path); };
   const homePath = isAdmin ? '/admin' : '/dashboard';
   // Members with an admin role (e.g. Legal) keep the member dashboard as home and reach their tools here.
-  const me = useStore((s) => s.currentUser);
   const showAdminTools = !isAdmin && hasAdminAccess(me) && !pathname.startsWith('/admin');
   const onProfile = pathname.startsWith('/profile');
   const cardUrl = memberId && typeof window !== 'undefined' ? `${window.location.origin}/verify/${memberId}` : '';

@@ -5,10 +5,10 @@ import { supabase } from '../services/supabase';
 
 /*
  * One avatar for the whole app, with a fallback chain so nobody ever sees a broken image:
- *   1. Discord profile picture (if linked and they set one)
- *   2. Any other photo passed in (e.g. the Google sign-in photo, or a URL from the API)
- *   3. Initials on a colour picked from a stable id, so the same person keeps the same colour
- *   4. A person icon when there's no usable name
+ *   1. The sign-in provider's picture (Google or GitHub), passed in as `photos`
+ *   2. Initials on a colour picked from a stable id, so the same person keeps the same colour
+ *   3. A person icon when there's no usable name
+ * Discord pictures are deliberately not used: the portal shows the account people signed in with.
  * Initials sit underneath while a photo loads, so the circle is never empty. If a photo
  * fails (CDN down, avatar changed, Google 403), it quietly moves on to the next source.
  */
@@ -44,15 +44,7 @@ export const initialsOf = (name?: string) => {
   return picked.map((w) => firstGrapheme(w).toLocaleUpperCase()).join('');
 };
 
-/** Discord serves only power-of-two sizes; ask for 2× for sharp retina rendering. */
-const discordSize = (px: number) => Math.min(1024, Math.max(16, 2 ** Math.ceil(Math.log2(px * 2))));
-
-export const discordAvatarUrl = (id?: string, avatar?: string, px = 48) => {
-  if (!id || !avatar || !/^\d+$/.test(id) || !/^(a_)?[a-f0-9]+$/i.test(avatar)) return null;
-  return `https://cdn.discordapp.com/avatars/${id}/${avatar}.${avatar.startsWith('a_') ? 'gif' : 'png'}?size=${discordSize(px)}`;
-};
-
-/** The signed-in person's Google photo, from their Supabase session (never stored or shared). */
+/** The signed-in person's provider photo from their session; /me is the primary source. */
 export const useSessionPhoto = () => {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
@@ -71,9 +63,7 @@ interface AvatarProps {
   name?: string;
   /** Stable id for the colour (uid, member id). Falls back to the name. */
   seed?: string;
-  discordId?: string;
-  discordAvatar?: string;
-  /** Extra photo sources tried after Discord, in order. */
+  /** Photo sources, tried in order: the sign-in provider's picture. */
   photos?: (string | null | undefined)[];
   /** Diameter in px. */
   size?: number;
@@ -83,12 +73,12 @@ interface AvatarProps {
 }
 
 export const Avatar: React.FC<AvatarProps> = ({
-  name, seed, discordId, discordAvatar, photos = [], size = 40, className, label,
+  name, seed, photos = [], size = 40, className, label,
 }) => {
   const sources = useMemo(
-    () => [discordAvatarUrl(discordId, discordAvatar, size), ...photos].filter((u): u is string => !!u),
+    () => photos.filter((u): u is string => !!u),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [discordId, discordAvatar, size, photos.join('|')]
+    [photos.join('|')]
   );
   const key = sources.join('|');
   const [failed, setFailed] = useState<string[]>([]);

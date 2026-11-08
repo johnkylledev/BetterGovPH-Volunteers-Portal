@@ -311,6 +311,7 @@ export const createOrUpdateUserRecord = async (user: any) => {
       ...(typeof user.secondarySpecialization === 'string' ? { secondarySpecialization: user.secondarySpecialization } : {}),
       ...(typeof user.showInDirectory === 'boolean' ? { showInDirectory: user.showInDirectory } : {}),
       ...(typeof user.showFullName === 'boolean' ? { showFullName: user.showFullName } : {}),
+      ...(typeof user.showPhoto === 'boolean' ? { showPhoto: user.showPhoto } : {}),
       ...(user.consent ? { consent: user.consent } : {}),
       ...(typeof user.requestDeletion === 'boolean' ? { requestDeletion: user.requestDeletion } : {}),
       ...(typeof user.displayName === 'string' ? { displayName: user.displayName } : {}),

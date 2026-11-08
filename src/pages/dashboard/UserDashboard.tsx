@@ -693,8 +693,6 @@ export default function UserDashboard() {
               memberId={currentUser.memberId}
               verified={currentUser.status === 'Approved' || !!currentUser.isAdmin}
               isAdmin={!!currentUser.isAdmin}
-              discordId={currentUser.discordId}
-              discordAvatar={currentUser.discordAvatar}
               seed={currentUser.uid || currentUser.id}
               onOpen={() => {
                 setActiveTab('dashboard');
