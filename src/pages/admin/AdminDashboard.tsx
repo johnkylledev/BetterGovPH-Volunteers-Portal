@@ -622,7 +622,6 @@ export default function AdminDashboard() {
                       <th className="p-4 pl-6 font-semibold">Applicant</th>
                       <th className="p-4 font-semibold">Discord / Role</th>
                       <th className="p-4 font-semibold">Status</th>
-                      <th className="p-4 font-semibold">Member ID</th>
                       <th className="p-4 pr-6 font-semibold text-right">Actions</th>
                     </tr>
                   </thead>
@@ -641,9 +640,6 @@ export default function AdminDashboard() {
                           <td className="p-4">
                             <div className="h-5 bg-slate-200 rounded-md w-16" />
                           </td>
-                          <td className="p-4">
-                            <div className="h-4 bg-slate-100 rounded w-20" />
-                          </td>
                           <td className="p-4 pr-6 text-right">
                             <div className="h-8 bg-slate-200 rounded-[10px] w-16 ml-auto" />
                           </td>
@@ -651,7 +647,7 @@ export default function AdminDashboard() {
                       ))
                     ) : filteredUsers.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="p-8 text-center text-slate-500">
+                        <td colSpan={4} className="p-8 text-center text-slate-500">
                           No applicants found matching the criteria.
                         </td>
                       </tr>
@@ -704,9 +700,6 @@ export default function AdminDashboard() {
                               {user.status}
                             </span>
                           </td>
-                          {/* A pending applicant has no member ID yet: the desktop column keeps its
-                              dash so the table stays aligned, but the phone card drops the row. */}
-                          <td className={clsx(RWD_CELL, 'font-mono text-slate-600', !user.memberId && 'max-sm:hidden')} data-label="Member ID">{user.memberId || '-'}</td>
                           <td className={clsx(RWD_CELL, 'pr-6 text-right max-sm:justify-end max-sm:pr-0 max-sm:pt-2.5')}>
                             <button
                               onClick={() => setSelectedUser(user)}
