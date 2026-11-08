@@ -101,6 +101,8 @@ export interface User {
   adminRoleName?: string;
   /** Profile picture from the sign-in provider (Google or GitHub). */
   photoUrl?: string;
+  /** Opt-in: show that picture on public pages. */
+  showPhoto?: boolean;
   adminPermissions?: string[];
   authProvider?: 'traditional' | 'google' | 'github';
   yearJoined?: number;

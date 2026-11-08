@@ -162,6 +162,7 @@ const mapUserRow = (row: any) => ({
   discordVerified: row.discord_verified ?? false,
   discordDisplayName: row.discord_display_name ?? undefined,
   discordAvatar: row.discord_avatar ?? undefined,
+  showPhoto: row.show_photo === true,
   links: row.links && typeof row.links === 'object' && !Array.isArray(row.links) ? row.links : {},
   secondarySpecialization: row.secondary_specialization ?? undefined,
   showInDirectory: row.show_in_directory !== false,
@@ -1930,6 +1931,7 @@ const handler_me: H = async (req, res) => {
   }
   if (typeof body.showInDirectory === 'boolean') updates.show_in_directory = body.showInDirectory;
   if (typeof body.showFullName === 'boolean') updates.show_full_name = body.showFullName;
+  if (typeof body.showPhoto === 'boolean') updates.show_photo = body.showPhoto;
   if (typeof body.displayName === 'string') updates.display_name = cleanDisplayName(body.displayName) || null;
   // Community roles beyond "Member" (Fellow, Contributor, …) are given by admins, not self-chosen.
   if (typeof body.role === 'string' && body.role.trim().toLowerCase() === 'member') updates.role = 'Member';
@@ -1991,7 +1993,7 @@ const handler_me: H = async (req, res) => {
       .from('users').update(updates).eq('uid', uid).select('*');
     // Before a migration runs, save everything else instead of failing the whole profile.
     if (updateError && isMissingColumnError(updateError)) {
-      for (const k of ['links', 'secondary_specialization', 'show_in_directory', 'show_full_name', 'consent_version', 'consent_at', 'consent_purposes', 'deletion_requested_at', 'display_name', 'coc_accepted_at', 'availability', 'hours_per_week', 'region', 'languages']) delete updates[k];
+      for (const k of ['links', 'secondary_specialization', 'show_in_directory', 'show_full_name', 'consent_version', 'consent_at', 'consent_purposes', 'deletion_requested_at', 'display_name', 'coc_accepted_at', 'availability', 'hours_per_week', 'region', 'languages', 'show_photo']) delete updates[k];
       consentEvent = null;
       ({ data: updatedRows, error: updateError } = await supabase.from('users').update(updates).eq('uid', uid).select('*'));
     }
@@ -2005,7 +2007,7 @@ const handler_me: H = async (req, res) => {
         });
       } catch { /* table missing until migration */ }
     }
-    if (consentEvent || 'show_in_directory' in updates || 'show_full_name' in updates || 'display_name' in updates) {
+    if (consentEvent || 'show_in_directory' in updates || 'show_full_name' in updates || 'display_name' in updates || 'show_photo' in updates) {
       try { await invalidateCache('cache:volunteers:directory:v2'); } catch { /* noop */ }
     }
     if (updated) {
@@ -2034,7 +2036,7 @@ const handler_me: H = async (req, res) => {
   let { data: insertResult, error: insertError } = await supabase
     .from('users').insert(insertRow).select('*').maybeSingle();
   if (insertError && isMissingColumnError(insertError)) {
-    for (const k of ['links', 'secondary_specialization', 'show_in_directory', 'show_full_name', 'consent_version', 'consent_at', 'consent_purposes', 'deletion_requested_at', 'display_name', 'coc_accepted_at', 'availability', 'hours_per_week', 'region', 'languages']) delete insertRow[k];
+    for (const k of ['links', 'secondary_specialization', 'show_in_directory', 'show_full_name', 'consent_version', 'consent_at', 'consent_purposes', 'deletion_requested_at', 'display_name', 'coc_accepted_at', 'availability', 'hours_per_week', 'region', 'languages', 'show_photo']) delete insertRow[k];
     ({ data: insertResult, error: insertError } = await supabase.from('users').insert(insertRow).select('*').maybeSingle());
   }
   if (insertError || !insertResult) { sendError(res, 500, 'Failed to create profile'); return; }
@@ -3857,8 +3859,11 @@ const handler_volunteers: H = async (req, res) => {
     .limit(1000);
   if (error) { sendError(res, 500, 'Failed to load volunteers'); return; }
   // Members can hide themselves; names are redacted ("John K****") unless they opt in to their full name.
-  const volunteers = (data ?? []).filter((r: any) =>
-    r.show_in_directory !== false && Array.isArray(r.consent_purposes) && r.consent_purposes.includes('directory')).map((r: any) => {
+  const listed = (data ?? []).filter((r: any) =>
+    r.show_in_directory !== false && Array.isArray(r.consent_purposes) && r.consent_purposes.includes('directory'));
+  // Only ask for photos of the members who opted in; pulled live, never stored by us.
+  const photos = await providerPhotos(supabase, listed.filter((r: any) => r.show_photo === true).map((r: any) => String(r.uid)));
+  const volunteers = listed.map((r: any) => {
     const skills: { name: string; featured?: boolean }[] = Array.isArray(r.skills) ? r.skills : [];
     const ordered = [...skills.filter((s) => s?.featured), ...skills.filter((s) => !s?.featured)];
     return {
@@ -3870,7 +3875,8 @@ const handler_volunteers: H = async (req, res) => {
       isAdmin: !!r.is_admin,
       skills: ordered.map((s) => String(s?.name || '')).filter(Boolean).slice(0, 4),
       skillCount: skills.length,
-      avatarUrl: discordAvatarOf(r),
+      // Discord avatar as before; the sign-in photo only for members who opted in, pulled live.
+      avatarUrl: discordAvatarOf(r) || (r.show_photo === true ? photos.get(String(r.uid)) ?? null : null),
     };
   });
   const payload = { volunteers, count: volunteers.length };

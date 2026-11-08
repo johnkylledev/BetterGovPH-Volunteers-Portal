@@ -94,7 +94,7 @@ export const CONSENT_PURPOSES = [
   },
   {
     id: 'directory', required: false, label: 'List me in the public Volunteers directory',
-    detail: 'Show my redacted name (for example “Juan D****”), roles and top skills. Never my email or links.',
+    detail: 'Show my redacted name (for example “Juan D****”), roles and top skills, and my profile picture if I switch that on. Never my email or links.',
   },
   {
     id: 'communications', required: false, label: 'Contact me about projects and events',
@@ -127,7 +127,7 @@ export const ROPA_REGISTER = [
     activity: 'Public Volunteers directory',
     purpose: 'Show who volunteers, by choice',
     subjects: 'Approved members who opt in',
-    data: 'Redacted name (full name only if chosen), roles, top skills, member ID, Discord avatar',
+    data: 'Redacted name (full name only if chosen), roles, top skills, member ID, Discord avatar, and the Google or GitHub profile picture only if switched on (read from the provider, never stored by us)',
     basis: 'Consent (separate, optional)',
     recipients: 'Public',
     retention: 'Removed as soon as the member switches it off',

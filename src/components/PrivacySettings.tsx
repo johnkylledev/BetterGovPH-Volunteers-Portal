@@ -51,13 +51,17 @@ export const PrivacySettings: React.FC<{ user: User; onSaved: (u: User) => void 
   const hasConsent = !!user.consentAt && purposes.includes('membership');
   const inDirectory = user.showInDirectory !== false;
   const fullName = user.showFullName === true;
+  const showPhoto = user.showPhoto === true;
   const publicName = user.displayName?.trim() || (fullName ? user.fullName : redactName(user.fullName || ''));
 
   const save = async (key: string, patch: Record<string, unknown>, ok: string) => {
     setBusy(key);
     try {
       const saved = await createOrUpdateUserRecord(patch);
-      if (saved) onSaved({ ...user, ...saved });
+      // The switch shows what was asked for; anything the server sends back still wins over it, so a
+      // field the API hasn't deployed yet can't leave the toggle stuck in its old position.
+      const asked = Object.fromEntries(Object.entries(patch).filter(([k]) => k in user || k.startsWith('show'))) as Partial<User>;
+      onSaved({ ...user, ...asked, ...(saved ?? {}) });
       toast.success(ok);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Couldn’t save that change');
@@ -129,6 +133,14 @@ export const PrivacySettings: React.FC<{ user: User; onSaved: (u: User) => void 
             onChange={(v) => save('fullname', { showFullName: v }, v ? 'Your full name is now public' : 'Your name is redacted publicly')}
             label="Show my full name publicly"
             hint={user.displayName ? 'You use a display name, so this only matters if you clear it. Admins always see your full name.' : 'Off: “Juan D****” on the directory, your card’s verify page and team pages. Admins always see your full name.'}
+          />
+          <Switch
+            id="pv-photo"
+            checked={showPhoto}
+            disabled={busy !== null || !hasConsent}
+            onChange={(v) => save('photo', { showPhoto: v }, v ? 'Your profile picture is now public' : 'Your profile picture is hidden publicly')}
+            label="Show my profile picture publicly"
+            hint="Your Google or GitHub picture, on the directory and your Volunteer Card. Off by default: a photo beside a redacted name undoes the redaction. We never store it — change it there and it changes here."
           />
           <Switch
             id="pv-comms"
