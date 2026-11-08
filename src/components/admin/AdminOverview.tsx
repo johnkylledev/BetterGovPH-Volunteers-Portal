@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { eraseUser, getAdminAudit, getAdminOverview } from '../../services/supabase';
 import type { AdminOverview as Overview } from '../../types';
 import { StatTile } from '../StatTile';
+import { auditDetail, auditLabel } from '../../utils/auditLabel';
 import { timeAgo } from '../RepoHealth';
 
 type Tab = 'applications' | 'members' | 'projects' | 'calls';
@@ -246,16 +247,24 @@ export const AdminOverview: React.FC<Props> = ({ onGo, can, onImport, onExportRo
         ) : auditLog.length === 0 ? (
           <p className="mt-4 text-[14px] text-slate-500">Nothing recorded yet.</p>
         ) : (
-          <ul className="mt-3 max-h-80 divide-y divide-slate-200/80 overflow-y-auto thin-scroll">
-            {auditLog.map((e) => (
-              <li key={e.id} className="flex items-baseline gap-3 py-2 text-[13px]">
-                <span className="w-28 shrink-0 truncate font-medium text-slate-800">{e.actor}</span>
-                <span className="min-w-0 flex-1 truncate text-slate-600">
-                  {e.action.replace(/[._]/g, ' ')}{e.targetType ? ` · ${e.targetType}` : ''}
-                </span>
-                <span className="num shrink-0 text-[12px] text-slate-400">{timeAgo(e.at)}</span>
-              </li>
-            ))}
+          <ul className="thin-scroll mt-3 max-h-80 divide-y divide-slate-200/80 overflow-y-auto">
+            {auditLog.map((e) => {
+              const note = auditDetail(e);
+              return (
+                <li key={e.id} className="flex items-start justify-between gap-3 py-2.5 text-[13px]">
+                  <span className="min-w-0">
+                    {/* The action reads as a sentence; the raw code stays available on hover. */}
+                    <span className="block text-slate-800" title={e.action}>{auditLabel(e)}</span>
+                    <span className="mt-0.5 block truncate text-[12px] text-slate-500">
+                      by {e.actor}{note ? ` · ${note}` : ''}
+                    </span>
+                  </span>
+                  <span className="num shrink-0 whitespace-nowrap pt-0.5 text-[12px] text-slate-400" title={new Date(e.at).toLocaleString()}>
+                    {timeAgo(e.at)}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

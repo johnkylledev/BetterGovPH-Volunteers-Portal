@@ -6,6 +6,7 @@ import { AdminCalls } from '../../components/admin/AdminCalls';
 import { AdminRoles } from '../../components/admin/AdminRoles';
 import { can, hasAdminAccess, isSuperAdmin, type AdminPermission } from '../../utils/adminAccess';
 import { useAdminMembers } from '../../hooks/useAdminMembers';
+import { useCachedResource } from '../../hooks/useCachedResource';
 import { NotificationBell } from '../../components/NotificationBell';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { adminTabFromSection, adminTabPath, type AdminTab } from '../../constants/dashboardRoutes';
@@ -146,48 +147,45 @@ export default function AdminDashboard() {
     setStats(s);
   };
 
-  const loadProjectSubmissions = async (showLoading = true) => {
-    if (!can(currentUser, 'projects.review')) return;
-    if (showLoading) setProjectSubmissionsLoading(true);
-    try {
-      const [mainRes, totalRes, pendingRes, approvedRes, rejectedRes] = await Promise.all([
-        getProjectSubmissions(projectPage, projectPageSize, { status: projectStatusFilter === 'All' ? undefined : projectStatusFilter }),
+  // Cached per page+filter, so paging back and forth is instant and the table never blanks.
+  const projectsRes = useCachedResource(
+    can(currentUser, 'projects.review') ? `admin-projects:${projectStatusFilter}:${projectPage}` : null,
+    async () => getProjectSubmissions(projectPage, projectPageSize, { status: projectStatusFilter === 'All' ? undefined : projectStatusFilter }),
+  );
+  // The four tile counts are their own cached resource: one set of queries, not one per page change.
+  const projectCountsRes = useCachedResource(
+    can(currentUser, 'projects.review') ? 'admin-project-counts' : null,
+    async () => {
+      const [total, pending, approved, rejected] = await Promise.all([
         getProjectSubmissions(0, 1),
         getProjectSubmissions(0, 1, { status: 'pending' }),
         getProjectSubmissions(0, 1, { status: 'approved' }),
         getProjectSubmissions(0, 1, { status: 'rejected' }),
       ]);
-      const { submissions, totalCount: fetchedTotal } = mainRes;
-      setProjectSubmissions(submissions);
-      setProjectTotalCount(fetchedTotal);
-      setProjectSubmissionsTotal(fetchedTotal);
-      setProjectStats({
-        total: totalRes.totalCount,
-        pending: pendingRes.totalCount,
-        approved: approvedRes.totalCount,
-        rejected: rejectedRes.totalCount,
-      });
-    } catch (error) {
-      console.error('Error loading project submissions:', error);
-    } finally {
-      if (showLoading) setProjectSubmissionsLoading(false);
-    }
-  };
+      return { total: total.totalCount, pending: pending.totalCount, approved: approved.totalCount, rejected: rejected.totalCount };
+    },
+    { freshMs: 60_000 },
+  );
+  const loadProjectSubmissions = (_showLoading = true) => { void _showLoading; projectsRes.refresh(); projectCountsRes.refresh(); };
 
   useEffect(() => {
     loadStats();
   }, [currentUser]);
 
-  // Only the projects list still resets here; the member list keeps its cache per tab.
-  useEffect(() => {
-    setProjectPage(0);
-    setProjectSubmissions([]);
-  }, [activeTab, projectStatusFilter]);
+  // Changing the filter starts again at the first page; the cache keeps each page's rows.
+  useEffect(() => { setProjectPage(0); }, [projectStatusFilter]);
 
+  // Mirror the cached results into the state the table already reads.
   useEffect(() => {
-    if (!hasAdminAccess(currentUser)) return;
-    if (activeTab === 'projects') loadProjectSubmissions(true);
-  }, [currentUser, activeTab, projectStatusFilter, projectPage]);
+    if (!projectsRes.data) return;
+    setProjectSubmissions(projectsRes.data.submissions);
+    setProjectTotalCount(projectsRes.data.totalCount);
+    setProjectSubmissionsTotal(projectsRes.data.totalCount);
+  }, [projectsRes.data]);
+  useEffect(() => { if (projectCountsRes.data) setProjectStats(projectCountsRes.data); }, [projectCountsRes.data]);
+  useEffect(() => { setProjectSubmissionsLoading(projectsRes.loadingFirst); }, [projectsRes.loadingFirst]);
+
+
 
   // No realtime channel here: the browser has no table access (API-only by design), so the
   // publication is empty and a channel would never fire. useAdminMembers polls for deltas instead.
@@ -1074,8 +1072,12 @@ export default function AdminDashboard() {
                       <p className="text-sm font-semibold text-slate-900">{selectedUser.yearJoined || 'N/A'}</p>
                     </div>
                     <div>
-                      <p className="text-[12px] font-semibold text-slate-400 mb-1">Prof. Level</p>
-                      <p className="text-sm font-semibold text-slate-900">{selectedUser.experienceLevel || 'Beginner'}</p>
+                      <p className="text-[12px] font-semibold text-slate-400 mb-1">Experience Level</p>
+                      <p className="text-sm font-semibold text-slate-900">{selectedUser.experienceLevel || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[12px] font-semibold text-slate-400 mb-1">Secondary Role</p>
+                      <p className="text-sm font-semibold text-slate-900">{selectedUser.secondarySpecialization || 'None'}</p>
                     </div>
                   </div>
 
@@ -1102,10 +1104,6 @@ export default function AdminDashboard() {
                           <span className="text-xs text-slate-400 italic">None provided</span>
                         )}
                       </div>
-                    </div>
-                    <div>
-                      <p className="text-[12px] font-semibold text-slate-400 mb-1">Experience Level</p>
-                      <p className="text-sm font-semibold text-slate-900">{selectedUser.experienceLevel || '-'}</p>
                     </div>
                   </div>
 
@@ -1309,8 +1307,12 @@ export default function AdminDashboard() {
                           <p className="text-sm font-semibold text-slate-900">{selectedMember.yearJoined || 'N/A'}</p>
                         </div>
                         <div>
-                          <p className="text-[12px] font-semibold text-slate-400 mb-1">Prof. Level</p>
-                          <p className="text-sm font-semibold text-slate-900">{selectedMember.experienceLevel || 'Beginner'}</p>
+                          <p className="text-[12px] font-semibold text-slate-400 mb-1">Experience Level</p>
+                          <p className="text-sm font-semibold text-slate-900">{selectedMember.experienceLevel || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[12px] font-semibold text-slate-400 mb-1">Secondary Role</p>
+                          <p className="text-sm font-semibold text-slate-900">{selectedMember.secondarySpecialization || 'None'}</p>
                         </div>
                       </div>
 
@@ -1331,11 +1333,6 @@ export default function AdminDashboard() {
                             <p className="text-xs text-slate-400 italic">No skills listed</p>
                           )}
                         </div>
-                      </div>
-
-                      <div className="p-5 bg-white rounded-[10px] border border-slate-100 shadow-sm">
-                        <p className="text-[12px] font-semibold text-slate-400 mb-1.5">Experience Level</p>
-                        <p className="text-sm font-semibold text-slate-900">{selectedMember.experienceLevel || 'Professional'}</p>
                       </div>
 
                       {selectedMember.adminNotes && (

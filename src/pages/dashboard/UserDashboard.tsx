@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { memberTabFromLegacy, memberTabFromSection, memberTabPath, type MemberTab } from '../../constants/dashboardRoutes';
+import { useCachedResource } from '../../hooks/useCachedResource';
 import { useStore } from '../../store/useStore';
 import { AccessCard } from '../../components/AccessCard';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
@@ -76,9 +77,15 @@ export default function UserDashboard() {
   const [projectDescription, setProjectDescription] = useState('');
   const [projectProjType, setProjectProjType] = useState('');
   const [projectSubmitStatus, setProjectSubmitStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [mySubmissions, setMySubmissions] = useState<ProjectSubmission[]>([]);
-  const [mySubmissionsLoading, setMySubmissionsLoading] = useState(false);
-  const [mySubmissionsError, setMySubmissionsError] = useState<string>('');
+  // Cached across tabs: coming back from Overview shows these at once and refreshes underneath,
+  // instead of clearing the list and flashing a skeleton.
+  const submissionsRes = useCachedResource(
+    currentUser?.uid ? `my-submissions:${currentUser.uid}` : null,
+    async () => (await getMyProjectSubmissions(0, 50)).submissions,
+  );
+  const mySubmissions = useMemo(() => submissionsRes.data ?? [], [submissionsRes.data]);
+  const mySubmissionsLoading = submissionsRes.loadingFirst;
+  const mySubmissionsError = submissionsRes.error;
   const [showAllSkills, setShowAllSkills] = useState(false);
   // Below lg the post/submit forms are bottom sheets opened from a floating button.
   const compactForms = useCompactLayout();
@@ -90,9 +97,14 @@ export default function UserDashboard() {
   const [volunteerRolesNeeded, setVolunteerRolesNeeded] = useState('');
   const [volunteerContact, setVolunteerContact] = useState('');
   const [volunteerSubmitStatus, setVolunteerSubmitStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [volunteerCalls, setVolunteerCalls] = useState<VolunteerCall[]>([]);
-  const [volunteerCallsLoading, setVolunteerCallsLoading] = useState(false);
-  const [volunteerCallsError, setVolunteerCallsError] = useState('');
+  const callsRes = useCachedResource(
+    currentUser?.uid ? `volunteer-calls:${currentUser.uid}` : null,
+    async () => (await getVolunteerCalls()).calls,
+    { pollMs: 60_000 },
+  );
+  const volunteerCalls = useMemo(() => callsRes.data ?? [], [callsRes.data]);
+  const volunteerCallsLoading = callsRes.loadingFirst;
+  const volunteerCallsError = callsRes.error;
   const [isRedirecting, setIsRedirecting] = useState(false);
 
   const resetVolunteerForm = () => {
@@ -143,7 +155,14 @@ export default function UserDashboard() {
   const [projectStage, setProjectStage] = useState<ProjectStage | ''>('');
   const [projectOwnerType, setProjectOwnerType] = useState<'member' | 'org'>('member');
   const [projectOwnerName, setProjectOwnerName] = useState('');
-  const [myTeams, setMyTeams] = useState<{ teams: MyTeam[]; pendingForMe: number } | null>(null);
+  const teamsRes = useCachedResource(
+    currentUser?.uid ? `my-teams:${currentUser.uid}` : null,
+    async () => { const r = await getMyTeams(); return { teams: r.teams, pendingForMe: r.pendingForMe }; },
+  );
+  const myTeams: { teams: MyTeam[]; pendingForMe: number } | null = teamsRes.data ?? null;
+  const setMyTeams = (next: { teams: MyTeam[]; pendingForMe: number } | null) => {
+    if (next) teamsRes.patch(() => next); else teamsRes.refresh();
+  };
   const [openInterests, setOpenInterests] = useState<string | null>(null);
   const [projectChatUrl, setProjectChatUrl] = useState('');
 
@@ -479,45 +498,9 @@ export default function UserDashboard() {
     };
   }, []);
 
-  const loadMySubmissions = async (showLoading = true) => {
-    if (showLoading) setMySubmissionsLoading(true);
-    setMySubmissionsError('');
-    try {
-      const { submissions } = await getMyProjectSubmissions(0, 50);
-      setMySubmissions(submissions);
-    } catch (err: any) {
-      const message = err instanceof Error ? err.message : typeof err?.message === 'string' ? err.message : 'Failed to load submissions';
-      setMySubmissionsError(message);
-    } finally {
-      if (showLoading) setMySubmissionsLoading(false);
-    }
-  };
-
-  const loadVolunteerCalls = async (showLoading = true) => {
-    if (showLoading) setVolunteerCallsLoading(true);
-    setVolunteerCallsError('');
-    try {
-      const { calls } = await getVolunteerCalls();
-      setVolunteerCalls(calls);
-    } catch (err: any) {
-      const message = err instanceof Error ? err.message : typeof err?.message === 'string' ? err.message : 'Failed to load volunteer calls';
-      setVolunteerCallsError(message);
-    } finally {
-      if (showLoading) setVolunteerCallsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (activeTab === 'submit-project') {
-      loadMySubmissions(true);
-    } else if (activeTab === 'dashboard') {
-      loadMySubmissions(false);
-      loadVolunteerCalls(false);
-      getMyTeams().then((r) => setMyTeams({ teams: r.teams, pendingForMe: r.pendingForMe })).catch(() => setMyTeams(null));
-    } else if (activeTab === 'volunteer') {
-      loadVolunteerCalls(true);
-    }
-  }, [activeTab]);
+  // The cache fetches on first use and refreshes when stale, so tabs no longer reload on arrival.
+  const loadMySubmissions = (_showLoading = true) => { void _showLoading; submissionsRes.refresh(); };
+  const loadVolunteerCalls = (_showLoading = true) => { void _showLoading; callsRes.refresh(); };
 
   useEffect(() => {
     if (!currentUser) return;
@@ -1626,7 +1609,7 @@ export default function UserDashboard() {
                                 isOwner={false}
                                 compact
                                 returnPath={`/opportunities?call=${encodeURIComponent(c.id)}`}
-                                onChanged={(st) => setVolunteerCalls((list) => list.map((x) => (x.id === c.id ? { ...x, myInterest: st } : x)))}
+                                onChanged={(st) => callsRes.patch((list) => list.map((x) => (x.id === c.id ? { ...x, myInterest: st } : x)))}
                               />
                               <CallContact call={c} />
                             </div>
