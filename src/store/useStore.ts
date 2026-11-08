@@ -9,7 +9,7 @@ interface AuthState {
   register: (user: Omit<User, 'id' | 'uid' | 'status' | 'isAdmin' | 'createdAt' | 'updatedAt'> & { authProvider?: 'traditional' | 'google' }) => Promise<{ success: boolean; message: string }>;
   login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
-  updateUserStatus: (id: string, status: ApplicationStatus, notes?: string) => Promise<{ success: boolean; message?: string }>;
+  updateUserStatus: (id: string, status: ApplicationStatus, notes?: string) => Promise<{ success: boolean; message?: string; memberId?: string }>;
   generateMemberId: (userId: string) => void;
   setUsers: (users: User[]) => void;
   setCurrentUser: (user: User | null) => void;
@@ -166,7 +166,7 @@ export const useStore = create<AuthState>()((set, get) => ({
               currentUser: updatedCurrentUser,
             };
           });
-          return { success: true };
+          return { success: true, memberId: generatedMemberId || undefined };
         } catch (err: any) {
           return { success: false, message: err.message };
         }

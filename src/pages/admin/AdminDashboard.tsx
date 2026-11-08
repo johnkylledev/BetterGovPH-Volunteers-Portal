@@ -7,6 +7,7 @@ import { AdminRoles } from '../../components/admin/AdminRoles';
 import { can, hasAdminAccess, isSuperAdmin, type AdminPermission } from '../../utils/adminAccess';
 import { useAdminMembers } from '../../hooks/useAdminMembers';
 import { useCachedResource } from '../../hooks/useCachedResource';
+import { toast } from 'sonner';
 import { NotificationBell } from '../../components/NotificationBell';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { adminTabFromSection, adminTabPath, type AdminTab } from '../../constants/dashboardRoutes';
@@ -221,14 +222,14 @@ export default function AdminDashboard() {
       navigate('/login', { replace: true });
     } catch (err) {
       console.error('Logout failed:', err);
-      alert('Logout failed. Please try again.');
+      toast.error('Couldn’t sign you out', { description: 'Please try again.' });
     }
   }, [logout, navigate]);
 
   const handleStatusUpdate = async (userId: string, status: ApplicationStatus) => {
     const user = memberList.rows.find((u) => u.id === userId || u.uid === userId);
     if (user && user.status === 'Approved' && status !== 'Approved') {
-      alert('Cannot change status of an already approved member.');
+      toast.error('That member is already approved', { description: 'Their status can’t be changed back here.' });
       return;
     }
 
@@ -237,21 +238,40 @@ export default function AdminDashboard() {
       if (!confirmApproval) return;
     }
 
+    const name = user?.fullName || 'The applicant';
     try {
       const res = await updateUserStatus(userId, status, adminNote);
 
-      if (res && (res as any).success) {
+      if (res?.success) {
         setSelectedUser(null);
         setAdminNote('');
-        // The decided row updates where it stands; a delta sync fills in anything else (member ID).
-        memberList.patchRow(userId, { status, adminNotes: adminNote || undefined });
+        // The decided row moves lists straight away: out of Applications, into Members.
+        if (user) {
+          memberList.applyRowChange({
+            ...user,
+            status,
+            adminNotes: adminNote || user.adminNotes,
+            memberId: res.memberId || user.memberId,
+          });
+        }
+        const memberId = res.memberId || user?.memberId;
+        if (status === 'Approved') {
+          toast.success(`${name} is now a member`, {
+            description: memberId ? `Member ID ${memberId}. Their Volunteer Card is live.` : 'Their Volunteer Card is live.',
+          });
+        } else {
+          toast.success(`${name}’s application was declined`, {
+            description: adminNote ? 'They’ll see your note on their dashboard.' : 'They can see the decision on their dashboard.',
+          });
+        }
+        // Reconcile totals and anything the server changed alongside the decision.
         memberList.sync();
         loadStats();
       } else {
-        alert(`Failed to update database: ${(res as any)?.message || 'Unknown error'}. Please check if the user exists in Supabase.`);
+        toast.error('Couldn’t save that decision', { description: res?.message || 'Please try again.' });
       }
-    } catch (error: any) {
-      alert(`Error: ${error.message || 'Failed to update user status'}`);
+    } catch (error) {
+      toast.error('Couldn’t save that decision', { description: error instanceof Error ? error.message : 'Please try again.' });
     }
   };
 
@@ -295,7 +315,7 @@ export default function AdminDashboard() {
       }))), 'Consent log');
       XLSX.writeFile(wb, `BetterGovPH_ROPA_${version}_${new Date().toISOString().slice(0, 10)}.xlsx`);
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Could not export privacy records.');
+      toast.error('Couldn’t export the privacy records', { description: error instanceof Error ? error.message : 'Please try again.' });
     } finally {
       setRopaBusy(false);
     }
@@ -315,7 +335,7 @@ export default function AdminDashboard() {
   const handleEditSave = async () => {
     if (!editingSubmission) return;
     if (!editForm.projectName.trim() || !editForm.projectUrl.trim() || !editForm.description.trim()) {
-      alert('Project name, URL, and description are required.');
+      toast.error('Fill in the project first', { description: 'Name, link and description are all required.' });
       return;
     }
     setEditSaving(true);
@@ -330,7 +350,7 @@ export default function AdminDashboard() {
       setEditingSubmission(null);
       await loadProjectSubmissions();
     } catch {
-      alert('Failed to update project submission.');
+      toast.error('Couldn’t save that project', { description: 'Please try again.' });
     } finally {
       setEditSaving(false);
     }
@@ -348,7 +368,7 @@ export default function AdminDashboard() {
       await loadProjectSubmissions();
       await loadStats();
     } catch {
-      alert('Failed to delete project submission.');
+      toast.error('Couldn’t delete that project', { description: 'Please try again.' });
     } finally {
       setProjectActionLoadingId(null);
     }
@@ -1524,7 +1544,7 @@ export default function AdminDashboard() {
                         setImportText('');
                         await loadProjectSubmissions();
                       } catch (error) {
-                        alert(error instanceof Error ? error.message : 'Import failed.');
+                        toast.error('Import failed', { description: error instanceof Error ? error.message : 'Please try again.' });
                       } finally {
                         setImportBusy(false);
                       }

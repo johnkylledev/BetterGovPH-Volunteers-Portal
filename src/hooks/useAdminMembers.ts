@@ -175,6 +175,27 @@ export function useAdminMembers(filters: MemberListFilters, enabled: boolean) {
     if (touched) bump();
   }, [cache, bump]);
 
+  /**
+   * A decided row moves: it leaves the lists it no longer belongs to (an approved application
+   * leaves Applications) and joins the ones it now matches (it appears in Members), straight away
+   * rather than on the next sync.
+   */
+  const applyRowChange = useCallback((row: User) => {
+    const text = `${row.fullName ?? ''} ${row.email ?? ''} ${row.discordUsername ?? ''} ${row.memberId ?? ''}`.toLowerCase();
+    cache.forEach((list, k) => {
+      const [status, role, search] = k.split('|');
+      const matches =
+        (status === 'All' || String(row.status ?? '').toLowerCase() === status.toLowerCase()) &&
+        (role === 'All' || String(row.specialization ?? '') === role) &&
+        (!search || text.includes(search));
+      const has = list.rows.some((r) => r.uid === row.uid);
+      if (matches && has) cache.set(k, { ...list, rows: list.rows.map((r) => (r.uid === row.uid ? { ...r, ...row } : r)) });
+      else if (matches && !has) cache.set(k, { ...list, rows: sortRows([row, ...list.rows]), total: list.total + 1 });
+      else if (!matches && has) cache.set(k, { ...list, rows: list.rows.filter((r) => r.uid !== row.uid), total: Math.max(0, list.total - 1) });
+    });
+    bump();
+  }, [cache, bump]);
+
   /** Drop a row (an erased account) from every cached list. */
   const removeRow = useCallback((uid: string) => {
     cache.forEach((list, k) => {
@@ -198,6 +219,7 @@ export function useAdminMembers(filters: MemberListFilters, enabled: boolean) {
     refresh: () => load(key, state ? 'refresh' : 'first'),
     sync,
     patchRow,
+    applyRowChange,
     removeRow,
-  }), [state, busy, error, loadMore, load, key, sync, patchRow, removeRow]);
+  }), [state, busy, error, loadMore, load, key, sync, patchRow, applyRowChange, removeRow]);
 }

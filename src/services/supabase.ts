@@ -906,7 +906,7 @@ export interface AdminRoleRow {
   members: { uid: string; name: string; email: string; memberId: string | null }[];
 }
 export const getAdminRoles = async () =>
-  apiRequest<{ roles: AdminRoleRow[]; permissions: string[] }>('/api/v1/admin?resource=roles', { headers: await authHeaders() });
+  apiRequest<{ roles: AdminRoleRow[]; permissions: string[]; superAdmins?: { uid: string; name: string; email: string; memberId: string | null }[] }>('/api/v1/admin?resource=roles', { headers: await authHeaders() });
 export const saveAdminRole = async (role: { id?: string; name: string; description: string; permissions: string[] }) =>
   apiRequest<{ ok: boolean; id: string }>('/api/v1/admin?resource=roles', {
     method: 'POST', headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
@@ -917,6 +917,13 @@ export const deleteAdminRole = async (id: string) =>
     method: 'POST', headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: 'delete', id }),
   });
+/** Promote or demote a super admin. The server refuses anyone who isn't already one. */
+export const setSuperAdmin = async (uid: string, isAdmin: boolean) =>
+  apiRequest<{ memberId: string | null }>('/api/v1/admin?resource=user-status', {
+    method: 'POST', headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uid, isAdmin }),
+  });
+
 export const assignAdminRole = async (uid: string, roleId: string | null) =>
   apiRequest<{ ok: boolean; roleName: string | null }>('/api/v1/admin?resource=assign-role', {
     method: 'POST', headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },

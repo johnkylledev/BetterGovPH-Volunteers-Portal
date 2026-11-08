@@ -1,24 +1,27 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import clsx from 'clsx';
-import { Plus, Search, Trash2, UserMinus, X } from 'lucide-react';
+import { Plus, Search, ShieldCheck, Trash2, UserMinus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { User } from '../../types';
-import { assignAdminRole, deleteAdminRole, getAdminRoles, getAllUsers, saveAdminRole, type AdminRoleRow } from '../../services/supabase';
+import {
+  assignAdminRole, deleteAdminRole, getAdminRoles, getAllUsers, saveAdminRole, setSuperAdmin, type AdminRoleRow,
+} from '../../services/supabase';
 import { ADMIN_PERMISSIONS, ROLE_PRESETS } from '../../utils/adminAccess';
+import { useStore } from '../../store/useStore';
 
 type Draft = { id?: string; name: string; description: string; permissions: string[] };
+type Holder = { uid: string; name: string; email: string; memberId: string | null };
+
 const EMPTY: Draft = { name: '', description: '', permissions: [] };
 const label = (p: string) => ADMIN_PERMISSIONS.find((x) => x.id === p)?.label ?? p;
+/** Super admin holds every permission, plus the one that can never be granted to a role. */
+const SUPER_PERMISSIONS = [...ADMIN_PERMISSIONS.map((p) => p.label), 'Manage roles'];
 
-/** Create a role with the permission boxes it needs, then add members who should hold it. */
+/** Create a role with the permission boxes it needs, then add the people who should hold it. */
 const RoleEditor: React.FC<{ draft: Draft; busy: boolean; onChange: (d: Draft) => void; onSave: () => void; onCancel: () => void }> = ({ draft, busy, onChange, onSave, onCancel }) => {
   const toggle = (p: string) => onChange({ ...draft, permissions: draft.permissions.includes(p) ? draft.permissions.filter((x) => x !== p) : [...draft.permissions, p] });
   return (
-    <form
-      className="s-card space-y-5 p-5 sm:p-6"
-      onSubmit={(e) => { e.preventDefault(); onSave(); }}
-      aria-label={draft.id ? `Edit ${draft.name}` : 'New role'}
-    >
+    <form className="s-card space-y-5 p-5 sm:p-6" onSubmit={(e) => { e.preventDefault(); onSave(); }} aria-label={draft.id ? `Edit ${draft.name}` : 'New role'}>
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-[16px] font-semibold">{draft.id ? `Edit ${draft.name || 'role'}` : 'New role'}</h3>
         <button type="button" aria-label="Close" onClick={onCancel} className="-mr-2 flex h-9 w-9 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700"><X size={17} strokeWidth={1.75} /></button>
@@ -75,41 +78,43 @@ const RoleEditor: React.FC<{ draft: Draft; busy: boolean; onChange: (d: Draft) =
   );
 };
 
-/** Search approved members and give them this role. */
-const AddMember: React.FC<{ role: AdminRoleRow; onAdded: () => void }> = ({ role, onAdded }) => {
+/** Search approved members and give one of them this role. */
+const AddMember: React.FC<{
+  inputId: string; placeholder: string; exclude: Set<string>;
+  confirmLabel?: (u: User) => string;
+  onAdd: (u: User) => Promise<void>;
+}> = ({ inputId, placeholder, exclude, confirmLabel, onAdd }) => {
   const [q, setQ] = useState('');
   const [results, setResults] = useState<User[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
+
   useEffect(() => {
     const term = q.trim();
     if (term.length < 2) { setResults([]); return; }
     const t = window.setTimeout(() => {
       getAllUsers(0, 6, { search: term, status: 'Approved' })
-        .then((r) => setResults((r.users ?? []).filter((u) => !u.isAdmin && u.adminRoleId !== role.id)))
+        .then((r) => setResults((r.users ?? []).filter((u) => !exclude.has(u.uid))))
         .catch(() => setResults([]));
     }, 250);
     return () => window.clearTimeout(t);
-  }, [q, role.id]);
+  }, [q, exclude]);
 
   const add = async (u: User) => {
+    if (confirmLabel && !window.confirm(confirmLabel(u))) return;
     setBusy(u.uid);
-    try {
-      await assignAdminRole(u.uid, role.id);
-      toast.success(`${u.fullName} now has the ${role.name} role`);
-      setQ(''); setResults([]); onAdded();
-    } catch (err) { toast.error(err instanceof Error ? err.message : 'Couldn’t add that member'); }
+    try { await onAdd(u); setQ(''); setResults([]); }
     finally { setBusy(null); }
   };
 
   return (
     <div className="mt-3">
-      <label htmlFor={`add-${role.id}`} className="sr-only">Add a member to {role.name}</label>
+      <label htmlFor={inputId} className="sr-only">{placeholder}</label>
       <div className="relative">
         <Search size={15} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden />
-        <input id={`add-${role.id}`} className="s-field pl-9" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Add a member: search name or email" autoComplete="off" />
+        <input id={inputId} className="s-field pl-9" value={q} onChange={(e) => setQ(e.target.value)} placeholder={placeholder} autoComplete="off" />
       </div>
       {results.length > 0 && (
-        <ul className="mt-1.5 overflow-hidden rounded-[10px] bg-white shadow-[0_0_0_1px_rgb(15_23_42/0.1),0_8px_20px_-10px_rgb(15_23_42/0.25)]">
+        <ul className="mt-1.5 max-h-56 overflow-y-auto thin-scroll rounded-[10px] bg-white shadow-[0_0_0_1px_rgb(15_23_42/0.1),0_8px_20px_-10px_rgb(15_23_42/0.25)]">
           {results.map((u) => (
             <li key={u.uid}>
               <button type="button" disabled={!!busy} onClick={() => add(u)} className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-slate-50">
@@ -127,16 +132,74 @@ const AddMember: React.FC<{ role: AdminRoleRow; onAdded: () => void }> = ({ role
   );
 };
 
+/**
+ * One card per role, built-in or custom, so Super admin reads the same way as Legal:
+ * name, what it's for, its permissions, then who holds it and a search to add someone.
+ * The member list scrolls once there are more than a handful, so a long list can't swamp the page.
+ */
+const RoleCard: React.FC<{
+  title: React.ReactNode; description: string; permissions: string[]; members: Holder[];
+  badge?: string; actions?: React.ReactNode; footnote?: string;
+  onRemove: (m: Holder) => void; removeLabel: (m: Holder) => string;
+  add: React.ReactNode;
+}> = ({ title, description, permissions, members, badge, actions, footnote, onRemove, removeLabel, add }) => (
+  <section className="s-card flex flex-col p-5" aria-label={typeof title === 'string' ? title : undefined}>
+    <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <h3 className="flex items-center gap-2 text-[16px] font-semibold text-slate-900">{title}</h3>
+        {description && <p className="mt-0.5 text-[13px] text-slate-500">{description}</p>}
+      </div>
+      <div className="flex shrink-0 items-center gap-1">
+        {badge && <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[12px] font-medium text-slate-600">{badge}</span>}
+        {actions}
+      </div>
+    </div>
+
+    <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Permissions">
+      {permissions.map((p) => <li key={p} className="rounded-full bg-slate-100 px-2.5 py-1 text-[12px] text-slate-700">{p}</li>)}
+    </ul>
+
+    <div className="mt-4 border-t border-slate-100 pt-3">
+      <p className="text-[12.5px] font-medium text-slate-500">
+        {members.length ? `${members.length} ${members.length === 1 ? 'person' : 'people'}` : 'Nobody has this yet'}
+      </p>
+      {members.length > 0 && (
+        <ul className={clsx('mt-2 divide-y divide-slate-100', members.length > 5 && 'thin-scroll max-h-60 overflow-y-auto')}>
+          {members.map((m) => (
+            <li key={m.uid} className="flex items-center justify-between gap-3 py-2">
+              <span className="min-w-0">
+                <span className="block truncate text-[13.5px] font-medium text-slate-900">{m.name}</span>
+                <span className="block truncate text-[12px] text-slate-500">{m.email}</span>
+              </span>
+              <button type="button" onClick={() => onRemove(m)} aria-label={removeLabel(m)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+                <UserMinus size={15} strokeWidth={1.75} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {add}
+      {footnote && <p className="mt-2.5 text-[12px] text-slate-400">{footnote}</p>}
+    </div>
+  </section>
+);
+
 export const AdminRoles: React.FC = () => {
+  const me = useStore((s) => s.currentUser);
   const [roles, setRoles] = useState<AdminRoleRow[] | null>(null);
+  const [superAdmins, setSuperAdmins] = useState<Holder[]>([]);
   const [error, setError] = useState('');
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    try { setRoles((await getAdminRoles()).roles); setError(''); }
-    catch (err) { setError(err instanceof Error ? err.message : 'Couldn’t load roles'); }
+    try {
+      const r = await getAdminRoles();
+      setRoles(r.roles);
+      setSuperAdmins(r.superAdmins ?? []);
+      setError('');
+    } catch (err) { setError(err instanceof Error ? err.message : 'Couldn’t load roles'); }
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -145,18 +208,33 @@ export const AdminRoles: React.FC = () => {
     setSaving(true);
     try {
       await saveAdminRole({ id: draft.id, name: draft.name.trim(), description: draft.description.trim(), permissions: draft.permissions });
-      toast.success(draft.id ? 'Role updated' : 'Role created');
+      toast.success(draft.id ? 'Role updated' : `${draft.name.trim()} created`);
       setDraft(null); load();
-    } catch (err) { toast.error(err instanceof Error ? err.message : 'Couldn’t save the role'); }
+    } catch (err) { toast.error('Couldn’t save the role', { description: err instanceof Error ? err.message : undefined }); }
     finally { setSaving(false); }
   };
   const remove = async (role: AdminRoleRow) => {
     try { await deleteAdminRole(role.id); toast.success(`${role.name} deleted`); setConfirmDelete(null); load(); }
-    catch (err) { toast.error(err instanceof Error ? err.message : 'Couldn’t delete the role'); }
+    catch (err) { toast.error('Couldn’t delete the role', { description: err instanceof Error ? err.message : undefined }); }
   };
-  const unassign = async (role: AdminRoleRow, m: AdminRoleRow['members'][number]) => {
+  const unassign = async (role: AdminRoleRow, m: Holder) => {
     try { await assignAdminRole(m.uid, null); toast.success(`${m.name} no longer has the ${role.name} role`); load(); }
-    catch (err) { toast.error(err instanceof Error ? err.message : 'Couldn’t remove the role'); }
+    catch (err) { toast.error('Couldn’t remove the role', { description: err instanceof Error ? err.message : undefined }); }
+  };
+
+  const addSuper = async (u: User) => {
+    try {
+      await setSuperAdmin(u.uid, true);
+      toast.success(`${u.fullName} is now a super admin`, { description: 'They can do everything, including managing roles.' });
+      load();
+    } catch (err) { toast.error('Couldn’t make them a super admin', { description: err instanceof Error ? err.message : undefined }); }
+  };
+  const removeSuper = async (m: Holder) => {
+    if (m.uid === me?.uid) { toast.error('You can’t remove your own super admin rights'); return; }
+    if (superAdmins.length <= 1) { toast.error('Keep at least one super admin', { description: 'Add another one first.' }); return; }
+    if (!window.confirm(`Remove super admin from ${m.name}? They lose every admin tool unless you give them a role.`)) return;
+    try { await setSuperAdmin(m.uid, false); toast.success(`${m.name} is no longer a super admin`); load(); }
+    catch (err) { toast.error('Couldn’t change that', { description: err instanceof Error ? err.message : undefined }); }
   };
 
   if (error) {
@@ -168,6 +246,8 @@ export const AdminRoles: React.FC = () => {
       </div>
     );
   }
+
+  const superIds = new Set(superAdmins.map((m) => m.uid));
 
   return (
     <div className="space-y-5">
@@ -182,61 +262,72 @@ export const AdminRoles: React.FC = () => {
 
       {draft && <RoleEditor draft={draft} busy={saving} onChange={setDraft} onSave={save} onCancel={() => setDraft(null)} />}
 
-      {!roles ? (
-        <div className="grid gap-4 md:grid-cols-2" aria-busy="true">{[0, 1].map((i) => <div key={i} className="s-card h-40" />)}</div>
-      ) : roles.length === 0 ? (
-        !draft && (
-          <div className="s-card px-6 py-10 text-center">
-            <p className="text-[15px] font-semibold">No roles yet</p>
-            <p className="mt-1 text-[14px] text-slate-500">Create one, for example Legal, then add the people who should hold it.</p>
-          </div>
-        )
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {roles.map((r) => (
-            <section key={r.id} className="s-card p-5" aria-labelledby={`role-${r.id}`}>
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 id={`role-${r.id}`} className="text-[16px] font-semibold text-slate-900">{r.name}</h3>
-                  {r.description && <p className="mt-0.5 text-[13px] text-slate-500">{r.description}</p>}
-                </div>
-                <div className="flex shrink-0 gap-1">
-                  <button type="button" onClick={() => setDraft({ id: r.id, name: r.name, description: r.description, permissions: [...r.permissions] })} className="s-btn s-btn-plain h-8 px-3 text-[13px]">Edit</button>
-                  <button type="button" aria-label={`Delete ${r.name}`} onClick={() => setConfirmDelete(r.id)} className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 size={15} strokeWidth={1.75} /></button>
-                </div>
-              </div>
-              <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Permissions">
-                {r.permissions.map((p) => <li key={p} className="rounded-full bg-slate-100 px-2.5 py-1 text-[12px] text-slate-700">{label(p)}</li>)}
-              </ul>
-              {confirmDelete === r.id && (
-                <div role="alert" className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-[10px] bg-red-50 px-3 py-2.5 text-[13px] text-red-800">
-                  <span>Delete {r.name}? {r.members.length ? `${r.members.length} ${r.members.length === 1 ? 'person loses' : 'people lose'} these tools at once.` : ''}</span>
-                  <span className="flex gap-1.5">
-                    <button type="button" onClick={() => setConfirmDelete(null)} className="s-btn s-btn-plain h-8 px-3 text-[12.5px]">Keep</button>
-                    <button type="button" onClick={() => remove(r)} className="s-btn h-8 bg-red-600 px-3 text-[12.5px] text-white hover:bg-red-700">Delete</button>
-                  </span>
-                </div>
-              )}
-              <div className="mt-4 border-t border-slate-100 pt-3">
-                <p className="text-[12.5px] font-medium text-slate-500">{r.members.length ? `${r.members.length} ${r.members.length === 1 ? 'person' : 'people'}` : 'Nobody has this role yet'}</p>
-                {r.members.length > 0 && (
-                  <ul className="mt-2 divide-y divide-slate-100">
-                    {r.members.map((m) => (
-                      <li key={m.uid} className="flex items-center justify-between gap-3 py-2">
-                        <span className="min-w-0">
-                          <span className="block truncate text-[13.5px] font-medium text-slate-900">{m.name}</span>
-                          <span className="block truncate text-[12px] text-slate-500">{m.email}</span>
-                        </span>
-                        <button type="button" onClick={() => unassign(r, m)} aria-label={`Remove ${m.name} from ${r.name}`} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700"><UserMinus size={15} strokeWidth={1.75} /></button>
-                      </li>
-                    ))}
-                  </ul>
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Super admin is built in rather than a row in the roles table, but it belongs here. */}
+        <RoleCard
+          title={<><ShieldCheck size={17} strokeWidth={2} className="shrink-0 text-[var(--accent)]" aria-hidden />Super admin</>}
+          description="Everything, including managing these roles and admin rights."
+          permissions={SUPER_PERMISSIONS}
+          members={superAdmins}
+          badge="Built in"
+          footnote="Built in, so its permissions can’t be edited. Always keep at least one."
+          onRemove={removeSuper}
+          removeLabel={(m) => `Remove super admin from ${m.name}`}
+          add={
+            <AddMember
+              inputId="add-super-admin"
+              placeholder="Make someone a super admin: search name or email"
+              exclude={superIds}
+              confirmLabel={(u) => `Make ${u.fullName} a super admin? They will be able to do everything, including managing roles and admin rights.`}
+              onAdd={addSuper}
+            />
+          }
+        />
+
+        {(roles ?? []).map((r) => (
+          <RoleCard
+            key={r.id}
+            title={r.name}
+            description={r.description}
+            permissions={r.permissions.map(label)}
+            members={r.members}
+            onRemove={(m) => unassign(r, m)}
+            removeLabel={(m) => `Remove ${m.name} from ${r.name}`}
+            actions={
+              <>
+                <button type="button" onClick={() => setDraft({ id: r.id, name: r.name, description: r.description, permissions: [...r.permissions] })} className="s-btn s-btn-plain h-8 px-3 text-[13px]">Edit</button>
+                <button type="button" aria-label={`Delete ${r.name}`} onClick={() => setConfirmDelete(r.id)} className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 size={15} strokeWidth={1.75} /></button>
+              </>
+            }
+            footnote={confirmDelete === r.id ? undefined : ''}
+            add={
+              <>
+                {confirmDelete === r.id && (
+                  <div role="alert" className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-[10px] bg-red-50 px-3 py-2.5 text-[13px] text-red-800">
+                    <span>Delete {r.name}? {r.members.length ? `${r.members.length} ${r.members.length === 1 ? 'person loses' : 'people lose'} these tools at once.` : ''}</span>
+                    <span className="flex gap-1.5">
+                      <button type="button" onClick={() => setConfirmDelete(null)} className="s-btn s-btn-plain h-8 px-3 text-[12.5px]">Keep</button>
+                      <button type="button" onClick={() => remove(r)} className="s-btn h-8 bg-red-600 px-3 text-[12.5px] text-white hover:bg-red-700">Delete</button>
+                    </span>
+                  </div>
                 )}
-                <AddMember role={r} onAdded={load} />
-              </div>
-            </section>
-          ))}
-        </div>
+                <AddMember
+                  inputId={`add-${r.id}`}
+                  placeholder={`Add a member to ${r.name}`}
+                  exclude={new Set([...superIds, ...r.members.map((m) => m.uid)])}
+                  onAdd={async (u) => {
+                    try { await assignAdminRole(u.uid, r.id); toast.success(`${u.fullName} now has the ${r.name} role`); load(); }
+                    catch (err) { toast.error('Couldn’t add that member', { description: err instanceof Error ? err.message : undefined }); }
+                  }}
+                />
+              </>
+            }
+          />
+        ))}
+      </div>
+
+      {roles && roles.length === 0 && !draft && (
+        <p className="text-[13px] text-slate-500">No custom roles yet. Create one, for example Legal, then add the people who should hold it.</p>
       )}
     </div>
   );

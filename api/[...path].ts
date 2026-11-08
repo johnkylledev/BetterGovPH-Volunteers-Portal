@@ -2239,6 +2239,11 @@ const handler_admin: H = async (req, res) => {
     if (adminNotes !== undefined) updates.admin_notes = adminNotes;
     if (isAdmin !== undefined) {
       if (idUid === callerUid) { sendError(res, 403, 'Cannot modify your own admin status'); return; }
+      // Never let the last super admin be removed: that would lock everyone out of the admin tools.
+      if (isAdmin === false) {
+        const { count } = await adminSup.from('users').select('uid', { count: 'exact', head: true }).eq('is_admin', true);
+        if ((count ?? 0) <= 1) { sendError(res, 400, 'Keep at least one super admin. Add another one first.'); return; }
+      }
       updates.is_admin = isAdmin;
     }
     let memberId: string | undefined;
@@ -2479,13 +2484,16 @@ const handler_admin: H = async (req, res) => {
     if (!adminCheck.ok) { sendError(res, 403, 'Only super admins can manage roles.'); return; }
 
     if (req.method === 'GET') {
-      const [{ data: roles, error: rErr }, { data: holders }] = await Promise.all([
+      const [{ data: roles, error: rErr }, { data: holders }, { data: supers }] = await Promise.all([
         adminSup.from('admin_roles').select('id, name, description, permissions, created_at, updated_at').order('name', { ascending: true }),
         adminSup.from('users').select('uid, full_name, email, member_id, admin_role_id').not('admin_role_id', 'is', null).limit(500),
+        // Super admins aren't rows in admin_roles, but the Roles tab should still show who they are.
+        adminSup.from('users').select('uid, full_name, email, member_id').eq('is_admin', true).limit(100),
       ]);
       if (rErr) { sendError(res, 500, 'Couldn’t load roles'); return; }
       sendJson(res, 200, {
         permissions: ADMIN_PERMISSIONS,
+        superAdmins: (supers ?? []).map((u: any) => ({ uid: u.uid, name: u.full_name, email: u.email, memberId: u.member_id })),
         roles: (roles ?? []).map((r: any) => ({
           id: r.id, name: r.name, description: r.description ?? '', permissions: ((r.permissions as unknown[]) ?? []).filter(isAdminPermission),
           updatedAt: r.updated_at,
