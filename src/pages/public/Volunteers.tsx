@@ -44,10 +44,9 @@ const VolunteerCard: React.FC<{ v: Volunteer }> = ({ v }) => {
             <span className="truncate">{v.name}</span>
             <VerifiedIcon size={15} className="shrink-0 text-[var(--accent)]" aria-label="Verified member" />
           </p>
-          <p className="truncate text-[13px] text-[var(--fg-3)]">
+          <p className="text-[13px] leading-snug text-[var(--fg-3)] line-clamp-2">
             {v.role || 'Volunteer'}
             {v.secondaryRole ? <> · {v.secondaryRole}</> : null}
-            {v.yearJoined ? <span className="num"> · since {v.yearJoined}</span> : null}
           </p>
         </div>
       </div>
@@ -68,7 +67,10 @@ const VolunteerCard: React.FC<{ v: Volunteer }> = ({ v }) => {
 
       <div className="flex-1" />
       <div className="mt-4 flex items-center justify-between gap-3 border-t border-[var(--line)] pt-3.5">
-        <span className="num truncate font-mono text-[12px] text-[var(--fg-3)]">{v.memberId}</span>
+        <span className="num min-w-0 truncate font-mono text-[12px] text-[var(--fg-3)]">
+          {v.memberId}
+          {v.yearJoined ? <span className="font-sans"> · since {v.yearJoined}</span> : null}
+        </span>
         <Link
           to={`/verify/${encodeURIComponent(v.memberId)}`}
           className="group inline-flex shrink-0 items-center gap-1 text-[13px] font-medium text-[var(--accent)]"
