@@ -99,6 +99,8 @@ export interface User {
   adminRoleId?: string | null;
   /** The admin role this person holds: "Super admin" or a custom role's name. */
   adminRoleName?: string;
+  /** Profile picture from the sign-in provider (Google or GitHub). */
+  photoUrl?: string;
   adminPermissions?: string[];
   authProvider?: 'traditional' | 'google' | 'github';
   yearJoined?: number;

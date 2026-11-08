@@ -2057,17 +2057,40 @@ const mapSubmissionRow = (row: any, submittedBy?: { fullName: string; email: str
   ...projectExtrasOf(row),
 });
 
+/**
+ * The sign-in provider's current profile picture for each uid, read live from the auth record
+ * (Google's avatar_url/picture, GitHub's). Nothing is copied into our own tables, so when someone
+ * changes their picture, the next page load shows the new one.
+ */
+const providerPhotos = async (adminSup: any, uids: string[]): Promise<Map<string, string>> => {
+  const out = new Map<string, string>();
+  if (!uids.length) return out;
+  try {
+    const { data, error } = await adminSup.rpc('provider_photos', { p_uids: uids });
+    if (error || !Array.isArray(data)) return out;
+    for (const row of data) {
+      const url = safeHttpUrl(String(row?.photo_url ?? '').trim());
+      if (row?.uid && url && url.startsWith('https://')) out.set(String(row.uid), url);
+    }
+  } catch { /* the avatar falls back to initials */ }
+  return out;
+};
+
 /** Adds the admin role each row holds ("Super admin", or the custom role's name) to a user list. */
 const withRoleNames = async (adminSup: any, rows: any[]) => {
   const roleIds = Array.from(new Set(rows.map((r) => r.admin_role_id).filter(Boolean)));
-  let names = new Map<string, string>();
-  if (roleIds.length) {
-    const { data } = await adminSup.from('admin_roles').select('id, name').in('id', roleIds);
-    names = new Map((data ?? []).map((r: any) => [String(r.id), String(r.name)]));
-  }
+  const [names, photos] = await Promise.all([
+    (async () => {
+      if (!roleIds.length) return new Map<string, string>();
+      const { data } = await adminSup.from('admin_roles').select('id, name').in('id', roleIds);
+      return new Map((data ?? []).map((r: any) => [String(r.id), String(r.name)]));
+    })(),
+    providerPhotos(adminSup, rows.map((r) => String(r.uid))),
+  ]);
   return rows.map((r) => ({
     ...mapUserRow(r),
     adminRoleName: r.is_admin ? 'Super admin' : (r.admin_role_id ? names.get(String(r.admin_role_id)) ?? 'Admin role' : undefined),
+    photoUrl: photos.get(String(r.uid)),
   }));
 };
 
