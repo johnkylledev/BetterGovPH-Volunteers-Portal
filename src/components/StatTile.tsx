@@ -25,7 +25,8 @@ export const StatTile: React.FC<StatTileProps> = ({ label, value, hint, icon: Ic
   <div className="s-card flex min-w-0 flex-col p-3.5 sm:p-5">
     <div className="flex items-center justify-between gap-2">
       <p className="truncate text-[13px] text-slate-500">{label}</p>
-      {Icon && <Icon size={16} strokeWidth={1.75} className="shrink-0 text-slate-400" aria-hidden />}
+      {/* The glyph is decoration; on a narrow three-up grid it was stealing the room the label needed. */}
+      {Icon && <Icon size={16} strokeWidth={1.75} className="hidden shrink-0 text-slate-400 sm:block" aria-hidden />}
     </div>
     <p className="num mt-1.5 text-[24px] font-semibold leading-none tracking-[-0.02em] text-slate-900 sm:text-[30px]">
       {loading ? <span className="inline-block h-[0.7em] w-10 rounded bg-slate-100 align-middle" aria-hidden /> : <Value value={value} />}

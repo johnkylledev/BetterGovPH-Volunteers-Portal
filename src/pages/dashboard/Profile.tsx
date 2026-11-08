@@ -300,9 +300,12 @@ export default function Profile() {
             size={64}
           />
           <div className="min-w-0">
-            <h1 className="flex items-center gap-2 text-[28px] sm:text-[36px]">
-              <span className="truncate">{currentUser.fullName || 'Your profile'}</span>
-              {verified && <VerifiedIcon size={24} className="shrink-0 text-[var(--accent)]" aria-label="Verified" />}
+            {/* The name wraps rather than truncating: on a phone a long name was cut mid-word. */}
+            <h1 className="text-[24px] leading-tight sm:text-[36px] [overflow-wrap:anywhere]">
+              {currentUser.fullName || 'Your profile'}
+              {verified && (
+                <VerifiedIcon size={22} className="ml-2 inline-block shrink-0 align-middle text-[var(--accent)]" aria-label="Verified" />
+              )}
             </h1>
             <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[14px] text-slate-500">
               <span>{currentUser.isAdmin ? 'Administrator' : currentUser.specialization || currentUser.role || 'Member'}</span>
