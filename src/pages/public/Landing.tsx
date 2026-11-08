@@ -4,6 +4,8 @@ import { ArrowRight, ClipboardList, Clock, Hammer, Heart, LockOpen, Rocket, Sear
 import { VerifiedIcon } from '../../components/icons';
 import { motion, useReducedMotion } from 'framer-motion';
 import { AccessCard } from '../../components/AccessCard';
+import { CardCover } from '../../components/CardCover';
+import { CARDS_ENABLED } from '../../constants/features';
 import { User } from '../../types';
 import { SiteLayout } from '../../components/site/SiteLayout';
 import { Reveal } from '../../components/site/Reveal';
@@ -138,10 +140,12 @@ const Landing: React.FC = () => {
                 Join the Discord
               </a>
             </motion.div>
-            <motion.p {...enter(0.2)} className="mt-6 text-[14px] text-[var(--fg-3)]">
-              Already a member? Anyone can{' '}
-              <Link to="/verify" className="s-link">verify a card</Link>.
-            </motion.p>
+            {CARDS_ENABLED && (
+              <motion.p {...enter(0.2)} className="mt-6 text-[14px] text-[var(--fg-3)]">
+                Already a member? Anyone can{' '}
+                <Link to="/verify" className="s-link">verify a card</Link>.
+              </motion.p>
+            )}
           </div>
 
           <motion.figure
@@ -151,11 +155,21 @@ const Landing: React.FC = () => {
             className="mx-auto w-full min-w-0 max-w-[420px] lg:mr-0"
           >
             <div className="flex justify-center rounded-[22px] bg-[#eef1f5] px-4 py-8 sm:px-6 sm:py-10 shadow-[inset_0_1px_2px_rgb(15_23_42/0.06),inset_0_0_0_1px_rgb(15_23_42/0.04)] sm:py-12">
-              <AccessCard user={demoUser} isDemo />
+              {/* Even the demo is held back: a picture of the card is the thing that could be
+                  screenshotted and passed off as identification. */}
+              {CARDS_ENABLED ? (
+                <AccessCard user={demoUser} isDemo />
+              ) : (
+                <CardCover note="Members join the public directory in the meantime.">
+                  <AccessCard user={demoUser} isDemo />
+                </CardCover>
+              )}
             </div>
             <figcaption className="mt-4 px-1 text-[13px] leading-relaxed text-[var(--fg-3)]">
               <span className="font-medium text-[var(--fg)]">The Volunteer Card.</span>{' '}
-              Every approved member gets one. Its QR code opens a public page anyone can check.
+              {CARDS_ENABLED
+                ? 'Every approved member gets one. Its QR code opens a public page anyone can check.'
+                : 'Members are listed in the public directory while we finish it.'}
             </figcaption>
           </motion.figure>
         </div>
@@ -340,12 +354,24 @@ const Landing: React.FC = () => {
               <p className="flex items-start gap-3 text-[15px] text-[var(--fg-2)]">
                 <VerifiedIcon size={20} className="mt-0.5 shrink-0 text-[var(--accent)]" />
                 <span>
-                  <span className="font-semibold text-[var(--fg)]">Once approved, you get a Volunteer Card</span>
-                  {' '}with a member ID and a QR anyone can scan to verify you.
+                  {CARDS_ENABLED ? (
+                    <>
+                      <span className="font-semibold text-[var(--fg)]">Once approved, you get a Volunteer Card</span>
+                      {' '}with a member ID and a QR anyone can scan to verify you.
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-semibold text-[var(--fg)]">Once approved, you join the directory</span>
+                      {' '}alongside everyone else building BetterGovPH.
+                    </>
+                  )}
                 </span>
               </p>
-              <Link to="/verify" className="group inline-flex shrink-0 items-center gap-1.5 text-[14px] font-medium text-[var(--accent)]">
-                See how verification works
+              <Link
+                to={CARDS_ENABLED ? '/verify' : '/volunteers'}
+                className="group inline-flex shrink-0 items-center gap-1.5 text-[14px] font-medium text-[var(--accent)]"
+              >
+                {CARDS_ENABLED ? 'See how verification works' : 'See the volunteers'}
                 <ArrowRight size={14} strokeWidth={1.75} className="transition-transform duration-200 group-hover:translate-x-0.5" />
               </Link>
             </div>

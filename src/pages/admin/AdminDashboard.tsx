@@ -16,6 +16,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, CheckCircle2, XCircle, CreditCard, Copy, Code, Check, ChevronLeft, ChevronRight, Trash2, Inbox, FolderKanban, Clock, BadgeCheck } from 'lucide-react';
 import { DoneIcon } from '../../components/icons';
 import { AccessCard } from '../../components/AccessCard';
+import { CardCover } from '../../components/CardCover';
+import { CARDS_ENABLED } from '../../constants/features';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
 import clsx from 'clsx';
 import { StatTile } from '../../components/StatTile';
@@ -974,7 +976,7 @@ export default function AdminDashboard() {
                           <th className="p-4 font-semibold">Primary Role</th>
                           <th className="p-4 font-semibold">Community Role</th>
                           <th className="p-4 font-semibold">Member ID</th>
-                          <th className="p-4 pr-6 font-semibold text-right">Card Preview</th>
+                          <th className="p-4 pr-6 font-semibold text-right">{CARDS_ENABLED ? 'Card Preview' : 'Profile'}</th>
                         </tr>
                       </thead>
                       <tbody className={RWD_BODY}>
@@ -1009,7 +1011,9 @@ export default function AdminDashboard() {
                                 onClick={() => setSelectedMember(member)}
                                 className="s-btn s-btn-plain h-8 px-3 text-[13px]"
                               >
-                                View Card
+                                {/* With cards off this opens the profile, not a card — and says so,
+                                    so nobody goes looking for one that is covered. */}
+                                {CARDS_ENABLED ? 'View Card' : 'View profile'}
                               </button>
                             </td>
                           </motion.tr>
@@ -1237,9 +1241,15 @@ export default function AdminDashboard() {
                 </div>
                 <div className="overflow-y-auto flex-1 p-4 sm:p-8 flex flex-col items-center gap-6 no-scrollbar">
                   <div className="scale-[0.85] sm:scale-100 origin-top transition-transform">
-                    <AccessCard user={currentUser} />
+                    {/* Off for everyone, admins included: a shared screenshot misrepresents us
+                        just as easily as a member's own. */}
+                    {CARDS_ENABLED ? (
+                      <AccessCard user={currentUser} />
+                    ) : (
+                      <CardCover><AccessCard user={currentUser} isDemo /></CardCover>
+                    )}
                   </div>
-                  <div className="w-full pb-4">
+                  <div className={clsx('w-full pb-4', !CARDS_ENABLED && 'hidden')}>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                       <button
                         onClick={() => handleCopyLink(currentUser)}
@@ -1298,9 +1308,13 @@ export default function AdminDashboard() {
                   <div className="flex flex-col lg:grid lg:grid-cols-2 gap-10">
                     <div className="flex flex-col items-center gap-8">
                       <div className="scale-[0.85] sm:scale-100 origin-top transition-transform drop-shadow-[var(--e2)]">
-                        <AccessCard user={selectedMember} />
+                        {CARDS_ENABLED ? (
+                          <AccessCard user={selectedMember} />
+                        ) : (
+                          <CardCover><AccessCard user={selectedMember} isDemo /></CardCover>
+                        )}
                       </div>
-                      <div className="w-full max-w-[320px] sm:max-w-none">
+                      <div className={clsx('w-full max-w-[320px] sm:max-w-none', !CARDS_ENABLED && 'hidden')}>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                           <button
                             onClick={() => handleCopyLink(selectedMember)}

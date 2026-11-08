@@ -2,12 +2,15 @@ import { Link, useLocation } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { SiteLayout } from '../../components/site/SiteLayout';
 import { DISCORD_INVITE } from '../../components/site/links';
+import { CARDS_ENABLED } from '../../constants/features';
 
 const shortcuts = [
   { to: '/', label: 'Home', sub: 'What BetterGovPH Volunteers is about' },
   { to: '/projects', label: 'Projects', sub: 'Tools the community has shipped' },
   { to: '/contribute', label: 'Contribute', sub: 'Open roles and how we work' },
-  { to: '/verify', label: 'Verify a card', sub: 'Look up a Member ID' },
+  ...(CARDS_ENABLED
+    ? [{ to: '/verify', label: 'Verify a card', sub: 'Look up a Member ID' }]
+    : [{ to: '/volunteers', label: 'Volunteers', sub: 'The people building BetterGovPH' }]),
 ];
 
 export default function NotFound() {

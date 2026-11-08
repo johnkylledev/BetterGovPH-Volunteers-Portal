@@ -1,3 +1,4 @@
+import { CARDS_ENABLED } from '../../constants/features';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Navbar } from '../Navbar';
@@ -21,7 +22,8 @@ const footerColumns: { heading: string; links: { label: string; to: string; exte
       { label: 'Opportunities', to: '/opportunities' },
       { label: 'Volunteers', to: '/volunteers' },
       { label: 'Projects', to: '/projects' },
-      { label: 'Verify a card', to: '/verify' },
+      // Card verification is switched off; linking to it would only promise something we hide.
+      ...(CARDS_ENABLED ? [{ label: 'Verify a card', to: '/verify' }] : []),
     ],
   },
   {

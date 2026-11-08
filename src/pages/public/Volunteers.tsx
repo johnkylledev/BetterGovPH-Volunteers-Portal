@@ -7,6 +7,7 @@ import { VerifiedIcon } from '../../components/icons';
 import { SiteLayout, PageIntro } from '../../components/site/SiteLayout';
 import { SkillIcon } from '../../components/SkillIcon';
 import { useCachedResource } from '../../hooks/useCachedResource';
+import { CARDS_ENABLED } from '../../constants/features';
 
 interface Volunteer {
   name: string;
@@ -65,14 +66,16 @@ const VolunteerCard: React.FC<{ v: Volunteer }> = ({ v }) => {
           {v.memberId}
           {v.yearJoined ? <span className="font-sans"> · since {v.yearJoined}</span> : null}
         </span>
-        <Link
-          to={`/verify/${encodeURIComponent(v.memberId)}`}
-          className="group inline-flex shrink-0 items-center gap-1 text-[13px] font-medium text-[var(--accent)]"
-          aria-label={`View ${v.name}'s Volunteer Card`}
-        >
-          View card
-          <ArrowUpRight size={14} strokeWidth={1.75} className="transition-transform duration-200 group-hover:-translate-y-px group-hover:translate-x-px" />
-        </Link>
+        {CARDS_ENABLED && (
+          <Link
+            to={`/verify/${encodeURIComponent(v.memberId)}`}
+            className="group inline-flex shrink-0 items-center gap-1 text-[13px] font-medium text-[var(--accent)]"
+            aria-label={`View ${v.name}'s Volunteer Card`}
+          >
+            View card
+            <ArrowUpRight size={14} strokeWidth={1.75} className="transition-transform duration-200 group-hover:-translate-y-px group-hover:translate-x-px" />
+          </Link>
+        )}
       </div>
     </li>
   );

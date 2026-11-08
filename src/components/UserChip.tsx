@@ -1,3 +1,4 @@
+import { CARDS_ENABLED } from '../constants/features';
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
@@ -95,7 +96,9 @@ export const UserChip: React.FC<UserChipProps> = ({
   // Members with an admin role (e.g. Legal) keep the member dashboard as home and reach their tools here.
   const showAdminTools = !isAdmin && hasAdminAccess(me) && !pathname.startsWith('/admin');
   const onProfile = pathname.startsWith('/profile');
-  const cardUrl = memberId && typeof window !== 'undefined' ? `${window.location.origin}/verify/${memberId}` : '';
+  // No card, no link to one: the menu must not offer a route to something that is switched off.
+  const cardUrl = CARDS_ENABLED && memberId && typeof window !== 'undefined'
+    ? `${window.location.origin}/verify/${memberId}` : '';
 
   const copyCardLink = async () => {
     if (!cardUrl) return;
@@ -171,7 +174,7 @@ export const UserChip: React.FC<UserChipProps> = ({
                   {isAdmin ? 'Admin dashboard' : 'Dashboard'}
                 </button>
               )}
-              {(onOpen || (memberId && verified)) && (
+              {CARDS_ENABLED && (onOpen || (memberId && verified)) && (
                 <button
                   type="button"
                   role="menuitem"

@@ -52,6 +52,8 @@ beforeAll(async () => {
   process.env.SUPABASE_URL = `http://127.0.0.1:${port}`;
   process.env.SUPABASE_ANON_KEY = 'anon-test-key';
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-test-key';
+  // These cases are about the lookup itself, so the card feature has to be switched on for them.
+  process.env.CARDS_ENABLED = 'true';
   handle = (await import('../../api/[...path].ts')).default as typeof handle;
 }, 20_000);
 
@@ -171,5 +173,48 @@ describe('GET /api/v1/discord-username-taken', () => {
     const res = await callApi('GET', '/api/v1/discord-username-taken?username=juandc');
     expect(res.status).toBe(200);
     expect(res.json).toEqual({ taken: true });
+  });
+});
+
+describe('GET /api/v1/verify with cards switched off', () => {
+  // Hiding the buttons in the client is not switching a feature off: the endpoint has to refuse,
+  // or anyone holding an old QR code or a saved URL still gets a card back.
+  it('refuses the lookup instead of answering it', async () => {
+    rpcReplies.verify_member = { status: 200, body: [memberCard] };
+    process.env.CARDS_ENABLED = 'false';
+    try {
+      const r = await callApi('GET', '/api/v1/verify?id=BGPH-2026-001');
+      expect(r.status).toBe(503);
+      // Not a word of the card comes back, redacted or otherwise.
+      expect(JSON.stringify(r.json)).not.toContain('Dela Cruz');
+      expect(JSON.stringify(r.json)).not.toContain('BGPH-2026-001');
+    } finally {
+      process.env.CARDS_ENABLED = 'true';
+    }
+  });
+
+  // Off is the safe state: an unset or unrecognised value must never open the feature, which is
+  // what makes forgetting the variable in a new environment harmless.
+  it('stays off for anything that is not "true"', async () => {
+    rpcReplies.verify_member = { status: 200, body: [memberCard] };
+    for (const value of ['', 'yes', '1', 'on', 'false', undefined]) {
+      if (value === undefined) delete process.env.CARDS_ENABLED;
+      else process.env.CARDS_ENABLED = value;
+      // eslint-disable-next-line no-await-in-loop
+      const r = await callApi('GET', '/api/v1/verify?id=BGPH-2026-001');
+      expect(r.status, `CARDS_ENABLED=${String(value)}`).toBe(503);
+    }
+    process.env.CARDS_ENABLED = 'true';
+  });
+
+  it('is forgiving about how "true" was typed', async () => {
+    rpcReplies.verify_member = { status: 200, body: [memberCard] };
+    for (const value of ['true', 'TRUE', ' True ']) {
+      process.env.CARDS_ENABLED = value;
+      // eslint-disable-next-line no-await-in-loop
+      const r = await callApi('GET', '/api/v1/verify?id=BGPH-2026-001');
+      expect(r.status, `CARDS_ENABLED=${value}`).toBe(200);
+    }
+    process.env.CARDS_ENABLED = 'true';
   });
 });

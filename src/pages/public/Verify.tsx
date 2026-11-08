@@ -9,8 +9,31 @@ import { getUserByMemberIdOrId } from '../../services/supabase';
 import { AccessCard } from '../../components/AccessCard';
 import { SiteLayout } from '../../components/site/SiteLayout';
 import { DISCORD_INVITE } from '../../components/site/links';
+import { CARDS_ENABLED } from '../../constants/features';
+
+/**
+ * The page people reach from a card's QR code. With cards switched off it stays reachable — old
+ * links and printed codes still land somewhere honest — but it looks nothing up and shows no card.
+ */
+const VerifyComingSoon: React.FC = () => (
+  <SiteLayout>
+    <div className="mx-auto flex max-w-xl flex-col items-center px-4 pb-24 pt-24 text-center sm:px-6 sm:pt-32">
+      <h1 className="text-[26px] sm:text-[32px]">Card verification is coming soon.</h1>
+      <p className="mt-3 max-w-[44ch] text-[15px] leading-relaxed text-[var(--fg-3)]">
+        The Volunteer Card and this page are on hold while we finish them. There is nothing to check
+        here yet, and no card to look up.
+      </p>
+      <a href="/volunteers" className="s-btn s-btn-accent mt-7">See the volunteer directory</a>
+    </div>
+  </SiteLayout>
+);
 
 export default function Verify() {
+  if (!CARDS_ENABLED) return <VerifyComingSoon />;
+  return <VerifyPage />;
+}
+
+function VerifyPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const users = useStore((state) => state.users);

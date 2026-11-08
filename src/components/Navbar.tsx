@@ -1,3 +1,4 @@
+import { CARDS_ENABLED } from '../constants/features';
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
@@ -67,7 +68,7 @@ export const Navbar: React.FC = () => {
     { label: 'Volunteers', path: '/volunteers' },
     { label: 'Projects', path: '/projects' },
     { label: 'Contribute', path: '/contribute' },
-    { label: 'Verify', path: '/verify' },
+    ...(CARDS_ENABLED ? [{ label: 'Verify', path: '/verify' }] : []),
   ];
 
   const isActive = (path: string) => path !== '/#open-roles' && location.pathname.startsWith(path);

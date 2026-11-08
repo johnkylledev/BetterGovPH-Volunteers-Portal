@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { syncMemberRoles, syncSkillRoles, syncTeamRole } from './_lib/discordRoles.js';
 import { parseLguTable, parseLguLogos, pickIconFromHtml } from './_lib/lguDirectory.js';
+import { cardsEnabled } from './_lib/features.js';
 
 let _crypto: any = null;
 let _cryptoInit = false;
@@ -3440,6 +3441,9 @@ const handler_verify: H = async (req, res) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'GET' && req.method !== 'POST') { sendError(res, 405, 'Method not allowed'); return; }
+  // With cards switched off there is no lookup to answer — not for the site, not for anyone who
+  // kept the URL. Hiding the button in the client would leave this endpoint wide open.
+  if (!cardsEnabled()) { sendError(res, 503, 'Card verification is coming soon.'); return; }
   const { url: supabaseUrl, anonKey, serviceKey } = getSupabaseConfig();
   if (!supabaseUrl) { sendError(res, 500, 'Server not configured'); return; }
   const queryId = getStringParam(req.query?.id ?? req.query?.memberId);

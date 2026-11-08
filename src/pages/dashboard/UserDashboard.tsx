@@ -4,6 +4,8 @@ import { memberTabFromLegacy, memberTabFromSection, memberTabPath, type MemberTa
 import { useCachedResource } from '../../hooks/useCachedResource';
 import { useStore } from '../../store/useStore';
 import { AccessCard } from '../../components/AccessCard';
+import { CardCover } from '../../components/CardCover';
+import { CARDS_ENABLED } from '../../constants/features';
 import { LoadingOverlay } from '../../components/LoadingOverlay';
 import { motion } from 'framer-motion';
 import { ShieldAlert, Clock, Copy, Code, Check, ExternalLink, Edit3, Trash2, X, Lock, Unlock, CalendarDays, Wrench, BadgeCheck, Pencil, SlidersHorizontal, Flame, Trophy } from 'lucide-react';
@@ -1116,7 +1118,7 @@ export default function UserDashboard() {
                   {/* The status pill keeps its width; the heading wraps instead of pushing it off-screen. */}
                   <div className="mb-4 flex items-baseline justify-between gap-2">
                     <h2 className={clsx(sectionTitle, 'min-w-0')}>Your Volunteer Card</h2>
-                    {currentUser.status !== 'Approved' && (
+                    {CARDS_ENABLED && currentUser.status !== 'Approved' && (
                       <span className={clsx('inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[12px] font-medium', statusMeta.tone)}>
                         <StatusIcon size={13} strokeWidth={2} aria-hidden />
                         {statusMeta.word}
@@ -1125,10 +1127,16 @@ export default function UserDashboard() {
                   </div>
 
                   <div className="relative flex justify-center overflow-hidden rounded-[22px] bg-[#eef1f5] px-2 py-6 sm:px-4 sm:py-8 shadow-[inset_0_1px_2px_rgb(15_23_42/0.06),inset_0_0_0_1px_rgb(15_23_42/0.04)]">
+                    {!CARDS_ENABLED ? (
+                      <CardCover note="Your membership is live either way.">
+                        <AccessCard user={currentUser} isDemo />
+                      </CardCover>
+                    ) : (
                     <div className={clsx(currentUser.status !== 'Approved' && 'pointer-events-none opacity-40 grayscale')}>
                       <AccessCard user={currentUser} />
                     </div>
-                    {currentUser.status !== 'Approved' && (
+                    )}
+                    {CARDS_ENABLED && currentUser.status !== 'Approved' && (
                       <div className="absolute inset-0 flex items-center justify-center p-6">
                         <div className="rounded-[14px] bg-white px-5 py-4 text-center shadow-[var(--e2)]">
                           <p className="text-[14px] font-semibold text-slate-900">
@@ -1142,7 +1150,7 @@ export default function UserDashboard() {
                     )}
                   </div>
 
-                  {currentUser.status === 'Approved' && (
+                  {CARDS_ENABLED && currentUser.status === 'Approved' && (
                     <div className="mt-4 grid grid-cols-2 gap-2">
                       <button onClick={handleCopyLink} className="s-btn s-btn-plain">
                         {copyStatus === 'copied' ? <Check size={15} strokeWidth={1.75} /> : <Copy size={15} strokeWidth={1.75} />}
