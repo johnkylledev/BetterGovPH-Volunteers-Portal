@@ -5,6 +5,7 @@ import { AdminOverview } from '../../components/admin/AdminOverview';
 import { AdminCalls } from '../../components/admin/AdminCalls';
 import { AdminRoles } from '../../components/admin/AdminRoles';
 import { can, hasAdminAccess, isSuperAdmin, type AdminPermission } from '../../utils/adminAccess';
+import { useAdminMembers } from '../../hooks/useAdminMembers';
 import { NotificationBell } from '../../components/NotificationBell';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { adminTabFromSection, adminTabPath, type AdminTab } from '../../constants/dashboardRoutes';
@@ -18,7 +19,7 @@ import clsx from 'clsx';
 import { StatTile } from '../../components/StatTile';
 import { UserChip } from '../../components/UserChip';
 import { User, ApplicationStatus, ProjectSubmission } from '../../types';
-import { deleteProjectSubmission, editProjectSubmission, getAllUsers, getAdminStats, getProjectSubmissions, updateProjectSubmission, supabase, getConsentRecords, importProjects } from '../../services/supabase';
+import { deleteProjectSubmission, editProjectSubmission, getAdminStats, getProjectSubmissions, updateProjectSubmission, getConsentRecords, importProjects } from '../../services/supabase';
 import type { ImportProjectRow } from '../../types';
 import { ROPA_REGISTER, CONSENT_PURPOSES } from '../../constants/community';
 import { SkillIcon } from '../../components/SkillIcon';
@@ -58,7 +59,7 @@ const parseImportRows = (text: string): ImportProjectRow[] => {
 };
 
 export default function AdminDashboard() {
-  const { currentUser, users, updateUserStatus, setUsers, authInitialized } = useStore();
+  const { currentUser, updateUserStatus, authInitialized } = useStore();
   const logout = useStore((s) => s.logout);
   const navigate = useNavigate();
   // The tab comes from the URL (/admin, /admin/applications, /admin/members, /admin/projects, /admin/calls).
@@ -109,10 +110,6 @@ export default function AdminDashboard() {
   const [editForm, setEditForm] = useState({ projectName: '', projectUrl: '', description: '', projType: '', status: '' });
   const [editSaving, setEditSaving] = useState(false);
 
-  const [currentPage, setCurrentPage] = useState(0);
-  const [pageSize] = useState(5);
-  const [totalCount, setTotalCount] = useState(0);
-  const [isDataLoading, setIsDataLoading] = useState(false);
   const [stats, setStats] = useState({ total: 0, pending: 0, approved: 0 });
 
   const [debouncedSearch, setDebouncedSearch] = useState(searchTerm);
@@ -124,6 +121,20 @@ export default function AdminDashboard() {
     return () => clearTimeout(handler);
   }, [searchTerm]);
 
+  // Each tab keeps its own cached list, so switching back shows those rows at once instead of the
+  // other tab's table or an empty one. Rows are appended, and changes merge in without a reload.
+  const onMemberTab = activeTab === 'applications' || activeTab === 'members';
+  const memberList = useAdminMembers(
+    {
+      status: activeTab === 'members' ? 'Approved' : activeTab === 'applications' ? 'Pending' : statusFilter,
+      role: roleFilter,
+      search: debouncedSearch,
+    },
+    onMemberTab && can(currentUser, 'members.view'),
+  );
+  const totalCount = memberList.total;
+  const isDataLoading = memberList.loadingFirst;
+
   useEffect(() => {
     if (authInitialized && !currentUser) navigate('/login');
     else if (authInitialized && !hasAdminAccess(currentUser)) navigate('/dashboard');
@@ -133,26 +144,6 @@ export default function AdminDashboard() {
     if (!can(currentUser, 'members.view')) return;
     const s = await getAdminStats();
     setStats(s);
-  };
-
-  const loadUsers = async (page: number, showLoading = true, search = debouncedSearch) => {
-    if (!can(currentUser, 'members.view')) return;
-    if (activeTab !== 'applications' && activeTab !== 'members') return;
-    if (showLoading) setIsDataLoading(true);
-    try {
-      const filters = {
-        status: activeTab === 'members' ? 'Approved' : activeTab === 'applications' ? 'Pending' : statusFilter,
-        role: roleFilter,
-        search: search
-      };
-      const { users: fetchedUsers, totalCount: fetchedTotal } = await getAllUsers(page, pageSize, filters);
-      const validUsers = fetchedUsers.filter(u => u.status === 'Approved' || (typeof u.specialization === 'string' && u.specialization.trim().length > 0));
-      setUsers(validUsers);
-      setTotalCount(fetchedTotal);
-    } catch {
-    } finally {
-      if (showLoading) setIsDataLoading(false);
-    }
   };
 
   const loadProjectSubmissions = async (showLoading = true) => {
@@ -187,70 +178,19 @@ export default function AdminDashboard() {
     loadStats();
   }, [currentUser]);
 
+  // Only the projects list still resets here; the member list keeps its cache per tab.
   useEffect(() => {
-    setCurrentPage(0);
     setProjectPage(0);
-    setUsers([]);
     setProjectSubmissions([]);
-  }, [activeTab, statusFilter, roleFilter, debouncedSearch, projectStatusFilter]);
+  }, [activeTab, projectStatusFilter]);
 
   useEffect(() => {
     if (!hasAdminAccess(currentUser)) return;
-    if (activeTab === 'projects') {
-      loadProjectSubmissions(true);
-    } else if (activeTab === 'applications' || activeTab === 'members') {
-      loadUsers(currentPage, true, debouncedSearch);
-    }
-  }, [currentUser, currentPage, activeTab, statusFilter, roleFilter, debouncedSearch, projectStatusFilter, projectPage]);
+    if (activeTab === 'projects') loadProjectSubmissions(true);
+  }, [currentUser, activeTab, projectStatusFilter, projectPage]);
 
-  useEffect(() => {
-    if (!currentUser?.isAdmin) return;
-
-    const usersChannel = supabase
-      .channel('admin-users-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'users',
-        },
-        () => {
-          if (activeTab === 'applications' || activeTab === 'members') {
-            loadUsers(currentPage, false);
-          }
-          loadStats();
-        }
-      )
-      .subscribe();
-
-    const projectsChannel = supabase
-      .channel('admin-projects-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'project_submissions',
-        },
-        () => {
-          if (activeTab === 'projects') {
-            loadProjectSubmissions(false);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(usersChannel);
-      supabase.removeChannel(projectsChannel);
-    };
-  }, [currentUser?.isAdmin, currentPage, activeTab]);
-
-  const handlePageChange = (newPage: number) => {
-    setCurrentPage(newPage);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  // No realtime channel here: the browser has no table access (API-only by design), so the
+  // publication is empty and a channel would never fire. useAdminMembers polls for deltas instead.
 
   if (!authInitialized) return <LoadingOverlay />;
   if (!currentUser) {
@@ -275,7 +215,7 @@ export default function AdminDashboard() {
   }, [logout, navigate]);
 
   const handleStatusUpdate = async (userId: string, status: ApplicationStatus) => {
-    const user = users.find(u => u.id === userId);
+    const user = memberList.rows.find((u) => u.id === userId || u.uid === userId);
     if (user && user.status === 'Approved' && status !== 'Approved') {
       alert('Cannot change status of an already approved member.');
       return;
@@ -292,7 +232,9 @@ export default function AdminDashboard() {
       if (res && (res as any).success) {
         setSelectedUser(null);
         setAdminNote('');
-        loadUsers(currentPage);
+        // The decided row updates where it stands; a delta sync fills in anything else (member ID).
+        memberList.patchRow(userId, { status, adminNotes: adminNote || undefined });
+        memberList.sync();
         loadStats();
       } else {
         alert(`Failed to update database: ${(res as any)?.message || 'Unknown error'}. Please check if the user exists in Supabase.`);
@@ -463,13 +405,11 @@ export default function AdminDashboard() {
     XLSX.writeFile(workbook, fileName);
   };
 
-  const filteredUsers = useMemo(() => {
-    return (users || []).filter(u => u && !u.isAdmin);
-  }, [users]);
+  const filteredUsers = useMemo(() => memberList.rows.filter((u) => u && !u.isAdmin), [memberList.rows]);
 
   const filteredApprovedMembers = useMemo(() => {
-    return (users || []).filter(u => u && !u.isAdmin && u.status === 'Approved');
-  }, [users]);
+    return memberList.rows.filter((u) => u && !u.isAdmin && u.status === 'Approved');
+  }, [memberList.rows]);
 
   // Only the tabs this person's permissions cover. The server refuses the rest anyway.
   const tabNeeds: Record<AdminTab, AdminPermission | null> = {
@@ -737,32 +677,19 @@ export default function AdminDashboard() {
                 </table>
               </div>
 
-              {/* Pagination Controls */}
-              <div className="px-4 sm:px-6 py-3 border-t border-slate-200/80 flex items-center justify-between gap-3">
-                <p className="num text-[13px] text-slate-500">
-                  Showing <span className="text-slate-900">{filteredUsers.length}</span> of <span className="text-slate-900">{totalCount}</span> records
+              {/* Append, never replace: "Load more" adds the next slice to the rows already shown. */}
+              <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-200/80 px-4 py-3 sm:flex-row sm:px-6">
+                <p className="num text-[13px] text-slate-500" aria-live="polite">
+                  Showing <span className="text-slate-900">{filteredUsers.length}</span> of <span className="text-slate-900">{totalCount}</span>
+                  {memberList.refreshing && <span className="ml-2 text-slate-400">updating…</span>}
                 </p>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 0 || isDataLoading}
-                    className="s-btn s-btn-plain h-9 w-9 px-0"
-                  >
-                    <ChevronLeft className="w-5 h-5" />
+                {memberList.hasMore ? (
+                  <button type="button" onClick={memberList.loadMore} disabled={memberList.loadingMore} className="s-btn s-btn-plain h-9">
+                    {memberList.loadingMore ? 'Loading…' : 'Load more'}
                   </button>
-                  <div className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-[10px]">
-                    <span className="text-sm font-semibold text-slate-900">Page {currentPage + 1}</span>
-                    <span className="text-slate-400 mx-1">of</span>
-                    <span className="text-sm font-semibold text-slate-900">{Math.ceil(totalCount / pageSize)}</span>
-                  </div>
-                  <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={(currentPage + 1) * pageSize >= totalCount || isDataLoading}
-                    className="s-btn s-btn-plain h-9 w-9 px-0"
-                  >
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
-                </div>
+                ) : (
+                  <span className="text-[12.5px] text-slate-400">{filteredUsers.length > 0 ? 'End of list' : ''}</span>
+                )}
               </div>
             </>
           ) : activeTab === 'projects' ? (
@@ -975,7 +902,7 @@ export default function AdminDashboard() {
                         options={ROLE_FILTER_OPTIONS}
                       />
                     </div>
-                    {users.filter(u => u && !u.isAdmin && u.status === 'Approved').length > 0 && (
+                    {filteredApprovedMembers.length > 0 && (
                       <button
                         onClick={exportToExcel}
                         className="s-btn s-btn-accent justify-center"
@@ -1041,32 +968,19 @@ export default function AdminDashboard() {
                     </table>
                   </div>
 
-                  {/* Pagination Controls for Members Tab */}
-                  <div className="px-4 sm:px-6 py-3 border-t border-slate-200/80 flex items-center justify-between gap-3">
-                    <p className="text-xs font-semibold text-slate-500">
-                      Showing <span className="text-slate-900">{filteredApprovedMembers.length}</span> of <span className="text-slate-900">{totalCount}</span> records
+                  {/* Append, never replace: "Load more" adds the next slice to the rows already shown. */}
+                  <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-200/80 px-4 py-3 sm:flex-row sm:px-6">
+                    <p className="num text-[13px] text-slate-500" aria-live="polite">
+                      Showing <span className="text-slate-900">{filteredApprovedMembers.length}</span> of <span className="text-slate-900">{totalCount}</span>
+                      {memberList.refreshing && <span className="ml-2 text-slate-400">updating…</span>}
                     </p>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handlePageChange(currentPage - 1)}
-                        disabled={currentPage === 0 || isDataLoading}
-                        className="s-btn s-btn-plain h-9 w-9 px-0"
-                      >
-                        <ChevronLeft className="w-5 h-5" />
+                    {memberList.hasMore ? (
+                      <button type="button" onClick={memberList.loadMore} disabled={memberList.loadingMore} className="s-btn s-btn-plain h-9">
+                        {memberList.loadingMore ? 'Loading…' : 'Load more'}
                       </button>
-                      <div className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-[10px]">
-                        <span className="text-sm font-semibold text-slate-900">Page {currentPage + 1}</span>
-                        <span className="text-slate-400 mx-1">of</span>
-                        <span className="text-sm font-semibold text-slate-900">{Math.ceil(totalCount / pageSize)}</span>
-                      </div>
-                      <button
-                        onClick={() => handlePageChange(currentPage + 1)}
-                        disabled={(currentPage + 1) * pageSize >= totalCount || isDataLoading}
-                        className="s-btn s-btn-plain h-9 w-9 px-0"
-                      >
-                        <ChevronRight className="w-5 h-5" />
-                      </button>
-                    </div>
+                    ) : (
+                      <span className="text-[12.5px] text-slate-400">{filteredApprovedMembers.length > 0 ? 'End of list' : ''}</span>
+                    )}
                   </div>
                 </>
               )}

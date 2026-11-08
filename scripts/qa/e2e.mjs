@@ -435,6 +435,26 @@ async function main() {
   const otherUser = await api('/reports', { token: crowd[2].token, method: 'POST', body: { targetType: 'call', targetId: '00000000-0000-0000-0000-000000000000', reason: 'spam' } });
   check("one person's limit doesn't block others", otherUser.status !== 429, String(otherUser.status));
 
+  // ------------------------------------------------------------------ admin list: paging and sync
+  step('Admin list: keyset paging and delta sync');
+  const slice1 = await api('/admin?resource=users&pageSize=2&withCount=1', { token: boss.token });
+  check('first slice carries rows, a cursor and the total', slice1.status === 200 && (slice1.json?.users || []).length > 0 && typeof slice1.json?.totalCount === 'number' && !!slice1.json?.serverTime, JSON.stringify(slice1.json).slice(0, 140));
+  if (slice1.json?.nextCursor) {
+    const slice2 = await api(`/admin?resource=users&pageSize=2&cursor=${encodeURIComponent(slice1.json.nextCursor)}`, { token: boss.token });
+    const firstIds = (slice1.json.users || []).map((u) => u.uid);
+    check('the next slice never repeats a row', (slice2.json?.users || []).every((u) => !firstIds.includes(u.uid)));
+    check('appending skips the count scan', slice2.json?.totalCount === undefined);
+  }
+  const mark = slice1.json?.serverTime;
+  await new Promise((r) => setTimeout(r, 1100));
+  await api('/me', { token: dan.token, method: 'POST', body: { displayName: `QA sync ${Date.now().toString(36)}` } });
+  const delta = await api(`/admin?resource=users&since=${encodeURIComponent(mark)}`, { token: boss.token });
+  check('a delta returns only what changed, with a fresh watermark', delta.status === 200 && delta.json?.delta === true && !!delta.json?.serverTime && (delta.json.users || []).length < (slice1.json.totalCount || 99), `${(delta.json?.users || []).length} rows`);
+  const quiet = await api(`/admin?resource=users&since=${encodeURIComponent(delta.json.serverTime)}`, { token: boss.token });
+  check('a delta with nothing new returns no rows but still a total', (quiet.json?.users || []).length === 0 && typeof quiet.json?.totalCount === 'number');
+  const leaving = await api(`/admin?resource=users&status=Approved&since=${encodeURIComponent(mark)}`, { token: boss.token });
+  check('rows leaving a filter are reported as removed, never left stale', Array.isArray(leaving.json?.removed), JSON.stringify(leaving.json?.removed));
+
   // ------------------------------------------------------------------ role-based admin access
   step('Roles: a Legal role sees and does only what it is given');
   const badRole = await api('/admin?resource=roles', { token: boss.token, method: 'POST', body: { action: 'save', name: T('Sneaky'), permissions: ['members.view', 'roles.manage'] } });

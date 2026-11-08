@@ -2102,26 +2102,108 @@ const handler_admin: H = async (req, res) => {
     if (authError || !uid) { sendError(res, 401, 'Invalid token'); return; }
     const adminCheck = await assertAdmin(adminSup, uid, email, 'members.view');
     if (!adminCheck.ok) { sendError(res, 403, adminCheck.error); return; }
-    const page = Math.max(0, getNumberParam(req.query?.page, 0));
     const pageSize = Math.min(100, Math.max(1, getNumberParam(req.query?.pageSize, 20)));
     const statusFilter = getStringParam(req.query?.status);
     const roleFilter = getStringParam(req.query?.role);
     const searchRaw = getStringParam(req.query?.search);
-    let query: any = adminSup.from('users').select('*', { count: 'exact' }).eq('is_admin', false).not('full_name', 'eq', '').or('specialization.neq."",status.eq.Approved,status.eq.approved');
-    if (statusFilter && statusFilter !== 'All') {
-      const variants = Array.from(new Set([statusFilter, statusFilter.toLowerCase(), statusFilter.toUpperCase(),
-        statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1).toLowerCase()]));
-      query = query.in('status', variants);
+    // Three modes, so the admin list never refetches what it already shows:
+    //   since=<iso>   delta sync - only rows changed since then (the client merges them in place)
+    //   cursor=<...>  keyset paging - the next slice after the last row (stable while rows arrive)
+    //   neither       the first slice
+    // `withCount=1` asks for the exact total; appends and deltas skip that scan.
+    const since = getStringParam(req.query?.since);
+    const cursorRaw = getStringParam(req.query?.cursor);
+    const wantCount = getStringParam(req.query?.withCount) === '1';
+    const isDelta = !!since && !Number.isNaN(Date.parse(since));
+
+    const applyFilters = (q: any) => {
+      let query = q.eq('is_admin', false).not('full_name', 'eq', '').or('specialization.neq."",status.eq.Approved,status.eq.approved');
+      if (statusFilter && statusFilter !== 'All') {
+        const variants = Array.from(new Set([statusFilter, statusFilter.toLowerCase(), statusFilter.toUpperCase(),
+          statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1).toLowerCase()]));
+        query = query.in('status', variants);
+      }
+      if (roleFilter && roleFilter !== 'All') query = query.eq('specialization', roleFilter);
+      if (searchRaw && searchRaw.trim()) {
+        const safe = searchRaw.trim().replace(/[%_,()*:"\\]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 64);
+        const search = `%${safe}%`;
+        query = query.or(`full_name.ilike.${search},email.ilike.${search},discord_username.ilike.${search},member_id.ilike.${search}`);
+      }
+      return query;
+    };
+
+    // The server's own clock is the watermark, so a client with a skewed clock cannot miss rows.
+    const serverTime = new Date().toISOString();
+
+    if (isDelta) {
+      // A delta runs on the base visibility rules only, not the tab filter, so a row that LEAVES the
+      // filter (an application that was just approved) is still reported — as `removed`, so the
+      // client drops it instead of showing a stale row until the next full load.
+      const base = (q: any) => q.eq('is_admin', false).not('full_name', 'eq', '').or('specialization.neq."",status.eq.Approved,status.eq.approved');
+      const [{ data, error }, countRes] = await Promise.all([
+        base(adminSup.from('users').select('*')).gt('updated_at', since).order('updated_at', { ascending: true }).limit(200),
+        applyFilters(adminSup.from('users').select('uid', { count: 'exact', head: true })),
+      ]);
+      if (error) { sendError(res, 500, 'Failed to load users'); return; }
+      const changed = data ?? [];
+
+      // The same predicates applyFilters() uses, so "still matches" means exactly what the list means.
+      const statusVariants = statusFilter && statusFilter !== 'All'
+        ? new Set(Array.from(new Set([statusFilter, statusFilter.toLowerCase(), statusFilter.toUpperCase(),
+            statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1).toLowerCase()])))
+        : null;
+      const needle = (() => {
+        if (!searchRaw || !searchRaw.trim()) return '';
+        const safe = searchRaw.trim().replace(/[%_,()*:"\\]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 64);
+        return safe.toLowerCase();
+      })();
+      const stillMatches = (row: any) => {
+        if (statusVariants && !statusVariants.has(String(row.status ?? ''))) return false;
+        if (roleFilter && roleFilter !== 'All' && String(row.specialization ?? '') !== roleFilter) return false;
+        if (needle) {
+          const hay = `${row.full_name ?? ''} ${row.email ?? ''} ${row.discord_username ?? ''} ${row.member_id ?? ''}`.toLowerCase();
+          if (!hay.includes(needle)) return false;
+        }
+        return true;
+      };
+
+      const kept = changed.filter(stillMatches);
+      const removed = changed.filter((r: any) => !stillMatches(r)).map((r: any) => String(r.uid));
+      sendJson(res, 200, {
+        users: kept.map(mapUserRow),
+        removed,
+        totalCount: countRes.count ?? 0,
+        serverTime,
+        delta: true,
+        truncated: changed.length >= 200,
+      });
+      return;
     }
-    if (roleFilter && roleFilter !== 'All') query = query.eq('specialization', roleFilter);
-    if (searchRaw && searchRaw.trim()) {
-      const safe = searchRaw.trim().replace(/[%_,()*:"\\]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 64);
-      const search = `%${safe}%`;
-      query = query.or(`full_name.ilike.${search},email.ilike.${search},discord_username.ilike.${search},member_id.ilike.${search}`);
+
+    let query = applyFilters(adminSup.from('users').select('*'));
+    // Keyset: everything strictly after (created_at, uid) in the sort order. Beats OFFSET, which
+    // skips or repeats rows when the data shifts under a paging admin.
+    if (cursorRaw) {
+      const [at, cursorUid] = String(cursorRaw).split('|');
+      if (at && !Number.isNaN(Date.parse(at))) {
+        query = cursorUid
+          ? query.or(`created_at.lt.${at},and(created_at.eq.${at},uid.lt.${cursorUid})`)
+          : query.lt('created_at', at);
+      }
     }
-    const { data, error, count } = await query.order('created_at', { ascending: false }).range(page * pageSize, page * pageSize + pageSize - 1);
-    if (error) { sendError(res, 500, 'Failed to load users'); return; }
-    sendJson(res, 200, { users: (data ?? []).map(mapUserRow), totalCount: count ?? 0 });
+    const [listRes, countRes] = await Promise.all([
+      query.order('created_at', { ascending: false }).order('uid', { ascending: false }).limit(pageSize),
+      wantCount ? applyFilters(adminSup.from('users').select('uid', { count: 'exact', head: true })) : Promise.resolve({ count: null as number | null }),
+    ]);
+    if (listRes.error) { sendError(res, 500, 'Failed to load users'); return; }
+    const rows = listRes.data ?? [];
+    const last = rows[rows.length - 1];
+    sendJson(res, 200, {
+      users: rows.map(mapUserRow),
+      ...(countRes.count === null || countRes.count === undefined ? {} : { totalCount: countRes.count }),
+      nextCursor: rows.length === pageSize && last ? `${last.created_at}|${last.uid}` : null,
+      serverTime,
+    });
     return;
   }
 

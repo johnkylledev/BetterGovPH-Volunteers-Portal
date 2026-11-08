@@ -386,6 +386,29 @@ export const getAllUsers = async (page = 0, pageSize = 20, filters?: { status?: 
   return response;
 };
 
+/**
+ * The admin member list. Three modes, all on one endpoint:
+ *   plain          first slice (pass withCount for the total)
+ *   cursor=…       next slice, appended by the caller (keyset, stable while rows arrive)
+ *   since=<iso>    only rows changed since that watermark, for merging in place
+ */
+export const getAdminMembers = async (opts: {
+  status?: string; role?: string; search?: string; pageSize?: number;
+  cursor?: string; since?: string; withCount?: boolean;
+}) => {
+  const params = new URLSearchParams({ pageSize: String(opts.pageSize ?? 20) });
+  if (opts.status && opts.status !== 'All') params.set('status', opts.status);
+  if (opts.role && opts.role !== 'All') params.set('role', opts.role);
+  if (opts.search?.trim()) params.set('search', opts.search.trim());
+  if (opts.cursor) params.set('cursor', opts.cursor);
+  if (opts.since) params.set('since', opts.since);
+  if (opts.withCount) params.set('withCount', '1');
+  return apiRequest<{
+    users: User[]; removed?: string[]; totalCount?: number; nextCursor?: string | null;
+    serverTime?: string; delta?: boolean; truncated?: boolean;
+  }>(`/api/v1/admin?resource=users&${params.toString()}`, { headers: await authHeaders() });
+};
+
 export const getAdminStats = async () => {
   try {
     const token = await getAccessToken();
