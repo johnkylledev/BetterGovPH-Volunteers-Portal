@@ -213,6 +213,61 @@ body {
   border-radius: 14px;
   box-shadow: var(--e1);
 }
+
+/* ---- Directory tiles -------------------------------------------------
+   The project and LGU grids are the same object twice over, so they share
+   one surface: a card lit along its top edge that lifts under the pointer
+   and presses in when tapped. ---------------------------------------- */
+.s-tile {
+  position: relative;
+  background: var(--card);
+  border-radius: 16px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.85), var(--e1);
+  transition: box-shadow 220ms var(--ease-out), transform 220ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .s-tile:hover {
+    transform: translateY(-2px);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.85), var(--e2);
+  }
+}
+.s-tile:active { transform: scale(0.99); }
+@media (prefers-reduced-motion: reduce) {
+  .s-tile, .s-tile:hover, .s-tile:active { transform: none; transition: box-shadow 220ms var(--ease-out); }
+}
+
+/* A real web address, set the way a browser sets one. */
+.s-addr {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px rgb(15 23 42 / 0.07);
+  font-size: 12.5px;
+  color: var(--fg-2);
+  transition: color 150ms var(--ease-out), box-shadow 150ms var(--ease-out);
+}
+.s-tile:hover .s-addr {
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px rgb(30 58 138 / 0.22);
+}
+
+/* A site's own mark, on a lit plate. Logos sit inside it whole — they are
+   artwork, not faces, so nothing gets cropped to a circle. */
+.s-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  overflow: hidden;
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.9), 0 0 0 1px rgb(15 23 42 / 0.08), 0 1px 2px rgb(15 23 42 / 0.05);
+}
+.s-mark img { width: 68%; height: 68%; object-fit: contain; }
 }
 
 .perspective-1000 {

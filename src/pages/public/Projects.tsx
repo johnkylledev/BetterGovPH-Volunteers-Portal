@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { ArrowUpRight, Plus, Search as SearchIcon, X as XIcon } from 'lucide-react';
+import { ArrowUpRight, Globe, Plus, Search as SearchIcon, X as XIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getApprovedProjects, getRepoStats, supabase } from '../../services/supabase';
 import { Project } from '../../types';
@@ -7,6 +7,8 @@ import { SiteLayout, PageIntro } from '../../components/site/SiteLayout';
 import { workTypeLabel } from '../../constants/tracks';
 import { stageLabel } from '../../constants/community';
 import { RepoChip } from '../../components/RepoHealth';
+import { DirectoryTabs } from '../../components/site/DirectoryTabs';
+import { SiteMark, iconForDomain } from '../../components/site/SiteMark';
 
 const hostnameFromUrl = (url: string) => {
   try {
@@ -101,7 +103,9 @@ export default function Projects() {
           }
         />
 
-        <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <DirectoryTabs active="/projects" />
+
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <label className="relative block w-full sm:max-w-sm">
             <span className="sr-only">Search projects</span>
             <SearchIcon size={16} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -138,10 +142,13 @@ export default function Projects() {
           {status === 'loading' || status === 'idle' ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="s-card p-5">
-                  <div className="h-4 w-1/2 rounded bg-slate-100" />
-                  <div className="mt-2 h-3 w-1/3 rounded bg-slate-100" />
-                  <div className="mt-5 h-3 w-full rounded bg-slate-100" />
+                <div key={i} className="s-tile p-5">
+                  <div className="flex items-center gap-3.5">
+                    <span className="block h-10 w-10 rounded-[12px] bg-slate-100" />
+                    <span className="block h-4 w-1/2 rounded bg-slate-100" />
+                  </div>
+                  <div className="mt-3.5 h-[26px] w-32 rounded-lg bg-slate-100" />
+                  <div className="mt-4 h-3 w-full rounded bg-slate-100" />
                   <div className="mt-2 h-3 w-4/5 rounded bg-slate-100" />
                 </div>
               ))}
@@ -176,18 +183,29 @@ export default function Projects() {
               {filtered.map((p) => {
                 // Portal projects open their own page (team, progress); bettergov.ph ones link out.
                 const local = p.source === 'local';
-                const cardClass = 's-card group flex h-full flex-col p-5 transition-[box-shadow,transform] duration-200 [@media(hover:hover)]:hover:shadow-[var(--e2)] [@media(hover:hover)]:hover:-translate-y-px active:scale-[0.99]';
+                const cardClass = 's-tile group flex h-full flex-col p-5';
                 const body = (
                   <>
-                    <div className="flex items-start justify-between gap-3">
-                      <h2 className="min-w-0 truncate text-[16px] font-semibold tracking-[-0.012em]">{p.title}</h2>
+                    <div className="flex items-start gap-3.5">
+                      {/* The project's own favicon, pulled live from its domain. */}
+                      <SiteMark name={p.title} sources={[iconForDomain(p.host)]} size={40} />
+                      <h2 className="min-w-0 flex-1 text-[15.5px] font-semibold leading-snug tracking-[-0.012em] [overflow-wrap:anywhere]">
+                        {p.title}
+                      </h2>
                       <ArrowUpRight
                         size={16}
                         strokeWidth={1.75}
-                        className="mt-0.5 shrink-0 text-slate-300 transition-[transform,color] duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-slate-700"
+                        className="mt-0.5 shrink-0 text-slate-300 transition-[transform,color] duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-[var(--accent)]"
                       />
                     </div>
-                    {p.host && <p className="mt-0.5 truncate text-[13px] text-[var(--fg-3)]">{p.host}</p>}
+                    {p.host && (
+                      <p className="mt-3.5">
+                        <span className="s-addr">
+                          <Globe size={12} strokeWidth={1.75} className="shrink-0 opacity-60" aria-hidden />
+                          <span className="truncate">{p.host}</span>
+                        </span>
+                      </p>
+                    )}
                     <p className="mt-3 flex-1 text-[14px] leading-relaxed text-[var(--fg-2)] line-clamp-3">{p.description}</p>
                     {(p.repo || p.stage) && (
                       <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -195,7 +213,7 @@ export default function Projects() {
                         <RepoChip repo={p.repo} />
                       </p>
                     )}
-                    <div className="mt-5 flex items-center justify-between gap-3 border-t border-[var(--line)] pt-3 text-[12px] text-[var(--fg-3)]">
+                    <div className="mt-4 flex items-center justify-between gap-3 border-t border-[var(--line)] pt-3.5 text-[12px] text-[var(--fg-3)]">
                       <span className="truncate">
                         {workTypeLabel(p.projType) || ((p as any).source === 'bettergov.ph' ? 'bettergov.ph' : 'Community')}
                       </span>

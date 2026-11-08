@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { syncMemberRoles, syncSkillRoles, syncTeamRole } from './_lib/discordRoles.js';
+import { parseLguTable, parseLguLogos, pickIconFromHtml } from './_lib/lguDirectory.js';
 
 let _crypto: any = null;
 let _cryptoInit = false;
@@ -612,7 +613,7 @@ const isAllowedOrigin = (o: string) =>
   ALLOWED_ORIGINS.includes(o) ||
   /^https:\/\/better-gov-ph-access-card(-[a-z0-9-]+)?\.vercel\.app$/i.test(o) ||
   (process.env.VERCEL_ENV !== 'production' && LOOPBACK_ORIGIN.test(o));
-const PUBLIC_READ = new Set(['/projects', '/volunteers', '/verify', '/og', '/contributors']);
+const PUBLIC_READ = new Set(['/projects', '/volunteers', '/verify', '/og', '/contributors', '/lgus']);
 
 const applyCors = (req: any, res: any, pathname: string) => {
   const origin = String(req.headers?.origin || '');
@@ -3975,6 +3976,88 @@ const buildContributors = async () => {
   return { contributors, generatedAt: new Date().toISOString() };
 };
 
+// ---------- /lgus (public) ------------------------------------------------------
+// The BetterLGU directory at lgu.bettergov.ph is a Jekyll site built from a single Markdown table in
+// jmacj/better-lgu-directory. That README is the source of truth, so this reads it straight from raw
+// GitHub — no token, no API quota — and parses the table. Cached for half an hour, so an LGU added
+// upstream shows up here on its own without anyone redeploying us.
+const LGU_README = 'https://raw.githubusercontent.com/jmacj/better-lgu-directory/main/README.md';
+const LGU_DIRECTORY_URL = 'https://lgu.bettergov.ph/';
+const LGU_CONTRIBUTING_URL = 'https://lgu.bettergov.ph/CONTRIBUTING';
+const LGU_CACHE = 'cache:lgus:v1';
+
+/**
+ * Fills in a logo for the portals the directory has no file for, by reading the icon each site
+ * declares. Runs against a wall-clock budget and in small batches: this sits in a request, and a
+ * slow LGU site must not hold up the list. Anything still missing falls back in the browser.
+ */
+const fillMissingLogos = async (rows: { url: string; logoUrl: string }[]) => {
+  const missing = rows.filter((l) => l.url && !l.logoUrl).slice(0, 40);
+  if (!missing.length) return;
+  const deadline = Date.now() + 6000;
+  for (let i = 0; i < missing.length && Date.now() < deadline; i += 10) {
+    await Promise.all(missing.slice(i, i + 10).map(async (l) => {
+      try {
+        const page = await fetch(l.url, {
+          headers: { 'User-Agent': 'bettergovph-volunteers-portal', Accept: 'text/html' },
+          redirect: 'follow',
+          signal: AbortSignal.timeout(Math.max(1000, Math.min(3500, deadline - Date.now()))),
+        });
+        if (!page.ok) return;
+        l.logoUrl = pickIconFromHtml(await page.text(), page.url || l.url);
+      } catch { /* the card shows its initials instead */ }
+    }));
+  }
+};
+
+const buildLgus = async () => {
+  const r = await fetch(LGU_README, {
+    headers: { 'User-Agent': 'bettergovph-volunteers-portal', Accept: 'text/plain' },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!r.ok) throw new Error(`LGU directory ${r.status}`);
+  // The logos live on the rendered site, not in the README: fetch both, and carry on without the
+  // pictures if that one fails.
+  const logos = await fetch(LGU_DIRECTORY_URL, {
+    headers: { 'User-Agent': 'bettergovph-volunteers-portal' },
+    signal: AbortSignal.timeout(8000),
+  })
+    .then(async (page) => (page.ok ? parseLguLogos(await page.text(), LGU_DIRECTORY_URL) : new Map<string, string>()))
+    .catch(() => new Map<string, string>());
+  const lgus = parseLguTable(await r.text(), logos);
+  await fillMissingLogos(lgus);
+  // An empty parse means the upstream format moved: fail loudly rather than cache nothing for an hour.
+  if (!lgus.length) throw new Error('LGU directory table was empty');
+  const counts: Record<string, number> = { total: lgus.length };
+  for (const l of lgus) counts[l.status] = (counts[l.status] ?? 0) + 1;
+  counts.withRepo = lgus.filter((l) => !!l.repoUrl).length;
+  counts.withLogo = lgus.filter((l) => !!l.logoUrl).length;
+  counts.maintainers = new Set(lgus.flatMap((l) => l.maintainers.map((m) => m.login.toLowerCase()))).size;
+  return {
+    lgus,
+    counts,
+    directoryUrl: LGU_DIRECTORY_URL,
+    contributingUrl: LGU_CONTRIBUTING_URL,
+    generatedAt: new Date().toISOString(),
+  };
+};
+
+const handler_lgus: H = async (req, res) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=1800, stale-while-revalidate=86400');
+  if (req.method !== 'GET') { sendError(res, 405, 'Method not allowed'); return; }
+  try { const cached = await getCache<any>(LGU_CACHE); if (cached) { sendJson(res, 200, cached); return; } }
+  catch { /* noop */ }
+  try {
+    const payload = await buildLgus();
+    try { await setCache(LGU_CACHE, payload, 1800); } catch { /* noop */ }
+    sendJson(res, 200, payload);
+  } catch (err) {
+    console.error('[lgus]', err instanceof Error ? err.message : err);
+    sendError(res, 502, 'Could not reach the LGU directory');
+  }
+};
+
 const handler_contributors: H = async (req, res) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
@@ -3995,7 +4078,7 @@ type HandlerKey =
   | '/me' | '/admin' | '/projects' | '/submit-project' | '/my-project-submissions'
   | '/volunteer-calls' | '/verify' | '/discord' | '/discord-username-taken' | '/contribution-scores' | '/volunteers'
   | '/repo-tracker' | '/teams' | '/cron/repo-sync' | '/call-interests' | '/notifications' | '/reports'
-  | '/hours' | '/certificate' | '/project-updates' | '/og' | '/contributors';
+  | '/hours' | '/certificate' | '/project-updates' | '/og' | '/contributors' | '/lgus';
 
 const HANDLERS: Record<HandlerKey, H> = {
   '/me': handler_me,
@@ -4010,6 +4093,7 @@ const HANDLERS: Record<HandlerKey, H> = {
   '/contribution-scores': handler_contribution_scores,
   '/volunteers': handler_volunteers,
   '/contributors': handler_contributors,
+  '/lgus': handler_lgus,
   '/repo-tracker': handler_repo_tracker,
   '/teams': handler_teams,
   '/cron/repo-sync': handler_cron_repo_sync,
@@ -4082,6 +4166,7 @@ async function handleRequest(req: any, res: any) {
     if (pathname === '/contribution-scores') return callHandler('/contribution-scores', req, res);
     if (pathname === '/volunteers') return callHandler('/volunteers', req, res);
     if (pathname === '/contributors') return callHandler('/contributors', req, res);
+    if (pathname === '/lgus') return callHandler('/lgus', req, res);
     if (pathname === '/repo-tracker') return callHandler('/repo-tracker', req, res);
     if (pathname === '/teams') return callHandler('/teams', req, res);
     if (pathname === '/cron/repo-sync') return callHandler('/cron/repo-sync', req, res);

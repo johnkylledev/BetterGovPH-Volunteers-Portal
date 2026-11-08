@@ -19,6 +19,7 @@ const Terms = lazy(() => import("./pages/public/Terms"));
 const Projects = lazy(() => import("./pages/public/Projects"));
 const Volunteers = lazy(() => import("./pages/public/Volunteers"));
 const ProjectDetail = lazy(() => import("./pages/public/ProjectDetail"));
+const Lgus = lazy(() => import("./pages/public/Lgus"));
 const Opportunities = lazy(() => import("./pages/public/Opportunities"));
 const CodeOfConduct = lazy(() => import("./pages/public/CodeOfConduct"));
 const Certificate = lazy(() => import("./pages/dashboard/Certificate"));
@@ -275,6 +276,8 @@ export default function App() {
           <Route path="/verify" element={<Verify />} />
           <Route path="/verify/:id" element={<Verify />} />
           <Route path="/projects" element={<Projects />} />
+          {/* Declared before :id so the LGU directory keeps its own URL on a refresh. */}
+          <Route path="/projects/lgus" element={<Lgus />} />
           <Route path="/projects/:id" element={<ProjectDetail />} />
           <Route path="/opportunities" element={<Opportunities />} />
           <Route path="/code-of-conduct" element={<CodeOfConduct />} />
