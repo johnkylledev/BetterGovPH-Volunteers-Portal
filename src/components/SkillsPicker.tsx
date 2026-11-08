@@ -5,6 +5,7 @@ import { Check, Plus, Search, Target, X } from 'lucide-react';
 import { SkillIcon } from './SkillIcon';
 import { SPECIALIZATIONS } from '../constants/specializations';
 import { SKILL_CATEGORIES, SkillCategory } from '../constants/skills';
+import { useDragScroll } from '../hooks/useDragScroll';
 import type { SkillLevel, UserSkill } from '../types';
 
 const SKILL_LEVELS: SkillLevel[] = ['Learner', 'Practitioner', 'Expert'];
@@ -68,7 +69,9 @@ export const SkillsPicker: React.FC<SkillsPickerProps> = ({
   const [otherSkill, setOtherSkill] = useState('');
   const [showOtherInput, setShowOtherInput] = useState(false);
   const [activeSkillCategory, setActiveSkillCategory] = useState<SkillCategory>(() => categoryForRole(specialization));
-  const tabsScrollRef = useRef<HTMLDivElement>(null);
+  // The category row hides its scrollbar; on a desktop it needs drag and wheel to be reachable.
+  const tabs = useDragScroll<HTMLDivElement>();
+  const tabsScrollRef = tabs.ref;
   const tabRefs = useRef<Partial<Record<SkillCategory, HTMLButtonElement | null>>>({});
 
   // Changing the primary role jumps the browser to that role's category.
@@ -309,9 +312,14 @@ export const SkillsPicker: React.FC<SkillsPickerProps> = ({
               />
           </div>
 
+          <div className="relative -mx-1">
+          {/* Edge fades hint that the row keeps going. */}
+          {!tabs.atStart && <span aria-hidden className="pointer-events-none absolute left-0 top-0 z-10 h-full w-8 bg-gradient-to-r from-[var(--card)] to-transparent" />}
+          {!tabs.atEnd && <span aria-hidden className="pointer-events-none absolute right-0 top-0 z-10 h-full w-8 bg-gradient-to-l from-[var(--card)] to-transparent" />}
           <div
               ref={tabsScrollRef}
-              className="no-scrollbar -mx-1 mt-3 overflow-x-auto px-1 pb-1"
+              {...tabs.dragProps}
+              className={clsx('no-scrollbar mt-3 overflow-x-auto px-1 pb-1', tabs.dragging ? 'cursor-grabbing select-none' : 'sm:cursor-grab')}
               role="tablist"
               aria-label="Skill categories"
           >
@@ -350,6 +358,7 @@ export const SkillsPicker: React.FC<SkillsPickerProps> = ({
                       );
                   })}
               </div>
+          </div>
           </div>
 
           {(() => {

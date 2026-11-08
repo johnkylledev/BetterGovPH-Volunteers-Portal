@@ -114,11 +114,13 @@ export const Avatar: React.FC<AvatarProps> = ({
       {src && (
         <img
           key={src}
+          // A cached image can finish before React attaches onLoad, which left the picture
+          // invisible behind the initials. Checking `complete` on mount covers that.
+          ref={(el) => { if (el?.complete && el.naturalWidth > 0) setLoaded(el.currentSrc || src); }}
           src={src}
           alt=""
           width={size}
           height={size}
-          loading="lazy"
           decoding="async"
           // Google photos can 403 when a referrer is sent.
           referrerPolicy="no-referrer"
@@ -126,7 +128,7 @@ export const Avatar: React.FC<AvatarProps> = ({
           onError={() => setFailed((f) => [...f, src])}
           className={clsx(
             'absolute inset-0 h-full w-full object-cover transition-opacity duration-200',
-            loaded === src ? 'opacity-100' : 'opacity-0'
+            loaded ? 'opacity-100' : 'opacity-0'
           )}
         />
       )}

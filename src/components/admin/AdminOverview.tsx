@@ -47,15 +47,11 @@ export const AdminOverview: React.FC<Props> = ({ onGo, can, onImport, onExportRo
       </div>
     );
   }
-  if (!data) {
-    return (
-      <div className="grid gap-4 md:grid-cols-2" aria-busy="true">
-        {Array.from({ length: 4 }).map((_, i) => <div key={i} className="s-card h-28" />)}
-      </div>
-    );
-  }
-
-  const { queue, numbers } = data;
+  // The page is drawn straight away with its real layout; each number counts up when it arrives,
+  // so nothing jumps from a placeholder shape to a different one.
+  const loading = !data;
+  const queue = data?.queue ?? {};
+  const numbers = data?.numbers ?? { members: 0, approvedProjects: 0, importedProjects: 0, openCalls: 0, interests7d: 0, newMembers7d: 0 };
   const queueItems: { key: string; label: string; count?: number; hint: string; icon: React.ElementType; tone: string; action: () => void }[] = [
     { key: 'apps', label: 'Applications to review', count: queue.pendingApps, hint: 'Approve to issue a Volunteer Card', icon: Inbox, tone: 'amber', action: () => onGo('applications') },
     { key: 'projects', label: 'Projects to review', count: queue.pendingProjects, hint: 'Approve, or send back with a note', icon: FolderKanban, tone: 'amber', action: () => onGo('projects') },
@@ -64,7 +60,7 @@ export const AdminOverview: React.FC<Props> = ({ onGo, can, onImport, onExportRo
     { key: 'consent', label: 'Members without consent', count: queue.noConsent, hint: 'They see a prompt on their dashboard', icon: BadgeCheck, tone: 'slate', action: () => onGo('members') },
   ];
   const needsAction = queueItems.filter((q) => (q.count ?? 0) > 0);
-  const maxRole = Math.max(1, ...data.roles.map((r) => r.count));
+  const maxRole = Math.max(1, ...(data?.roles ?? []).map((r) => r.count));
 
   return (
     <div className="space-y-6">
@@ -111,12 +107,12 @@ export const AdminOverview: React.FC<Props> = ({ onGo, can, onImport, onExportRo
       <section aria-labelledby="numbers-title">
         <h2 id="numbers-title" className="mb-3 text-[16px] font-semibold text-slate-900">Community</h2>
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6">
-          <StatTile label="Members" value={numbers.members} icon={Users} hint={`+${numbers.newMembers7d} this week`} />
-          <StatTile label="Live projects" value={numbers.approvedProjects} icon={FolderKanban} hint={numbers.importedProjects ? `${numbers.importedProjects} imported` : 'approved'} />
-          <StatTile label="Open calls" value={numbers.openCalls} icon={Megaphone} hint="volunteers & resources" />
-          <StatTile label="Hands raised" value={numbers.interests7d} icon={Hand} hint="last 7 days" />
-          <StatTile label="New sign-ups" value={numbers.newMembers7d} icon={UserPlus} hint="last 7 days" />
-          <StatTile label="To review" value={queue.pendingApps + queue.pendingProjects} icon={Inbox} hint="apps + projects" />
+          <StatTile loading={loading} label="Members" value={numbers.members} icon={Users} hint={`+${numbers.newMembers7d} this week`} />
+          <StatTile loading={loading} label="Live projects" value={numbers.approvedProjects} icon={FolderKanban} hint={numbers.importedProjects ? `${numbers.importedProjects} imported` : 'approved'} />
+          <StatTile loading={loading} label="Open calls" value={numbers.openCalls} icon={Megaphone} hint="volunteers & resources" />
+          <StatTile loading={loading} label="Hands raised" value={numbers.interests7d} icon={Hand} hint="last 7 days" />
+          <StatTile loading={loading} label="New sign-ups" value={numbers.newMembers7d} icon={UserPlus} hint="last 7 days" />
+          <StatTile loading={loading} label="To review" value={(queue.pendingApps ?? 0) + (queue.pendingProjects ?? 0)} icon={Inbox} hint="apps + projects" />
         </div>
       </section>
 
@@ -125,11 +121,11 @@ export const AdminOverview: React.FC<Props> = ({ onGo, can, onImport, onExportRo
         <section className="s-card p-5 sm:p-6" aria-labelledby="roles-title">
           <h2 id="roles-title" className="text-[16px] font-semibold text-slate-900">Members by role</h2>
           <p className="mt-0.5 text-[13px] text-slate-500">Primary role of everyone who finished sign-up. Spot the gaps to recruit for.</p>
-          {data.roles.length === 0 ? (
+          {(data?.roles ?? []).length === 0 ? (
             <p className="mt-4 text-[14px] text-slate-500">No members yet.</p>
           ) : (
             <ul className="mt-4 space-y-3 sm:space-y-2.5">
-              {data.roles.slice(0, 10).map((r) => (
+              {(data?.roles ?? []).slice(0, 10).map((r) => (
                 <li
                   key={r.role}
                   className="grid grid-cols-[minmax(0,1fr)_2rem] items-center gap-x-3 gap-y-1.5 text-[13px] sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)_2rem] sm:gap-y-0"
@@ -149,11 +145,11 @@ export const AdminOverview: React.FC<Props> = ({ onGo, can, onImport, onExportRo
         {/* Activity */}
         <section className="s-card p-5 sm:p-6" aria-labelledby="feed-title">
           <h2 id="feed-title" className="text-[16px] font-semibold text-slate-900">Recent activity</h2>
-          {data.feed.length === 0 ? (
+          {(data?.feed ?? []).length === 0 ? (
             <p className="mt-4 text-[14px] text-slate-500">Nothing yet.</p>
           ) : (
             <ul className="mt-3 divide-y divide-slate-200/80">
-              {data.feed.map((f, i) => {
+              {(data?.feed ?? []).map((f, i) => {
                 const inner = (
                   <>
                     <span className={clsx('mt-1.5 h-2 w-2 shrink-0 rounded-full', f.kind === 'member' ? 'bg-sky-500' : f.kind === 'project' ? 'bg-violet-500' : 'bg-emerald-500')} aria-hidden />
@@ -188,16 +184,16 @@ export const AdminOverview: React.FC<Props> = ({ onGo, can, onImport, onExportRo
       {can('privacy.erase') && (
       <section id="deletion-requests" className="s-card p-5 sm:p-6" aria-labelledby="del-title">
         <h2 id="del-title" className="text-[16px] font-semibold text-slate-900">
-          Deletion requests <span className="num font-normal text-slate-400">{data.deletions.length}</span>
+          Deletion requests <span className="num font-normal text-slate-400">{(data?.deletions ?? []).length}</span>
         </h2>
         <p className="mt-0.5 text-[13px] text-slate-500">
           Data Privacy Act: complete these promptly (we tell members about 15 days). Approved public projects stay listed under you; everything personal is removed.
         </p>
-        {data.deletions.length === 0 ? (
+        {(data?.deletions ?? []).length === 0 ? (
           <p className="mt-4 text-[14px] text-slate-500">No pending requests.</p>
         ) : (
           <ul className="mt-4 divide-y divide-slate-200/80">
-            {data.deletions.map((d) => (
+            {(data?.deletions ?? []).map((d) => (
               <li key={d.uid} className="py-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="min-w-0">

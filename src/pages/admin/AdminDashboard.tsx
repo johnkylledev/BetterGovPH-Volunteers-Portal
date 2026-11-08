@@ -126,6 +126,7 @@ export default function AdminDashboard() {
   const [editSaving, setEditSaving] = useState(false);
 
   const [stats, setStats] = useState({ total: 0, pending: 0, approved: 0 });
+  const [statsLoaded, setStatsLoaded] = useState(false);
 
   const [debouncedSearch, setDebouncedSearch] = useState(searchTerm);
 
@@ -159,6 +160,7 @@ export default function AdminDashboard() {
     if (!can(currentUser, 'members.view')) return;
     const s = await getAdminStats();
     setStats(s);
+    setStatsLoaded(true);
   };
 
   // Cached per page+filter, so paging back and forth is instant and the table never blanks.
@@ -570,7 +572,10 @@ export default function AdminDashboard() {
         {activeTab !== 'calls' && (
         <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
           {statTiles.map((t) => (
-            <StatTile key={t.label} label={t.label} value={t.value} hint={t.hint} icon={t.icon} />
+            // Hold the tile until the real number is in, so it counts up from nothing instead of
+            // showing a 0 that jumps a moment later.
+            <StatTile key={t.label} label={t.label} value={t.value} hint={t.hint} icon={t.icon}
+              loading={isProjects ? !projectCountsRes.data : !statsLoaded} />
           ))}
         </div>
         )}
@@ -988,15 +993,20 @@ export default function AdminDashboard() {
                             className={RWD_ROW}
                           >
                             <td className={clsx(RWD_CELL_ID, 'pl-6 max-sm:pl-0')}>
-                              <div className="font-semibold text-slate-900 max-sm:break-words sm:truncate">
-                                {member.fullName}
-                                {(member.adminRoleName || member.isAdmin) && (
-                                  <span className="ml-1.5 inline-flex shrink-0 items-center rounded-full bg-[#eef3ff] px-1.5 py-px align-middle text-[11px] font-medium text-[var(--accent)]">
-                                    {member.adminRoleName || 'Super admin'}
-                                  </span>
-                                )}
+                              <div className="flex min-w-0 items-center gap-3">
+                                <Avatar name={member.fullName} seed={member.uid || member.id} photos={[member.photoUrl]} size={32} />
+                                <div className="min-w-0">
+                                  <div className="font-semibold text-slate-900 max-sm:break-words sm:truncate">
+                                    {member.fullName}
+                                    {(member.adminRoleName || member.isAdmin) && (
+                                      <span className="ml-1.5 inline-flex shrink-0 items-center rounded-full bg-[#eef3ff] px-1.5 py-px align-middle text-[11px] font-medium text-[var(--accent)]">
+                                        {member.adminRoleName || 'Super admin'}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-slate-500 max-sm:break-all sm:truncate">{member.email}</div>
+                                </div>
                               </div>
-                              <div className="text-xs text-slate-500 max-sm:break-all sm:truncate">{member.email}</div>
                             </td>
                             <td className={clsx(RWD_CELL, 'font-semibold text-slate-700')} data-label="Primary role">{member.specialization}</td>
                             <td className={clsx(RWD_CELL, 'font-semibold text-slate-700')} data-label="Community role">{member.role}</td>

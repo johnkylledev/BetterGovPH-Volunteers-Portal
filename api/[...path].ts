@@ -2026,9 +2026,9 @@ const handler_me: H = async (req, res) => {
         });
       } catch { /* table missing until migration */ }
     }
-    if (consentEvent || 'show_in_directory' in updates || 'show_full_name' in updates || 'display_name' in updates || 'show_photo' in updates) {
-      try { await invalidateCache('cache:volunteers:directory:v2'); } catch { /* noop */ }
-    }
+    // The directory shows the name, roles, skills and the privacy switches, so any profile save
+    // can change it. Clearing on every save is one cheap delete and keeps the page honest.
+    try { await invalidateCache('cache:volunteers:directory:v2'); } catch { /* noop */ }
     if (updated) {
       // Skills drive the volunteer's Discord roles, so keep them in step with the profile.
       if (Array.isArray(body.skills)) await syncSkillRoles(updated);
@@ -3861,7 +3861,7 @@ const normalizePath = (req: any): string => {
 // shows (name, role, member ID, year) plus their featured skills and Discord avatar. No emails.
 const handler_volunteers: H = async (req, res) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=1800');
+  res.setHeader('Cache-Control', 'public, max-age=15, stale-while-revalidate=120');
   if (req.method !== 'GET') { sendError(res, 405, 'Method not allowed'); return; }
   const cacheKey = 'cache:volunteers:directory:v2';
   try { const cached = await getCache<any>(cacheKey); if (cached) { sendJson(res, 200, cached); return; } }
@@ -3899,7 +3899,8 @@ const handler_volunteers: H = async (req, res) => {
     };
   });
   const payload = { volunteers, count: volunteers.length };
-  try { await setCache(cacheKey, payload, 300); } catch { /* noop */ }
+  // Short: the page polls, and a profile save clears this anyway.
+  try { await setCache(cacheKey, payload, 30); } catch { /* noop */ }
   sendJson(res, 200, payload);
 };
 

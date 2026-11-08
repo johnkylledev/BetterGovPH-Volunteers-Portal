@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Avatar } from '../../components/Avatar';
 import { Link } from 'react-router-dom';
 import clsx from 'clsx';
@@ -6,6 +6,7 @@ import { ArrowRight, ArrowUpRight, Search as SearchIcon, X as XIcon } from 'luci
 import { VerifiedIcon } from '../../components/icons';
 import { SiteLayout, PageIntro } from '../../components/site/SiteLayout';
 import { SkillIcon } from '../../components/SkillIcon';
+import { useCachedResource } from '../../hooks/useCachedResource';
 
 interface Volunteer {
   name: string;
@@ -19,18 +20,11 @@ interface Volunteer {
   avatarUrl: string | null;
 }
 
-const CACHE_KEY = 'bgph:volunteers:v2'; // v2: names are redacted server-side
-const CACHE_TTL_MS = 5 * 60 * 1000;
-
-const readCache = (): Volunteer[] | null => {
-  try {
-    const raw = sessionStorage.getItem(CACHE_KEY);
-    if (!raw) return null;
-    const { at, data } = JSON.parse(raw) as { at: number; data: Volunteer[] };
-    return Date.now() - at < CACHE_TTL_MS ? data : null;
-  } catch {
-    return null;
-  }
+const fetchVolunteers = async (): Promise<Volunteer[]> => {
+  const r = await fetch('/api/v1/volunteers', { headers: { 'Cache-Control': 'no-cache' } });
+  if (!r.ok) throw new Error(String(r.status));
+  const json = (await r.json()) as { volunteers?: Volunteer[] };
+  return Array.isArray(json?.volunteers) ? json.volunteers : [];
 };
 
 const VolunteerCard: React.FC<{ v: Volunteer }> = ({ v }) => {
@@ -85,31 +79,13 @@ const VolunteerCard: React.FC<{ v: Volunteer }> = ({ v }) => {
 };
 
 export default function Volunteers() {
-  const [volunteers, setVolunteers] = useState<Volunteer[] | null>(() => readCache());
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(() => (readCache() ? 'ready' : 'loading'));
+  // Keeps itself current: shows what it has, refreshes underneath, and picks up changes when the
+  // tab regains focus, so a privacy change appears here without anyone reloading the page.
+  const res = useCachedResource<Volunteer[]>('public-volunteers', fetchVolunteers, { freshMs: 15_000, pollMs: 30_000 });
+  const volunteers = res.data ?? null;
+  const status: 'loading' | 'ready' | 'error' = res.loadingFirst ? 'loading' : (res.error && !res.data ? 'error' : 'ready');
   const [query, setQuery] = useState('');
   const [role, setRole] = useState<string>('All');
-
-  useEffect(() => {
-    if (volunteers) return;
-    const ctrl = new AbortController();
-    fetch('/api/v1/volunteers', { signal: ctrl.signal })
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((json: { volunteers: Volunteer[] }) => {
-        const list = Array.isArray(json?.volunteers) ? json.volunteers : [];
-        setVolunteers(list);
-        setStatus('ready');
-        try {
-          sessionStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), data: list }));
-        } catch {
-          /* storage unavailable */
-        }
-      })
-      .catch((err) => {
-        if ((err as Error)?.name !== 'AbortError') setStatus('error');
-      });
-    return () => ctrl.abort();
-  }, [volunteers]);
 
   // Role chips come from the roles people actually have, most common first.
   const roles = useMemo(() => {
@@ -233,7 +209,7 @@ export default function Volunteers() {
               <p className="mt-1 text-[14px] text-[var(--fg-3)]">Check your connection and try again.</p>
               <button
                 type="button"
-                onClick={() => { setStatus('loading'); setVolunteers(null); }}
+                onClick={res.refresh}
                 className="s-btn s-btn-plain mt-5"
               >
                 Try again
