@@ -59,6 +59,19 @@ const parseImportRows = (text: string): ImportProjectRow[] => {
     .filter((r) => r.name || r.url);
 };
 
+/**
+ * Admin tables are too wide for a phone. Below `sm` the same markup renders as stacked cards:
+ * the head is hidden, each row becomes a bordered card, and each cell shows its column name
+ * (from `data-label`) beside the value. From `sm` up it is an ordinary table again.
+ */
+const RWD_TABLE = 'w-full border-collapse text-left max-sm:block';
+const RWD_HEAD = 'max-sm:hidden';
+const RWD_BODY = 'divide-y divide-slate-100 text-sm max-sm:block max-sm:divide-y-0 max-sm:space-y-2.5 max-sm:p-3';
+const RWD_ROW = 'transition-colors hover:bg-slate-50/50 max-sm:block max-sm:rounded-[12px] max-sm:bg-white max-sm:p-3 max-sm:shadow-[inset_0_0_0_1px_rgb(15_23_42/0.1)]';
+const RWD_CELL = "p-4 max-sm:flex max-sm:items-start max-sm:justify-between max-sm:gap-3 max-sm:p-0 max-sm:py-1.5 max-sm:before:shrink-0 max-sm:before:text-[12px] max-sm:before:font-medium max-sm:before:text-slate-400 max-sm:before:content-[attr(data-label)]";
+/** The name/email cell: on phones it heads the card on its own line, with room to wrap. */
+const RWD_CELL_ID = 'p-4 max-sm:block max-sm:p-0 max-sm:pb-2 max-sm:mb-1 max-sm:border-b max-sm:border-slate-100';
+
 export default function AdminDashboard() {
   const { currentUser, updateUserStatus, authInitialized } = useStore();
   const logout = useStore((s) => s.logout);
@@ -579,9 +592,9 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
+              <div className="sm:overflow-x-auto">
+                <table className={RWD_TABLE}>
+                  <thead className={RWD_HEAD}>
                     <tr className="text-slate-500 text-[12px] border-b border-slate-200">
                       <th className="p-4 pl-6 font-semibold">Applicant</th>
                       <th className="p-4 font-semibold">Discord / Role</th>
@@ -590,7 +603,7 @@ export default function AdminDashboard() {
                       <th className="p-4 pr-6 font-semibold text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 text-sm">
+                  <tbody className={RWD_BODY}>
                     {isDataLoading ? (
                       Array.from({ length: 5 }).map((_, idx) => (
                         <tr key={`skel-${idx}`}>
@@ -625,18 +638,19 @@ export default function AdminDashboard() {
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           key={user.id}
-                          className="hover:bg-slate-50/50 transition-colors"
+                          className={RWD_ROW}
                         >
-                          <td className="p-4 pl-6">
-                            <div className="flex items-center gap-3">
+                          <td className={clsx(RWD_CELL_ID, 'pl-6 max-sm:pl-0')}>
+                            <div className="flex min-w-0 items-center gap-3">
                               <Avatar name={user.fullName} seed={user.uid || user.id} discordId={user.discordId} discordAvatar={user.discordAvatar} size={32} />
                               <div className="min-w-0">
-                                <div className="font-semibold text-slate-900">{user.fullName}</div>
-                                <div className="text-xs text-slate-500">{user.email}</div>
+                                <div className="font-semibold text-slate-900 max-sm:break-words sm:truncate">{user.fullName}</div>
+                                <div className="text-xs text-slate-500 max-sm:break-all sm:truncate">{user.email}</div>
                               </div>
                             </div>
                           </td>
-                          <td className="p-4">
+                          <td className={clsx(RWD_CELL, 'max-sm:flex-col max-sm:gap-0.5')} data-label="Discord / Role">
+                            <div className="min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                               <div>
                                 <div className="font-semibold text-slate-700">
@@ -648,8 +662,9 @@ export default function AdminDashboard() {
                               </div>
                             </div>
                             <div className="text-xs text-slate-500">{user.specialization} • {user.role}</div>
+                            </div>
                           </td>
-                          <td className="p-4">
+                          <td className={RWD_CELL} data-label="Status">
                             <span className={clsx(
                               'inline-flex items-center px-2 py-0.5 text-[12px] font-medium rounded-full border',
                               user.status === 'Approved' ? 'text-emerald-700 border-emerald-200' :
@@ -659,8 +674,10 @@ export default function AdminDashboard() {
                               {user.status}
                             </span>
                           </td>
-                          <td className="p-4 font-mono text-slate-600">{user.memberId || '-'}</td>
-                          <td className="p-4 pr-6 text-right">
+                          {/* A pending applicant has no member ID yet: the desktop column keeps its
+                              dash so the table stays aligned, but the phone card drops the row. */}
+                          <td className={clsx(RWD_CELL, 'font-mono text-slate-600', !user.memberId && 'max-sm:hidden')} data-label="Member ID">{user.memberId || '-'}</td>
+                          <td className={clsx(RWD_CELL, 'pr-6 text-right max-sm:justify-end max-sm:pr-0 max-sm:pt-2.5')}>
                             <button
                               onClick={() => setSelectedUser(user)}
                               className="s-btn s-btn-plain h-8 px-3 text-[13px]"
@@ -926,9 +943,9 @@ export default function AdminDashboard() {
                 </div>
               ) : (
                 <>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
+                  <div className="sm:overflow-x-auto">
+                    <table className={RWD_TABLE}>
+                      <thead className={RWD_HEAD}>
                         <tr className="text-slate-500 text-[12px] border-b border-slate-200">
                           <th className="p-4 pl-6 font-semibold">Member Name</th>
                           <th className="p-4 font-semibold">Primary Role</th>
@@ -937,22 +954,22 @@ export default function AdminDashboard() {
                           <th className="p-4 pr-6 font-semibold text-right">Card Preview</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100 text-sm">
+                      <tbody className={RWD_BODY}>
                         {filteredApprovedMembers.map((member) => (
                           <motion.tr
                             key={member.id}
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            className="hover:bg-slate-50/50 transition-colors"
+                            className={RWD_ROW}
                           >
-                            <td className="p-4 pl-6">
-                              <div className="font-semibold text-slate-900">{member.fullName}</div>
-                              <div className="text-xs text-slate-500">{member.email}</div>
+                            <td className={clsx(RWD_CELL_ID, 'pl-6 max-sm:pl-0')}>
+                              <div className="font-semibold text-slate-900 max-sm:break-words sm:truncate">{member.fullName}</div>
+                              <div className="text-xs text-slate-500 max-sm:break-all sm:truncate">{member.email}</div>
                             </td>
-                            <td className="p-4 font-semibold text-slate-700">{member.specialization}</td>
-                            <td className="p-4 font-semibold text-slate-700">{member.role}</td>
-                            <td className="p-4 font-mono font-semibold text-blue-700">{member.memberId}</td>
-                            <td className="p-4 pr-6 text-right">
+                            <td className={clsx(RWD_CELL, 'font-semibold text-slate-700')} data-label="Primary role">{member.specialization}</td>
+                            <td className={clsx(RWD_CELL, 'font-semibold text-slate-700')} data-label="Community role">{member.role}</td>
+                            <td className={clsx(RWD_CELL, 'font-mono font-semibold text-blue-700')} data-label="Member ID">{member.memberId}</td>
+                            <td className={clsx(RWD_CELL, 'pr-6 text-right max-sm:justify-end max-sm:pr-0 max-sm:pt-2.5')}>
                               <button
                                 onClick={() => setSelectedMember(member)}
                                 className="s-btn s-btn-plain h-8 px-3 text-[13px]"

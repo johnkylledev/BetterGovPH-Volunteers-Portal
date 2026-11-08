@@ -128,14 +128,18 @@ export const AdminOverview: React.FC<Props> = ({ onGo, can, onImport, onExportRo
           {data.roles.length === 0 ? (
             <p className="mt-4 text-[14px] text-slate-500">No members yet.</p>
           ) : (
-            <ul className="mt-4 space-y-2.5">
+            <ul className="mt-4 space-y-3 sm:space-y-2.5">
               {data.roles.slice(0, 10).map((r) => (
-                <li key={r.role} className="grid grid-cols-[minmax(0,10rem)_minmax(0,1fr)_2rem] items-center gap-3 text-[13px]">
+                <li
+                  key={r.role}
+                  className="grid grid-cols-[minmax(0,1fr)_2rem] items-center gap-x-3 gap-y-1.5 text-[13px] sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)_2rem] sm:gap-y-0"
+                >
                   <span className="truncate text-slate-700">{r.role}</span>
-                  <span className="h-2 overflow-hidden rounded-full bg-slate-100">
+                  {/* Phones: the count sits beside the name and the bar spans the row underneath. */}
+                  <span className="num order-2 text-right text-slate-500 sm:order-3">{r.count}</span>
+                  <span className="order-3 col-span-2 h-2 overflow-hidden rounded-full bg-slate-100 sm:order-2 sm:col-span-1">
                     <span className="block h-full rounded-full bg-[linear-gradient(90deg,#1e3a8a,#3b5fd0)]" style={{ width: `${(r.count / maxRole) * 100}%` }} />
                   </span>
-                  <span className="num text-right text-slate-500">{r.count}</span>
                 </li>
               ))}
             </ul>
@@ -153,9 +157,16 @@ export const AdminOverview: React.FC<Props> = ({ onGo, can, onImport, onExportRo
                 const inner = (
                   <>
                     <span className={clsx('mt-1.5 h-2 w-2 shrink-0 rounded-full', f.kind === 'member' ? 'bg-sky-500' : f.kind === 'project' ? 'bg-violet-500' : 'bg-emerald-500')} aria-hidden />
-                    <span className="min-w-0 flex-1 truncate text-[13.5px] text-slate-800">{f.text}</span>
-                    {f.status && <span className="shrink-0 text-[12px] capitalize text-slate-400">{String(f.status).toLowerCase()}</span>}
-                    <span className="num w-14 shrink-0 text-right text-[12px] text-slate-400">{timeAgo(f.at)}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[13.5px] leading-snug text-slate-800 line-clamp-2 sm:truncate">{f.text}</span>
+                      {/* Phones: status and time go under the text instead of fighting it for width. */}
+                      <span className="mt-0.5 flex items-center gap-2 text-[12px] text-slate-400 sm:hidden">
+                        {f.status && <span className="capitalize">{String(f.status).toLowerCase()}</span>}
+                        <span className="num">{timeAgo(f.at)}</span>
+                      </span>
+                    </span>
+                    {f.status && <span className="hidden shrink-0 text-[12px] capitalize text-slate-400 sm:inline">{String(f.status).toLowerCase()}</span>}
+                    <span className="num hidden w-14 shrink-0 text-right text-[12px] text-slate-400 sm:inline">{timeAgo(f.at)}</span>
                   </>
                 );
                 return (
