@@ -15,7 +15,6 @@ interface Volunteer {
   secondaryRole?: string | null;
   memberId: string;
   yearJoined: number | null;
-  isAdmin: boolean;
   skills: string[];
   skillCount: number;
   avatarUrl: string | null;

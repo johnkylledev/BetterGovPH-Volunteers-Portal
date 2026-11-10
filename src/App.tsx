@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Suspense, lazy, useEffect, useState } from "react";
+import { ScrollManager } from './components/ScrollManager';
 import { useStore } from "./store/useStore";
 import { hasAdminAccess } from "./utils/adminAccess";
 import { peekReturnTo, takeReturnTo } from "./utils/returnTo";
@@ -265,6 +266,7 @@ export default function App() {
       <Router>
         <Suspense fallback={<LoadingOverlay />}>
         <ReturnToCleaner />
+        <ScrollManager />
         <Routes>
           <Route path="/" element={<HomeRoute><Landing /></HomeRoute>} />
           <Route path="/login/*" element={<PublicRoute><Login /></PublicRoute>} />

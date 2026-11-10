@@ -3868,7 +3868,7 @@ const handler_volunteers: H = async (req, res) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'public, max-age=15, stale-while-revalidate=120');
   if (req.method !== 'GET') { sendError(res, 405, 'Method not allowed'); return; }
-  const cacheKey = 'cache:volunteers:directory:v2';
+  const cacheKey = 'cache:volunteers:directory:v3';
   try { const cached = await getCache<any>(cacheKey); if (cached) { sendJson(res, 200, cached); return; } }
   catch { /* noop */ }
   const { url: supabaseUrl, serviceKey } = getSupabaseConfig();
@@ -3896,7 +3896,9 @@ const handler_volunteers: H = async (req, res) => {
       secondaryRole: r.secondary_specialization || null,
       memberId: r.member_id,
       yearJoined: typeof r.year_joined === 'number' ? r.year_joined : null,
-      isAdmin: !!r.is_admin,
+      // Deliberately no admin flag. This endpoint is public and unauthenticated, so returning one
+      // would hand anyone a list of exactly which accounts are worth attacking. Nothing on the page
+      // used it. Anything added here is published to the world — keep it to what the card shows.
       skills: ordered.map((s) => String(s?.name || '')).filter(Boolean).slice(0, 4),
       skillCount: skills.length,
       // The sign-in picture (Google or GitHub), only for members who switched it on. Pulled live.

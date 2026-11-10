@@ -218,3 +218,82 @@ describe('GET /api/v1/verify with cards switched off', () => {
     process.env.CARDS_ENABLED = 'true';
   });
 });
+
+describe('GET /api/v1/volunteers (public, unauthenticated)', () => {
+  // Everything this endpoint returns is published to anyone who asks. The risk is not one field
+  // but the habit: a column added to the mapper for a logged-in view ends up here too. So this
+  // pins the whole shape rather than the one flag that got out.
+  const ALLOWED = [
+    'name', 'role', 'secondaryRole', 'memberId', 'yearJoined', 'skills', 'skillCount', 'avatarUrl',
+  ].sort();
+
+  const listedMember = {
+    uid: '22222222-2222-4222-8222-222222222222',
+    member_id: 'BGPH-2026-002',
+    full_name: 'Maria Santos',
+    show_full_name: true,
+    specialization: 'Engineering',
+    secondary_specialization: null,
+    role: 'Member',
+    status: 'Approved',
+    year_joined: 2026,
+    skills: [{ name: 'React' }],
+    show_in_directory: true,
+    consent_purposes: ['directory'],
+    show_photo: false,
+    // The things that must never reach the public list, whatever else changes:
+    is_admin: true,
+    admin_role_id: 'role-legal',
+    email: 'maria@example.com',
+    discord_username: 'mariasantos',
+    discord_id: '123456789',
+    admin_notes: 'internal note',
+    auth_provider: 'google',
+  };
+
+  it('returns only the fields the directory card shows', async () => {
+    usersReply = { status: 200, body: [listedMember] };
+    const res = await callApi('GET', '/api/v1/volunteers');
+    expect(res.status).toBe(200);
+    expect(res.json.volunteers).toHaveLength(1);
+    expect(Object.keys(res.json.volunteers[0]).sort()).toEqual(ALLOWED);
+  });
+
+  it('never says who the admins are', async () => {
+    usersReply = { status: 200, body: [listedMember] };
+    const res = await callApi('GET', '/api/v1/volunteers');
+    const body = JSON.stringify(res.json);
+    expect(body).not.toContain('isAdmin');
+    expect(body).not.toContain('is_admin');
+    expect(body).not.toContain('adminRole');
+  });
+
+  it('leaks no contact details, internal notes or account ids', async () => {
+    usersReply = { status: 200, body: [listedMember] };
+    const res = await callApi('GET', '/api/v1/volunteers');
+    const body = JSON.stringify(res.json);
+    for (const secret of [
+      listedMember.email,
+      listedMember.uid,
+      listedMember.discord_username,
+      listedMember.discord_id,
+      listedMember.admin_notes,
+      listedMember.admin_role_id,
+    ]) {
+      expect(body, `leaked ${secret}`).not.toContain(secret);
+    }
+  });
+
+  it('lists only members who opted into the directory', async () => {
+    usersReply = {
+      status: 200,
+      body: [
+        listedMember,
+        { ...listedMember, uid: 'a', member_id: 'BGPH-2026-003', show_in_directory: false },
+        { ...listedMember, uid: 'b', member_id: 'BGPH-2026-004', consent_purposes: [] },
+      ],
+    };
+    const res = await callApi('GET', '/api/v1/volunteers');
+    expect(res.json.volunteers.map((v: any) => v.memberId)).toEqual(['BGPH-2026-002']);
+  });
+});
