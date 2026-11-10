@@ -186,27 +186,32 @@ export default function Projects() {
                 const cardClass = 's-tile group flex h-full flex-col p-5';
                 const body = (
                   <>
+                    {/* Mark, title and address are one identity block: the address belongs under the
+                        name it belongs to, and the mark then spans both lines instead of leaving a
+                        gap beside a single line of text. */}
                     <div className="flex items-start gap-3.5">
                       {/* The project's own favicon, pulled live from its domain. */}
                       <SiteMark name={p.title} sources={[iconForDomain(p.host)]} size={40} />
-                      <h2 className="min-w-0 flex-1 text-[15.5px] font-semibold leading-snug tracking-[-0.012em] [overflow-wrap:anywhere]">
-                        {p.title}
-                      </h2>
+                      <div className="min-w-0 flex-1">
+                        <h2 className="text-[15.5px] font-semibold leading-snug tracking-[-0.012em] [overflow-wrap:anywhere]">
+                          {p.title}
+                        </h2>
+                        {p.host && (
+                          <p className="mt-1.5">
+                            <span className="s-addr s-addr--sm">
+                              <Globe size={11} strokeWidth={1.75} className="shrink-0 opacity-60" aria-hidden />
+                              <span className="truncate">{p.host}</span>
+                            </span>
+                          </p>
+                        )}
+                      </div>
                       <ArrowUpRight
                         size={16}
                         strokeWidth={1.75}
                         className="mt-0.5 shrink-0 text-slate-300 transition-[transform,color] duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-[var(--accent)]"
                       />
                     </div>
-                    {p.host && (
-                      <p className="mt-3.5">
-                        <span className="s-addr">
-                          <Globe size={12} strokeWidth={1.75} className="shrink-0 opacity-60" aria-hidden />
-                          <span className="truncate">{p.host}</span>
-                        </span>
-                      </p>
-                    )}
-                    <p className="mt-3 flex-1 text-[14px] leading-relaxed text-[var(--fg-2)] line-clamp-3">{p.description}</p>
+                    <p className="mt-4 flex-1 text-[14px] leading-relaxed text-[var(--fg-2)] line-clamp-3">{p.description}</p>
                     {(p.repo || p.stage) && (
                       <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
                         {p.stage && <span className="rounded-full bg-[#eef3ff] px-2 py-0.5 text-[11.5px] font-medium text-[var(--accent)]">{stageLabel(p.stage)}</span>}

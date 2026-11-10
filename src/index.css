@@ -251,6 +251,15 @@ body {
   color: var(--fg-2);
   transition: color 150ms var(--ease-out), box-shadow 150ms var(--ease-out);
 }
+/* Sits under a title inside a card's identity block, so it stays subordinate to it. */
+.s-addr--sm {
+  height: 22px;
+  padding: 0 7px;
+  gap: 5px;
+  font-size: 12px;
+  border-radius: 7px;
+}
+
 .s-tile:hover .s-addr {
   color: var(--accent);
   box-shadow: inset 0 0 0 1px rgb(30 58 138 / 0.22);
