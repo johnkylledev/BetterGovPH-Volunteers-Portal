@@ -238,6 +238,29 @@ async function upstashCommand<T = any>(command: any[]): Promise<T | null> {
   } catch { return null; }
 }
 
+/**
+ * Work that has to happen, but that the caller has no reason to wait for.
+ *
+ * Approving a member took as long as Discord took to answer: the row was written in a few hundred
+ * milliseconds, and then the request sat through a role sync, a role read, an audit insert and a
+ * notification insert before the admin's button stopped spinning. None of it changes the response.
+ *
+ * The response is flushed before this runs either way. Where the platform hands us a handle for
+ * background work we use it, so the function is not killed mid-flight; locally the process outlives
+ * the request, so the work can simply run on; and with neither we still wait, which is slow for us
+ * but never silently drops someone's notification.
+ */
+const afterResponse = async (label: string, work: () => Promise<unknown>): Promise<void> => {
+  const run = async () => {
+    try { await work(); }
+    catch (err) { console.error(`[after:${label}]`, err instanceof Error ? err.message : err); }
+  };
+  const ctx = (globalThis as any)[Symbol.for('@vercel/request-context')]?.get?.();
+  if (typeof ctx?.waitUntil === 'function') { ctx.waitUntil(run()); return; }
+  if (!process.env.VERCEL) { void run(); return; }
+  await run();
+};
+
 async function getCache<T = any>(key: string): Promise<T | null> {
   const { url, token } = getRedisConfig();
   if (url && token) {
@@ -2327,7 +2350,10 @@ const handler_admin: H = async (req, res) => {
     if (status === 'Suspended' && !String(adminNotes ?? '').trim()) {
       sendError(res, 400, 'Give a reason for the suspension — the member is shown it.'); return;
     }
-    const { data: target } = await adminSup.from('users').select('status, is_admin, admin_role_id').eq('uid', idUid).maybeSingle();
+    // Everything this decision needs about the target, in one read: the admin guard below, and the
+    // member id an approval has to mint, all live on the same row.
+    const { data: target } = await adminSup.from('users')
+      .select('status, is_admin, admin_role_id, member_id, year_joined').eq('uid', idUid).maybeSingle();
     if (!adminCheck.superAdmin && (target?.is_admin || target?.admin_role_id)) {
       sendError(res, 403, 'Only super admins can change another admin’s account.'); return;
     }
@@ -2346,29 +2372,44 @@ const handler_admin: H = async (req, res) => {
     }
     let memberId: string | undefined;
     if (status === 'Approved' || isAdmin === true) {
-      try { memberId = await ensureUserHasMemberId(adminSup, idUid); updates.member_id = memberId; }
-      catch { sendError(res, 500, 'Failed to generate memberId'); return; }
+      // Generated here, written by the update below — one round trip instead of two.
+      try {
+        memberId = target?.member_id
+          || await generateUniqueMemberId(adminSup, target?.year_joined || new Date().getFullYear());
+        updates.member_id = memberId;
+      } catch { sendError(res, 500, 'Failed to generate memberId'); return; }
     }
     const { data, error } = await adminSup.from('users').update(updates).eq('uid', idUid).select('*');
     if (error) { sendError(res, 500, 'Failed to update user'); return; }
     if (!data || data.length === 0) { sendError(res, 404, 'User not found'); return; }
-    try { await invalidateCache('cache:admin:stats'); await invalidateCache('cache:verify:*'); } catch { /* noop */ }
-    await audit(adminSup, req, callerUid, isAdmin !== undefined ? 'member.admin_rights' : 'member.status', { type: 'user', id: idUid },
-      { status: status ?? undefined, isAdmin: isAdmin ?? undefined, note: adminNotes ? true : undefined });
-    // Approved members get the community role; declined or demoted members lose it. Skill roles
-    // follow the profile they applied with. Both are best effort.
-    await syncMemberRoles(data[0]);
-    await syncSkillRoles(data[0]);
-    if (status === 'Approved') {
-      await notify(adminSup, idUid, { kind: 'member_approved', title: 'You’re approved — your Volunteer Card is ready', body: 'You can now join project teams.', link: '/dashboard' });
-    } else if (status === 'Declined') {
-      await notify(adminSup, idUid, { kind: 'member_declined', title: 'An update on your application', body: 'See the note from the admins on your dashboard.', link: '/dashboard' });
-    } else if (status === 'Suspended') {
-      await notify(adminSup, idUid, { kind: 'member_suspended', title: 'Your membership is suspended', body: 'The reason is on your dashboard. Reply to the admins there if you think it is wrong.', link: '/dashboard' });
-    } else if (status === 'Approved' && wasSuspended) {
-      await notify(adminSup, idUid, { kind: 'member_reinstated', title: 'Your membership is active again', body: 'Welcome back — everything you had before is restored.', link: '/dashboard' });
-    }
-    sendJson(res, 200, { memberId: memberId ?? data[0]?.member_id ?? null });
+    const row = data[0];
+    // The decision is saved, so the admin is told now. Everything below only passes the news on.
+    sendJson(res, 200, { memberId: memberId ?? row?.member_id ?? null });
+
+    // Reinstating is tested first because it is an approval too: a returning member should hear
+    // that they are back, not be welcomed as though they had just applied.
+    const told = status === 'Approved' && wasSuspended
+      ? { kind: 'member_reinstated', title: 'Your membership is active again', body: 'Welcome back — everything you had before is restored.', link: '/dashboard' }
+      : status === 'Approved'
+        ? { kind: 'member_approved', title: 'You’re approved — your Volunteer Card is ready', body: 'You can now join project teams.', link: '/dashboard' }
+        : status === 'Declined'
+          ? { kind: 'member_declined', title: 'An update on your application', body: 'See the note from the admins on your dashboard.', link: '/dashboard' }
+          : status === 'Suspended'
+            ? { kind: 'member_suspended', title: 'Your membership is suspended', body: 'The reason is on your dashboard. Reply to the admins there if you think it is wrong.', link: '/dashboard' }
+            : null;
+
+    await afterResponse('member.status', () => Promise.allSettled([
+      invalidateCache('cache:admin:stats'),
+      invalidateCache('cache:verify:*'),
+      audit(adminSup, req, callerUid, isAdmin !== undefined ? 'member.admin_rights' : 'member.status', { type: 'user', id: idUid },
+        { status: status ?? undefined, isAdmin: isAdmin ?? undefined, note: adminNotes ? true : undefined }),
+      // Approved members get the community role; declined or demoted members lose it. Skill roles
+      // follow the profile they applied with. Both are best effort, and side by side: a slow Discord
+      // costs one timeout rather than three.
+      syncMemberRoles(row),
+      syncSkillRoles(row),
+      told ? notify(adminSup, idUid, told) : null,
+    ]));
     return;
   }
 

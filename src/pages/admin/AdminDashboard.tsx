@@ -105,6 +105,9 @@ export default function AdminDashboard() {
   const [selectedMember, setSelectedMember] = useState<User | null>(null);
   const [showMyCard, setShowMyCard] = useState(false);
   const [adminNote, setAdminNote] = useState('');
+  // Which decision is in flight, if any. The buttons had no pending state at all, so a decision
+  // looked like nothing was happening, and a second click sent a second decision.
+  const [decisionPending, setDecisionPending] = useState<ApplicationStatus | null>(null);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'embed-copied'>('idle');
   const [projectSubmissions, setProjectSubmissions] = useState<ProjectSubmission[]>([]);
   const [projectSubmissionsTotal, setProjectSubmissionsTotal] = useState(0);
@@ -249,6 +252,8 @@ export default function AdminDashboard() {
     }
 
     const name = user?.fullName || 'The applicant';
+    if (decisionPending) return;
+    setDecisionPending(status);
     try {
       const res = await updateUserStatus(userId, status, adminNote);
 
@@ -286,6 +291,8 @@ export default function AdminDashboard() {
       }
     } catch (error) {
       toast.error('Couldn’t save that decision', { description: error instanceof Error ? error.message : 'Please try again.' });
+    } finally {
+      setDecisionPending(null);
     }
   };
 
@@ -1198,21 +1205,25 @@ export default function AdminDashboard() {
                       {selectedUser.status !== 'Declined' && (
                         <button
                           onClick={() => handleStatusUpdate(selectedUser.id, 'Declined')}
-                          className="s-btn s-btn-plain text-red-700"
+                          disabled={!!decisionPending}
+                          className="s-btn s-btn-plain text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          Decline
+                          {decisionPending === 'Declined' ? 'Declining…' : 'Decline'}
                         </button>
                       )}
                       <button
                         onClick={() => handleStatusUpdate(selectedUser.id, 'Approved')}
-                        className={clsx(
-                          "s-btn s-btn-accent"
-                        )}
+                        disabled={!!decisionPending}
+                        className="s-btn s-btn-accent disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         <CheckCircle2 className="w-4 h-4" />
                         {/* The member ID is an internal record, not something to promise on a
                             button — least of all while the card itself is switched off. */}
-                        <span>{selectedUser.status === 'Declined' ? 'Re-approve' : 'Approve'}</span>
+                        <span>
+                          {decisionPending === 'Approved'
+                            ? 'Approving…'
+                            : selectedUser.status === 'Declined' ? 'Re-approve' : 'Approve'}
+                        </span>
                       </button>
                     </>
                   )}
@@ -1447,10 +1458,11 @@ export default function AdminDashboard() {
                               </p>
                               <button
                                 onClick={() => handleStatusUpdate(selectedMember.id, 'Approved')}
-                                className="s-btn s-btn-accent mt-4"
+                                disabled={!!decisionPending}
+                                className="s-btn s-btn-accent mt-4 disabled:cursor-not-allowed disabled:opacity-60"
                               >
                                 <CheckCircle2 className="w-4 h-4" />
-                                Reinstate this member
+                                {decisionPending === 'Approved' ? 'Reinstating…' : 'Reinstate this member'}
                               </button>
                             </>
                           ) : (
@@ -1467,11 +1479,11 @@ export default function AdminDashboard() {
                               />
                               <button
                                 onClick={() => handleStatusUpdate(selectedMember.id, 'Suspended')}
-                                disabled={!adminNote.trim()}
+                                disabled={!adminNote.trim() || !!decisionPending}
                                 className="s-btn mt-3 bg-red-600 text-white disabled:cursor-not-allowed disabled:opacity-50 [@media(hover:hover)]:hover:bg-red-700"
                               >
                                 <ShieldAlert className="h-4 w-4" />
-                                Suspend
+                                {decisionPending === 'Suspended' ? 'Suspending…' : 'Suspend'}
                               </button>
                             </>
                           )}
