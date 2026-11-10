@@ -12,6 +12,7 @@ import { ShieldAlert, Clock, Copy, Code, Check, ExternalLink, Edit3, Trash2, X, 
 import { DoneIcon, PendingIcon, DeclinedIcon, FeaturedIcon } from '../../components/icons';
 import clsx from 'clsx';
 import { StatTile } from '../../components/StatTile';
+import { DISCORD_INVITE } from '../../components/site/links';
 import { UserChip } from '../../components/UserChip';
 import { AppHeader } from '../../components/AppHeader';
 import { SelectMenu } from '../../components/SelectMenu';
@@ -669,9 +670,11 @@ export default function UserDashboard() {
   const firstName = (currentUser.fullName || '').trim().split(' ')[0] || 'there';
   const statusMeta = currentUser.status === 'Approved'
     ? { dot: 'bg-emerald-500', word: 'Approved', note: 'Your card is active and publicly verifiable.', icon: BadgeCheck, tone: 'text-emerald-700 bg-emerald-50 shadow-[inset_0_0_0_1px_rgb(16_185_129/0.25)]' }
-    : currentUser.status === 'Declined'
-      ? { dot: 'bg-red-500', word: 'Declined', note: 'See the note from the admins below.', icon: ShieldAlert, tone: 'text-red-700 bg-red-50 shadow-[inset_0_0_0_1px_rgb(239_68_68/0.25)]' }
-      : { dot: 'bg-amber-500', word: 'Under review', note: 'An admin is reviewing your application.', icon: Clock, tone: 'text-amber-800 bg-amber-50 shadow-[inset_0_0_0_1px_rgb(217_119_6/0.25)]' };
+    : currentUser.status === 'Suspended'
+      ? { dot: 'bg-slate-500', word: 'Suspended', note: 'Your access is paused. The admins’ reason is below.', icon: ShieldAlert, tone: 'text-slate-700 bg-slate-100 shadow-[inset_0_0_0_1px_rgb(100_116_139/0.25)]' }
+      : currentUser.status === 'Declined'
+        ? { dot: 'bg-red-500', word: 'Declined', note: 'See the note from the admins below.', icon: ShieldAlert, tone: 'text-red-700 bg-red-50 shadow-[inset_0_0_0_1px_rgb(239_68_68/0.25)]' }
+        : { dot: 'bg-amber-500', word: 'Under review', note: 'An admin is reviewing your application.', icon: Clock, tone: 'text-amber-800 bg-amber-50 shadow-[inset_0_0_0_1px_rgb(217_119_6/0.25)]' };
   const StatusIcon = statusMeta.icon;
   const featuredSkills = (currentUser.skills || []).filter((s) => s.featured);
   const otherSkills = (currentUser.skills || []).filter((s) => !s.featured);
@@ -743,9 +746,28 @@ export default function UserDashboard() {
             </motion.div>
 
             {currentUser.adminNotes && (
-              <div className="mb-8 rounded-[14px] bg-white px-5 py-4 shadow-[var(--e1)]" role="note">
-                <p className="text-[12px] font-medium text-slate-500">Note from the admins</p>
+              <div
+                className={clsx(
+                  'mb-8 rounded-[14px] px-5 py-4 shadow-[var(--e1)]',
+                  currentUser.status === 'Suspended' ? 'bg-slate-50 shadow-[inset_0_0_0_1px_rgb(100_116_139/0.2)]' : 'bg-white',
+                )}
+                role="note"
+              >
+                <p className="text-[12px] font-medium text-slate-500">
+                  {currentUser.status === 'Suspended' ? 'Why your access is paused' : 'Note from the admins'}
+                </p>
                 <p className="mt-1 text-[15px] leading-relaxed text-slate-800">{currentUser.adminNotes}</p>
+                {currentUser.status === 'Suspended' && (
+                  /* The terms promise a chance to respond, so the dashboard has to offer one rather
+                     than leaving a suspended member with a reason and nowhere to take it. */
+                  <p className="mt-3 text-[13.5px] leading-relaxed text-slate-600">
+                    If you think this is wrong, say so —{' '}
+                    <a href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer" className="s-link">
+                      reply to the admins on Discord
+                    </a>
+                    . Your account and everything in it stays while this is sorted out.
+                  </p>
+                )}
               </div>
             )}
 

@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import { syncMemberRoles, syncSkillRoles, syncTeamRole } from './_lib/discordRoles.js';
 import { parseLguTable, parseLguLogos, pickIconFromHtml } from './_lib/lguDirectory.js';
 import { cardsEnabled } from './_lib/features.js';
+import { parseAboutProjects } from './_lib/aboutProjects.js';
 
 let _crypto: any = null;
 let _cryptoInit = false;
@@ -1532,6 +1533,7 @@ const handler_project_updates: H = async (req, res) => {
   const t = await isTeamMember(supabase, projectId, uid);
   if (!t.project) { sendError(res, 404, 'Project not found'); return; }
   if (!t.member && !me?.is_admin) { sendError(res, 403, 'Only team members can post updates.'); return; }
+  if (!isActiveMember(me)) { sendError(res, 403, 'Your membership is suspended, so you can’t post updates right now.'); return; }
   const { data: row, error } = await supabase.from('project_updates').insert({ project_id: projectId, author_id: uid, body: text }).select('id').maybeSingle();
   if (error) { sendError(res, isMissingTableError(error) ? 503 : 500, 'Couldn’t post the update'); return; }
   sendJson(res, 200, { id: row?.id });
@@ -1676,7 +1678,9 @@ const handler_teams: H = async (req, res) => {
     const approvedProject = String(project.status || '').toLowerCase() === 'approved';
     const { rows, missing } = await loadTeam(projectId);
     const headId = headIdOf(project, rows);
-    const canManage = !!uid && (uid === headId || isAdmin);
+    // Leading a team is something an approved member does, so a suspension withdraws it without
+    // touching the team_members rows — reinstating gives it straight back.
+    const canManage = !!uid && ((uid === headId && isActiveMember(me)) || isAdmin);
     if (!approvedProject && !canManage && project.user_id !== uid) { sendError(res, 404, 'Project not found'); return; }
 
     const userIds = Array.from(new Set([...rows.map((r: any) => r.user_id), headId, project.owner_user_id].filter(Boolean)));
@@ -1739,7 +1743,7 @@ const handler_teams: H = async (req, res) => {
   const { rows, missing } = await loadTeam(projectId);
   if (missing) { sendError(res, 503, 'Teams aren’t switched on yet. An admin needs to run the latest database migration.'); return; }
   const headId = headIdOf(project, rows);
-  const canManage = uid === headId || isAdmin;
+  const canManage = (uid === headId && isActiveMember(me)) || isAdmin;
   const now = new Date().toISOString();
 
   if (action === 'join') {
@@ -2008,7 +2012,10 @@ const handler_me: H = async (req, res) => {
 
   // The name on an approved member's Volunteer Card is what /verify vouches for; only admins change it.
   // The name and community role on an approved card are what /verify vouches for; only admins change them.
-  if (existingUser && String(existingUser.status || '').toLowerCase() === 'approved') { delete updates.full_name; delete updates.role; delete updates.year_joined; }
+  // Locked for suspended members too, so a suspension cannot become a chance to change your name.
+  if (existingUser && ['approved', 'suspended'].includes(String(existingUser.status || '').toLowerCase())) {
+    delete updates.full_name; delete updates.role; delete updates.year_joined;
+  }
   if (existingUser) {
     let { data: updatedRows, error: updateError } = await supabase
       .from('users').update(updates).eq('uid', uid).select('*');
@@ -2117,6 +2124,27 @@ const withRoleNames = async (adminSup: any, rows: any[]) => {
   }));
 };
 
+/**
+ * Whether a member may act: post, join, log hours, lead a team. Suspension works by making this
+ * false, so withdrawing access needs no sweep through their teams and no data is destroyed —
+ * reinstating them turns everything back on as it was.
+ */
+const isActiveMember = (row: { status?: unknown; is_admin?: unknown } | null | undefined): boolean =>
+  !!row && (!!row.is_admin || String(row.status ?? '').toLowerCase() === 'approved');
+
+/** The only values the users.status column may hold. Every permission check keys on 'Approved'. */
+const MEMBER_STATUSES = ['Pending', 'Approved', 'Declined', 'Suspended'] as const;
+type MemberStatus = (typeof MEMBER_STATUSES)[number];
+
+/**
+ * Status values to match on, for one status or a comma-separated set ("Approved,Suspended").
+ * The column is not case-normalised, so each one is expanded to the spellings in use.
+ */
+const statusVariantsOf = (filter: string): string[] =>
+  Array.from(new Set(filter.split(',').map((one) => one.trim()).filter(Boolean).flatMap((one) => [
+    one, one.toLowerCase(), one.toUpperCase(), one.charAt(0).toUpperCase() + one.slice(1).toLowerCase(),
+  ])));
+
 const handler_admin: H = async (req, res) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
@@ -2180,8 +2208,7 @@ const handler_admin: H = async (req, res) => {
       // Admins are members too: they stay in the list, marked by adminRoleName below.
       let query = q.not('full_name', 'eq', '').or('specialization.neq."",status.eq.Approved,status.eq.approved');
       if (statusFilter && statusFilter !== 'All') {
-        const variants = Array.from(new Set([statusFilter, statusFilter.toLowerCase(), statusFilter.toUpperCase(),
-          statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1).toLowerCase()]));
+        const variants = statusVariantsOf(statusFilter);
         query = query.in('status', variants);
       }
       if (roleFilter && roleFilter !== 'All') query = query.eq('specialization', roleFilter);
@@ -2210,8 +2237,7 @@ const handler_admin: H = async (req, res) => {
 
       // The same predicates applyFilters() uses, so "still matches" means exactly what the list means.
       const statusVariants = statusFilter && statusFilter !== 'All'
-        ? new Set(Array.from(new Set([statusFilter, statusFilter.toLowerCase(), statusFilter.toUpperCase(),
-            statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1).toLowerCase()])))
+        ? new Set(statusVariantsOf(statusFilter))
         : null;
       const needle = (() => {
         if (!searchRaw || !searchRaw.trim()) return '';
@@ -2283,6 +2309,12 @@ const handler_admin: H = async (req, res) => {
     const body = getBody(req);
     const idUid = typeof body.uid === 'string' ? body.uid : typeof body.id === 'string' ? body.id : null;
     const status = typeof body.status === 'string' ? body.status : null;
+    // The column took whatever string it was given. Only these four mean anything to the rest of
+    // the app, and every permission check keys on 'Approved', so an unrecognised value would
+    // quietly lock someone out with no way back through the UI.
+    if (status && !MEMBER_STATUSES.includes(status as MemberStatus)) {
+      sendError(res, 400, `Status must be one of: ${MEMBER_STATUSES.join(', ')}.`); return;
+    }
     const adminNotes = typeof body.adminNotes === 'string' ? body.adminNotes : undefined;
     const isAdmin = typeof body.isAdmin === 'boolean' ? body.isAdmin : undefined;
     if (!idUid) { sendError(res, 400, 'Missing uid'); return; }
@@ -2291,10 +2323,15 @@ const handler_admin: H = async (req, res) => {
       sendError(res, 403, 'Your role can’t approve or decline members.'); return;
     }
     if (isAdmin !== undefined && !adminCheck.superAdmin) { sendError(res, 403, 'Only super admins can change admin rights.'); return; }
-    if (!adminCheck.superAdmin) {
-      const { data: target } = await adminSup.from('users').select('is_admin, admin_role_id').eq('uid', idUid).maybeSingle();
-      if (target?.is_admin || target?.admin_role_id) { sendError(res, 403, 'Only super admins can change another admin’s account.'); return; }
+    // A suspension is shown to the member, so it cannot be done without saying why.
+    if (status === 'Suspended' && !String(adminNotes ?? '').trim()) {
+      sendError(res, 400, 'Give a reason for the suspension — the member is shown it.'); return;
     }
+    const { data: target } = await adminSup.from('users').select('status, is_admin, admin_role_id').eq('uid', idUid).maybeSingle();
+    if (!adminCheck.superAdmin && (target?.is_admin || target?.admin_role_id)) {
+      sendError(res, 403, 'Only super admins can change another admin’s account.'); return;
+    }
+    const wasSuspended = String(target?.status ?? '') === 'Suspended';
     const updates: any = { updated_at: new Date().toISOString() };
     if (status) updates.status = status;
     if (adminNotes !== undefined) updates.admin_notes = adminNotes;
@@ -2326,6 +2363,10 @@ const handler_admin: H = async (req, res) => {
       await notify(adminSup, idUid, { kind: 'member_approved', title: 'You’re approved — your Volunteer Card is ready', body: 'You can now join project teams.', link: '/dashboard' });
     } else if (status === 'Declined') {
       await notify(adminSup, idUid, { kind: 'member_declined', title: 'An update on your application', body: 'See the note from the admins on your dashboard.', link: '/dashboard' });
+    } else if (status === 'Suspended') {
+      await notify(adminSup, idUid, { kind: 'member_suspended', title: 'Your membership is suspended', body: 'The reason is on your dashboard. Reply to the admins there if you think it is wrong.', link: '/dashboard' });
+    } else if (status === 'Approved' && wasSuspended) {
+      await notify(adminSup, idUid, { kind: 'member_reinstated', title: 'Your membership is active again', body: 'Welcome back — everything you had before is restored.', link: '/dashboard' });
     }
     sendJson(res, 200, { memberId: memberId ?? data[0]?.member_id ?? null });
     return;
@@ -2849,6 +2890,11 @@ const extractRemoteProjects = (node: any): any[] => {
   return out;
 };
 
+// about.bettergov.ph/projects is the list BetterGovPH actually keeps current — 28 live projects with
+// real descriptions and areas, against 18 on the older JSON feed, which lags. The page has no API,
+// but its markup is pre-rendered and parseable; the JSON feed stays as the fallback so a change to
+// that page empties nothing.
+const BGPH_ABOUT_URL = process.env.BGPH_ABOUT_PROJECTS_URL || 'https://about.bettergov.ph/projects/';
 const BGPH_REMOTE_URL = process.env.BGPH_REMOTE_PROJECTS_URL || 'https://bettergov.ph/api/projects.json';
 const BGPH_FETCH_HEADERS = {
   accept: '*/*',
@@ -2862,12 +2908,38 @@ const BGPH_FETCH_HEADERS = {
     'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1',
 };
 
+/** The about page's cards, in the shape the merged list already speaks. */
+const fetchAboutProjects = async (): Promise<any[]> => {
+  const r = await fetch(BGPH_ABOUT_URL, {
+    headers: { accept: 'text/html', 'user-agent': 'bettergovph-volunteers-portal' },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!r.ok) return [];
+  return parseAboutProjects(await r.text(), BGPH_ABOUT_URL).slice(0, 100).map((p) => ({
+    id: `remote-${Buffer.from(p.url).toString('base64url').slice(0, 20)}`,
+    title: p.title,
+    description: p.description,
+    url: p.url,
+    projType: p.area,
+    imageUrl: p.imageUrl || undefined,
+    createdAt: new Date().toISOString(),
+    source: 'bettergov.ph',
+  }));
+};
+
 const fetchRemoteProjects = async (): Promise<any[]> => {
-  const cacheKey = 'cache:projects:remote';
+  const cacheKey = 'cache:projects:remote:v2';
   try {
     const cached = await getCache<any[]>(cacheKey);
     if (cached && Array.isArray(cached)) return cached;
   } catch { /* noop */ }
+  try {
+    const about = await fetchAboutProjects();
+    if (about.length) {
+      try { await setCache(cacheKey, about, 300); } catch { /* noop */ }
+      return about;
+    }
+  } catch { /* fall through to the JSON feed */ }
   try {
     const r = await fetch(BGPH_REMOTE_URL, { headers: BGPH_FETCH_HEADERS as any });
     if (!r.ok) return [];
@@ -3000,6 +3072,13 @@ const handler_submit_project: H = async (req, res) => {
   const { data: authData, error: authError } = await supabaseAuth.auth.getUser(token);
   const uid = authData?.user?.id ? String(authData.user.id) : '';
   if (authError || !uid) { sendError(res, 401, 'Invalid token'); return; }
+  // Pending members may still submit — that is the point of applying. A suspended one may not.
+  {
+    const { data: me } = await supabaseAuth.from('users').select('status').eq('uid', uid).maybeSingle();
+    if (String(me?.status ?? '') === 'Suspended') {
+      sendError(res, 403, 'Your membership is suspended, so you can’t submit projects right now.'); return;
+    }
+  }
   const body = getBody(req);
   const projectName =
     typeof body.project_name === 'string' && body.project_name.trim() ? body.project_name.trim() :

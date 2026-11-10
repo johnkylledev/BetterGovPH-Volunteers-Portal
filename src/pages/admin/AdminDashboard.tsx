@@ -13,7 +13,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { adminTabFromSection, adminTabPath, type AdminTab } from '../../constants/dashboardRoutes';
 import { useStore } from '../../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, CheckCircle2, XCircle, CreditCard, Copy, Code, Check, ChevronLeft, ChevronRight, Trash2, Inbox, FolderKanban, Clock, BadgeCheck } from 'lucide-react';
+import { Search, CheckCircle2, XCircle, CreditCard, Copy, Code, Check, ChevronLeft, ChevronRight, Trash2, Inbox, FolderKanban, Clock, BadgeCheck, ShieldAlert } from 'lucide-react';
 import { DoneIcon } from '../../components/icons';
 import { AccessCard } from '../../components/AccessCard';
 import { CardCover } from '../../components/CardCover';
@@ -144,7 +144,9 @@ export default function AdminDashboard() {
   const onMemberTab = activeTab === 'applications' || activeTab === 'members';
   const memberList = useAdminMembers(
     {
-      status: activeTab === 'members' ? 'Approved' : activeTab === 'applications' ? 'Pending' : statusFilter,
+      // Suspended members belong on the Members tab: taken off the list entirely they would be
+      // invisible, with no way to reinstate them.
+      status: activeTab === 'members' ? 'Approved,Suspended' : activeTab === 'applications' ? 'Pending' : statusFilter,
       role: roleFilter,
       search: debouncedSearch,
     },
@@ -232,8 +234,12 @@ export default function AdminDashboard() {
 
   const handleStatusUpdate = async (userId: string, status: ApplicationStatus) => {
     const user = memberList.rows.find((u) => u.id === userId || u.uid === userId);
-    if (user && user.status === 'Approved' && status !== 'Approved') {
-      toast.error('That member is already approved', { description: 'Their status can’t be changed back here.' });
+    if (user && user.status === 'Approved' && status !== 'Approved' && status !== 'Suspended') {
+      toast.error('That member is already approved', { description: 'Suspend them instead if you need to withdraw access.' });
+      return;
+    }
+    if (status === 'Suspended' && !adminNote.trim()) {
+      toast.error('Say why', { description: 'A suspension is shown to the member, so it needs a reason.' });
       return;
     }
 
@@ -259,9 +265,13 @@ export default function AdminDashboard() {
           });
         }
         const memberId = res.memberId || user?.memberId;
-        if (status === 'Approved') {
+        if (status === 'Suspended') {
+          toast.success(`${name} is suspended`, { description: 'They keep their record and can see the reason you gave.' });
+        } else if (status === 'Approved' && user?.status === 'Suspended') {
+          toast.success(`${name} is back`, { description: 'Everything they had before is restored.' });
+        } else if (status === 'Approved') {
           toast.success(`${name} is now a member`, {
-            description: memberId ? `Member ID ${memberId}. Their Volunteer Card is live.` : 'Their Volunteer Card is live.',
+            description: memberId ? `Member ID ${memberId}.` : 'Their membership is active.',
           });
         } else {
           toast.success(`${name}’s application was declined`, {
@@ -443,7 +453,7 @@ export default function AdminDashboard() {
   const filteredUsers = useMemo(() => memberList.rows.filter(Boolean), [memberList.rows]);
 
   const filteredApprovedMembers = useMemo(() => {
-    return memberList.rows.filter((u) => u && u.status === 'Approved');
+    return memberList.rows.filter((u) => u && (u.status === 'Approved' || u.status === 'Suspended'));
   }, [memberList.rows]);
 
   // Only the tabs this person's permissions cover. The server refuses the rest anyway.
@@ -697,7 +707,8 @@ export default function AdminDashboard() {
                               'inline-flex items-center px-2 py-0.5 text-[12px] font-medium rounded-full border',
                               user.status === 'Approved' ? 'text-emerald-700 border-emerald-200' :
                                 user.status === 'Declined' ? 'text-red-700 border-red-200' :
-                                  'text-amber-700 border-amber-200'
+                                  user.status === 'Suspended' ? 'text-slate-700 border-slate-300 bg-slate-50' :
+                                    'text-amber-700 border-amber-200'
                             )}>
                               {user.status}
                             </span>
@@ -1199,7 +1210,9 @@ export default function AdminDashboard() {
                         )}
                       >
                         <CheckCircle2 className="w-4 h-4" />
-                        <span>{selectedUser.status === 'Declined' ? 'Re-approve & Generate ID' : 'Approve & Generate ID'}</span>
+                        {/* The member ID is an internal record, not something to promise on a
+                            button — least of all while the card itself is switched off. */}
+                        <span>{selectedUser.status === 'Declined' ? 'Re-approve' : 'Approve'}</span>
                       </button>
                     </>
                   )}
@@ -1407,6 +1420,61 @@ export default function AdminDashboard() {
                           <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
                             "{selectedMember.adminNotes}"
                           </p>
+                        </div>
+                      )}
+
+                      {/* Withdraw access without erasing anyone: the record, the member ID and the
+                          history all stay, so a suspension can be undone in one click. */}
+                      {canDecide && (
+                        <div className="rounded-[10px] border border-slate-200 p-4 sm:p-5">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-[12px] font-semibold text-slate-400">Membership</p>
+                            <span className={clsx(
+                              'inline-flex items-center rounded-full border px-2 py-0.5 text-[12px] font-medium',
+                              selectedMember.status === 'Suspended'
+                                ? 'border-slate-300 bg-slate-50 text-slate-700'
+                                : 'border-emerald-200 text-emerald-700',
+                            )}>
+                              {selectedMember.status}
+                            </span>
+                          </div>
+
+                          {selectedMember.status === 'Suspended' ? (
+                            <>
+                              <p className="mt-2 text-[13px] leading-relaxed text-slate-600">
+                                They can sign in and see why, but nothing an approved member can do — the directory,
+                                teams, hours, posting — is open to them.
+                              </p>
+                              <button
+                                onClick={() => handleStatusUpdate(selectedMember.id, 'Approved')}
+                                className="s-btn s-btn-accent mt-4"
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                                Reinstate this member
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <label htmlFor="suspend-reason" className="mt-3 block text-[13px] text-slate-600">
+                                Reason for suspending — the member is shown this.
+                              </label>
+                              <textarea
+                                id="suspend-reason"
+                                value={adminNote}
+                                onChange={(e) => setAdminNote(e.target.value)}
+                                placeholder="What happened, and what they can do about it."
+                                className="s-field mt-2 h-20 resize-none py-2.5"
+                              />
+                              <button
+                                onClick={() => handleStatusUpdate(selectedMember.id, 'Suspended')}
+                                disabled={!adminNote.trim()}
+                                className="s-btn mt-3 bg-red-600 text-white disabled:cursor-not-allowed disabled:opacity-50 [@media(hover:hover)]:hover:bg-red-700"
+                              >
+                                <ShieldAlert className="h-4 w-4" />
+                                Suspend
+                              </button>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>

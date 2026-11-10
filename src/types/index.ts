@@ -1,4 +1,5 @@
-export type ApplicationStatus = 'Pending' | 'Approved' | 'Declined';
+/** 'Suspended' keeps the record and the member ID but withdraws everything 'Approved' allows. */
+export type ApplicationStatus = 'Pending' | 'Approved' | 'Declined' | 'Suspended';
 
 export type SkillLevel = 'Learner' | 'Practitioner' | 'Expert';
 export type ExperienceLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'Professional';
