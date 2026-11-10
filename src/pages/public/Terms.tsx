@@ -8,10 +8,10 @@ const Strong: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 );
 
 /*
- * These terms exist mainly to stop one misreading: that BetterGovPH Volunteers is part of the
- * government, or that being a member confers any standing with it. Section 1 says what we are,
- * section 2 says what membership is not, and section 3 says the same about the Volunteer Card —
- * the three things most likely to be taken the wrong way, said first and in plain words.
+ * The wording here is legal's, reviewed and returned on 10 November 2026 — edit the text only with
+ * them, not for style. Two distinctions it draws deliberately, and that are easy to undo by
+ * accident: a volunteer *registers*, they do not become a *member* of the legal entity behind the
+ * portal; and the card proves neither membership nor authority.
  */
 const sections: LegalSection[] = [
   {
@@ -30,24 +30,31 @@ const sections: LegalSection[] = [
           link — the issuing agency remains the source of truth.
         </p>
         <p>
-          This portal is where volunteers apply, find work to do, and keep track of what the community has shipped. Using
-          it means you accept these terms. If you don’t, please don’t use it.
+          This portal is where volunteers register, find projects to participate in, and keep track of what the
+          community has shipped. Using it means you accept these terms. If you don’t, please don’t use it.
         </p>
       </div>
     ),
   },
   {
     n: '2',
-    title: 'What membership is, and what it is not',
+    title: 'What registration is, and what it is not',
     body: (
       <div className="space-y-3">
         <p>
-          Membership means the community has verified who you are and welcomed you in. That is all it means.
+          Registration means the community has verified the information you have provided and allows you to participate
+          in community projects. That is all it means.
         </p>
         <ul className="mt-1 space-y-2.5">
           <li>
             It is <Strong>not employment</Strong>. Volunteers are not employees, agents, contractors or officials of
             BetterGovPH or of any government body, and there is no wage, benefit or engagement of any kind.
+          </li>
+          <li>
+            It is <Strong>not equivalent to membership</Strong>. Volunteers are not automatically members of the legal
+            entity that administers and manages the volunteer portal. It does not bestow any right to vote, to stand for
+            nomination or election as officer or trustee, or to exercise any other right bestowed by law on members of
+            the organization.
           </li>
           <li>
             It gives you <Strong>no authority</Strong> — none over any public office, no standing in any government
@@ -68,18 +75,17 @@ const sections: LegalSection[] = [
       <div className="space-y-3">
         <p>
           The Volunteer Card is a community recognition, shown inside this portal.{' '}
-          <Strong>It is not a government ID and not identification of any kind.</Strong> It does not prove authority,
-          grant access to anything, and may never be presented to a public office, an officer, or a member of the public
-          as though it did.
+          <Strong>It is not a government ID and not identification of any kind.</Strong> It does not prove membership or
+          authority, grant access to anything, and may never be presented to a public office, an officer, or a member of
+          the public as though it did.
         </p>
         <p>
-          Using it — or the BetterGovPH name, logo or your membership — to suggest you are a government employee, that
-          you are acting for a public office, or that BetterGovPH endorses something, is a serious breach of these terms
-          and ends your membership.
+          Using it — or the BetterGovPH name or logo — to suggest you are a government employee, that you are acting for
+          a public office, or that BetterGovPH endorses something, is a serious breach of these terms and terminates
+          your registration.
         </p>
         <p>
-          The card is currently <Strong>switched off</Strong> while we take more care over it. Nothing is issued or
-          displayed in the meantime, and your membership is unaffected.
+          This feature is currently <Strong>switched off pending data privacy risk assessment</Strong>.
         </p>
       </div>
     ),
@@ -89,10 +95,10 @@ const sections: LegalSection[] = [
     title: 'Speaking as yourself, not for us',
     body: (
       <p>
-        Members speak for themselves. Only people the community has asked to do so speak for BetterGovPH — in statements
-        to the press, in dealings with public offices, or anywhere the community’s position is being given. Don’t use the
-        BetterGovPH name or marks in a way that implies you are one of them, and don’t present your own work, opinions or
-        projects as the community’s.
+        Volunteers speak for themselves. Only people the community has asked to do so speak for BetterGovPH — in
+        statements to the press, in dealings with public offices, or anywhere the community’s position is being given.
+        Don’t use the BetterGovPH name or marks in a way that implies you are an authorized representative, and don’t
+        present your own work, opinions or projects as the community’s.
       </p>
     ),
   },
@@ -103,11 +109,11 @@ const sections: LegalSection[] = [
       <div className="space-y-3">
         <p>
           The <Link to="/code-of-conduct" className="s-link">Code of Conduct</Link> applies everywhere the community
-          meets, this portal included. In short: be straight with people, keep disagreements about the work, and don’t
-          harass anyone.
+          meets, this portal included. In short: be straightforward with people, keep discussions about the projects
+          healthy and productive, and don’t harass anyone.
         </p>
         <ul className="mt-1 space-y-2.5">
-          <li>Give accurate details when you apply, and keep them current.</li>
+          <li>Give accurate details when you apply to register, and keep them current.</li>
           <li>Hold one membership, in your own name.</li>
           <li>Post only work you have the right to post, and credit the people who helped.</li>
           <li>Leave other people’s data alone — don’t scrape the directory, and don’t use what you find here to contact people for anything they didn’t ask for.</li>
@@ -160,17 +166,17 @@ const sections: LegalSection[] = [
   },
   {
     n: '9',
-    title: 'Ending a membership',
+    title: 'Termination of participation',
     body: (
       <div className="space-y-3">
         <p>
           You can leave whenever you like — ask the admins, or erase your account from your dashboard.
         </p>
         <p>
-          We may suspend or remove a membership for a breach of these terms or the Code of Conduct, for details given
-          falsely, or for conduct that puts other members or the community at risk. Where it is fair to do so we will say
-          why and give you a chance to respond; misrepresenting yourself as government, or using the community’s name to
-          mislead, we act on at once.
+          We may suspend or remove a volunteer for a breach of these terms or the Code of Conduct, for details given
+          falsely, or for conduct that puts other volunteers or the community at risk. Where it is fair to do so we will
+          say why and give you a chance to respond; misrepresenting yourself as government, or using the community’s name
+          to mislead, we act on at once.
         </p>
       </div>
     ),
@@ -200,8 +206,8 @@ const sections: LegalSection[] = [
       <div className="space-y-3">
         <p>
           We update these terms as the community changes. The date at the top is when they last changed, and we will say
-          so in the community when a change is significant. Carrying on as a member after that means you accept the new
-          version.
+          so in the community when a change is significant. Carrying on as a volunteer after that means you accept the
+          new version.
         </p>
         <p>
           These terms are governed by the laws of the Republic of the Philippines, and disputes belong to the courts of
@@ -219,8 +225,8 @@ const sections: LegalSection[] = [
         <a href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer" className="s-link">community Discord</a>. For
         anything about BetterGovPH itself, see{' '}
         <a href={MAIN_WEBSITE} target="_blank" rel="noopener noreferrer" className="s-link">bettergov.ph</a>. If you see
-        someone using a BetterGovPH membership or card to pass themselves off as government, please tell us — that is
-        exactly what we want to hear about.
+        someone using a BetterGovPH volunteer card to pass themselves off as government, please tell us — that is exactly
+        what we want to hear about.
       </p>
     ),
   },
@@ -228,9 +234,9 @@ const sections: LegalSection[] = [
 
 const Terms: React.FC = () => (
   <LegalPage
-    title="Terms of service"
-    lede="BetterGovPH Volunteers is an independent, volunteer-run community — not a government agency. These are the rules for taking part, and the things membership deliberately does not mean."
-    updated="November 8, 2026"
+    title="Terms of use"
+    lede="BetterGovPH Volunteers is an independent, volunteer-run community — not a government agency. These are the rules for taking part, and what registration deliberately does not mean."
+    updated="November 10, 2026"
     sections={sections}
   />
 );
