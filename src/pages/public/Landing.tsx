@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ClipboardList, Clock, Hammer, Heart, LockOpen, Rocket, SearchCheck, Smartphone, Users } from 'lucide-react';
+import { ArrowRight, ClipboardList, Clock, Hammer } from 'lucide-react';
 import { VerifiedIcon } from '../../components/icons';
 import { motion, useReducedMotion } from 'framer-motion';
 import { AccessCard } from '../../components/AccessCard';
@@ -15,28 +15,28 @@ import { DISCORD_INVITE } from '../../components/site/links';
 
 const EASE = [0.23, 1, 0.32, 1] as const;
 
-const CURRENT_STATE = [
-  'Citizens are spectators to governance',
-  'Transparency is a promise, not a practice',
-  'Public data is trapped in broken systems',
-  'Bureaucracy moves slower than technology',
+// Paired, not two lists read side by side: the whole point of each line is the one across from it,
+// and parallel arrays matched up by index quietly mismatch the moment someone reorders one of them.
+const SHIFTS = [
+  { from: 'Citizens are spectators to governance', to: 'Every Filipino can be an agent of change' },
+  { from: 'Transparency is a promise, not a practice', to: 'Government works with us, not above us' },
+  { from: 'Public data is trapped in broken systems', to: 'Open data, open code, open by default' },
+  { from: 'Bureaucracy moves slower than technology', to: 'Technology serves bayanihan, not bureaucracy' },
 ];
 
-const BETTERGOV_APPROACH = [
-  'Every Filipino can be an agent of change',
-  'Government works with us, not above us',
-  'Open data, open code, open by default',
-  'Technology serves bayanihan, not bureaucracy',
-];
-
-// `span` lays the six out as a 4·2 / 2·4 / 3·3 bento on large screens.
+/*
+ * Numbered, the way a public body publishes a set of principles — GOV.UK has had eleven of these
+ * since 2012 and they are set as plain numbered headings, no tiles, no icons, because a principle
+ * you can cite by number is worth more than one in a box. The number belongs in the title; in the
+ * corner of a card it is just an ornament.
+ */
 const PRINCIPLES = [
-  { title: 'Filipino-first', desc: 'Built by Filipinos, for the people who actually use public services.', icon: Heart, span: 'lg:col-span-4', featured: true },
-  { title: 'Open by default', desc: 'Code, data, and decisions happen in public where anyone can check them.', icon: LockOpen, span: 'lg:col-span-2' },
-  { title: 'Build together', desc: 'Small teams, shared ownership, credit where it’s due.', icon: Users, span: 'lg:col-span-2' },
-  { title: 'Ship it', desc: 'A working tool today beats a perfect plan next year.', icon: Rocket, span: 'lg:col-span-4' },
-  { title: 'Get it right', desc: 'Cite sources and verify numbers before anything goes out.', icon: SearchCheck, span: 'lg:col-span-3' },
-  { title: 'For everyone', desc: 'Accessible on any phone, any connection, in plain language.', icon: Smartphone, span: 'lg:col-span-3' },
+  { title: 'Filipino-first', desc: 'Built by Filipinos, for the people who actually use public services.' },
+  { title: 'Open by default', desc: 'Code, data, and decisions happen in public where anyone can check them.' },
+  { title: 'Build together', desc: 'Small teams, shared ownership, credit where it’s due.' },
+  { title: 'Ship it', desc: 'A working tool today beats a perfect plan next year.' },
+  { title: 'Get it right', desc: 'Cite sources and verify numbers before anything goes out.' },
+  { title: 'For everyone', desc: 'Accessible on any phone, any connection, in plain language.' },
 ];
 
 const DiscordMark = ({ size = 18 }: { size?: number }) => (
@@ -177,10 +177,10 @@ const Landing: React.FC = () => {
 
       {/* Why */}
       <section className="border-t border-[var(--line)] bg-[var(--card)]">
-        <div className="mx-auto grid max-w-6xl gap-12 px-4 sm:px-6 py-20 sm:py-28 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.3fr)] lg:gap-20">
-          <Reveal className="lg:sticky lg:top-28 lg:self-start">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-20 sm:py-28">
+          <Reveal className="max-w-2xl">
             <h2 className="text-[30px] sm:text-[40px]">The system doesn’t fix itself. We do.</h2>
-            <p className="mt-4 max-w-md text-[16px] leading-relaxed text-[var(--fg-2)]">
+            <p className="mt-4 text-[16px] leading-relaxed text-[var(--fg-2)]">
               Four things we think are broken about how Filipinos experience government — and what we build instead.
             </p>
             <Link to="/projects" className="group mt-6 inline-flex items-center gap-1.5 text-[14px] font-medium text-[var(--accent)]">
@@ -189,27 +189,30 @@ const Landing: React.FC = () => {
             </Link>
           </Reveal>
 
+          {/*
+            No boxes. Four entries on a ruled page: what is on the left in a quiet voice, what we are
+            building on the right at the size of a statement, sharing one set of hairlines so the eye
+            runs across each pair. Boxing each one gave four identical tiles of chrome and left the
+            promise — the only part worth reading twice — set at list size.
+          */}
           <Reveal delay={0.06}>
-            <div className="overflow-hidden rounded-[18px] bg-[var(--bg)] shadow-[inset_0_0_0_1px_var(--line)]">
-              <div className="hidden grid-cols-[2.5rem_1fr_1fr] gap-6 border-b border-[var(--line)] px-6 py-3 text-[12px] font-medium sm:grid">
-                <span />
-                <span className="text-[var(--fg-3)]">Today</span>
-                <span className="text-[var(--accent)]">What we’re building</span>
-              </div>
-              <ol className="divide-y divide-[var(--line)]">
-                {CURRENT_STATE.map((problem, i) => (
-                  <li key={problem} className="grid grid-cols-[2.5rem_1fr] gap-x-6 gap-y-2 px-6 py-6 sm:grid-cols-[2.5rem_1fr_1fr] sm:items-baseline">
-                    <span className="num row-span-2 text-[13px] text-[var(--fg-3)] sm:row-span-1">0{i + 1}</span>
-                    <p className="text-[15px] leading-snug text-[var(--fg-3)] line-through decoration-slate-300 decoration-1">
-                      {problem}
-                    </p>
-                    <p className="text-[17px] font-medium leading-snug tracking-[-0.012em] text-[var(--fg)]">
-                      {BETTERGOV_APPROACH[i]}
-                    </p>
-                  </li>
-                ))}
-              </ol>
-            </div>
+            <dl className="mt-14 border-t border-[var(--line)] sm:mt-16">
+              {SHIFTS.map(({ from, to }) => (
+                <div
+                  key={to}
+                  className="grid gap-x-10 gap-y-2.5 border-b border-[var(--line)] py-7 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.55fr)] sm:items-baseline sm:py-9"
+                >
+                  <dt className="text-[14.5px] leading-relaxed text-[var(--fg-3)]">
+                    <span className="sr-only">Today: </span>
+                    {from}
+                  </dt>
+                  <dd className="text-[21px] font-semibold leading-[1.22] tracking-[-0.022em] text-[var(--fg)] sm:text-[25px]">
+                    <span className="sr-only">What we’re building: </span>
+                    {to}
+                  </dd>
+                </div>
+              ))}
+            </dl>
           </Reveal>
         </div>
       </section>
@@ -221,41 +224,30 @@ const Landing: React.FC = () => {
             Six habits that keep a volunteer team shipping useful things, and keep the public able to trust them.
           </SectionHead>
           <Reveal>
-            <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-6">
-              {PRINCIPLES.map((p, i) => {
-                const Icon = p.icon;
-                return (
-                  <div
-                    key={p.title}
-                    className={`group relative flex min-h-[176px] flex-col overflow-hidden rounded-[16px] p-6 transition-[box-shadow,transform] duration-200 sm:p-7 ${p.span} ${
-                      p.featured
-                        ? 'bg-[linear-gradient(140deg,#1e3a8a,#1e40af_60%,#2547b8)] text-white shadow-[0_10px_30px_-12px_rgb(30_58_138/0.6),inset_0_1px_0_rgb(255_255_255/0.12)] sm:col-span-2'
-                        : 'bg-[var(--card)] shadow-[var(--e2)] [@media(hover:hover)]:hover:-translate-y-0.5 [@media(hover:hover)]:hover:shadow-[0_1px_2px_rgb(15_23_42/0.05),0_12px_28px_-8px_rgb(15_23_42/0.16),0_0_0_1px_rgb(15_23_42/0.08)]'
-                    }`}
-                  >
-                    {p.featured && (
-                      <Icon
-                        aria-hidden
-                        size={180}
-                        strokeWidth={1}
-                        className="pointer-events-none absolute -bottom-10 -right-6 text-white/[0.07]"
-                      />
-                    )}
-                    <div className="flex items-center justify-between">
-                      <Icon size={22} strokeWidth={1.75} className={p.featured ? 'text-white' : 'text-[var(--accent)]'} aria-hidden />
-                      <span className={`num text-[13px] ${p.featured ? 'text-white/50' : 'text-[var(--fg-3)]/70'}`}>
-                        {String(i + 1).padStart(2, '0')}
-                      </span>
-                    </div>
-                    <dt className={`mt-auto pt-8 font-semibold tracking-[-0.015em] ${p.featured ? 'text-[24px] sm:text-[28px]' : 'text-[17px]'}`}>
-                      {p.title}
-                    </dt>
-                    <dd className={`mt-1.5 max-w-md leading-relaxed ${p.featured ? 'text-[16px] text-white/80' : 'text-[15px] text-[var(--fg-2)]'}`}>
-                      {p.desc}
-                    </dd>
-                  </div>
-                );
-              })}
+            {/*
+              A numbered set, not six tiles. Each habit opens on a hairline with its number set in
+              tabular figures beside the title, so the six read as one list you could cite from
+              ("number four, ship it") instead of a feature grid with a glyph in a tinted square in
+              every corner.
+            */}
+            <dl className="grid gap-x-12 sm:grid-cols-2 lg:grid-cols-3">
+              {PRINCIPLES.map((p, i) => (
+                // The rule opens each entry, and the first row of each layout starts the page, so it
+                // has none. Written per breakpoint because which row is first changes with the
+                // column count.
+                <div
+                  key={p.title}
+                  className="border-t border-[var(--line)] py-6 first:border-t-0 sm:py-7 sm:[&:nth-child(-n+2)]:border-t-0 lg:[&:nth-child(-n+3)]:border-t-0"
+                >
+                  <dt className="flex gap-3 text-[17px] font-semibold tracking-[-0.015em] text-[var(--fg)]">
+                    {/* Fixed width and tabular, so six titles start on one line rather than each one
+                        shifting with the width of its digit. */}
+                    <span className="num w-3 shrink-0 text-[14px] font-normal text-[var(--accent)]">{i + 1}</span>
+                    <span className="min-w-0">{p.title}</span>
+                  </dt>
+                  <dd className="mt-2 max-w-[42ch] pl-6 text-[14.5px] leading-relaxed text-[var(--fg-2)]">{p.desc}</dd>
+                </div>
+              ))}
             </dl>
           </Reveal>
         </div>
