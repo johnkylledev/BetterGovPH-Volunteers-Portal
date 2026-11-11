@@ -136,8 +136,21 @@ export const SPECIALIZATIONS: Specialization[] = [
     label: 'Researcher & Analyst',
     icon: FileSearch,
     group: 'community',
-    suggestedSkills: ['Policy Research', 'Budget Analysis', 'Data Analysis', 'Survey Design', 'Fact-Checking'],
-    requiredSkills: ['Policy Research', 'Budget Analysis', 'Data Analysis', 'Survey Design', 'Fact-Checking', 'Research & Documentation', 'Data Analytics', 'Writing'],
+    // Auditing, accounting, procurement and mapping are here because this is the role an accountant
+    // or an auditor signs up as: following public money is analysis. They stay four — any more and
+    // the finance category would outscore 'Writing & Research' and the browse list would open on
+    // the wrong tab for every researcher (see categoryForRole in SkillsPicker).
+    suggestedSkills: [
+      'Policy Research', 'Budget Analysis', 'Data Analytics', 'Survey Design', 'Fact-Checking',
+      'Auditing', 'Accounting', 'Government Procurement', 'GIS & Mapping'
+    ],
+    // 'Data Analysis' is kept here, though it is in no category: members who joined before the
+    // skill list settled hold it, and dropping it would stop their role matching.
+    requiredSkills: [
+      'Policy Research', 'Budget Analysis', 'Data Analysis', 'Data Analytics', 'Survey Design',
+      'Fact-Checking', 'Research & Documentation', 'Writing',
+      'Auditing', 'Accounting', 'Government Procurement', 'Financial Reporting', 'GIS & Mapping'
+    ],
     minRequiredCount: 2
   },
   {

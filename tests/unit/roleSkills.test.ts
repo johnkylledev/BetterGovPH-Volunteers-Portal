@@ -51,3 +51,40 @@ describe('role list', () => {
     expect(impossible).toEqual([]);
   });
 });
+
+/*
+ * Researcher & Analyst is the role an accountant or auditor signs up as, so it recommends finance
+ * and mapping skills as well as research ones. That has a catch worth holding still: the browse
+ * list opens on whichever category holds most of the role's skills, so a few more finance skills
+ * here would quietly move every researcher's starting tab off research.
+ */
+describe('Researcher & Analyst', () => {
+  const spec = SPECIALIZATIONS.find((s) => s.id === 'researcher')!;
+
+  /** Mirrors categoryForRole in SkillsPicker: most overlap wins, earliest category breaks a tie. */
+  const openingCategory = (): string => {
+    const wanted = new Set([...spec.suggestedSkills, ...spec.requiredSkills].map((s) => s.toLowerCase()));
+    let best = '';
+    let bestScore = 0;
+    for (const [name, list] of Object.entries(SKILL_CATEGORIES)) {
+      const score = list.filter((sk) => wanted.has(sk.toLowerCase())).length;
+      if (score > bestScore) { best = name; bestScore = score; }
+    }
+    return best;
+  };
+
+  it('recommends the finance and mapping skills', () => {
+    for (const skill of ['Auditing', 'Accounting', 'Government Procurement', 'GIS & Mapping']) {
+      expect(spec.suggestedSkills).toContain(skill);
+    }
+  });
+
+  it('every recommended skill can also be found by browsing', () => {
+    const missing = spec.suggestedSkills.filter((s) => !ALL_SKILLS.some((sk) => sk.toLowerCase() === s.toLowerCase()));
+    expect(missing).toEqual([]);
+  });
+
+  it('still opens the browse list on research, not on finance', () => {
+    expect(openingCategory()).toBe('Writing & Research');
+  });
+});
