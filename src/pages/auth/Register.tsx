@@ -8,7 +8,7 @@ import { LoadingOverlay } from '../../components/LoadingOverlay';
 import { SkillsPicker } from '../../components/SkillsPicker';
 import { EXPERIENCE_LEVELS } from '../../constants/experience';
 import { SkillLevel, ExperienceLevel, UserSkill } from '../../types';
-import { SPECIALIZATIONS, ROLE_GROUPS, Specialization } from '../../constants/specializations';
+import { SPECIALIZATIONS, ROLE_GROUPS, Specialization, roleMatchingSkills } from '../../constants/specializations';
 import { trackForRole } from '../../constants/tracks';
 import { DISCORD_AVAILABLE, COMING_SOON_PILL } from '../../constants/integrations';
 import type { LinkKey, ProfileLinks } from '../../constants/socialLinks';
@@ -456,9 +456,7 @@ function LegacyRegister() {
 
             const spec = SPECIALIZATIONS.find(s => s.label === formData.specialization);
             if (spec) {
-                const matchingSkills = formData.skills.filter(s =>
-                    spec.requiredSkills.some(rs => rs.toLowerCase() === s.name.toLowerCase())
-                );
+                const matchingSkills = roleMatchingSkills(spec, formData.skills);
 
                 if (spec.id === 'fullstack') {
                     const frontendSkills = formData.skills.filter(s =>

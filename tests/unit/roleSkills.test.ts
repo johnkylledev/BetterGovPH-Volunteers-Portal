@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { SPECIALIZATIONS, ROLE_GROUPS } from '../../src/constants/specializations';
+import {
+  SPECIALIZATIONS, ROLE_GROUPS, CATCH_ALL_ROLE_ID, roleMatchingSkills,
+} from '../../src/constants/specializations';
 import { SKILL_CATEGORIES } from '../../src/constants/skills';
 
 /*
@@ -87,4 +89,92 @@ describe('Researcher & Analyst', () => {
   it('still opens the browse list on research, not on finance', () => {
     expect(openingCategory()).toBe('Writing & Research');
   });
+
+  it('two planning skills are enough to confirm the role', () => {
+    const picked = [{ name: 'Urban & Regional Planning' }, { name: 'Environmental Planning' }];
+    expect(roleMatchingSkills(spec, picked).length).toBeGreaterThanOrEqual(spec.minRequiredCount);
+  });
+});
+
+/*
+ * Sign-up refuses to go on until the volunteer holds `minRequiredCount` of their role's required
+ * skills (Register.tsx, step 3). The skill list is wider than the role list — more than half of the
+ * skills belong to no role's list — so without a role that accepts anything, someone whose
+ * profession the roles do not cover picks the skills they have and is told to "select at least 1
+ * relevant skills", with nothing on screen saying which ones would count. These hold the way out
+ * open.
+ */
+describe('a volunteer the roles do not describe', () => {
+  const catchAll = SPECIALIZATIONS.find((s) => s.id === CATCH_ALL_ROLE_ID)!;
+
+  it('the catch-all role exists and asks for one skill', () => {
+    expect(catchAll).toBeDefined();
+    expect(catchAll.minRequiredCount).toBe(1);
+  });
+
+  it('can register under it with any single skill — every one in the list', () => {
+    const refused = Object.values(SKILL_CATEGORIES).flat()
+      .filter((skill) => roleMatchingSkills(catchAll, [{ name: skill }]).length < catchAll.minRequiredCount);
+    expect(refused).toEqual([]);
+  });
+
+  it('can register with an engineering skill alone', () => {
+    for (const skill of ['Civil Engineering', 'Structural Engineering', 'CAD / BIM', 'Occupational Safety']) {
+      expect(roleMatchingSkills(catchAll, [{ name: skill }])).toHaveLength(1);
+    }
+  });
+
+  it('can register with a skill the list has never heard of', () => {
+    expect(roleMatchingSkills(catchAll, [{ name: 'Marine Biology' }])).toHaveLength(1);
+  });
+
+  it('no other role accepts a skill it does not name', () => {
+    const wrong = SPECIALIZATIONS
+      .filter((s) => s.id !== CATCH_ALL_ROLE_ID)
+      .filter((s) => roleMatchingSkills(s, [{ name: 'Marine Biology' }]).length > 0)
+      .map((s) => s.id);
+    expect(wrong).toEqual([]);
+  });
+});
+
+/*
+ * The browse list opens on whichever category holds most of a role's skills, so editing any role's
+ * skills can move a different role's starting tab without anyone touching that role. This is where
+ * each one opens today; a change here is either deliberate or a bug.
+ */
+describe('opening browse tab per role', () => {
+  const EXPECTED: Record<string, string> = {
+    frontend: 'Software Engineering',
+    backend: 'Software Engineering',
+    fullstack: 'Software Engineering',
+    design: 'Design & Creative',
+    devops: 'DevOps & Infrastructure',
+    data: 'Data & AI',
+    security: 'Cybersecurity',
+    pm: 'Professional & Others',
+    content: 'Content & Media',
+    writer: 'Writing & Research',
+    educator: 'Education & Training',
+    legal: 'Law & Policy',
+    advocate: 'Advocacy & Community',
+    researcher: 'Writing & Research',
+    general: 'Advocacy & Community',
+  };
+
+  it('covers every role', () => {
+    expect(Object.keys(EXPECTED).sort()).toEqual(SPECIALIZATIONS.map((s) => s.id).sort());
+  });
+
+  for (const spec of SPECIALIZATIONS) {
+    it(`${spec.id} opens on ${EXPECTED[spec.id]}`, () => {
+      const wanted = new Set([...spec.suggestedSkills, ...spec.requiredSkills].map((s) => s.toLowerCase()));
+      let best = '';
+      let bestScore = 0;
+      for (const [name, list] of Object.entries(SKILL_CATEGORIES)) {
+        const score = list.filter((sk) => wanted.has(sk.toLowerCase())).length;
+        if (score > bestScore) { best = name; bestScore = score; }
+      }
+      expect(best).toBe(EXPECTED[spec.id]);
+    });
+  }
 });

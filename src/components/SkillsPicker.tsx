@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { Check, Plus, Search, Target, X } from 'lucide-react';
 import { SkillIcon } from './SkillIcon';
-import { SPECIALIZATIONS } from '../constants/specializations';
+import { SPECIALIZATIONS, CATCH_ALL_ROLE_ID, roleMatchingSkills } from '../constants/specializations';
 import { SKILL_CATEGORIES, SkillCategory } from '../constants/skills';
 import { useDragScroll } from '../hooks/useDragScroll';
 import type { SkillLevel, UserSkill } from '../types';
@@ -113,11 +113,15 @@ export const SkillsPicker: React.FC<SkillsPickerProps> = ({
     const scores: Record<string, number> = {};
     if (skills.length === 0) return { roleScores: scores, betterRoleSuggestion: null as string | null };
     SPECIALIZATIONS.forEach((spec) => {
-      const matching = skills.filter((s) => spec.requiredSkills.some((rs) => rs.toLowerCase() === s.name.toLowerCase()));
+      const matching = roleMatchingSkills(spec, skills);
       scores[spec.label] = Math.min(100, Math.round((matching.length / spec.minRequiredCount) * 100));
     });
     const current = scores[specialization] || 0;
-    const best = Object.entries(scores).reduce((a, b) => (a[1] > b[1] ? a : b));
+    // The catch-all role accepts any skill, so it would always score highest and nag everyone to
+    // switch to it. It is somewhere to land, not somewhere to be sent.
+    const best = Object.entries(scores)
+      .filter(([label]) => SPECIALIZATIONS.find((s) => s.label === label)?.id !== CATCH_ALL_ROLE_ID)
+      .reduce((a, b) => (a[1] > b[1] ? a : b));
     return {
       roleScores: scores,
       betterRoleSuggestion: best[0] !== specialization && best[1] > current + 20 ? best[0] : null,
@@ -206,7 +210,7 @@ export const SkillsPicker: React.FC<SkillsPickerProps> = ({
           const SpecIcon = spec?.icon || Target;
           const score = roleScores[specialization] || 0;
           const needed = spec?.minRequiredCount ?? 3;
-          const matched = skills.filter((s) => spec?.requiredSkills.some((rs) => rs.toLowerCase() === s.name.toLowerCase()));
+          const matched = spec ? roleMatchingSkills(spec, skills) : [];
           const remaining = Math.max(0, needed - matched.length);
           const verdict =
               score >= 70

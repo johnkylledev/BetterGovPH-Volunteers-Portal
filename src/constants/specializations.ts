@@ -149,7 +149,8 @@ export const SPECIALIZATIONS: Specialization[] = [
     requiredSkills: [
       'Policy Research', 'Budget Analysis', 'Data Analysis', 'Data Analytics', 'Survey Design',
       'Fact-Checking', 'Research & Documentation', 'Writing',
-      'Auditing', 'Accounting', 'Government Procurement', 'Financial Reporting', 'GIS & Mapping'
+      'Auditing', 'Accounting', 'Government Procurement', 'Financial Reporting',
+      'GIS & Mapping', 'Urban & Regional Planning', 'Environmental Planning'
     ],
     minRequiredCount: 2
   },
@@ -167,6 +168,26 @@ export const SPECIALIZATIONS: Specialization[] = [
     minRequiredCount: 1
   }
 ];
+
+/**
+ * The role for people the other fourteen do not describe.
+ *
+ * Every other role names the skills that confirm it, and sign-up will not let someone past until
+ * they hold `minRequiredCount` of them. Holding this one to a list defeats its purpose: the skill
+ * list is wider than the role list and always will be, so a civil engineer, an accountant or a
+ * nurse would pick the skills they actually have and be told to “select at least 1 relevant
+ * skills” with no way to tell which ones count. Here, picking something is the evidence.
+ */
+export const CATCH_ALL_ROLE_ID = 'general';
+
+/** Whether a skill counts as evidence for a role. */
+export const skillCountsForRole = (spec: Specialization, skillName: string): boolean =>
+  spec.id === CATCH_ALL_ROLE_ID
+  || spec.requiredSkills.some((rs) => rs.toLowerCase() === skillName.toLowerCase());
+
+/** The picked skills that confirm a role, which is what sign-up counts and the match card shows. */
+export const roleMatchingSkills = <T extends { name: string }>(spec: Specialization, skills: T[]): T[] =>
+  skills.filter((skill) => skillCountsForRole(spec, skill.name));
 
 /** The two halves of the role picker, so non-tech volunteers find their place without scrolling past code roles. */
 export const ROLE_GROUPS = [
