@@ -202,6 +202,11 @@ const TRACK_BY_ROLE: Record<string, TrackId> = {
   researcher: 'policy',
   advocate: 'organize',
   general: 'organize',
+  // Their contribution is reading what the state publishes and saying what it means — a reviewed
+  // dataset, a budget that does not add up — which is the brief track, not the build one.
+  engineer: 'policy',
+  architect: 'policy',
+  accountant: 'policy',
 };
 
 /** The track for a member's primary role (a SPECIALIZATIONS label). Tech roles and unknown labels build. */

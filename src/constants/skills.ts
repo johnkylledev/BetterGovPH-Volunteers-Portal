@@ -42,6 +42,16 @@ export const SKILL_CATEGORIES = {
     'Community Organizing', 'Campaign Strategy', 'Volunteer Coordination', 'Event Organizing',
     'Grassroots Outreach', 'Fundraising', 'Community Building'
   ],
+  'Engineering & Built Environment': [
+    'Civil Engineering', 'Structural Engineering', 'Mechanical Engineering',
+    'Electrical Engineering', 'Geodetic Engineering & Surveying', 'Architecture',
+    'Urban & Regional Planning', 'Environmental Planning', 'Construction Management',
+    'CAD / BIM', 'GIS & Mapping', 'Occupational Safety'
+  ],
+  'Finance, Audit & Accounting': [
+    'Accounting', 'Bookkeeping', 'Auditing', 'Internal Controls', 'Financial Reporting',
+    'Taxation (BIR)', 'Government Procurement', 'Grants & Compliance'
+  ],
   'Professional & Others': [
     'Project Management', 'Technical Writing', 'Research & Documentation',
     'Open Source Contributor'
