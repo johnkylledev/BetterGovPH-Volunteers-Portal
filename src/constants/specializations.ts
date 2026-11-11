@@ -1,4 +1,4 @@
-import { Globe, Database, Code, Palette, Cpu, Brain, ShieldCheck, Briefcase, Layers, Clapperboard, Newspaper, GraduationCap, Scale, Megaphone, FileSearch, HandHeart, HardHat, Ruler, Calculator } from 'lucide-react';
+import { Globe, Database, Code, Palette, Cpu, Brain, ShieldCheck, Briefcase, Layers, Clapperboard, Newspaper, GraduationCap, Scale, Megaphone, FileSearch, HandHeart } from 'lucide-react';
 
 export interface Specialization {
   id: string;
@@ -7,8 +7,8 @@ export interface Specialization {
   suggestedSkills: string[];
   requiredSkills: string[];
   minRequiredCount: number;
-  /** Which part of the role picker it sits in. Defaults to 'tech'. */
-  group?: 'tech' | 'community' | 'profession';
+  /** Which half of the role picker it sits in. Defaults to 'tech'. */
+  group?: 'tech' | 'community';
   validationRules?: {
     type: 'simple' | 'balanced';
     requirements: {
@@ -152,53 +152,11 @@ export const SPECIALIZATIONS: Specialization[] = [
       'Public Speaking', 'Documentation', 'Research & Documentation', 'Project Management'
     ],
     minRequiredCount: 1
-  },
-
-  // Licensed and other professions. Public data is about roads, buildings and budgets as much as it
-  // is about code: an engineer can say whether an infrastructure dataset is plausible, an accountant
-  // whether a budget adds up. Two matching skills confirm the role, as with the community roles.
-  {
-    id: 'engineer',
-    label: 'Engineer',
-    icon: HardHat,
-    group: 'profession',
-    suggestedSkills: ['Civil Engineering', 'Structural Engineering', 'Construction Management', 'CAD / BIM', 'Occupational Safety'],
-    requiredSkills: [
-      'Civil Engineering', 'Structural Engineering', 'Mechanical Engineering', 'Electrical Engineering',
-      'Geodetic Engineering & Surveying', 'Construction Management', 'CAD / BIM', 'Environmental Planning',
-      'Occupational Safety', 'GIS & Mapping'
-    ],
-    minRequiredCount: 2
-  },
-  {
-    id: 'architect',
-    label: 'Architect & Urban Planner',
-    icon: Ruler,
-    group: 'profession',
-    suggestedSkills: ['Architecture', 'Urban & Regional Planning', 'CAD / BIM', 'GIS & Mapping', 'Environmental Planning'],
-    requiredSkills: [
-      'Architecture', 'Urban & Regional Planning', 'CAD / BIM', 'GIS & Mapping', 'Environmental Planning',
-      'Construction Management', 'Civil Engineering'
-    ],
-    minRequiredCount: 2
-  },
-  {
-    id: 'accountant',
-    label: 'Accountant & Auditor',
-    icon: Calculator,
-    group: 'profession',
-    suggestedSkills: ['Accounting', 'Auditing', 'Budget Analysis', 'Financial Reporting', 'Government Procurement'],
-    requiredSkills: [
-      'Accounting', 'Bookkeeping', 'Auditing', 'Internal Controls', 'Financial Reporting', 'Taxation (BIR)',
-      'Government Procurement', 'Grants & Compliance', 'Budget Analysis', 'Data Analytics'
-    ],
-    minRequiredCount: 2
   }
 ];
 
-/** The parts of the role picker, so non-tech volunteers find their place without scrolling past code roles. */
+/** The two halves of the role picker, so non-tech volunteers find their place without scrolling past code roles. */
 export const ROLE_GROUPS = [
   { id: 'tech', label: 'Tech & design' },
   { id: 'community', label: 'Community, content & policy' },
-  { id: 'profession', label: 'Engineering, planning & finance' },
 ] as const;
