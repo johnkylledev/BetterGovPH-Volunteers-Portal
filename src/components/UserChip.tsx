@@ -2,7 +2,7 @@ import { CARDS_ENABLED } from '../constants/features';
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { ArrowUpRight, Check, ChevronDown, IdCard, LayoutDashboard, Link2, LogOut, MessageCircle, ShieldCheck, UserCog } from 'lucide-react';
+import { ArrowUpRight, Check, ChevronDown, IdCard, LayoutDashboard, Link2, LogOut, MessageCircle, ShieldCheck, UserCog, LayoutGrid } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { hasAdminAccess } from '../utils/adminAccess';
 import { VerifiedIcon } from './icons';
@@ -199,11 +199,16 @@ export const UserChip: React.FC<UserChipProps> = ({
                   <span aria-live="polite">{copied ? 'Link copied' : 'Copy verification link'}</span>
                 </button>
               )}
-              {showAdminTools && (
+              {showAdminTools ? (
                 <button type="button" role="menuitem" className={item} onClick={() => go('/admin')}>
                   <ShieldCheck size={16} strokeWidth={1.75} className={icon} aria-hidden />
                   <span className="flex-1">Admin tools</span>
                   {me?.adminRoleName && <span className="text-[11.5px] text-slate-400">{me.adminRoleName}</span>}
+                </button>
+              ) : (
+                <button type="button" role="menuitem" className={item} onClick={() => go('/admin')}>
+                  <LayoutGrid size={16} strokeWidth={1.75} className={icon} aria-hidden />
+                  Dashboard
                 </button>
               )}
               {!onProfile && (
