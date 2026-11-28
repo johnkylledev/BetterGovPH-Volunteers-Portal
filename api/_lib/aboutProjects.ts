@@ -30,9 +30,17 @@ const ENTITIES: Record<string, string> = {
 };
 
 const decode = (raw: string): string =>
-  raw
+  ((input: string) => {
     // React leaves `<!-- -->` between adjacent text nodes; it is markup, not content.
-    .replace(/<!--[\s\S]*?-->/g, '')
+    // Remove repeatedly so comment markers cannot reappear after a single replacement pass.
+    let prev: string;
+    let cur = input;
+    do {
+      prev = cur;
+      cur = cur.replace(/<!--[\s\S]*?-->/g, '');
+    } while (cur !== prev);
+    return cur;
+  })(raw)
     .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
     .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(Number(dec)))
     .replace(/&([a-z]+);/gi, (whole, name) => ENTITIES[String(name).toLowerCase()] ?? whole)
