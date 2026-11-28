@@ -21,7 +21,7 @@ import { DISCORD_AVAILABLE, COMING_SOON_PILL } from '../../constants/integration
 import { Avatar, useSessionPhoto } from '../../components/Avatar';
 import { PrivacySettings } from '../../components/PrivacySettings';
 import { ComingSoonConnections } from '../../components/ComingSoonConnections';
-import { AVAILABILITY, HOURS_PER_WEEK, LANGUAGES, PH_REGIONS } from '../../constants/community';
+import { AVAILABILITY, HOURS_PER_WEEK, LANGUAGES, PH_REGIONS, regionLabel } from '../../constants/community';
 import type { ExperienceLevel, UserSkill } from '../../types';
 
 const TABS = [
@@ -485,7 +485,7 @@ export default function Profile() {
                     <label id="region-label" htmlFor="region" className={labelClass}>Region</label>
                     <SelectMenu id="region" labelledBy="region-label" value={region} placeholder="Choose a region" align="right"
                       onChange={(v) => { setRegion(v); touch(); }}
-                      options={[{ value: '', label: 'Prefer not to say' }, ...PH_REGIONS.map((r) => ({ value: r, label: r }))]} />
+                      options={[{ value: '', label: 'Prefer not to say' }, ...PH_REGIONS.map((r) => ({ value: r, label: regionLabel(r) }))]} />
                   </div>
                   <fieldset className="sm:col-span-2">
                     <legend className={labelClass}>Languages you can work in</legend>

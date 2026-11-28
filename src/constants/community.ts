@@ -56,6 +56,29 @@ export const STAGES: { id: ProjectStage; label: string; hint: string }[] = [
 export const PH_REGIONS = ['NCR', 'CAR', 'Ilocos Region', 'Cagayan Valley', 'Central Luzon', 'CALABARZON', 'MIMAROPA', 'Bicol Region',
   'Western Visayas', 'Central Visayas', 'Eastern Visayas', 'Zamboanga Peninsula', 'Northern Mindanao', 'Davao Region',
   'SOCCSKSARGEN', 'Caraga', 'BARMM', 'Abroad'] as const;
+
+/** Official region designations. Acronym regions (NCR, CAR, BARMM) and Abroad have no Roman numeral. */
+const REGION_ROMAN: Record<string, string> = {
+  'Ilocos Region': 'I',
+  'Cagayan Valley': 'II',
+  'Central Luzon': 'III',
+  'CALABARZON': 'IV-A',
+  'MIMAROPA': 'IV-B',
+  'Bicol Region': 'V',
+  'Western Visayas': 'VI',
+  'Central Visayas': 'VII',
+  'Eastern Visayas': 'VIII',
+  'Zamboanga Peninsula': 'IX',
+  'Northern Mindanao': 'X',
+  'Davao Region': 'XI',
+  'SOCCSKSARGEN': 'XII',
+  'Caraga': 'XIII',
+};
+export const regionLabel = (region?: string | null) => {
+  if (!region) return '';
+  const roman = REGION_ROMAN[region];
+  return roman ? `${roman} — ${region}` : region;
+};
 export const LANGUAGES = ['Filipino', 'English', 'Cebuano', 'Ilocano', 'Hiligaynon', 'Bikol', 'Waray', 'Kapampangan', 'Pangasinan',
   'Maranao', 'Maguindanaon', 'Tausug', 'Chavacano', 'Kinaray-a', 'Surigaonon', 'Other'] as const;
 export const AVAILABILITY = [
@@ -73,7 +96,7 @@ export const availabilitySummary = (p: { availability?: string[]; hoursPerWeek?:
   [
     (p.availability ?? []).map((a) => AVAILABILITY.find((x) => x.id === a)?.label ?? a).join(', '),
     p.hoursPerWeek ? HOURS_PER_WEEK.find((h) => h.id === p.hoursPerWeek)?.label : '',
-    p.region ?? '',
+    regionLabel(p.region),
     (p.languages ?? []).join(', '),
   ].filter(Boolean).join(' · ');
 export const stageLabel = (id?: string | null) => STAGES.find((s) => s.id === id)?.label;
