@@ -27,8 +27,34 @@ const CURL_HEADERS = {
     'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1',
 };
 
-const log = (label, ...rest) => console.log(`[sync-projects][${label}]`, ...rest);
-const err = (label, ...rest) => console.error(`[sync-projects][${label}]`, ...rest);
+function toSafeLogValue(value) {
+  const SENSITIVE_KEY_RE = /(pass(word)?|secret|token|api[_-]?key|service[_-]?role|authorization|bearer)/i;
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+  if (typeof value === 'string') {
+    if (SENSITIVE_KEY_RE.test(value)) return '[REDACTED]';
+    if (UUID_RE.test(value)) return `${value.slice(0, 8)}...${value.slice(-4)}`;
+    return value;
+  }
+
+  if (value && typeof value === 'object') {
+    const seen = new WeakSet();
+    return JSON.stringify(value, (k, v) => {
+      if (SENSITIVE_KEY_RE.test(String(k))) return '[REDACTED]';
+      if (typeof v === 'string' && UUID_RE.test(v)) return `${v.slice(0, 8)}...${v.slice(-4)}`;
+      if (v && typeof v === 'object') {
+        if (seen.has(v)) return '[Circular]';
+        seen.add(v);
+      }
+      return v;
+    });
+  }
+
+  return value;
+}
+
+const log = (label, ...rest) => console.log(`[sync-projects][${label}]`, ...rest.map(toSafeLogValue));
+const err = (label, ...rest) => console.error(`[sync-projects][${label}]`, ...rest.map(toSafeLogValue));
 
 function normalizeUrl(u) {
   if (!u || typeof u !== 'string') return '';
