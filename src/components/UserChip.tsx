@@ -93,6 +93,8 @@ export const UserChip: React.FC<UserChipProps> = ({
 
   const go = (path: string) => { setOpen(false); navigate(path); };
   const homePath = isAdmin ? '/admin' : '/dashboard';
+  // Reachable from anywhere but your own dashboard, where it would be a link to itself.
+  const showHomeLink = !pathname.startsWith(homePath);
   // Members with an admin role (e.g. Legal) keep the member dashboard as home and reach their tools here.
   const showAdminTools = !isAdmin && hasAdminAccess(me) && !pathname.startsWith('/admin');
   const onProfile = pathname.startsWith('/profile');
@@ -168,7 +170,7 @@ export const UserChip: React.FC<UserChipProps> = ({
             </div>
 
             <div className="p-1.5">
-              {onProfile && (
+              {showHomeLink && (
                 <button type="button" role="menuitem" className={item} onClick={() => go(homePath)}>
                   <LayoutDashboard size={16} strokeWidth={1.75} className={icon} aria-hidden />
                   {isAdmin ? 'Admin dashboard' : 'Dashboard'}
