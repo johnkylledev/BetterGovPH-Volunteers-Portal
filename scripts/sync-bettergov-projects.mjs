@@ -34,7 +34,8 @@ function toSafeLogValue(value) {
   if (typeof value === 'string') {
     if (SENSITIVE_KEY_RE.test(value)) return '[REDACTED]';
     if (UUID_RE.test(value)) return `${value.slice(0, 8)}...${value.slice(-4)}`;
-    return value;
+    if (value.length <= 8) return '[REDACTED]';
+    return `${value.slice(0, 4)}...${value.slice(-2)}`;
   }
 
   if (value && typeof value === 'object') {
