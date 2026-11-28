@@ -121,8 +121,8 @@ const Landing: React.FC = () => {
   return (
     <SiteLayout>
       {/* Hero */}
-      <section className="mx-auto max-w-6xl px-4 sm:px-6 pt-14 pb-20 sm:pt-20 sm:pb-28">
-        <div className="grid grid-cols-1 items-center gap-14 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
+      <section className="relative w-full pt-14 pb-20 sm:pt-20 sm:pb-28 overflow-hidden">
+        <div className="relative mx-auto max-w-6xl px-4 sm:px-6 grid grid-cols-1 items-center gap-14 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
           <div>
             <motion.h1 {...enter(0.04)} className="text-[40px] sm:text-[56px] lg:text-[60px] tracking-[-0.04em] leading-[1.02]">
               Build the public tools the Philippines deserves.

@@ -94,7 +94,7 @@ export const Navbar: React.FC = () => {
           </span>
         </Link>
 
-        <div className="hidden items-center gap-1 md:flex">
+        <div className="hidden items-center gap-0.5 md:flex">
           {navLinks.map((link) => (
             <Link
               key={link.label}
@@ -116,7 +116,8 @@ export const Navbar: React.FC = () => {
             About
             <ArrowUpRight size={13} strokeWidth={1.75} className="transition-transform duration-200 group-hover:translate-x-px group-hover:-translate-y-px" />
           </a>
-          <button onClick={handleCtaClick} className="s-btn s-btn-plain ml-3 h-9 px-3.5">
+          <div className="mx-1 h-5 w-px bg-slate-200" />
+          <button onClick={handleCtaClick} className="s-btn s-btn-plain h-9 px-3.5">
             {ctaLabel}
           </button>
         </div>
