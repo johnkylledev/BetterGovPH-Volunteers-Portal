@@ -2,7 +2,7 @@ import { CARDS_ENABLED } from '../constants/features';
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { ArrowUpRight, Check, ChevronDown, IdCard, LayoutDashboard, Link2, LogOut, MessageCircle, ShieldCheck, UserCog, LayoutGrid } from 'lucide-react';
+import { ArrowUpRight, Check, ChevronDown, IdCard, LayoutDashboard, Link2, LogOut, MessageCircle, ShieldCheck, UserCog } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { hasAdminAccess } from '../utils/adminAccess';
 import { VerifiedIcon } from './icons';
@@ -93,6 +93,8 @@ export const UserChip: React.FC<UserChipProps> = ({
 
   const go = (path: string) => { setOpen(false); navigate(path); };
   const homePath = isAdmin ? '/admin' : '/dashboard';
+  // Reachable from anywhere but your own dashboard, where it would be a link to itself.
+  const showHomeLink = !pathname.startsWith(homePath);
   // Members with an admin role (e.g. Legal) keep the member dashboard as home and reach their tools here.
   const showAdminTools = !isAdmin && hasAdminAccess(me) && !pathname.startsWith('/admin');
   const onProfile = pathname.startsWith('/profile');
@@ -168,7 +170,7 @@ export const UserChip: React.FC<UserChipProps> = ({
             </div>
 
             <div className="p-1.5">
-              {onProfile && (
+              {showHomeLink && (
                 <button type="button" role="menuitem" className={item} onClick={() => go(homePath)}>
                   <LayoutDashboard size={16} strokeWidth={1.75} className={icon} aria-hidden />
                   {isAdmin ? 'Admin dashboard' : 'Dashboard'}
@@ -199,16 +201,11 @@ export const UserChip: React.FC<UserChipProps> = ({
                   <span aria-live="polite">{copied ? 'Link copied' : 'Copy verification link'}</span>
                 </button>
               )}
-              {showAdminTools ? (
+              {showAdminTools && (
                 <button type="button" role="menuitem" className={item} onClick={() => go('/admin')}>
                   <ShieldCheck size={16} strokeWidth={1.75} className={icon} aria-hidden />
                   <span className="flex-1">Admin tools</span>
                   {me?.adminRoleName && <span className="text-[11.5px] text-slate-400">{me.adminRoleName}</span>}
-                </button>
-              ) : (
-                <button type="button" role="menuitem" className={item} onClick={() => go('/admin')}>
-                  <LayoutGrid size={16} strokeWidth={1.75} className={icon} aria-hidden />
-                  Dashboard
                 </button>
               )}
               {!onProfile && (
