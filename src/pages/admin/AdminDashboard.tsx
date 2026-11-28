@@ -490,7 +490,12 @@ export default function AdminDashboard() {
     <div className="site min-h-screen pb-16">
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl backdrop-saturate-150 shadow-[0_1px_0_rgb(15_23_42/0.08)]">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
-          <div className="flex min-w-0 items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="flex min-w-0 items-center gap-2.5 rounded-lg transition-opacity active:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+            aria-label="BetterGovPH — go to home"
+          >
             <img
               src="/logo.svg" onError={(e)=>{const t=e.currentTarget;t.onerror=null;t.src='https://assets.bettergov.ph/logos/webp/icon-primary.webp';}}
               alt=""
@@ -499,21 +504,21 @@ export default function AdminDashboard() {
             <span className="truncate text-[15px] font-semibold tracking-[-0.015em] text-slate-900">
               BetterGovPH <span className="font-normal text-slate-500">Admin</span>
             </span>
-          </div>
+          </button>
 
-          <nav aria-label="Admin sections" className="hidden items-center gap-1 md:flex">
+          <nav aria-label="Admin sections" className="no-scrollbar hidden min-w-0 flex-1 items-center gap-1 overflow-x-auto md:flex">
             {adminTabs.map((t) => (
               <button
                 key={t.id}
                 onClick={() => setActiveTab(t.id)}
                 aria-current={activeTab === t.id ? 'page' : undefined}
                 className={clsx(
-                  'inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-[14px] transition-colors duration-150',
+                  'inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-[14px] transition-colors duration-150',
                   activeTab === t.id ? 'bg-slate-900/[0.05] font-medium text-slate-900' : 'text-slate-500 hover:text-slate-900'
                 )}
               >
                 {t.label}
-                {typeof t.count === 'number' && <span className="num text-[12px] text-slate-400">{t.count}</span>}
+                {typeof t.count === 'number' && <span className="num hidden text-[12px] text-slate-400 lg:inline">{t.count}</span>}
               </button>
             ))}
           </nav>
