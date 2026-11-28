@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { createHmac, timingSafeEqual } from 'crypto';
+import { createHmac, timingSafeEqual, randomBytes } from 'crypto';
 import { syncMemberRoles, syncSkillRoles, syncTeamRole } from './_lib/discordRoles.js';
 import { parseLguTable, parseLguLogos, pickIconFromHtml } from './_lib/lguDirectory.js';
 import { cardsEnabled } from './_lib/features.js';
@@ -29,12 +29,15 @@ const safeRandomUuid = (): string => {
       if (typeof v === 'string' && v.length > 0) return v;
     }
   } catch { /* noop */ }
-  const rnd = (n: number) => {
-    let s = '';
-    for (let i = 0; i < n; i++) s += Math.floor(Math.random() * 16).toString(16);
-    return s;
-  };
-  return `${rnd(8)}-${rnd(4)}-4${rnd(3)}-a${rnd(3)}-${rnd(12)}`;
+  try {
+    const bytes = randomBytes(16);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+    bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant 10
+    const hex = bytes.toString('hex');
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+  } catch {
+    throw new Error('Unable to generate secure UUID');
+  }
 };
 
 // ============================================================================
